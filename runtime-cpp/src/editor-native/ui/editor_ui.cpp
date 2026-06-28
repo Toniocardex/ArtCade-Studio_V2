@@ -1,6 +1,7 @@
 #include "editor-native/ui/editor_ui.h"
 
 #include "editor-native/app/editor_coordinator.h"
+#include "editor-native/app/hierarchy_actions.h"
 #include "editor-native/app/inspector_commit.h"
 #include "editor-native/commands/entity_commands.h"
 
@@ -133,6 +134,15 @@ void EditorUi::handleAction(const std::string& action, const std::string& arg,
             static_cast<EntityId>(std::strtoul(arg.c_str(), nullptr, 10))});
     } else if (action == "select-scene") {
         coordinator_.apply(SelectSceneIntent{arg});
+    } else if (action == "add-scene") {
+        addScene(coordinator_);
+    } else if (action == "delete-scene") {
+        // No arg → the active scene; the coordinator reconciles the workspace.
+        deleteScene(coordinator_, arg.empty() ? coordinator_.state().activeSceneId : arg);
+    } else if (action == "add-entity") {
+        addEntity(coordinator_);
+    } else if (action == "delete-entity") {
+        deleteSelectedEntity(coordinator_);
     } else if (action == "commit-pos-x") {
         commitInspectorPositionX(coordinator_, selected, value);
     } else if (action == "commit-pos-y") {

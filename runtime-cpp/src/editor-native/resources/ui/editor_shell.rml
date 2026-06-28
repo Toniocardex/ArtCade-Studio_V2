@@ -29,6 +29,12 @@
         <div id="left-col" class="panel">
             <div class="panel-header">HIERARCHY</div>
             <div id="scene-tabs" class="scene-tabs"></div>
+            <div class="panel-actions">
+                <button id="btn-add-scene" class="panel-btn" data-action="add-scene">+ Scene</button>
+                <button id="btn-del-scene" class="panel-btn" data-action="delete-scene">- Scene</button>
+                <button id="btn-add-entity" class="panel-btn" data-action="add-entity">+ Entity</button>
+                <button id="btn-del-entity" class="panel-btn" data-action="delete-entity">- Entity</button>
+            </div>
             <div id="hierarchy-list" class="tree"></div>
             <div class="panel-header">ASSETS</div>
             <div class="assets-stub">Sprites - Audio - Fonts</div>

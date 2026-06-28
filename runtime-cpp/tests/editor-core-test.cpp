@@ -5,6 +5,7 @@
 // with no GL context and no stubs.
 
 #include "editor-native/app/editor_coordinator.h"
+#include "editor-native/app/hierarchy_actions.h"
 #include "editor-native/app/input_routing.h"
 #include "editor-native/app/inspector_commit.h"
 #include "editor-native/app/project_file.h"
@@ -899,6 +900,153 @@ int main() {
         CHECK(c.state().activeSceneId.empty());   // no fake scene invented
         CHECK(!c.state().selection.hasEntity());
         CHECK(c.state().sceneViews.empty());
+    }
+
+    // == Hierarchy actions (the restricted UI wiring, tested UI-free) ==========
+    // The Hierarchy panel is a thin shim over these functions; testing them here
+    // proves the RmlUi click -> command -> reconcile -> invalidation path without
+    // any RmlUi dependency.
+
+    // (14) No action can reach a mutable ProjectDocument: document() is const-only.
+    static_assert(std::is_same_v<decltype(std::declval<EditorCoordinator>().document()),
+                                 const ProjectDocument&>,
+                  "actions must only see a read-only document");
+
+    // -- (1)(2)(13) Add Entity runs exactly one command with a non-colliding id -
+    {
+        EditorCoordinator c{makeDoc()};
+        CHECK(nextAvailableEntityId(c.document(), kSceneA) == 43); // past kHero (42)
+        const auto r = addEntity(c);
+        CHECK(r.ok);
+        CHECK(c.undoSize() == 1);                                  // exactly one command
+        CHECK(c.document().findInstanceInScene(kSceneA, 43) != nullptr);
+        CHECK(c.document().findInstanceInScene(kSceneA, 43)->id != kHero); // no collision
+    }
+
+    // -- (3) Add Entity invalidates only the expected views --------------------
+    {
+        EditorCoordinator c{makeDoc()};
+        c.consumeInvalidations();
+        CHECK(addEntity(c).ok);
+        // CreateEntity declares Hierarchy|Viewport; selection unchanged and active
+        // scene valid, so reconciliation adds nothing.
+        CHECK(c.consumeInvalidations()
+              == (EditorInvalidation::Hierarchy | EditorInvalidation::Viewport));
+    }
+
+    // -- (4) Add Entity without an active scene mutates nothing -----------------
+    {
+        EditorCoordinator c{makeDoc()};
+        CHECK(deleteScene(c, kSceneA).ok);
+        CHECK(deleteScene(c, kSceneB).ok);     // now the project has no scenes
+        CHECK(c.state().activeSceneId.empty());
+        const uint64_t revBefore = c.document().revision();
+        const std::size_t undoBefore = c.undoSize();
+        c.consumeInvalidations();
+        CHECK(!addEntity(c).ok);               // precondition fails, no command runs
+        CHECK(c.document().revision() == revBefore);
+        CHECK(c.undoSize() == undoBefore);
+        CHECK(c.consumeInvalidations() == EditorInvalidation::None);
+    }
+
+    // -- (5) Delete Entity uses the authoritative scene + selection ------------
+    {
+        EditorCoordinator c{makeDoc()};
+        c.apply(SelectEntityIntent{kHero});
+        CHECK(deleteSelectedEntity(c).ok);
+        CHECK(c.document().findInstanceInScene(kSceneA, kHero) == nullptr);
+    }
+
+    // -- (6) Deleting the selected entity empties the selection (reconcile) -----
+    {
+        EditorCoordinator c{makeDoc()};
+        c.apply(SelectEntityIntent{kHero});
+        c.consumeInvalidations();
+        CHECK(deleteSelectedEntity(c).ok);
+        CHECK(!c.state().selection.hasEntity());
+        CHECK(has(c.consumeInvalidations(), EditorInvalidation::Inspector));
+    }
+
+    // -- (7) A failed Delete Entity triggers no panel refresh ------------------
+    {
+        EditorCoordinator c{makeDoc()};
+        CHECK(!c.selection().hasEntity());
+        c.consumeInvalidations();
+        const std::size_t undoBefore = c.undoSize();
+        CHECK(!deleteSelectedEntity(c).ok);    // nothing selected -> no command
+        const EditorInvalidation inv = c.consumeInvalidations();
+        CHECK(!has(inv, EditorInvalidation::Hierarchy));
+        CHECK(!has(inv, EditorInvalidation::Viewport));
+        CHECK(c.undoSize() == undoBefore);
+    }
+
+    // -- (8) Add Scene does not directly change EditorState --------------------
+    {
+        EditorCoordinator c{makeDoc()};
+        const SceneId activeBefore = c.state().activeSceneId;
+        const SceneId expectedId   = makeUniqueSceneId(c.document());   // "scene-1"
+        const auto r = addScene(c);
+        CHECK(r.ok);
+        CHECK(c.state().activeSceneId == activeBefore);   // active scene unchanged
+        CHECK(!c.state().selection.hasEntity());
+        CHECK(c.document().hasScene(expectedId));          // the new scene now exists
+    }
+
+    // -- (9) Delete active scene normalizes the workspace in the same cycle ----
+    {
+        EditorCoordinator c{makeDoc()};
+        CHECK(c.state().activeSceneId == kSceneA);
+        CHECK(deleteScene(c, kSceneA).ok);
+        CHECK(c.state().activeSceneId == kSceneB);
+        CHECK(c.document().hasScene(c.state().activeSceneId));
+    }
+
+    // -- (10) Delete non-active scene preserves scene + selection --------------
+    {
+        EditorCoordinator c{makeDoc()};
+        CHECK(c.apply(SelectSceneIntent{kSceneB}).ok);
+        CHECK(addEntity(c).ok);                            // an entity in B
+        const EntityId placed = nextAvailableEntityId(c.document(), kSceneB) - 1;
+        CHECK(c.apply(SelectEntityIntent{placed}).ok);
+        CHECK(deleteScene(c, kSceneA).ok);                 // delete the OTHER scene
+        CHECK(c.state().activeSceneId == kSceneB);
+        CHECK(c.state().selection.primaryEntity == placed);
+    }
+
+    // -- (11)(12) Undo refreshes via command invalidations, not the workspace --
+    {
+        EditorCoordinator c{makeDoc()};
+        c.apply(SelectEntityIntent{kHero});
+        CHECK(deleteSelectedEntity(c).ok);                 // selection cleared
+        c.consumeInvalidations();
+        c.undo();                                          // entity comes back
+        // (11) the Hierarchy is told to refresh by the command's own invalidation.
+        CHECK(has(c.consumeInvalidations(), EditorInvalidation::Hierarchy));
+        CHECK(c.document().findInstanceInScene(kSceneA, kHero) != nullptr);
+        // (12) the brought-back entity is NOT auto-reselected.
+        CHECK(!c.state().selection.hasEntity());
+    }
+
+    // -- (12b) Undo of delete-active-scene does not re-activate the scene ------
+    {
+        EditorCoordinator c{makeDoc()};
+        CHECK(deleteScene(c, kSceneA).ok);                 // active -> kSceneB
+        CHECK(c.state().activeSceneId == kSceneB);
+        c.undo();                                          // scene A back in document
+        CHECK(c.document().hasScene(kSceneA));
+        CHECK(c.state().activeSceneId == kSceneB);         // workspace not rewound
+    }
+
+    // -- (15) No Hierarchy action path performs a Replace ----------------------
+    {
+        EditorCoordinator c{makeDoc()};
+        const uint32_t replacesBefore = c.document().replaceCount();
+        CHECK(addScene(c).ok);
+        CHECK(addEntity(c).ok);
+        c.apply(SelectEntityIntent{nextAvailableEntityId(c.document(), kSceneA) - 1});
+        CHECK(deleteSelectedEntity(c).ok);
+        CHECK(deleteScene(c, kSceneB).ok);
+        CHECK(c.document().replaceCount() == replacesBefore);   // Patch, never Replace
     }
 
     std::cout << "editor-core-test: " << g_passed << " passed, "

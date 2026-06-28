@@ -19,6 +19,7 @@ add_library(artcade-editor-core STATIC
     commands/entity_commands.cpp
     commands/scene_commands.cpp
     app/editor_coordinator.cpp
+    app/hierarchy_actions.cpp
     app/inspector_commit.cpp
     app/project_file.cpp
     app/project_load.cpp

@@ -81,6 +81,8 @@ il vecchio editor non e' rimosso.
 | Scene delete | TS project/store path | `DeleteSceneCommand` -> `ProjectDocument` (exact undo) | Done | No |
 | Entity create | TS project/store path | `CreateEntityCommand` -> `ProjectDocument` | Done | No |
 | Entity delete | TS project/store path | `DeleteEntityCommand` -> `ProjectDocument` (index-faithful undo) | Done | No |
+| Hierarchy add/delete wiring | React Hierarchy buttons | `hierarchy_actions` (UI-free) -> `EditorCoordinator` | Done | No |
+| Workspace reconciliation | React effects/listeners | `EditorCoordinator::reconcileWorkspace` (same op) | Done | No |
 | Undo | React/editor history path | `CommandStack` | Partial | No |
 | Project replace/load boundary | React/Tauri file path | `EditorCoordinator::replaceProject(ProjectDocument)` | In progress | No |
 | Play Project | WASM bridge / preview path | `PlaySession::startProject` from `ProjectDocument.startSceneId` | Partial | No |

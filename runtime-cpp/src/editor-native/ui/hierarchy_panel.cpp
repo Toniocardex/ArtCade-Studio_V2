@@ -57,7 +57,8 @@ void HierarchyPanel::refresh(Rml::ElementDocument* document,
     const EntityId selected = coordinator.selection().primaryEntity;
 
     std::string rows;
-    if (const SceneDef* scene = doc.findScene(activeSceneId)) {
+    const SceneDef* scene = doc.findScene(activeSceneId);
+    if (scene) {
         for (const SceneInstanceDef& inst : scene->instances) {
             if (!matchesFilter(inst.instanceName, filter)) continue;
             rows += "<div class=\"tree-row";
@@ -71,6 +72,19 @@ void HierarchyPanel::refresh(Rml::ElementDocument* document,
     }
     if (rows.empty()) rows = "<div class=\"tree-empty\">No entities</div>";
     setHtml(document, "hierarchy-list", rows);
+
+    // -- Action button availability reflects authoritative state ---------------
+    // Disabling is UX only; the commands still validate their inputs.
+    const bool hasActiveScene = scene != nullptr;
+    const bool hasSelection   = selected != INVALID_ENTITY;
+    const auto setEnabled = [&](const char* id, bool enabled) {
+        if (Rml::Element* el = document->GetElementById(id))
+            el->SetClass("disabled", !enabled);
+    };
+    setEnabled("btn-del-scene",  hasActiveScene);
+    setEnabled("btn-add-entity", hasActiveScene);
+    setEnabled("btn-del-entity", hasSelection);
+    // btn-add-scene is always available.
 }
 
 } // namespace ArtCade::EditorNative

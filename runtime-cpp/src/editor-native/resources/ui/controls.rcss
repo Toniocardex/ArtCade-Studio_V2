@@ -38,6 +38,32 @@
     margin: 10px 6px 0 6px;
     background-color: #2a2e38;
 }
+
+/* Hierarchy action row */
+.panel-actions {
+    display: flex;
+    flex-direction: row;
+    padding: 6px 8px 4px 8px;
+}
+.panel-btn {
+    display: inline-block;
+    height: 22px;
+    margin-right: 4px;
+    padding: 3px 8px 0 8px;
+    background-color: #262b34;
+    border: 1px #333a45;
+    border-radius: 3px;
+    color: #cdd2db;
+    font-size: 12px;
+    font-weight: 500;
+}
+.panel-btn:hover  { background-color: #2f3640; border-color: #41617f; }
+.panel-btn:active { background-color: #24507f; border-color: #4f8cdb; }
+.panel-btn.disabled {
+    color: #5a606b;
+    background-color: #21252d;
+    border-color: #2a2e38;
+}
 .toolbar-status {
     display: inline-block;
     padding: 9px 0 0 12px;
