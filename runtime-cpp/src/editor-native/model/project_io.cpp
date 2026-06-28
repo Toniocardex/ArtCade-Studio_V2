@@ -284,6 +284,16 @@ DeserializeResult ProjectValidator::validate(ProjectDocument document) {
         }
     }
 
+    // An inherited sprite asset (on the object type) is validated like an override.
+    for (const auto& [typeId, def] : data.objectTypes) {
+        (void)typeId;
+        const AssetId& assetId = def.sprite.spriteAssetId;
+        if (!assetId.empty() && !document.hasImageAsset(assetId)) {
+            return DeserializeResult::failure(
+                "Object type sprite references a missing image asset");
+        }
+    }
+
     if (!data.scenes.empty()) {
         if (data.activeSceneId.empty()) {
             return DeserializeResult::failure("startSceneId cannot be empty when scenes exist");

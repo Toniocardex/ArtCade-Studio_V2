@@ -16,6 +16,7 @@ add_library(artcade-editor-core STATIC
     model/project_document.cpp
     model/project_io.cpp
     model/play_session.cpp
+    model/sprite_render_view.cpp
     commands/entity_commands.cpp
     commands/scene_commands.cpp
     commands/sprite_commands.cpp

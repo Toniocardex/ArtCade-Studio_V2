@@ -99,6 +99,19 @@ static ProjectDoc makeSpriteDoc() {
     return doc;
 }
 
+// makeSpriteDoc plus an object type "Hero" whose sprite carries an image, so the
+// kHero instance (objectTypeId "Hero") inherits a sprite when it has no override.
+static ProjectDoc makeInheritedDoc() {
+    ProjectDoc doc = makeSpriteDoc();
+    EntityDef hero;
+    hero.className = "Hero";
+    hero.name = "Hero";
+    hero.visible = true;
+    hero.sprite.spriteAssetId = "img-hero";
+    doc.objectTypes.emplace("Hero", hero);
+    return doc;
+}
+
 static ProjectDoc makeInvalidStartDoc() {
     ProjectDoc doc = makeReplacementDoc();
     doc.activeSceneId = "missing-start-scene";
@@ -1454,6 +1467,98 @@ int main() {
         EditorCoordinator empty{makeSpriteDoc()};
         CHECK(!addSpriteRenderer(empty).ok);
         CHECK(empty.undoSize() == 0);
+    }
+
+    // == Sprite renderer resolution: instance override vs object type ==========
+
+    // -- (1) No override + sprite on the object type → inherited projection ----
+    {
+        EditorCoordinator c{makeInheritedDoc()};
+        const SpriteRenderView v = resolveSpriteRenderer(c.document(), kSceneA, kHero);
+        CHECK(v.present);
+        CHECK(v.origin == ComponentOrigin::EntityDefinition);
+        CHECK(v.assetId == "img-hero");
+    }
+
+    // -- (2)(5) An instance override prevails over the inherited component -----
+    {
+        EditorCoordinator c{makeInheritedDoc()};
+        CHECK(resolveSpriteRenderer(c.document(), kSceneA, kHero).origin
+              == ComponentOrigin::EntityDefinition);             // (5) distinguished: inherited
+        CHECK(c.execute(AddSpriteRendererCommand{kSceneA, kHero}).ok);
+        CHECK(c.execute(SetSpriteRendererAssetCommand{kSceneA, kHero, "img-alt"}).ok);
+        const SpriteRenderView v = resolveSpriteRenderer(c.document(), kSceneA, kHero);
+        CHECK(v.origin == ComponentOrigin::InstanceOverride);    // (5) distinguished: override
+        CHECK(v.assetId == "img-alt");                           // (2) override wins
+    }
+
+    // -- (3) Removing the override falls back to the inherited component -------
+    {
+        EditorCoordinator c{makeInheritedDoc()};
+        CHECK(c.execute(AddSpriteRendererCommand{kSceneA, kHero}).ok);
+        CHECK(c.execute(RemoveSpriteRendererCommand{kSceneA, kHero}).ok);
+        const SpriteRenderView v = resolveSpriteRenderer(c.document(), kSceneA, kHero);
+        CHECK(v.present);
+        CHECK(v.origin == ComponentOrigin::EntityDefinition);
+        CHECK(v.assetId == "img-hero");
+    }
+
+    // -- (4) Undo of Remove restores the exact override -----------------------
+    {
+        EditorCoordinator c{makeInheritedDoc()};
+        CHECK(c.execute(AddSpriteRendererCommand{kSceneA, kHero}).ok);
+        CHECK(c.execute(SetSpriteRendererAssetCommand{kSceneA, kHero, "img-alt"}).ok);
+        CHECK(c.execute(SetSpriteRendererVisibleCommand{kSceneA, kHero, false}).ok);
+        CHECK(c.execute(RemoveSpriteRendererCommand{kSceneA, kHero}).ok);
+        c.undo();
+        const auto& comp = *c.document().findInstanceInScene(kSceneA, kHero)->spriteRenderer;
+        CHECK(comp.imageAssetId == "img-alt");
+        CHECK(comp.visible == false);
+        CHECK(resolveSpriteRenderer(c.document(), kSceneA, kHero).origin
+              == ComponentOrigin::InstanceOverride);
+    }
+
+    // -- (6) Save/reload keeps the instance override absent (no base duplicated) -
+    {
+        EditorCoordinator c{makeInheritedDoc()};
+        const std::filesystem::path dir = testTempDir();
+        const std::filesystem::path path = dir / "inherit.artcade-project";
+        CHECK(saveProjectToFile(c, path).ok);
+        EditorCoordinator reloaded{makeReplacementDoc()};
+        CHECK(loadProjectFromFile(reloaded, path).ok);
+        const SceneInstanceDef* inst = reloaded.document().findInstanceInScene(kSceneA, kHero);
+        CHECK(inst != nullptr);
+        CHECK(!inst->spriteRenderer.has_value());   // the inherited component is not materialized
+    }
+
+    // -- (7) A dangling asset on the inherited component is rejected too -------
+    {
+        ProjectDoc doc = makeSpriteDoc();
+        EntityDef hero;
+        hero.className = "Hero";
+        hero.sprite.spriteAssetId = "ghost-asset";  // not in imageAssets
+        doc.objectTypes.emplace("Hero", hero);
+        CHECK(!ProjectValidator::validate(ProjectDocument{doc}).ok);
+    }
+
+    // -- (8) Deleting the instance does not touch the object type component ----
+    {
+        EditorCoordinator c{makeInheritedDoc()};
+        CHECK(c.execute(DeleteEntityCommand{kSceneA, kHero}).ok);
+        CHECK(c.document().data().objectTypes.at("Hero").sprite.spriteAssetId == "img-hero");
+    }
+
+    // -- Mutation detection is revision-based: no-op vs real change -----------
+    {
+        EditorCoordinator c{makeSpriteDoc()};
+        CHECK(c.execute(AddSpriteRendererCommand{kSceneA, kHero}).ok);  // visible defaults true
+        const uint64_t rev = c.document().revision();
+        CHECK(c.execute(SetSpriteRendererVisibleCommand{kSceneA, kHero, true}).ok); // no-op
+        CHECK(c.document().revision() == rev);   // revision unchanged → not recorded
+        const std::size_t undoBefore = c.undoSize();
+        CHECK(c.execute(SetSpriteRendererVisibleCommand{kSceneA, kHero, false}).ok); // real change
+        CHECK(c.document().revision() != rev);   // revision moved → recorded
+        CHECK(c.undoSize() == undoBefore + 1);
     }
 
     std::cout << "editor-core-test: " << g_passed << " passed, "

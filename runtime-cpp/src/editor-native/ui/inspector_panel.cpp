@@ -1,6 +1,7 @@
 #include "editor-native/ui/inspector_panel.h"
 
 #include "editor-native/app/editor_coordinator.h"
+#include "editor-native/model/sprite_render_view.h"
 #include "editor-native/ui/editor_ui.h"
 
 #include <RmlUi/Core/Element.h>
@@ -58,9 +59,23 @@ void InspectorPanel::refresh(Rml::ElementDocument* document,
 
     // -- Sprite Renderer component --------------------------------------------
     html += "<div class=\"prop-group-title\">Sprite Renderer</div>";
+    const SpriteRenderView resolved =
+        resolveSpriteRenderer(coordinator.document(), coordinator.state().activeSceneId, selected);
     if (!inst->spriteRenderer.has_value()) {
-        html += "<button class=\"panel-btn\" data-action=\"add-sprite-renderer\">"
-                "Add Sprite Renderer</button>";
+        if (resolved.origin == ComponentOrigin::EntityDefinition) {
+            // Inherited from the object type — read-only until overridden.
+            html += "<div class=\"prop-row\"><span class=\"prop-label\">Inherited</span>"
+                    "<span class=\"prop-readonly\">" + escapeRml(inst->objectTypeId) + "</span></div>";
+            html += "<div class=\"prop-row\"><span class=\"prop-label\">Image</span>"
+                    "<span class=\"prop-readonly\">"
+                  + (resolved.assetId.empty() ? std::string("(none)") : escapeRml(resolved.assetId))
+                  + "</span></div>";
+            html += "<button class=\"panel-btn\" data-action=\"add-sprite-renderer\">"
+                    "Add Override</button>";
+        } else {
+            html += "<button class=\"panel-btn\" data-action=\"add-sprite-renderer\">"
+                    "Add Sprite Renderer</button>";
+        }
     } else {
         const SpriteRendererComponent& sr = *inst->spriteRenderer;
 

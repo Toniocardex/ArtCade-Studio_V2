@@ -1,5 +1,7 @@
 #include "editor-native/app/editor_coordinator.h"
 
+#include <cassert>
+#include <cstdint>
 #include <utility>
 
 namespace ArtCade::EditorNative {
@@ -49,21 +51,37 @@ const EditorSceneViewState& EditorCoordinator::sceneView(const SceneId& id) cons
 // ----------------------------------------------------------------------------
 EditorOperationResult EditorCoordinator::executeOwned(
     std::unique_ptr<EditorCommand> command) {
+    // The document revision is the authoritative mutation signal: a command
+    // changed the project iff the revision moved. The asserts pin the command
+    // contract in debug builds; the revision comparison drives behaviour in all.
+    const uint64_t revisionBefore = document_.revision();
     EditorOperationResult result = command->apply(document_);
+    const uint64_t revisionAfter = document_.revision();
+
     if (!result.ok) {
-        // A failed command must leave no trace: no invalidation, no undo entry.
+        // A failed command must not mutate the document.
+        assert(revisionAfter == revisionBefore && "failed command mutated the document");
         appendConsole(ConsoleMessage::Level::Error, result.error);
         return result;
     }
+
+    if (revisionAfter == revisionBefore) {
+        // A no-op must declare neither a change nor an invalidation, and is not
+        // recorded (so it cannot be undone).
+        assert(result.change.isNone() && "no-op command reported a DomainChange");
+        assert(result.invalidation == EditorInvalidation::None
+               && "no-op command reported an invalidation");
+        return result;
+    }
+
+    // A real authoring mutation must be described and invalidated.
+    assert(!result.change.isNone() && "mutating command reported no DomainChange");
+    assert(result.invalidation != EditorInvalidation::None
+           && "mutating command reported no invalidation");
+
     accumulate(result.invalidation);
     accumulate(reconcileWorkspace());   // keep EditorState valid in the same op
-    // A successful command that changed nothing (a no-op, e.g. setting the start
-    // scene to the scene that is already the start) is not recorded and is not
-    // undoable.
-    if (result.invalidation != EditorInvalidation::None
-        || result.change.kind != DomainChangeKind::None) {
-        history_.push(std::move(command));
-    }
+    history_.push(std::move(command));
     return result;
 }
 

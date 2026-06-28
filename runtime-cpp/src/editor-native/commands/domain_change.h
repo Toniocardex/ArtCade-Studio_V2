@@ -33,6 +33,8 @@ struct DomainChange {
     EntityId         entityId = INVALID_ENTITY;
     ComponentKind    componentKind = ComponentKind::None;
 
+    bool isNone() const { return kind == DomainChangeKind::None; }
+
     static DomainChange none() { return {}; }
     static DomainChange sceneAdded(SceneId scene) {
         DomainChange change;

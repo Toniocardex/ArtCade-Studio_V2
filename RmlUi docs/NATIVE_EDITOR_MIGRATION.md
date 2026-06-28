@@ -95,6 +95,32 @@ il vecchio editor non e' rimosso.
 | Asset references | React asset stores | `AssetId` -> `ProjectDoc.imageAssets`, validated | In progress | No |
 | Logic Board | React Logic Board state | Logic Board document + commands | Planned | No |
 
+## Component resolution (sprite renderer)
+
+A sprite renderer can exist on two levels: the object type (`EntityDef.sprite`)
+and a per-instance override (`SceneInstanceDef.spriteRenderer`). A single query,
+`resolveSpriteRenderer(document, sceneId, entityId)`, is the only resolver used
+by both the viewport and the Inspector. Precedence:
+
+```text
+instance override present        -> use the override        (InstanceOverride)
+else object type sprite w/ image -> use the inherited sprite (EntityDefinition)
+else                             -> no sprite renderer       (None)
+```
+
+Consequence to keep in mind: because the override is a `std::optional`, **Remove
+Override means "drop the override and fall back to the inherited component"**, not
+"disable the inherited component for this instance". If a true per-instance
+disable is ever needed, `optional` is not enough — it would take an explicit
+`Inherit | Override | Disabled` mode — but that is deliberately not introduced
+without a concrete use case.
+
+Mutation detection is revision-based, not flag-based: `executeOwned` compares
+`ProjectDocument::revision()` before and after `apply()`. A command changed the
+project iff the revision moved; debug asserts pin the contract (a failed command
+must not mutate; a no-op must declare no change and no invalidation; a mutating
+command must declare both).
+
 ## Feature Template
 
 Every migrated feature must fill this before implementation:

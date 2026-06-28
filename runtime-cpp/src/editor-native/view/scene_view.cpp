@@ -85,7 +85,8 @@ void SceneView::render(const ProjectDocument& document,
 
         // A hidden sprite renderer dims the placeholder; an assigned image asset
         // adds an inner accent — so the viewport visibly reflects the component.
-        const SpriteRenderView sprite = spriteRenderViewOf(inst);
+        // Resolved (override > object type) so inherited sprites also show.
+        const SpriteRenderView sprite = resolveSpriteRenderer(document, sceneId, inst.id);
         const float alpha = (sprite.present && !sprite.visible) ? 0.28f : 0.92f;
         const auto a8 = static_cast<unsigned char>(alpha * 255.f);
 
