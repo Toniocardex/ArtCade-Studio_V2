@@ -56,6 +56,7 @@ EditorOperationResult EditorCoordinator::executeOwned(
         return result;
     }
     accumulate(result.invalidation);
+    accumulate(reconcileWorkspace());   // keep EditorState valid in the same op
     history_.push(std::move(command));
     return result;
 }
@@ -66,9 +67,49 @@ EditorOperationResult EditorCoordinator::undo() {
     }
     std::unique_ptr<EditorCommand> command = history_.popForUndo();
     EditorOperationResult result = command->undo(document_);
-    if (result.ok) accumulate(result.invalidation);
-    else appendConsole(ConsoleMessage::Level::Error, result.error);
+    if (result.ok) {
+        accumulate(result.invalidation);
+        accumulate(reconcileWorkspace());
+    } else {
+        appendConsole(ConsoleMessage::Level::Error, result.error);
+    }
     return result;
+}
+
+EditorInvalidation EditorCoordinator::reconcileWorkspace() {
+    EditorInvalidation extra = EditorInvalidation::None;
+
+    // 1. The active scene must reference a scene that still exists. If it was
+    //    removed, normalize to the start scene (or the first scene, or none) and
+    //    drop the selection — it belonged to a scene that is gone.
+    if (!state_.activeSceneId.empty() && !document_.hasScene(state_.activeSceneId)) {
+        state_.sceneViews.erase(state_.activeSceneId);
+        state_.activeSceneId = normalizedSceneId(document_);
+        state_.selection.clear();
+        if (!state_.activeSceneId.empty()) {
+            state_.sceneViews.try_emplace(state_.activeSceneId);
+        }
+        extra |= EditorInvalidation::Hierarchy | EditorInvalidation::Inspector
+               | EditorInvalidation::Viewport | EditorInvalidation::Toolbar;
+    }
+
+    // 2. No per-scene view state may outlive its scene.
+    for (auto it = state_.sceneViews.begin(); it != state_.sceneViews.end();) {
+        if (!document_.hasScene(it->first)) it = state_.sceneViews.erase(it);
+        else ++it;
+    }
+
+    // 3. The selection must reference an instance that still exists in the active
+    //    scene. Deleting the selected entity empties the Inspector; deleting any
+    //    other entity leaves the selection untouched.
+    if (state_.selection.hasEntity()
+        && !document_.findInstanceInScene(state_.activeSceneId,
+                                          state_.selection.primaryEntity)) {
+        state_.selection.clear();
+        extra |= EditorInvalidation::Inspector;
+    }
+
+    return extra;
 }
 
 EditorOperationResult EditorCoordinator::replaceProject(ProjectDocument replacement) {

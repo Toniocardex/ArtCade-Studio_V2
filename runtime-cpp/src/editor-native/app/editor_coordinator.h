@@ -86,6 +86,15 @@ private:
     void accumulate(EditorInvalidation invalidation) { pending_ |= invalidation; }
     void appendConsole(ConsoleMessage::Level level, std::string text);
 
+    // After a structural command (or its undo) mutates the document, the
+    // workspace may reference a scene or entity that no longer exists. This
+    // brings EditorState back to a valid state in the same operation — it
+    // normalizes the active scene, clears a dangling selection and prunes
+    // per-scene view state — and returns the extra invalidation that change
+    // implies. It restores the document's validity in the workspace, never the
+    // UI history: an undone delete does not re-select what it brings back.
+    EditorInvalidation reconcileWorkspace();
+
     ProjectDocument                                  document_;
     EditorState                                      state_;
     EditorUiState                                    uiState_;

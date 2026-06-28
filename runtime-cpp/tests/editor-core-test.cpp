@@ -770,9 +770,18 @@ int main() {
         const auto r = c.execute(DeleteSceneCommand{kSceneA});
         CHECK(r.ok);
         CHECK(r.change.kind == DomainChangeKind::SceneRemoved);
-        CHECK(c.consumeInvalidations() == (EditorInvalidation::Hierarchy
-                                           | EditorInvalidation::Viewport
-                                           | EditorInvalidation::Project));
+        // The command declares its own structural flags …
+        CHECK(r.invalidation == (EditorInvalidation::Hierarchy
+                                 | EditorInvalidation::Viewport
+                                 | EditorInvalidation::Project));
+        // … and the coordinator augments them after reconciling the workspace
+        // (the active scene changed, so Inspector and Toolbar refresh too).
+        const EditorInvalidation consumed = c.consumeInvalidations();
+        CHECK(has(consumed, EditorInvalidation::Hierarchy));
+        CHECK(has(consumed, EditorInvalidation::Viewport));
+        CHECK(has(consumed, EditorInvalidation::Project));
+        CHECK(has(consumed, EditorInvalidation::Inspector));
+        CHECK(has(consumed, EditorInvalidation::Toolbar));
         CHECK(!c.document().hasScene(kSceneA));
         // Deleting the start scene reassigns it to a surviving scene.
         CHECK(c.document().startSceneId() == kSceneB);
@@ -791,6 +800,105 @@ int main() {
         CHECK(c.execute(DeleteEntityCommand{kSceneA, 200}).ok);
         CHECK(c.execute(DeleteSceneCommand{kSceneB}).ok);
         CHECK(c.document().replaceCount() == replacesBefore); // Patch, not Replace
+    }
+
+    // == Workspace reconciliation after structural deletes =====================
+    // The document is the authority; EditorState must stay valid in the SAME
+    // operation, with no follow-up callbacks or observers.
+
+    // -- (1)(2) Deleting the active scene normalizes it and clears selection ----
+    {
+        EditorCoordinator c{makeDoc()};
+        CHECK(c.state().activeSceneId == kSceneA);     // start scene is the default focus
+        c.apply(SelectEntityIntent{kHero});
+        CHECK(c.state().selection.primaryEntity == kHero);
+        c.consumeInvalidations();
+
+        CHECK(c.execute(DeleteSceneCommand{kSceneA}).ok);
+        // (1) active scene normalized to a surviving scene.
+        CHECK(c.state().activeSceneId == kSceneB);
+        CHECK(c.document().hasScene(c.state().activeSceneId));
+        // (2) selection cleared — it belonged to the deleted scene.
+        CHECK(!c.state().selection.hasEntity());
+        // The coordinator augmented the command flags during reconciliation.
+        CHECK(has(c.consumeInvalidations(), EditorInvalidation::Inspector));
+    }
+
+    // -- (3) Deleting a non-active scene keeps active scene and selection -------
+    {
+        EditorCoordinator c{makeDoc()};
+        CHECK(c.apply(SelectSceneIntent{kSceneB}).ok);
+        CHECK(c.execute(CreateEntityCommand{kSceneB, 300, "Enemy", "E", {}}).ok);
+        CHECK(c.apply(SelectEntityIntent{300}).ok);
+        CHECK(c.state().activeSceneId == kSceneB);
+        CHECK(c.state().selection.primaryEntity == 300);
+
+        CHECK(c.execute(DeleteSceneCommand{kSceneA}).ok); // delete the OTHER scene
+        CHECK(c.state().activeSceneId == kSceneB);        // unchanged
+        CHECK(c.state().selection.primaryEntity == 300);  // unchanged
+    }
+
+    // -- (4) Deleting the selected entity clears the selection -----------------
+    {
+        EditorCoordinator c{makeDoc()};
+        c.apply(SelectEntityIntent{kHero});
+        CHECK(c.state().selection.primaryEntity == kHero);
+        c.consumeInvalidations();
+        CHECK(c.execute(DeleteEntityCommand{kSceneA, kHero}).ok);
+        CHECK(!c.state().selection.hasEntity());
+        // DeleteEntity alone returns Hierarchy|Viewport; reconciliation adds
+        // Inspector so the now-empty inspector refreshes.
+        CHECK(has(c.consumeInvalidations(), EditorInvalidation::Inspector));
+    }
+
+    // -- (5) Deleting a different entity preserves the selection ---------------
+    {
+        EditorCoordinator c{makeDoc()};
+        CHECK(c.execute(CreateEntityCommand{kSceneA, 301, "Enemy", "E", {}}).ok);
+        c.apply(SelectEntityIntent{kHero});
+        CHECK(c.state().selection.primaryEntity == kHero);
+        CHECK(c.execute(DeleteEntityCommand{kSceneA, 301}).ok); // delete the OTHER one
+        CHECK(c.state().selection.primaryEntity == kHero);      // preserved
+    }
+
+    // -- (6) No per-scene view state outlives its scene ------------------------
+    {
+        EditorCoordinator c{makeDoc()};
+        c.apply(SetViewportZoomIntent{kSceneA, 2.f});
+        c.apply(SetViewportZoomIntent{kSceneB, 3.f});
+        CHECK(c.state().sceneViews.count(kSceneA) == 1);
+        CHECK(c.state().sceneViews.count(kSceneB) == 1);
+        CHECK(c.execute(DeleteSceneCommand{kSceneA}).ok);
+        CHECK(c.state().sceneViews.count(kSceneA) == 0);  // pruned
+        CHECK(c.state().sceneViews.count(kSceneB) == 1);  // kept
+    }
+
+    // -- (7) No dangling workspace id after execute OR undo --------------------
+    // Undo restores the DOCUMENT, not the workspace: the brought-back scene is
+    // not re-activated and the brought-back entity is not re-selected.
+    {
+        EditorCoordinator c{makeDoc()};
+        c.apply(SelectEntityIntent{kHero});
+        CHECK(c.execute(DeleteSceneCommand{kSceneA}).ok);
+        CHECK(c.document().hasScene(c.state().activeSceneId));        // valid after execute
+        CHECK(!c.state().selection.hasEntity());
+
+        c.undo();
+        CHECK(c.document().hasScene(kSceneA));                        // document restored
+        CHECK(c.state().activeSceneId == kSceneB);                   // workspace NOT rewound
+        CHECK(c.document().hasScene(c.state().activeSceneId));        // still valid
+        CHECK(!c.state().selection.hasEntity());                     // not auto-reselected
+    }
+
+    // -- Empty project is a valid state: no fabricated scene -------------------
+    {
+        EditorCoordinator c{makeDoc()};
+        CHECK(c.execute(DeleteSceneCommand{kSceneA}).ok);
+        CHECK(c.execute(DeleteSceneCommand{kSceneB}).ok);
+        CHECK(c.document().data().scenes.empty());
+        CHECK(c.state().activeSceneId.empty());   // no fake scene invented
+        CHECK(!c.state().selection.hasEntity());
+        CHECK(c.state().sceneViews.empty());
     }
 
     std::cout << "editor-core-test: " << g_passed << " passed, "
