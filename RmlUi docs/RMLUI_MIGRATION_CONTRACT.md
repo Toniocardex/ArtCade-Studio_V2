@@ -283,8 +283,10 @@ del context Raylib/OpenGL.
 progetto o a una root asset esplicita. I path assoluti legati alla macchina non
 devono diventare il formato normale del progetto.
 
-La cache deve essere svuotata su `ProjectReplaced` e puo' invalidare un singolo
-asset quando il catalogo cambia mantenendo lo stesso `AssetId`.
+La cache deve essere svuotata dal percorso applicativo esplicito che consuma
+`ProjectReplaced` e puo' invalidare un singolo asset quando il catalogo cambia
+mantenendo lo stesso `AssetId`. Non usare polling di `replaceCount()` nel frame
+loop per scoprire cambiamenti gia' noti all'operazione applicativa.
 
 Il renderer consuma `SceneFrameSnapshot` e `TextureCache`; non interroga
 `ProjectDocument`, `EditorCoordinator`, pannelli o controlli RmlUi durante il

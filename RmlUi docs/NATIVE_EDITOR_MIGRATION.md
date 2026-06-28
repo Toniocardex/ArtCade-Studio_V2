@@ -183,8 +183,10 @@ while the Raylib context is still valid, and is not serialized. Missing source
 paths or missing files produce a diagnostic placeholder; they do not mutate the
 document.
 
-`TextureCache::clear()` is called when the project is replaced, so two projects
-can reuse the same `AssetId` without stale GPU state. `TextureCache::invalidate(id)`
+The application path that consumes `DomainChange::ProjectReplaced` must call
+`TextureCache::clear()` directly, so two projects can reuse the same `AssetId`
+without stale GPU state. This must not be discovered by polling
+`ProjectDocument::replaceCount()` in the frame loop. `TextureCache::invalidate(id)`
 exists for future catalog changes where `sourcePath` changes but the `AssetId`
 does not.
 

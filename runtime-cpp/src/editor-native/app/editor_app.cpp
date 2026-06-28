@@ -136,7 +136,6 @@ int EditorApp::run(int argc, char** argv) {
     coordinator.logInfo("ArtCade Studio ready.");
     SceneView sceneView;
     TextureCache textureCache;
-    uint32_t textureProjectGeneration = coordinator.document().replaceCount();
 
     int frame = 0;
     while (!WindowShouldClose()) {
@@ -156,10 +155,6 @@ int EditorApp::run(int argc, char** argv) {
         const SceneId active = coordinator.state().activeSceneId;
         const SceneFrameSnapshot snapshot = collectSceneFrameSnapshot(
             coordinator.document(), active, coordinator.selection().primaryEntity);
-        if (textureProjectGeneration != coordinator.document().replaceCount()) {
-            textureCache.clear();
-            textureProjectGeneration = coordinator.document().replaceCount();
-        }
         const auto textureRequests =
             textureRequestsFor(coordinator.document().data(), resourceRoot);
         textureCache.prepare(snapshot.sprites, textureRequests);
