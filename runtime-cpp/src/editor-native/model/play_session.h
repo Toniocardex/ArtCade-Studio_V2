@@ -2,40 +2,71 @@
 
 #include "core/types.h"
 
+#include <optional>
+#include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace ArtCade::EditorNative {
 
 class ProjectDocument;
 
-// =============================================================================
-// PlaySession — the runtime side of Play/Stop (prompt §8).
-//
-// Built FROM the authoring document by copying an explicit editor/play scene's instances
-// into a mutable runtime list. The simulation mutates the session freely; the
-// document is never touched. Stop is just destroying the session (RAII) and
-// returning to the untouched document — no JSON reload, no scene sync, no
-// readiness wait.
-//
-// In the full app this seed drives RuntimeEntityGateway::replaceProject once at
-// Play start (Replace); live editing during Play is out of scope for the spike.
-// =============================================================================
+struct RuntimeSpriteComponent {
+    AssetId assetId;
+    bool visible = true;
+};
+
+struct RuntimeEntity {
+    EntityId id = INVALID_ENTITY;
+    std::string name;
+    Transform transform;
+    Vec3 fillColor{0.47f, 0.49f, 0.52f};
+    std::optional<RuntimeSpriteComponent> sprite;
+};
+
+struct RuntimeScene {
+    SceneId sourceSceneId;
+    std::string name;
+    Vec2 worldSize;
+    Vec4 backgroundColor;
+    std::vector<RuntimeEntity> entities;
+};
+
+struct RuntimeImageAsset {
+    AssetId id;
+    std::string sourcePath;
+};
+
+struct PlayAssetCatalogSnapshot {
+    std::unordered_map<AssetId, RuntimeImageAsset> imageAssets;
+};
+
+// Runtime side of Play/Stop. It is built once from ProjectDocument at Start
+// Play, then draw/tick read this session and never the authoring document.
 class PlaySession {
 public:
-    /** Snapshot the gameplay start scene from @p document into an independent session. */
-    static PlaySession startProject(const ProjectDocument& document);
+    static std::optional<PlaySession> startProject(const ProjectDocument& document,
+                                                   std::string* error = nullptr);
 
-    /** Snapshot the editor-selected scene from @p document into an independent session. */
-    static PlaySession startActiveScene(const ProjectDocument& document, const SceneId& sceneId);
+    static std::optional<PlaySession> startActiveScene(const ProjectDocument& document,
+                                                       const SceneId& sceneId,
+                                                       std::string* error = nullptr);
 
-    const SceneId& sceneId() const { return sceneId_; }
+    const SceneId& sceneId() const { return scene_.sourceSceneId; }
+    const RuntimeScene& scene() const { return scene_; }
+    RuntimeScene& scene() { return scene_; }
+    const PlayAssetCatalogSnapshot& assets() const { return assets_; }
 
-    std::vector<SceneInstanceDef>&       instances()       { return instances_; }
-    const std::vector<SceneInstanceDef>& instances() const { return instances_; }
+    std::vector<RuntimeEntity>& entities() { return scene_.entities; }
+    const std::vector<RuntimeEntity>& entities() const { return scene_.entities; }
 
 private:
-    SceneId                       sceneId_;
-    std::vector<SceneInstanceDef> instances_;
+    static std::optional<PlaySession> materialize(const ProjectDocument& document,
+                                                  const SceneId& sceneId,
+                                                  std::string* error);
+
+    RuntimeScene scene_;
+    PlayAssetCatalogSnapshot assets_;
 };
 
 } // namespace ArtCade::EditorNative

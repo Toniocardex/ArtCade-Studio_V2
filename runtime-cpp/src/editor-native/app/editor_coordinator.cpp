@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <cstdint>
+#include <optional>
 #include <utility>
 
 namespace ArtCade::EditorNative {
@@ -51,6 +52,12 @@ const EditorSceneViewState& EditorCoordinator::sceneView(const SceneId& id) cons
 // ----------------------------------------------------------------------------
 EditorOperationResult EditorCoordinator::executeOwned(
     std::unique_ptr<EditorCommand> command) {
+    if (isPlaying()) {
+        appendConsole(ConsoleMessage::Level::Warning,
+                      "Stop Play before editing the authoring document");
+        return EditorOperationResult::failure("Cannot edit project while Play is running");
+    }
+
     // The document revision is the authoritative mutation signal: a command
     // changed the project iff the revision moved. The asserts pin the command
     // contract in debug builds; the revision comparison drives behaviour in all.
@@ -86,6 +93,12 @@ EditorOperationResult EditorCoordinator::executeOwned(
 }
 
 EditorOperationResult EditorCoordinator::undo() {
+    if (isPlaying()) {
+        appendConsole(ConsoleMessage::Level::Warning,
+                      "Stop Play before undoing authoring changes");
+        return EditorOperationResult::failure("Cannot undo while Play is running");
+    }
+
     if (!history_.canUndo()) {
         return EditorOperationResult::failure("Nothing to undo");
     }
@@ -137,6 +150,10 @@ EditorInvalidation EditorCoordinator::reconcileWorkspace() {
 }
 
 EditorOperationResult EditorCoordinator::replaceProject(ProjectDocument replacement) {
+    if (isPlaying()) {
+        return EditorOperationResult::failure("Cannot replace project while Play is running");
+    }
+
     document_.replaceClean(std::move(replacement));
 
     state_.activeSceneId = normalizedSceneId(document_);
@@ -178,10 +195,15 @@ EditorOperationResult EditorCoordinator::playProject() {
     if (!canPlayProject()) {
         return EditorOperationResult::failure("Cannot play project: no valid start scene");
     }
-    playSession_.emplace(PlaySession::startProject(document_));
+    std::string error;
+    std::optional<PlaySession> session = PlaySession::startProject(document_, &error);
+    if (!session.has_value()) {
+        return EditorOperationResult::failure(error.empty() ? "Cannot start Play" : error);
+    }
+    playSession_.emplace(std::move(*session));
     logInfo("Play project started (document untouched)");
-    accumulate(EditorInvalidation::Toolbar);
-    return EditorOperationResult::success(EditorInvalidation::Toolbar);
+    accumulate(EditorInvalidation::Toolbar | EditorInvalidation::Viewport);
+    return EditorOperationResult::success(EditorInvalidation::Toolbar | EditorInvalidation::Viewport);
 }
 
 EditorOperationResult EditorCoordinator::playCurrentScene() {
@@ -191,10 +213,16 @@ EditorOperationResult EditorCoordinator::playCurrentScene() {
     if (!canPlayCurrentScene()) {
         return EditorOperationResult::failure("Cannot play current scene: no active scene");
     }
-    playSession_.emplace(PlaySession::startActiveScene(document_, state_.activeSceneId));
+    std::string error;
+    std::optional<PlaySession> session =
+        PlaySession::startActiveScene(document_, state_.activeSceneId, &error);
+    if (!session.has_value()) {
+        return EditorOperationResult::failure(error.empty() ? "Cannot start Play" : error);
+    }
+    playSession_.emplace(std::move(*session));
     logInfo("Play current scene started (document untouched)");
-    accumulate(EditorInvalidation::Toolbar);
-    return EditorOperationResult::success(EditorInvalidation::Toolbar);
+    accumulate(EditorInvalidation::Toolbar | EditorInvalidation::Viewport);
+    return EditorOperationResult::success(EditorInvalidation::Toolbar | EditorInvalidation::Viewport);
 }
 
 EditorOperationResult EditorCoordinator::stopPlaying() {
@@ -203,8 +231,8 @@ EditorOperationResult EditorCoordinator::stopPlaying() {
     }
     playSession_.reset();   // RAII: back to the untouched authoring document
     logInfo("Stopped - back to authoring document");
-    accumulate(EditorInvalidation::Toolbar);
-    return EditorOperationResult::success(EditorInvalidation::Toolbar);
+    accumulate(EditorInvalidation::Toolbar | EditorInvalidation::Viewport);
+    return EditorOperationResult::success(EditorInvalidation::Toolbar | EditorInvalidation::Viewport);
 }
 
 // ----------------------------------------------------------------------------

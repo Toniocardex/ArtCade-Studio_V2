@@ -90,6 +90,7 @@ il vecchio editor non e' rimosso.
 | Play Current Scene | WASM bridge / preview path | `EditorCoordinator::playCurrentScene` (guarded by `canPlayCurrentScene`) | Done | No |
 | Project file I/O | React/Tauri file path | `readProjectTextFile` + `loadProjectFromText` + atomic save | In progress | No |
 | Runtime viewport | WASM/runtime preview | `SceneFrameSnapshot` + derived texture cache | In progress | No |
+| Play materialization | WASM bridge / preview path | `PlaySession` from `ProjectDocument` once at Start Play | In progress | No |
 | Sprite Renderer component | React Inspector | `sprite_commands` + `inspector_actions` (instance-scoped) | Done | No |
 | BoxCollider2D component | React Inspector / physics form | `box_collider_commands` on `EntityDef.boxCollider2D` | Done | No |
 | Object type persistence | React project store | `ProjectSerializer` minimal subset + referential validation | Done | No |
@@ -193,6 +194,79 @@ does not.
 The renderer must not query `ProjectDocument`, `EditorCoordinator`, RmlUi
 controls, or panels during draw. Asset catalog lookup happens before drawing;
 `SceneView` receives only `SceneFrameSnapshot` and `TextureCache`.
+
+## Play materialization baseline
+
+Play now has a concrete runtime boundary:
+
+```text
+Play Project
+-> ProjectDocument.startSceneId
+-> materialize PlaySession
+
+Play Current Scene
+-> EditorState.activeSceneId
+-> materialize PlaySession
+```
+
+Materialization reads `ProjectDocument` once at Start Play, resolves each
+instance's Sprite Renderer through the same authoring resolver used by Edit,
+and creates only the runtime subset needed by this slice:
+
+```text
+RuntimeScene
+-> RuntimeEntity
+-> optional RuntimeSpriteComponent
+
+PlayAssetCatalogSnapshot
+-> only image assets referenced by the materialized scene
+```
+
+After Start Play:
+
+```text
+PlaySession
+-> SceneFrameSnapshot
+-> SceneView
+```
+
+The Play draw path does not query `ProjectDocument`, object types, Inspector
+state, RmlUi controls, or JSON. The application resolves the frozen
+`PlayAssetCatalogSnapshot` source paths into `TextureRequest`s and feeds the
+same derived `TextureCache`. `Stop` destroys the session and returns to the Edit
+projection; it never writes runtime state back into the authoring document.
+
+Current policy: `replaceProject()` while Play is active is rejected explicitly.
+This avoids a hidden auto-stop or frame-loop observer.
+
+Authoring edits are also blocked while Play is active:
+
+```text
+isPlaying()
+-> EditorCommand rejected
+-> undo rejected
+-> ProjectDocument revision/dirty/history unchanged
+```
+
+Workspace intents may still run when they do not mutate the document. This is a
+coordinator-level rule, so it applies equally to RmlUi buttons, menu actions,
+shortcuts and tests.
+
+During Play, scene-selection intents affect only the workspace:
+
+```text
+SelectSceneIntent(B)
+-> EditorState.activeSceneId = B
+-> current PlaySession remains on its materialized source scene
+-> Stop returns the viewport to the Edit projection for B
+```
+
+Blocked commands may append a console warning and invalidate Console. They must
+not change `ProjectDocument`, revision, dirty state or undo history.
+
+The toolbar should label the runtime target, for example `PLAYING - Scene A`.
+That label is derived from `PlaySession::scene()` and exists only to avoid UX
+ambiguity when the workspace active scene changes during Play.
 
 ## RmlUi input commit baseline
 

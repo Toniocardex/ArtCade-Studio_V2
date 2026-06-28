@@ -26,6 +26,7 @@
 #include <iostream>
 #include <iterator>
 #include <limits>
+#include <optional>
 #include <string>
 #include <system_error>
 #include <type_traits>
@@ -594,24 +595,26 @@ int main() {
         const uint64_t revBefore = c.document().revision();
 
         c.apply(SelectSceneIntent{kSceneB});
-        PlaySession session = PlaySession::startProject(c.document());
-        CHECK(session.sceneId() == kSceneA);
-        CHECK(session.instances().size() == 1);
+        std::optional<PlaySession> session = PlaySession::startProject(c.document());
+        CHECK(session.has_value());
+        CHECK(session->sceneId() == kSceneA);
+        CHECK(session->entities().size() == 1);
 
-        PlaySession currentSceneSession =
+        std::optional<PlaySession> currentSceneSession =
             PlaySession::startActiveScene(c.document(), c.state().activeSceneId);
-        CHECK(currentSceneSession.sceneId() == kSceneB);
-        CHECK(currentSceneSession.instances().empty());
+        CHECK(currentSceneSession.has_value());
+        CHECK(currentSceneSession->sceneId() == kSceneB);
+        CHECK(currentSceneSession->entities().empty());
 
         // The simulation mutates the session freely...
-        session.instances()[0].transform.position = {500.f, 600.f};
+        session->entities()[0].transform.position = {500.f, 600.f};
         // ...the authoring document is untouched.
         CHECK(c.document().findInstanceInScene(kSceneA, kHero)->transform.position.x == 10.f);
         CHECK(c.document().revision() == revBefore);
 
         // -- §24.12  Stop needs no reload: destroying the session restores
         //            nothing because the document was never changed.
-        session.instances().clear();
+        session->entities().clear();
         CHECK(c.document().findInstanceInScene(kSceneA, kHero) != nullptr);
         CHECK(c.document().revision() == revBefore);
     }
@@ -1191,6 +1194,155 @@ int main() {
         CHECK(c.stopPlaying().ok);
         CHECK(!c.isPlaying());
         CHECK(!c.document().isDirty());    // never mutated by Play/Stop
+    }
+
+    // -- Play materializes runtime sprite data and used assets only ------------
+    {
+        EditorCoordinator c{makeInheritedDoc()};
+        CHECK(c.playProject().ok);
+        CHECK(c.playSession() != nullptr);
+        CHECK(c.playSession()->entities().size() == 1);
+        CHECK(c.playSession()->entities()[0].sprite.has_value());
+        CHECK(c.playSession()->entities()[0].sprite->assetId == "img-hero");
+        CHECK(c.playSession()->entities()[0].sprite->visible);
+        CHECK(c.playSession()->assets().imageAssets.size() == 1);
+        CHECK(c.playSession()->assets().imageAssets.count("img-hero") == 1);
+        CHECK(c.playSession()->assets().imageAssets.count("img-alt") == 0);
+
+        const SceneFrameSnapshot playFrame = collectSceneFrameSnapshot(*c.playSession());
+        CHECK(playFrame.hasScene);
+        CHECK(playFrame.sprites.size() == 1);
+        CHECK(playFrame.sprites[0].assetId == "img-hero");
+        CHECK(playFrame.sprites[0].destination.x == -14.f); // x=10, width=48
+    }
+
+    // -- A materialized PlaySession is independent from later authoring edits --
+    {
+        EditorCoordinator c{makeInheritedDoc()};
+        std::optional<PlaySession> session = PlaySession::startProject(c.document());
+        CHECK(session.has_value()); // inherited img-hero at x=10
+        CHECK(c.execute(SetEntityPositionCommand{kSceneA, kHero, {50.f, 20.f}}).ok);
+        CHECK(c.execute(AddSpriteRendererCommand{kSceneA, kHero}).ok);
+        CHECK(c.execute(SetSpriteRendererAssetCommand{kSceneA, kHero, "img-alt"}).ok);
+
+        const SceneFrameSnapshot editFrame =
+            collectSceneFrameSnapshot(c.document(), kSceneA, INVALID_ENTITY);
+        CHECK(editFrame.sprites.size() == 1);
+        CHECK(editFrame.sprites[0].assetId == "img-alt");
+        CHECK(editFrame.sprites[0].destination.x == 26.f); // x=50, width=48
+
+        const SceneFrameSnapshot playFrame = collectSceneFrameSnapshot(*session);
+        CHECK(playFrame.sprites.size() == 1);
+        CHECK(playFrame.sprites[0].assetId == "img-hero");
+        CHECK(playFrame.sprites[0].destination.x == -14.f); // still x=10
+
+        session->entities()[0].transform.position = {500.f, 600.f};
+        CHECK(c.document().findInstanceInScene(kSceneA, kHero)->transform.position.x == 50.f);
+        CHECK(c.document().revision() > 0);
+    }
+
+    // -- Play materialization covers absence, visibility, and dangling assets ---
+    {
+        EditorCoordinator noSprite{makeSpriteDoc()};
+        CHECK(noSprite.playProject().ok);
+        CHECK(noSprite.playSession()->entities().size() == 1);
+        CHECK(!noSprite.playSession()->entities()[0].sprite.has_value());
+        CHECK(noSprite.playSession()->assets().imageAssets.empty());
+
+        EditorCoordinator invisible{makeInheritedDoc()};
+        CHECK(invisible.execute(AddSpriteRendererCommand{kSceneA, kHero}).ok);
+        CHECK(invisible.execute(SetSpriteRendererAssetCommand{kSceneA, kHero, "img-alt"}).ok);
+        CHECK(invisible.execute(SetSpriteRendererVisibleCommand{kSceneA, kHero, false}).ok);
+        CHECK(invisible.playProject().ok);
+        CHECK(invisible.playSession()->entities()[0].sprite.has_value());
+        CHECK(invisible.playSession()->entities()[0].sprite->assetId == "img-alt");
+        CHECK(!invisible.playSession()->entities()[0].sprite->visible);
+        CHECK(invisible.playSession()->assets().imageAssets.size() == 1);
+        CHECK(invisible.playSession()->assets().imageAssets.count("img-alt") == 1);
+
+        ProjectDoc danglingDoc = makeInheritedDoc();
+        danglingDoc.objectTypes.at("Hero").sprite.spriteAssetId = "missing-image";
+        EditorCoordinator dangling{danglingDoc};
+        CHECK(!dangling.playProject().ok);
+        CHECK(!dangling.isPlaying());
+    }
+
+    // -- Project replace has an explicit policy during Play --------------------
+    {
+        EditorCoordinator c{makeInheritedDoc()};
+        CHECK(c.playProject().ok);
+        const uint32_t replacesBefore = c.document().replaceCount();
+        CHECK(!c.replaceProject(ProjectDocument{makeReplacementDoc()}).ok);
+        CHECK(c.isPlaying());
+        CHECK(c.document().replaceCount() == replacesBefore);
+    }
+
+    // -- Authoring commands and undo are blocked while Play is running --------
+    {
+        EditorCoordinator c{makeInheritedDoc()};
+        CHECK(c.execute(SetEntityPositionCommand{kSceneA, kHero, {25.f, 20.f}}).ok);
+        CHECK(c.canUndo());
+        const uint64_t revisionBefore = c.document().revision();
+        const std::size_t undoBefore = c.undoSize();
+
+        CHECK(c.playProject().ok);
+        CHECK(c.isPlaying());
+        CHECK(!c.execute(SetEntityPositionCommand{kSceneA, kHero, {99.f, 20.f}}).ok);
+        CHECK(!c.execute(AddSpriteRendererCommand{kSceneA, kHero}).ok);
+        CHECK(!c.undo().ok);
+        CHECK(c.document().revision() == revisionBefore);
+        CHECK(c.undoSize() == undoBefore);
+        CHECK(c.document().findInstanceInScene(kSceneA, kHero)->transform.position.x == 25.f);
+    }
+
+    // -- A blocked authoring command only emits an intentional Console warning -
+    {
+        EditorCoordinator c{makeInheritedDoc()};
+        CHECK(c.playProject().ok);
+        c.consumeInvalidations(); // discard Start Play Toolbar | Viewport | Console
+        const std::size_t logBefore = c.consoleLog().size();
+        const uint64_t revisionBefore = c.document().revision();
+
+        CHECK(!c.execute(SetEntityPositionCommand{kSceneA, kHero, {99.f, 20.f}}).ok);
+        CHECK(c.document().revision() == revisionBefore);
+        CHECK(c.consoleLog().size() == logBefore + 1);
+        CHECK(c.consoleLog().back().level == ConsoleMessage::Level::Warning);
+        CHECK(c.consumeInvalidations() == EditorInvalidation::Console);
+    }
+
+    // -- Workspace intents remain allowed during Play and do not retarget Play -
+    {
+        EditorCoordinator c{makeInheritedDoc()};
+        CHECK(c.execute(CreateEntityCommand{kSceneB, 100, "Enemy", "Enemy B", {5.f, 6.f}}).ok);
+        CHECK(c.playProject().ok);
+        const SceneFrameSnapshot playBefore = collectSceneFrameSnapshot(*c.playSession());
+        CHECK(playBefore.sceneId == kSceneA);
+        CHECK(playBefore.sprites.size() == 1);
+
+        CHECK(c.apply(SelectSceneIntent{kSceneB}).ok);
+        CHECK(c.state().activeSceneId == kSceneB);
+        CHECK(c.playSession()->sceneId() == kSceneA);
+        const SceneFrameSnapshot playAfterIntent = collectSceneFrameSnapshot(*c.playSession());
+        CHECK(playAfterIntent.sceneId == kSceneA);
+        CHECK(playAfterIntent.sprites.size() == 1);
+
+        CHECK(c.apply(SelectEntityIntent{100}).ok);
+        CHECK(c.selection().primaryEntity == 100);
+        const SceneFrameSnapshot playAfterSelection = collectSceneFrameSnapshot(*c.playSession());
+        CHECK(playAfterSelection.sceneId == kSceneA);
+        CHECK(!playAfterSelection.entities.empty());
+        CHECK(!playAfterSelection.entities[0].selected);
+
+        CHECK(c.stopPlaying().ok);
+        CHECK(!c.isPlaying());
+        const SceneFrameSnapshot editAfterStop =
+            collectSceneFrameSnapshot(c.document(), c.state().activeSceneId,
+                                      c.selection().primaryEntity);
+        CHECK(editAfterStop.sceneId == kSceneB);
+        CHECK(editAfterStop.entities.size() == 1);
+        CHECK(editAfterStop.entities[0].entityId == 100);
+        CHECK(editAfterStop.entities[0].selected);
+        CHECK(editAfterStop.sprites.empty());
     }
 
     // == Start-scene invariant: scenes exist => startSceneId is valid ==========

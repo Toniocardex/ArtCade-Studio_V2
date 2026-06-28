@@ -19,6 +19,7 @@ struct TextureRequest {
 
 struct TextureResource {
     Texture2D texture{};
+    std::filesystem::path resolvedSourcePath;
     bool loaded = false;
     std::string error;
 };

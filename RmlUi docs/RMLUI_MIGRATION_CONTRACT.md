@@ -310,6 +310,68 @@ ProjectDocument
 
 Edit e Play non condividono stato mutabile.
 
+La creazione della sessione e' il solo punto in cui Play legge l'authoring:
+
+```text
+Play Project / Play Current Scene
+-> determina SceneId
+-> legge ProjectDocument una volta
+-> resolveSpriteRenderer()
+-> RuntimeScene + RuntimeSpriteComponent
+-> PlayAssetCatalogSnapshot
+-> PlaySession
+```
+
+Dopo Start Play, tick e draw leggono solo `PlaySession` e snapshot runtime
+derivati. Il renderer continua a consumare `SceneFrameSnapshot`, ma in Play lo
+snapshot nasce dalla sessione, non dal documento.
+
+`PlayAssetCatalogSnapshot` conserva `AssetId + sourcePath` relativi congelati
+all'avvio. Il livello applicativo risolve `resourceRoot + sourcePath` in
+`TextureRequest`; la `TextureCache` resta derivata e non autorevole. Se lo
+stesso `AssetId` viene richiesto con un path diverso, la cache deve ricaricare
+la variante richiesta invece di riusare una texture semanticamente stale.
+
+`Stop` distrugge soltanto `PlaySession`. Non esiste reverse-sync dal runtime
+all'authoring, non si usa JSON per ripristinare lo stato, e `ProjectReplaced`
+mentre Play e' attivo deve seguire una policy esplicita.
+
+Policy attuale durante Play:
+
+```text
+isPlaying()
+-> command authoring rifiutati dal coordinator
+-> undo authoring rifiutato dal coordinator
+-> intent workspace ammessi quando non mutano ProjectDocument
+```
+
+Questa regola vive nel coordinator, non solo nello stato disabled dei controlli
+RmlUi. Il motivo e' evitare che shortcut, menu o chiamate programmatiche possano
+aprire un secondo percorso di modifica del documento mentre la sessione runtime
+e' congelata.
+
+Gli intent di workspace possono cambiare `EditorState` durante Play. Per
+esempio, `SelectSceneIntent` puo' aggiornare `activeSceneId`, ma non retargetta
+la sessione:
+
+```text
+PlaySession.sourceSceneId = A
+SelectSceneIntent(B)
+-> EditorState.activeSceneId = B
+-> PlaySession continua su A
+Stop
+-> Edit Mode mostra B
+```
+
+I fallimenti bloccati dal coordinator possono aggiungere un warning alla
+console. Questo e' un effetto UI intenzionale (`EditorInvalidation::Console`),
+non una mutazione authoring.
+
+La UI puo' mostrare il target runtime come affordance, per esempio
+`PLAYING - Scene A`. Il testo deve essere derivato da `PlaySession::scene()`,
+non dallo `EditorState.activeSceneId`, per evitare ambiguita' quando il
+workspace viene cambiato durante Play.
+
 ## Invalidazione pull-based
 
 Il coordinator decide cosa e' invalido. I pannelli decidono come rappresentarlo.

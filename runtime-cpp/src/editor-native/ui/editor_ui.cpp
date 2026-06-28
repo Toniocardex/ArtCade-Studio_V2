@@ -150,10 +150,14 @@ void EditorUi::refreshToolbar() {
     const bool playing = coordinator_.isPlaying();
 
     if (Rml::Element* status = document_->GetElementById("toolbar-status")) {
-        const SceneDef* scene =
-            coordinator_.document().findScene(coordinator_.state().activeSceneId);
-        std::string text = scene ? scene->name : std::string("-");
-        text += playing ? "  -  PLAYING" : "  -  EDIT";
+        std::string text;
+        if (playing && coordinator_.playSession()) {
+            text = "PLAYING - " + coordinator_.playSession()->scene().name;
+        } else {
+            const SceneDef* scene =
+                coordinator_.document().findScene(coordinator_.state().activeSceneId);
+            text = (scene ? scene->name : std::string("-")) + "  -  EDIT";
+        }
         status->SetInnerRML(escapeRml(text));
     }
 

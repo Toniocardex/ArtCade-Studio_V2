@@ -6,6 +6,7 @@
 #include "editor-native/app/rml_host.h"
 #include "editor-native/commands/editor_intent.h"
 #include "editor-native/demo/demo_project.h"
+#include "editor-native/model/play_session.h"
 #include "editor-native/model/scene_frame_snapshot.h"
 #include "editor-native/ui/editor_ui.h"
 #include "editor-native/view/scene_view.h"
@@ -50,7 +51,9 @@ void routeViewportInput(EditorCoordinator& coordinator, const ViewportRect& rect
     };
     if (!shouldViewportReceiveInput(ctx)) return;
 
-    const SceneId active = coordinator.state().activeSceneId;
+    const PlaySession* playSession = coordinator.playSession();
+    const SceneId active = playSession ? playSession->sceneId()
+                                       : coordinator.state().activeSceneId;
     const float zoom = coordinator.sceneView(active).zoom;
 
     const float wheel = GetMouseWheelMove();
@@ -92,6 +95,18 @@ std::unordered_map<AssetId, TextureRequest> textureRequestsFor(
     for (const ImageAssetDef& asset : doc.imageAssets) {
         out.emplace(asset.assetId, TextureRequest{
             asset.assetId,
+            resolveImageAssetPath(resourceRoot, asset.sourcePath),
+        });
+    }
+    return out;
+}
+
+std::unordered_map<AssetId, TextureRequest> textureRequestsFor(
+    const PlayAssetCatalogSnapshot& catalog, const std::filesystem::path& resourceRoot) {
+    std::unordered_map<AssetId, TextureRequest> out;
+    for (const auto& [assetId, asset] : catalog.imageAssets) {
+        out.emplace(assetId, TextureRequest{
+            assetId,
             resolveImageAssetPath(resourceRoot, asset.sourcePath),
         });
     }
@@ -152,11 +167,16 @@ int EditorApp::run(int argc, char** argv) {
 
         BeginDrawing();
         ClearBackground(Color{15, 16, 20, 255});
-        const SceneId active = coordinator.state().activeSceneId;
-        const SceneFrameSnapshot snapshot = collectSceneFrameSnapshot(
-            coordinator.document(), active, coordinator.selection().primaryEntity);
-        const auto textureRequests =
-            textureRequestsFor(coordinator.document().data(), resourceRoot);
+        const PlaySession* playSession = coordinator.playSession();
+        const SceneId active = playSession ? playSession->sceneId()
+                                           : coordinator.state().activeSceneId;
+        const SceneFrameSnapshot snapshot = playSession
+            ? collectSceneFrameSnapshot(*playSession)
+            : collectSceneFrameSnapshot(coordinator.document(), active,
+                                        coordinator.selection().primaryEntity);
+        const auto textureRequests = playSession
+            ? textureRequestsFor(playSession->assets(), resourceRoot)
+            : textureRequestsFor(coordinator.document().data(), resourceRoot);
         textureCache.prepare(snapshot.sprites, textureRequests);
         sceneView.render(snapshot, coordinator.sceneView(active), rect, textureCache);
         host.render();

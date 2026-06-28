@@ -1,5 +1,6 @@
 #include "editor-native/model/scene_frame_snapshot.h"
 
+#include "editor-native/model/play_session.h"
 #include "editor-native/model/project_document.h"
 #include "editor-native/model/sprite_render_view.h"
 
@@ -16,8 +17,17 @@ const Vec3* fillFor(const ProjectDocument& document, const std::string& typeId) 
 }
 
 SceneFrameRect instanceBounds(const SceneInstanceDef& inst) {
-    const Vec2 pos = inst.transform.position;
-    const Vec2 scl = inst.transform.scale;
+    const Transform& transform = inst.transform;
+    const Vec2 pos = transform.position;
+    const Vec2 scl = transform.scale;
+    const float width = kDefaultSpriteExtent * (scl.x == 0.f ? 1.f : scl.x);
+    const float height = kDefaultSpriteExtent * (scl.y == 0.f ? 1.f : scl.y);
+    return SceneFrameRect{pos.x - width * 0.5f, pos.y - height * 0.5f, width, height};
+}
+
+SceneFrameRect transformBounds(const Transform& transform) {
+    const Vec2 pos = transform.position;
+    const Vec2 scl = transform.scale;
     const float width = kDefaultSpriteExtent * (scl.x == 0.f ? 1.f : scl.x);
     const float height = kDefaultSpriteExtent * (scl.y == 0.f ? 1.f : scl.y);
     return SceneFrameRect{pos.x - width * 0.5f, pos.y - height * 0.5f, width, height};
@@ -61,6 +71,40 @@ SceneFrameSnapshot collectSceneFrameSnapshot(const ProjectDocument& document,
                 Vec2{bounds.width * 0.5f, bounds.height * 0.5f},
                 sprite.visible,
                 selected,
+            });
+        }
+    }
+
+    return snapshot;
+}
+
+SceneFrameSnapshot collectSceneFrameSnapshot(const PlaySession& session) {
+    SceneFrameSnapshot snapshot;
+    const RuntimeScene& scene = session.scene();
+    snapshot.sceneId = scene.sourceSceneId;
+    snapshot.hasScene = true;
+    snapshot.sceneName = scene.name;
+    snapshot.worldSize = scene.worldSize;
+    snapshot.backgroundColor = scene.backgroundColor;
+
+    for (const RuntimeEntity& entity : scene.entities) {
+        const SceneFrameRect bounds = transformBounds(entity.transform);
+        snapshot.entities.push_back(SceneFrameEntity{
+            entity.id,
+            entity.name,
+            entity.fillColor,
+            bounds,
+            false,
+        });
+
+        if (entity.sprite.has_value() && !entity.sprite->assetId.empty()) {
+            snapshot.sprites.push_back(SceneFrameSprite{
+                entity.id,
+                entity.sprite->assetId,
+                bounds,
+                Vec2{bounds.width * 0.5f, bounds.height * 0.5f},
+                entity.sprite->visible,
+                false,
             });
         }
     }

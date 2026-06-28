@@ -8,6 +8,7 @@
 namespace ArtCade::EditorNative {
 
 class ProjectDocument;
+class PlaySession;
 
 struct SceneFrameRect {
     float x = 0.f;
@@ -47,5 +48,6 @@ struct SceneFrameSnapshot {
 SceneFrameSnapshot collectSceneFrameSnapshot(const ProjectDocument& document,
                                              const SceneId& sceneId,
                                              EntityId selectedEntity);
+SceneFrameSnapshot collectSceneFrameSnapshot(const PlaySession& session);
 
 } // namespace ArtCade::EditorNative

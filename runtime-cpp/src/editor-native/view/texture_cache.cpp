@@ -49,9 +49,15 @@ void TextureCache::clear() {
 const TextureResource* TextureCache::findOrLoad(const TextureRequest& request) {
     const AssetId& assetId = request.assetId;
     const auto existing = entries_.find(assetId);
-    if (existing != entries_.end()) return &existing->second;
+    if (existing != entries_.end()) {
+        if (existing->second.resolvedSourcePath == request.resolvedSourcePath) {
+            return &existing->second;
+        }
+        invalidate(assetId);
+    }
 
     TextureResource resource;
+    resource.resolvedSourcePath = request.resolvedSourcePath;
     if (request.resolvedSourcePath.empty()) {
         resource.error = "image asset has no sourcePath";
         const auto [it, _] = entries_.emplace(assetId, std::move(resource));
