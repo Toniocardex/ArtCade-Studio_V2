@@ -2,30 +2,34 @@
 
 #include <raylib.h>
 
-#include <utility>
-
 namespace ArtCade::EditorNative {
-
-TextureCache::TextureCache(std::filesystem::path resourceRoot)
-    : resourceRoot_(std::move(resourceRoot)) {}
 
 TextureCache::~TextureCache() {
     clear();
 }
 
 void TextureCache::prepare(const std::vector<SceneFrameSprite>& sprites,
-                           const std::unordered_map<AssetId, ImageAssetDef>& imageAssets) {
+                           const std::unordered_map<AssetId, TextureRequest>& requests) {
     for (const SceneFrameSprite& sprite : sprites) {
         if (!sprite.visible || sprite.assetId.empty()) continue;
-        const auto assetIt = imageAssets.find(sprite.assetId);
-        if (assetIt == imageAssets.end()) continue;
-        (void)findOrLoad(sprite.assetId, assetIt->second);
+        const auto requestIt = requests.find(sprite.assetId);
+        if (requestIt == requests.end()) continue;
+        (void)findOrLoad(requestIt->second);
     }
 }
 
 const TextureResource* TextureCache::find(const AssetId& assetId) const {
     const auto it = entries_.find(assetId);
     return it == entries_.end() ? nullptr : &it->second;
+}
+
+void TextureCache::invalidate(const AssetId& assetId) {
+    const auto it = entries_.find(assetId);
+    if (it == entries_.end()) return;
+    if (IsWindowReady() && it->second.loaded && it->second.texture.id != 0) {
+        UnloadTexture(it->second.texture);
+    }
+    entries_.erase(it);
 }
 
 void TextureCache::clear() {
@@ -42,19 +46,19 @@ void TextureCache::clear() {
     entries_.clear();
 }
 
-const TextureResource* TextureCache::findOrLoad(const AssetId& assetId,
-                                                const ImageAssetDef& asset) {
+const TextureResource* TextureCache::findOrLoad(const TextureRequest& request) {
+    const AssetId& assetId = request.assetId;
     const auto existing = entries_.find(assetId);
     if (existing != entries_.end()) return &existing->second;
 
     TextureResource resource;
-    if (asset.sourcePath.empty()) {
+    if (request.resolvedSourcePath.empty()) {
         resource.error = "image asset has no sourcePath";
         const auto [it, _] = entries_.emplace(assetId, std::move(resource));
         return &it->second;
     }
 
-    const std::filesystem::path path = resolvePath(asset);
+    const std::filesystem::path& path = request.resolvedSourcePath;
     if (!std::filesystem::exists(path)) {
         resource.error = "missing image file: " + path.string();
         const auto [it, _] = entries_.emplace(assetId, std::move(resource));
@@ -71,12 +75,6 @@ const TextureResource* TextureCache::findOrLoad(const AssetId& assetId,
 
     const auto [it, _] = entries_.emplace(assetId, std::move(resource));
     return &it->second;
-}
-
-std::filesystem::path TextureCache::resolvePath(const ImageAssetDef& asset) const {
-    const std::filesystem::path path(asset.sourcePath);
-    if (path.is_absolute()) return path;
-    return resourceRoot_ / path;
 }
 
 } // namespace ArtCade::EditorNative

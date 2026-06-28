@@ -78,10 +78,22 @@ void applyWindowIcon(const std::filesystem::path& resourceRoot) {
     UnloadImage(icon);
 }
 
-std::unordered_map<AssetId, ImageAssetDef> imageAssetMap(const ProjectDoc& doc) {
-    std::unordered_map<AssetId, ImageAssetDef> out;
+std::filesystem::path resolveImageAssetPath(const std::filesystem::path& resourceRoot,
+                                            const std::string& sourcePath) {
+    if (sourcePath.empty()) return {};
+    const std::filesystem::path path(sourcePath);
+    if (path.is_absolute()) return path.lexically_normal();
+    return std::filesystem::absolute(resourceRoot / path).lexically_normal();
+}
+
+std::unordered_map<AssetId, TextureRequest> textureRequestsFor(
+    const ProjectDoc& doc, const std::filesystem::path& resourceRoot) {
+    std::unordered_map<AssetId, TextureRequest> out;
     for (const ImageAssetDef& asset : doc.imageAssets) {
-        out.emplace(asset.assetId, asset);
+        out.emplace(asset.assetId, TextureRequest{
+            asset.assetId,
+            resolveImageAssetPath(resourceRoot, asset.sourcePath),
+        });
     }
     return out;
 }
@@ -123,7 +135,8 @@ int EditorApp::run(int argc, char** argv) {
     coordinator.apply(SelectEntityIntent{1});
     coordinator.logInfo("ArtCade Studio ready.");
     SceneView sceneView;
-    TextureCache textureCache{resourceRoot};
+    TextureCache textureCache;
+    uint32_t textureProjectGeneration = coordinator.document().replaceCount();
 
     int frame = 0;
     while (!WindowShouldClose()) {
@@ -143,8 +156,13 @@ int EditorApp::run(int argc, char** argv) {
         const SceneId active = coordinator.state().activeSceneId;
         const SceneFrameSnapshot snapshot = collectSceneFrameSnapshot(
             coordinator.document(), active, coordinator.selection().primaryEntity);
-        const auto assets = imageAssetMap(coordinator.document().data());
-        textureCache.prepare(snapshot.sprites, assets);
+        if (textureProjectGeneration != coordinator.document().replaceCount()) {
+            textureCache.clear();
+            textureProjectGeneration = coordinator.document().replaceCount();
+        }
+        const auto textureRequests =
+            textureRequestsFor(coordinator.document().data(), resourceRoot);
+        textureCache.prepare(snapshot.sprites, textureRequests);
         sceneView.render(snapshot, coordinator.sceneView(active), rect, textureCache);
         host.render();
         EndDrawing();

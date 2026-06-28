@@ -165,19 +165,28 @@ ProjectDocument + EditorState
 items, and `SceneFrameCollider` overlays. It carries `AssetId`, destination
 bounds, visibility, and selection state, but no `Texture2D` and no GPU handle.
 
-Texture resources are derived and non-authoritative:
+Texture resources are derived and non-authoritative. Persisted `sourcePath`
+values should be portable paths relative to the project/resource root, not
+machine-specific absolute paths:
 
 ```text
 SceneFrameSprite.assetId
 -> ImageAssetDef.sourcePath
+-> application resolves project/resource root + sourcePath
 -> TextureCache
 -> DrawTexturePro
 ```
 
-`TextureCache` belongs to the native rendering layer. It loads synchronously,
-records failed loads to avoid retrying every frame, unloads while the Raylib
-context is still valid, and is not serialized. Missing source paths or missing
-files produce a diagnostic placeholder; they do not mutate the document.
+`TextureCache` belongs to the native rendering layer. It receives resolved paths,
+loads synchronously, records failed loads to avoid retrying every frame, unloads
+while the Raylib context is still valid, and is not serialized. Missing source
+paths or missing files produce a diagnostic placeholder; they do not mutate the
+document.
+
+`TextureCache::clear()` is called when the project is replaced, so two projects
+can reuse the same `AssetId` without stale GPU state. `TextureCache::invalidate(id)`
+exists for future catalog changes where `sourcePath` changes but the `AssetId`
+does not.
 
 The renderer must not query `ProjectDocument`, `EditorCoordinator`, RmlUi
 controls, or panels during draw. Asset catalog lookup happens before drawing;

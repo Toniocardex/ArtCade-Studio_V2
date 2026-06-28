@@ -12,6 +12,11 @@
 
 namespace ArtCade::EditorNative {
 
+struct TextureRequest {
+    AssetId assetId;
+    std::filesystem::path resolvedSourcePath;
+};
+
 struct TextureResource {
     Texture2D texture{};
     bool loaded = false;
@@ -20,19 +25,17 @@ struct TextureResource {
 
 class TextureCache {
 public:
-    explicit TextureCache(std::filesystem::path resourceRoot);
     ~TextureCache();
 
     void prepare(const std::vector<SceneFrameSprite>& sprites,
-                 const std::unordered_map<AssetId, ImageAssetDef>& imageAssets);
+                 const std::unordered_map<AssetId, TextureRequest>& requests);
     const TextureResource* find(const AssetId& assetId) const;
+    void invalidate(const AssetId& assetId);
     void clear();
 
 private:
-    const TextureResource* findOrLoad(const AssetId& assetId, const ImageAssetDef& asset);
-    std::filesystem::path resolvePath(const ImageAssetDef& asset) const;
+    const TextureResource* findOrLoad(const TextureRequest& request);
 
-    std::filesystem::path resourceRoot_;
     std::unordered_map<AssetId, TextureResource> entries_;
 };
 

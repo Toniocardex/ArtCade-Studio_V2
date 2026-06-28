@@ -267,6 +267,7 @@ Per gli sprite del viewport Edit:
 ```text
 AssetId
 -> ImageAssetDef.sourcePath
+-> application resolves project/resource root + sourcePath
 -> TextureCache derivata
 -> SceneFrameSprite
 -> DrawTexturePro
@@ -277,6 +278,13 @@ metadata). Non conserva `Texture2D`, handle GPU, stato loaded/loading o
 puntatori al renderer. `TextureCache` e' distruttibile e ricostruibile dal
 catalogo asset, non e' persistita e deve essere svuotata prima della chiusura
 del context Raylib/OpenGL.
+
+`sourcePath` deve essere portabile: preferire path relativi alla directory del
+progetto o a una root asset esplicita. I path assoluti legati alla macchina non
+devono diventare il formato normale del progetto.
+
+La cache deve essere svuotata su `ProjectReplaced` e puo' invalidare un singolo
+asset quando il catalogo cambia mantenendo lo stesso `AssetId`.
 
 Il renderer consuma `SceneFrameSnapshot` e `TextureCache`; non interroga
 `ProjectDocument`, `EditorCoordinator`, pannelli o controlli RmlUi durante il
