@@ -5,13 +5,7 @@
 namespace ArtCade::EditorNative {
 
 ProjectDocument::ProjectDocument(ProjectDoc doc)
-    : doc_(std::move(doc)) {
-    // Legacy ProjectDoc still names the gameplay start scene `activeSceneId`.
-    // Treat it as persistent project data, not the editor's opened scene.
-    if (doc_.activeSceneId.empty() && !doc_.scenes.empty()) {
-        doc_.activeSceneId = doc_.scenes.begin()->first;
-    }
-}
+    : doc_(std::move(doc)) {}
 
 const SceneDef* ProjectDocument::findScene(const SceneId& id) const {
     const auto it = doc_.scenes.find(id);
@@ -48,17 +42,24 @@ SceneInstanceDef* ProjectDocument::mutableInstanceInScene(const SceneId& sceneId
 }
 
 void ProjectDocument::markDirty() {
-    dirty_ = true;
     ++revision_;
 }
 
 void ProjectDocument::replace(ProjectDoc doc) {
     doc_ = std::move(doc);
-    if (doc_.activeSceneId.empty() && !doc_.scenes.empty()) {
-        doc_.activeSceneId = doc_.scenes.begin()->first;
-    }
     ++replaceCount_;
     markDirty();
+}
+
+void ProjectDocument::replaceClean(ProjectDocument replacement) {
+    doc_ = std::move(replacement.doc_);
+    ++replaceCount_;
+    ++revision_;
+    savedRevision_ = revision_;
+}
+
+void ProjectDocument::markSaved() {
+    savedRevision_ = revision_;
 }
 
 bool ProjectDocument::setInstancePosition(const SceneId& sceneId, EntityId id, Vec2 position) {

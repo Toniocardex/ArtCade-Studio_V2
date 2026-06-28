@@ -56,7 +56,10 @@ public:
     }
 
     bool                  canUndo() const { return history_.canUndo(); }
+    std::size_t           undoSize() const { return history_.size(); }
     EditorOperationResult undo();
+    EditorOperationResult replaceProject(ProjectDocument replacement);
+    EditorOperationResult markProjectSaved();
 
     // ---- intent path (workspace/editor state) -------------------------------
     EditorOperationResult apply(const SelectEntityIntent& intent);

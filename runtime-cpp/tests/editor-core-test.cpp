@@ -7,13 +7,21 @@
 #include "editor-native/app/editor_coordinator.h"
 #include "editor-native/app/input_routing.h"
 #include "editor-native/app/inspector_commit.h"
+#include "editor-native/app/project_file.h"
+#include "editor-native/app/project_load.h"
 #include "editor-native/commands/entity_commands.h"
 #include "editor-native/commands/scene_commands.h"
+#include "editor-native/model/project_io.h"
 #include "editor-native/model/play_session.h"
 
+#include <filesystem>
+#include <fstream>
 #include <iostream>
+#include <iterator>
 #include <string>
+#include <system_error>
 #include <type_traits>
+#include <utility>
 
 using namespace ArtCade;
 using namespace ArtCade::EditorNative;
@@ -57,6 +65,153 @@ static ProjectDoc makeDoc() {
     doc.scenes.emplace(kSceneA, a);
     doc.scenes.emplace(kSceneB, b);
     return doc;
+}
+
+static ProjectDoc makeReplacementDoc() {
+    ProjectDoc doc;
+    doc.projectName = "replacement";
+    doc.activeSceneId = "scene-replacement";
+
+    SceneDef scene;
+    scene.id = "scene-replacement";
+    scene.name = "Replacement";
+    SceneInstanceDef instance;
+    instance.id = 77;
+    instance.objectTypeId = "Enemy";
+    instance.instanceName = "Enemy";
+    instance.transform.position = {7.f, 8.f};
+    scene.instances.push_back(instance);
+    doc.scenes.emplace(scene.id, scene);
+    return doc;
+}
+
+static ProjectDoc makeInvalidStartDoc() {
+    ProjectDoc doc = makeReplacementDoc();
+    doc.activeSceneId = "missing-start-scene";
+    return doc;
+}
+
+static ProjectDoc makeEmptyDoc() {
+    ProjectDoc doc;
+    doc.projectName = "empty";
+    doc.activeSceneId = "missing";
+    return doc;
+}
+
+static std::string validProjectJson() {
+    return R"json({
+  "formatVersion": 1,
+  "projectName": "LoadedProject",
+  "activeSceneId": "loaded-scene",
+  "scenes": [
+    {
+      "id": "loaded-scene",
+      "name": "Loaded Scene",
+      "instances": [
+        {
+          "id": 88,
+          "objectTypeId": "LoadedType",
+          "instanceName": "Loaded Entity",
+          "transform": { "position": { "x": 123, "y": 456 } }
+        }
+      ]
+    }
+  ]
+})json";
+}
+
+static std::string danglingStartJson() {
+    return R"json({
+  "formatVersion": 1,
+  "projectName": "Dangling",
+  "activeSceneId": "missing",
+  "scenes": [
+    { "id": "real-scene", "name": "Real Scene" }
+  ]
+})json";
+}
+
+static std::string unsupportedVersionJson() {
+    return R"json({
+  "formatVersion": 99,
+  "projectName": "Future",
+  "activeSceneId": "future-scene",
+  "scenes": [
+    { "id": "future-scene", "name": "Future Scene" }
+  ]
+})json";
+}
+
+static std::string zeroSceneJson() {
+    return R"json({
+  "formatVersion": 1,
+  "projectName": "No Scenes",
+  "activeSceneId": "missing",
+  "scenes": []
+})json";
+}
+
+static std::string duplicateSceneJson() {
+    return R"json({
+  "formatVersion": 1,
+  "projectName": "Duplicate Scene",
+  "activeSceneId": "dupe",
+  "scenes": [
+    { "id": "dupe", "name": "First" },
+    { "id": "dupe", "name": "Second" }
+  ]
+})json";
+}
+
+static std::filesystem::path testTempDir() {
+    std::filesystem::path dir =
+        std::filesystem::temp_directory_path() / "artcade-editor-core-test";
+    std::error_code ec;
+    std::filesystem::remove_all(dir, ec);
+    std::filesystem::create_directories(dir, ec);
+    return dir;
+}
+
+static void writeTextFile(const std::filesystem::path& path, const std::string& text) {
+    std::ofstream out(path, std::ios::binary | std::ios::trunc);
+    out << text;
+}
+
+static std::string readTextFile(const std::filesystem::path& path) {
+    std::ifstream in(path, std::ios::binary);
+    return std::string(std::istreambuf_iterator<char>(in),
+                       std::istreambuf_iterator<char>());
+}
+
+static bool hasTempSibling(const std::filesystem::path& destination) {
+    const std::filesystem::path dir = destination.parent_path();
+    const std::string prefix = destination.filename().string() + ".tmp-";
+    if (!std::filesystem::exists(dir)) return false;
+    for (const auto& entry : std::filesystem::directory_iterator(dir)) {
+        if (entry.path().filename().string().rfind(prefix, 0) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void expectCoordinatorBaseline(const EditorCoordinator& c,
+                                      const std::string& projectName,
+                                      const SceneId& activeScene,
+                                      EntityId selection,
+                                      float leftPanel,
+                                      std::size_t undoSize,
+                                      uint64_t revision,
+                                      uint64_t savedRevision,
+                                      bool dirty) {
+    CHECK(c.document().data().projectName == projectName);
+    CHECK(c.state().activeSceneId == activeScene);
+    CHECK(c.selection().primaryEntity == selection);
+    CHECK(c.uiState().leftPanelWidth == leftPanel);
+    CHECK(c.undoSize() == undoSize);
+    CHECK(c.document().revision() == revision);
+    CHECK(c.document().savedRevision() == savedRevision);
+    CHECK(c.document().isDirty() == dirty);
 }
 
 int main() {
@@ -151,6 +306,254 @@ int main() {
         EditorCoordinator c{makeDoc()};
         CHECK(c.consumeInvalidations() == EditorInvalidation::None);
         CHECK(c.pendingInvalidations() == EditorInvalidation::None);
+    }
+
+    // -- Replace project is atomic at the coordinator boundary ----------------
+    {
+        EditorCoordinator c{makeDoc()};
+        c.apply(SelectEntityIntent{kHero});
+        c.apply(ResizePanelIntent{ResizePanelIntent::Panel::Left, 333.f});
+        c.apply(SetHierarchyFilterIntent{"keep-me"});
+        c.execute(SetEntityPositionCommand{kSceneA, kHero, {99.f, 20.f}});
+        CHECK(c.canUndo());
+        c.consumeInvalidations();
+
+        const EditorUiState uiBefore = c.uiState();
+        const auto r = c.replaceProject(ProjectDocument{makeReplacementDoc()});
+
+        CHECK(r.ok);
+        CHECK(r.change.kind == DomainChangeKind::ProjectReplaced);
+        CHECK(r.invalidation == (EditorInvalidation::Hierarchy | EditorInvalidation::Inspector
+                                 | EditorInvalidation::Viewport | EditorInvalidation::Assets
+                                 | EditorInvalidation::Toolbar | EditorInvalidation::Project));
+        CHECK(c.document().data().projectName == "replacement");
+        CHECK(c.state().activeSceneId == "scene-replacement");
+        CHECK(c.selection().primaryEntity == INVALID_ENTITY);
+        CHECK(!c.canUndo());
+        CHECK(c.undoSize() == 0);
+        CHECK(!c.document().isDirty());
+        CHECK(c.document().revision() == c.document().savedRevision());
+        CHECK(c.uiState().leftPanelWidth == uiBefore.leftPanelWidth);
+        CHECK(c.uiState().hierarchyFilter == uiBefore.hierarchyFilter);
+    }
+
+    // -- Replace normalizes missing and empty scene focus ----------------------
+    {
+        EditorCoordinator invalidStart{makeDoc()};
+        const auto invalid = invalidStart.replaceProject(ProjectDocument{makeInvalidStartDoc()});
+        CHECK(invalid.ok);
+        CHECK(invalidStart.document().startSceneId() == "missing-start-scene");
+        CHECK(invalidStart.state().activeSceneId == "scene-replacement");
+        CHECK(!invalidStart.document().isDirty());
+
+        EditorCoordinator empty{makeDoc()};
+        const auto emptyReplace = empty.replaceProject(ProjectDocument{makeEmptyDoc()});
+        CHECK(emptyReplace.ok);
+        CHECK(empty.state().activeSceneId.empty());
+        CHECK(empty.selection().primaryEntity == INVALID_ENTITY);
+        CHECK(!empty.document().isDirty());
+    }
+
+    // -- Load from text mutates only after deserialize/migrate/validate --------
+    {
+        EditorCoordinator c{makeDoc()};
+        c.apply(SelectEntityIntent{kHero});
+        c.apply(ResizePanelIntent{ResizePanelIntent::Panel::Left, 345.f});
+        c.execute(SetEntityPositionCommand{kSceneA, kHero, {44.f, 55.f}});
+        c.consumeInvalidations();
+
+        const uint64_t revisionBefore = c.document().revision();
+        const uint64_t savedBefore = c.document().savedRevision();
+        const bool dirtyBefore = c.document().isDirty();
+        const std::size_t undoBefore = c.undoSize();
+
+        const auto malformed = loadProjectFromText(c, "{ not json");
+        CHECK(!malformed.ok);
+        CHECK(malformed.error.stage == ProjectLoadStage::Deserialize);
+        expectCoordinatorBaseline(c, "spike", kSceneA, kHero, 345.f,
+                                  undoBefore, revisionBefore, savedBefore, dirtyBefore);
+
+        const auto migrationFailed = loadProjectFromText(c, unsupportedVersionJson());
+        CHECK(!migrationFailed.ok);
+        CHECK(migrationFailed.error.stage == ProjectLoadStage::Migration);
+        expectCoordinatorBaseline(c, "spike", kSceneA, kHero, 345.f,
+                                  undoBefore, revisionBefore, savedBefore, dirtyBefore);
+
+        const auto validationFailed = loadProjectFromText(c, danglingStartJson());
+        CHECK(!validationFailed.ok);
+        CHECK(validationFailed.error.stage == ProjectLoadStage::Validation);
+        expectCoordinatorBaseline(c, "spike", kSceneA, kHero, 345.f,
+                                  undoBefore, revisionBefore, savedBefore, dirtyBefore);
+
+        const auto duplicateScene = loadProjectFromText(c, duplicateSceneJson());
+        CHECK(!duplicateScene.ok);
+        CHECK(duplicateScene.error.stage == ProjectLoadStage::Validation);
+        expectCoordinatorBaseline(c, "spike", kSceneA, kHero, 345.f,
+                                  undoBefore, revisionBefore, savedBefore, dirtyBefore);
+
+        const auto loaded = loadProjectFromText(c, validProjectJson());
+        CHECK(loaded.ok);
+        CHECK(loaded.operation.change.kind == DomainChangeKind::ProjectReplaced);
+        CHECK(c.document().data().projectName == "LoadedProject");
+        CHECK(c.document().startSceneId() == "loaded-scene");
+        CHECK(c.state().activeSceneId == "loaded-scene");
+        CHECK(c.selection().primaryEntity == INVALID_ENTITY);
+        CHECK(c.uiState().leftPanelWidth == 345.f);
+        CHECK(c.undoSize() == 0);
+        CHECK(!c.document().isDirty());
+        CHECK(c.document().revision() == c.document().savedRevision());
+        CHECK(c.document().findInstanceInScene("loaded-scene", 88) != nullptr);
+    }
+
+    // -- Empty projects load without inventing a scene -------------------------
+    {
+        EditorCoordinator c{makeDoc()};
+        const auto loaded = loadProjectFromText(c, zeroSceneJson());
+        CHECK(loaded.ok);
+        CHECK(c.document().data().scenes.empty());
+        CHECK(c.state().activeSceneId.empty());
+        CHECK(c.selection().primaryEntity == INVALID_ENTITY);
+        CHECK(!c.document().isDirty());
+    }
+
+    // -- Serializer round-trip keeps authoring data, not workspace state ------
+    {
+        EditorCoordinator c{makeDoc()};
+        c.apply(SelectEntityIntent{kHero});
+        c.apply(SetActiveToolIntent{EditorTool::Pan});
+        c.apply(ResizePanelIntent{ResizePanelIntent::Panel::Left, 410.f});
+        CHECK(c.execute(SetEntityPositionCommand{kSceneA, kHero, {321.f, 20.f}}).ok);
+
+        SerializeResult serialized = ProjectSerializer::serialize(c.document());
+        CHECK(serialized.ok);
+        CHECK(serialized.value.find("selection") == std::string::npos);
+        CHECK(serialized.value.find("sceneViews") == std::string::npos);
+        CHECK(serialized.value.find("activeTool") == std::string::npos);
+        CHECK(serialized.value.find("leftPanelWidth") == std::string::npos);
+        CHECK(serialized.value.find("consoleVisible") == std::string::npos);
+
+        DeserializeResult deserialized = ProjectSerializer::deserialize(serialized.value);
+        CHECK(deserialized.ok);
+        DeserializeResult validated =
+            ProjectValidator::validate(std::move(deserialized.value));
+        CHECK(validated.ok);
+        CHECK(validated.value.findInstanceInScene(kSceneA, kHero)->transform.position.x
+              == 321.f);
+    }
+
+    // -- File load adapter: filesystem failure leaves the coordinator intact ---
+    {
+        const std::filesystem::path dir = testTempDir();
+        EditorCoordinator c{makeDoc()};
+        c.apply(SelectEntityIntent{kHero});
+        c.apply(ResizePanelIntent{ResizePanelIntent::Panel::Left, 360.f});
+        CHECK(c.execute(SetEntityPositionCommand{kSceneA, kHero, {44.f, 55.f}}).ok);
+
+        const uint64_t revisionBefore = c.document().revision();
+        const uint64_t savedBefore = c.document().savedRevision();
+        const bool dirtyBefore = c.document().isDirty();
+        const std::size_t undoBefore = c.undoSize();
+
+        const auto missing = loadProjectFromFile(c, dir / "missing.artcade-project");
+        CHECK(!missing.ok);
+        CHECK(missing.error.stage == ProjectLoadStage::FileRead);
+        expectCoordinatorBaseline(c, "spike", kSceneA, kHero, 360.f,
+                                  undoBefore, revisionBefore, savedBefore, dirtyBefore);
+
+        const std::filesystem::path emptyFile = dir / "empty.artcade-project";
+        writeTextFile(emptyFile, "");
+        const auto empty = loadProjectFromFile(c, emptyFile);
+        CHECK(!empty.ok);
+        CHECK(empty.error.stage == ProjectLoadStage::Deserialize);
+        expectCoordinatorBaseline(c, "spike", kSceneA, kHero, 360.f,
+                                  undoBefore, revisionBefore, savedBefore, dirtyBefore);
+
+        const std::filesystem::path validFile = dir / "valid.artcade-project";
+        writeTextFile(validFile, validProjectJson());
+        const auto loaded = loadProjectFromFile(c, validFile);
+        CHECK(loaded.ok);
+        CHECK(loaded.operation.change.kind == DomainChangeKind::ProjectReplaced);
+        CHECK(c.document().data().projectName == "LoadedProject");
+        CHECK(c.state().activeSceneId == "loaded-scene");
+        CHECK(!c.document().isDirty());
+    }
+
+    // -- Atomic save: failure does not mark saved; success reloads from disk ---
+    {
+        const std::filesystem::path dir = testTempDir();
+        const std::filesystem::path projectPath = dir / "project.artcade-project";
+
+        EditorCoordinator c{makeDoc()};
+        c.apply(SelectEntityIntent{kHero});
+        c.apply(SetViewportZoomIntent{kSceneA, 2.5f});
+        c.apply(ResizePanelIntent{ResizePanelIntent::Panel::Left, 390.f});
+        CHECK(c.execute(SetEntityPositionCommand{kSceneA, kHero, {777.f, 20.f}}).ok);
+        CHECK(c.canUndo());
+        CHECK(c.document().isDirty());
+
+        const uint64_t revisionBeforeFailedSave = c.document().revision();
+        const uint64_t savedBeforeFailedSave = c.document().savedRevision();
+        const std::size_t undoBeforeFailedSave = c.undoSize();
+        const std::filesystem::path blockedDestination = dir / "blocked";
+        std::filesystem::create_directory(blockedDestination);
+
+        const auto failedSave = saveProjectToFile(c, blockedDestination);
+        CHECK(!failedSave.ok);
+        CHECK(failedSave.error.stage == ProjectSaveStage::FileWrite);
+        CHECK(c.document().revision() == revisionBeforeFailedSave);
+        CHECK(c.document().savedRevision() == savedBeforeFailedSave);
+        CHECK(c.document().isDirty());
+        CHECK(c.undoSize() == undoBeforeFailedSave);
+        CHECK(std::filesystem::is_directory(blockedDestination));
+        CHECK(!hasTempSibling(blockedDestination));
+
+        const auto saved = saveProjectToFile(c, projectPath);
+        CHECK(saved.ok);
+        CHECK(saved.operation.change.kind == DomainChangeKind::None);
+        CHECK(saved.operation.invalidation == EditorInvalidation::Toolbar);
+        CHECK(!c.document().isDirty());
+        CHECK(c.document().revision() == revisionBeforeFailedSave);
+        CHECK(c.document().savedRevision() == c.document().revision());
+        CHECK(c.undoSize() == undoBeforeFailedSave);
+        CHECK(c.canUndo());
+
+        const std::string bytes = readTextFile(projectPath);
+        CHECK(bytes.find("activeSceneId") != std::string::npos); // persisted start scene
+        CHECK(bytes.find("selection") == std::string::npos);
+        CHECK(bytes.find("sceneViews") == std::string::npos);
+        CHECK(bytes.find("activeTool") == std::string::npos);
+        CHECK(bytes.find("splitter") == std::string::npos);
+        CHECK(bytes.find("hierarchyFilter") == std::string::npos);
+        CHECK(bytes.find("consoleVisible") == std::string::npos);
+        CHECK(bytes.find("PlaySession") == std::string::npos);
+        CHECK(bytes.find("Rml") == std::string::npos);
+
+        EditorCoordinator sameCoordinator{makeReplacementDoc()};
+        sameCoordinator.apply(ResizePanelIntent{ResizePanelIntent::Panel::Left, 444.f});
+        sameCoordinator.apply(SelectEntityIntent{77});
+        CHECK(sameCoordinator.execute(SetEntityPositionCommand{
+            "scene-replacement", 77, {1.f, 2.f}}).ok);
+        CHECK(sameCoordinator.canUndo());
+
+        const auto reloadedSame = loadProjectFromFile(sameCoordinator, projectPath);
+        CHECK(reloadedSame.ok);
+        CHECK(sameCoordinator.document().findInstanceInScene(kSceneA, kHero)
+                  ->transform.position.x == 777.f);
+        CHECK(sameCoordinator.uiState().leftPanelWidth == 444.f);
+        CHECK(sameCoordinator.selection().primaryEntity == INVALID_ENTITY);
+        CHECK(sameCoordinator.undoSize() == 0);
+        CHECK(!sameCoordinator.canUndo());
+        CHECK(!sameCoordinator.document().isDirty());
+
+        EditorCoordinator fresh{makeReplacementDoc()};
+        const auto reloadedFresh = loadProjectFromFile(fresh, projectPath);
+        CHECK(reloadedFresh.ok);
+        CHECK(fresh.document().findInstanceInScene(kSceneA, kHero)
+                  ->transform.position.x == 777.f);
+        CHECK(fresh.uiState().leftPanelWidth == 280.f);
+        CHECK(fresh.selection().primaryEntity == INVALID_ENTITY);
+        CHECK(fresh.state().activeTool == EditorTool::Select);
+        CHECK(!fresh.document().isDirty());
     }
 
     // -- §24.11  Play does not modify the ProjectDocument ----------------------

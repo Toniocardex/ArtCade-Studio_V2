@@ -30,6 +30,11 @@ struct DomainChange {
         change.sceneId = std::move(scene);
         return change;
     }
+    static DomainChange projectReplaced() {
+        DomainChange change;
+        change.kind = DomainChangeKind::ProjectReplaced;
+        return change;
+    }
     static DomainChange sceneRemoved(SceneId scene) {
         DomainChange change;
         change.kind = DomainChangeKind::SceneRemoved;

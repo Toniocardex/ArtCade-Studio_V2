@@ -8,6 +8,7 @@
 namespace ArtCade::EditorNative {
 
 class CreateSceneCommand;
+class EditorCoordinator;
 class RenameEntityCommand;
 class SetEntityPositionCommand;
 class SetSceneBackgroundCommand;
@@ -38,8 +39,9 @@ public:
     bool                     hasScene(const SceneId& id) const;
     const SceneInstanceDef*  findInstanceInScene(const SceneId& sceneId, EntityId id) const;
 
-    bool      isDirty()      const { return dirty_; }
+    bool      isDirty()      const { return revision_ != savedRevision_; }
     uint64_t  revision()     const { return revision_; }
+    uint64_t  savedRevision() const { return savedRevision_; }
     uint32_t  replaceCount() const { return replaceCount_; }
 
     // ---- Replace (structural) -----------------------------------------------
@@ -48,6 +50,7 @@ public:
 
 private:
     friend class CreateSceneCommand;
+    friend class EditorCoordinator;
     friend class RenameEntityCommand;
     friend class SetEntityPositionCommand;
     friend class SetSceneBackgroundCommand;
@@ -58,14 +61,16 @@ private:
     bool setSceneBackground(const SceneId& sceneId, Vec4 color);
     bool createScene(const SceneId& id, const std::string& name);
     bool deleteScene(const SceneId& id);
+    void replaceClean(ProjectDocument replacement);
+    void markSaved();
 
     SceneDef*         mutableScene(const SceneId& id);
     SceneInstanceDef* mutableInstanceInScene(const SceneId& sceneId, EntityId id);
     void              markDirty();
 
     ProjectDoc doc_{};
-    bool       dirty_        = false;
     uint64_t   revision_     = 0;
+    uint64_t   savedRevision_ = 0;
     uint32_t   replaceCount_ = 0;
 };
 

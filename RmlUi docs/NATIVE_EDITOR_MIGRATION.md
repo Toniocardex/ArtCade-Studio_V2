@@ -34,9 +34,10 @@ Regola: se il vecchio percorso React confligge con
 | Entity rename | TS project/store path | `RenameEntityCommand` -> `ProjectDocument` | In progress | No |
 | Scene background edit | TS project/store path | `SetSceneBackgroundCommand` -> `ProjectDocument` | In progress | No |
 | Undo | React/editor history path | `CommandStack` | Partial | No |
+| Project replace/load boundary | React/Tauri file path | `EditorCoordinator::replaceProject(ProjectDocument)` | In progress | No |
 | Play Project | WASM bridge / preview path | `PlaySession::startProject` from `ProjectDocument.startSceneId` | Partial | No |
 | Play Current Scene | WASM bridge / preview path | `PlaySession::startActiveScene` from `EditorState.activeSceneId` | Partial | No |
-| Project open/save | React/Tauri file path | `ProjectDocument` persistence | Planned | No |
+| Project file I/O | React/Tauri file path | `readProjectTextFile` + `loadProjectFromText` + atomic save | In progress | No |
 | Runtime viewport | WASM/runtime preview | `SceneFrameSnapshot` or minimal projection | Planned | No |
 | Components inspector | React Inspector | Feature commands + read-only queries | Planned | No |
 | Asset references | React asset stores | Stable IDs in `ProjectDocument` | Planned | No |
@@ -61,3 +62,26 @@ Old path removed:
 ```
 
 If this cannot be filled linearly, simplify the feature before porting it.
+
+## Persisted Schema Boundary
+
+Current loading is intentionally narrow:
+
+```text
+filesystem bytes
+-> ProjectSerializer::deserialize()
+-> ProjectMigration::migrate()
+-> ProjectValidator::validate()
+-> EditorCoordinator::replaceProject()
+```
+
+Before the first real persisted schema change, this boundary must evolve in one
+of two ways:
+
+- parse JSON into a temporary persisted representation, migrate that shape, then
+  build the current `ProjectDocument`;
+- or keep version-specific parsers inside `ProjectSerializer`.
+
+The filesystem layer must remain an adapter only. It reads/writes bytes and must
+not learn about `EditorState`, `EditorUiState`, RmlUi, invalidation, undo, or
+runtime projection.

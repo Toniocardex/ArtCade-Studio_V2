@@ -14,6 +14,21 @@ constexpr EditorInvalidation kSelectionInvalidation =
 // A scene change additionally refreshes the toolbar (scene name / play state).
 constexpr EditorInvalidation kSceneChangeInvalidation =
     kSelectionInvalidation | EditorInvalidation::Toolbar;
+
+constexpr EditorInvalidation kProjectReplaceInvalidation =
+    EditorInvalidation::Hierarchy | EditorInvalidation::Inspector
+    | EditorInvalidation::Viewport | EditorInvalidation::Assets
+    | EditorInvalidation::Toolbar | EditorInvalidation::Project;
+
+SceneId normalizedSceneId(const ProjectDocument& document) {
+    if (!document.startSceneId().empty() && document.hasScene(document.startSceneId())) {
+        return document.startSceneId();
+    }
+    if (!document.data().scenes.empty()) {
+        return document.data().scenes.begin()->first;
+    }
+    return {};
+}
 } // namespace
 
 EditorCoordinator::EditorCoordinator(ProjectDoc doc)
@@ -54,6 +69,28 @@ EditorOperationResult EditorCoordinator::undo() {
     if (result.ok) accumulate(result.invalidation);
     else appendConsole(ConsoleMessage::Level::Error, result.error);
     return result;
+}
+
+EditorOperationResult EditorCoordinator::replaceProject(ProjectDocument replacement) {
+    document_.replaceClean(std::move(replacement));
+
+    state_.activeSceneId = normalizedSceneId(document_);
+    state_.selection.clear();
+    state_.sceneViews.clear();
+    if (!state_.activeSceneId.empty()) {
+        state_.sceneViews.try_emplace(state_.activeSceneId);
+    }
+    history_.clear();
+
+    accumulate(kProjectReplaceInvalidation);
+    return EditorOperationResult::success(
+        kProjectReplaceInvalidation, DomainChange::projectReplaced());
+}
+
+EditorOperationResult EditorCoordinator::markProjectSaved() {
+    document_.markSaved();
+    accumulate(EditorInvalidation::Toolbar);
+    return EditorOperationResult::success(EditorInvalidation::Toolbar);
 }
 
 // ----------------------------------------------------------------------------
