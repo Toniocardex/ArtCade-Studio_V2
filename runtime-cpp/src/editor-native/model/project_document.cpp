@@ -17,6 +17,13 @@ bool ProjectDocument::hasScene(const SceneId& id) const {
     return doc_.scenes.find(id) != doc_.scenes.end();
 }
 
+bool ProjectDocument::hasImageAsset(const AssetId& id) const {
+    for (const ImageAssetDef& asset : doc_.imageAssets) {
+        if (asset.assetId == id) return true;
+    }
+    return false;
+}
+
 SceneDef* ProjectDocument::mutableScene(const SceneId& id) {
     const auto it = doc_.scenes.find(id);
     return it == doc_.scenes.end() ? nullptr : &it->second;
@@ -161,6 +168,39 @@ bool ProjectDocument::deleteInstance(const SceneId& sceneId, EntityId id) {
         }
     }
     return false;
+}
+
+bool ProjectDocument::addSpriteRenderer(const SceneId& sceneId, EntityId id,
+                                        SpriteRendererComponent component) {
+    SceneInstanceDef* instance = mutableInstanceInScene(sceneId, id);
+    if (!instance || instance->spriteRenderer.has_value()) return false;
+    instance->spriteRenderer = std::move(component);
+    markDirty();
+    return true;
+}
+
+bool ProjectDocument::removeSpriteRenderer(const SceneId& sceneId, EntityId id) {
+    SceneInstanceDef* instance = mutableInstanceInScene(sceneId, id);
+    if (!instance || !instance->spriteRenderer.has_value()) return false;
+    instance->spriteRenderer.reset();
+    markDirty();
+    return true;
+}
+
+bool ProjectDocument::setSpriteRendererVisible(const SceneId& sceneId, EntityId id, bool visible) {
+    SceneInstanceDef* instance = mutableInstanceInScene(sceneId, id);
+    if (!instance || !instance->spriteRenderer.has_value()) return false;
+    instance->spriteRenderer->visible = visible;
+    markDirty();
+    return true;
+}
+
+bool ProjectDocument::setSpriteRendererAsset(const SceneId& sceneId, EntityId id, AssetId assetId) {
+    SceneInstanceDef* instance = mutableInstanceInScene(sceneId, id);
+    if (!instance || !instance->spriteRenderer.has_value()) return false;
+    instance->spriteRenderer->imageAssetId = std::move(assetId);
+    markDirty();
+    return true;
 }
 
 } // namespace ArtCade::EditorNative

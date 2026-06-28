@@ -2,6 +2,7 @@
 
 #include "editor-native/app/editor_coordinator.h"
 #include "editor-native/app/hierarchy_actions.h"
+#include "editor-native/app/inspector_actions.h"
 #include "editor-native/app/inspector_commit.h"
 #include "editor-native/commands/entity_commands.h"
 
@@ -159,6 +160,17 @@ void EditorUi::handleAction(const std::string& action, const std::string& arg,
         deleteSelectedEntity(coordinator_);
     } else if (action == "set-start-scene") {
         setStartScene(coordinator_, arg.empty() ? coordinator_.state().activeSceneId : arg);
+    } else if (action == "add-sprite-renderer") {
+        addSpriteRenderer(coordinator_);
+    } else if (action == "remove-sprite-renderer") {
+        removeSpriteRenderer(coordinator_);
+    } else if (action == "toggle-sprite-visible") {
+        const SceneInstanceDef* inst = coordinator_.document().findInstanceInScene(
+            coordinator_.state().activeSceneId, coordinator_.selection().primaryEntity);
+        if (inst && inst->spriteRenderer)
+            setSpriteRendererVisible(coordinator_, !inst->spriteRenderer->visible);
+    } else if (action == "set-sprite-asset") {
+        setSpriteRendererAsset(coordinator_, arg);   // arg = assetId ("" clears)
     } else if (action == "commit-pos-x") {
         commitInspectorPositionX(coordinator_, selected, value);
     } else if (action == "commit-pos-y") {

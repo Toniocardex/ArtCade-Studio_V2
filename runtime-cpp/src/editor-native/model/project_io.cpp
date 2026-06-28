@@ -72,6 +72,13 @@ bool readInstance(const nlohmann::json& value, SceneInstanceDef& out) {
         out.visible = value["visible"].get<bool>();
     }
     out.layerId = readString(value, "layerId", "layer_id");
+    if (value.contains("spriteRenderer") && value["spriteRenderer"].is_object()) {
+        const auto& sr = value["spriteRenderer"];
+        SpriteRendererComponent component;
+        component.imageAssetId = readString(sr, "imageAssetId", "image_asset_id");
+        component.visible = sr.value("visible", true);
+        out.spriteRenderer = component;
+    }
     return out.id != INVALID_ENTITY && !out.objectTypeId.empty();
 }
 
@@ -139,7 +146,7 @@ nlohmann::json transformToJson(const Transform& t) {
 }
 
 nlohmann::json instanceToJson(const SceneInstanceDef& instance) {
-    return nlohmann::json{
+    nlohmann::json json{
         {"id", instance.id},
         {"objectTypeId", instance.objectTypeId},
         {"instanceName", instance.instanceName},
@@ -147,6 +154,13 @@ nlohmann::json instanceToJson(const SceneInstanceDef& instance) {
         {"visible", instance.visible},
         {"layerId", instance.layerId},
     };
+    if (instance.spriteRenderer.has_value()) {
+        json["spriteRenderer"] = nlohmann::json{
+            {"imageAssetId", instance.spriteRenderer->imageAssetId},
+            {"visible", instance.spriteRenderer->visible},
+        };
+    }
+    return json;
 }
 
 nlohmann::json sceneToJson(const SceneDef& scene) {
@@ -185,6 +199,17 @@ DeserializeResult ProjectSerializer::deserialize(std::string_view source) {
     doc.formatVersion = root.value("formatVersion", root.value("format_version", 0));
     readScenes(root, doc);
 
+    if (root.contains("imageAssets") && root["imageAssets"].is_array()) {
+        for (const auto& item : root["imageAssets"]) {
+            if (!item.is_object()) continue;
+            const std::string assetId = readString(item, "assetId", "asset_id");
+            if (assetId.empty()) continue;
+            ImageAssetDef asset;
+            asset.assetId = assetId;
+            doc.imageAssets.push_back(std::move(asset));
+        }
+    }
+
     return DeserializeResult::success(ProjectDocument{std::move(doc)});
 }
 
@@ -193,6 +218,11 @@ SerializeResult ProjectSerializer::serialize(const ProjectDocument& document) {
     nlohmann::json scenes = nlohmann::json::array();
     for (const auto& [_, scene] : doc.scenes) {
         scenes.push_back(sceneToJson(scene));
+    }
+
+    nlohmann::json imageAssets = nlohmann::json::array();
+    for (const ImageAssetDef& asset : doc.imageAssets) {
+        imageAssets.push_back(nlohmann::json{{"assetId", asset.assetId}});
     }
 
     nlohmann::json root{
@@ -204,6 +234,7 @@ SerializeResult ProjectSerializer::serialize(const ProjectDocument& document) {
         {"targetFPS", doc.targetFPS},
         {"mainScriptPath", doc.mainScriptPath},
         {"scenes", std::move(scenes)},
+        {"imageAssets", std::move(imageAssets)},
     };
     return SerializeResult::success(root.dump(2));
 }
@@ -241,6 +272,14 @@ DeserializeResult ProjectValidator::validate(ProjectDocument document) {
             }
             if (instance.objectTypeId.empty()) {
                 return DeserializeResult::failure("Entity objectTypeId cannot be empty");
+            }
+            // A sprite renderer's asset reference must resolve to an image asset.
+            if (instance.spriteRenderer.has_value()) {
+                const AssetId& assetId = instance.spriteRenderer->imageAssetId;
+                if (!assetId.empty() && !document.hasImageAsset(assetId)) {
+                    return DeserializeResult::failure(
+                        "Sprite renderer references a missing image asset");
+                }
             }
         }
     }

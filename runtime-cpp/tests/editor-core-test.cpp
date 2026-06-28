@@ -10,10 +10,13 @@
 #include "editor-native/app/inspector_commit.h"
 #include "editor-native/app/project_file.h"
 #include "editor-native/app/project_load.h"
+#include "editor-native/app/inspector_actions.h"
 #include "editor-native/commands/entity_commands.h"
 #include "editor-native/commands/scene_commands.h"
+#include "editor-native/commands/sprite_commands.h"
 #include "editor-native/model/project_io.h"
 #include "editor-native/model/play_session.h"
+#include "editor-native/model/sprite_render_view.h"
 
 #include <filesystem>
 #include <fstream>
@@ -83,6 +86,16 @@ static ProjectDoc makeReplacementDoc() {
     instance.transform.position = {7.f, 8.f};
     scene.instances.push_back(instance);
     doc.scenes.emplace(scene.id, scene);
+    return doc;
+}
+
+// makeDoc plus an image-asset catalog and a non-image (tileset) asset id, for
+// the sprite-renderer slice.
+static ProjectDoc makeSpriteDoc() {
+    ProjectDoc doc = makeDoc();
+    ImageAssetDef hero;  hero.assetId = "img-hero";  doc.imageAssets.push_back(hero);
+    ImageAssetDef alt;   alt.assetId  = "img-alt";   doc.imageAssets.push_back(alt);
+    TilesetAsset tiles;  tiles.assetId = "tiles-1";  doc.tilesets.push_back(tiles); // not an image
     return doc;
 }
 
@@ -1270,6 +1283,177 @@ int main() {
         EditorCoordinator reloaded{makeReplacementDoc()};
         CHECK(loadProjectFromFile(reloaded, path).ok);
         CHECK(reloaded.document().startSceneId() == kSceneB);
+    }
+
+    // == Sprite Renderer component + asset reference (vertical slice) ==========
+
+    // -- (1)(15)(16) Add is a single Patch command, never a Replace -----------
+    {
+        EditorCoordinator c{makeSpriteDoc()};
+        const uint32_t replacesBefore = c.document().replaceCount();
+        const auto r = c.execute(AddSpriteRendererCommand{kSceneA, kHero});
+        CHECK(r.ok);
+        CHECK(r.change.kind == DomainChangeKind::ComponentAdded);
+        CHECK(r.change.componentKind == ComponentKind::SpriteRenderer);
+        CHECK(c.document().findInstanceInScene(kSceneA, kHero)->spriteRenderer.has_value());
+        CHECK(c.document().replaceCount() == replacesBefore); // (15) Patch, not Replace
+        CHECK(c.undoSize() == 1);                              // (16) one command
+    }
+
+    // -- (2) Adding a sprite renderer twice is rejected and not recorded -------
+    {
+        EditorCoordinator c{makeSpriteDoc()};
+        CHECK(c.execute(AddSpriteRendererCommand{kSceneA, kHero}).ok);
+        const std::size_t undoBefore = c.undoSize();
+        CHECK(!c.execute(AddSpriteRendererCommand{kSceneA, kHero}).ok); // duplicate
+        CHECK(c.undoSize() == undoBefore);
+    }
+
+    // -- (3) Remove captures the component; undo restores it exactly ----------
+    {
+        EditorCoordinator c{makeSpriteDoc()};
+        CHECK(c.execute(AddSpriteRendererCommand{kSceneA, kHero}).ok);
+        CHECK(c.execute(SetSpriteRendererAssetCommand{kSceneA, kHero, "img-hero"}).ok);
+        CHECK(c.execute(SetSpriteRendererVisibleCommand{kSceneA, kHero, false}).ok);
+        CHECK(c.execute(RemoveSpriteRendererCommand{kSceneA, kHero}).ok);
+        CHECK(!c.document().findInstanceInScene(kSceneA, kHero)->spriteRenderer.has_value());
+        c.undo();
+        const auto& comp = *c.document().findInstanceInScene(kSceneA, kHero)->spriteRenderer;
+        CHECK(comp.imageAssetId == "img-hero");
+        CHECK(comp.visible == false);
+    }
+
+    // -- (4) Setting the same visibility is a no-op (no undo, no mutation) -----
+    {
+        EditorCoordinator c{makeSpriteDoc()};
+        CHECK(c.execute(AddSpriteRendererCommand{kSceneA, kHero}).ok); // visible defaults true
+        const std::size_t undoBefore = c.undoSize();
+        const uint64_t revBefore = c.document().revision();
+        c.consumeInvalidations();
+        CHECK(c.execute(SetSpriteRendererVisibleCommand{kSceneA, kHero, true}).ok);
+        CHECK(c.undoSize() == undoBefore);                       // not recorded
+        CHECK(c.document().revision() == revBefore);             // not mutated
+        CHECK(c.consumeInvalidations() == EditorInvalidation::None);
+    }
+
+    // -- (5) A missing asset id is rejected without mutation ------------------
+    {
+        EditorCoordinator c{makeSpriteDoc()};
+        CHECK(c.execute(AddSpriteRendererCommand{kSceneA, kHero}).ok);
+        CHECK(!c.execute(SetSpriteRendererAssetCommand{kSceneA, kHero, "does-not-exist"}).ok);
+        CHECK(c.document().findInstanceInScene(kSceneA, kHero)->spriteRenderer->imageAssetId.empty());
+    }
+
+    // -- (6) A non-image asset id (a tileset) is rejected ---------------------
+    {
+        EditorCoordinator c{makeSpriteDoc()};
+        CHECK(c.execute(AddSpriteRendererCommand{kSceneA, kHero}).ok);
+        CHECK(!c.execute(SetSpriteRendererAssetCommand{kSceneA, kHero, "tiles-1"}).ok);
+    }
+
+    // -- (7) Setting a valid asset invalidates only Inspector | Viewport ------
+    {
+        EditorCoordinator c{makeSpriteDoc()};
+        CHECK(c.execute(AddSpriteRendererCommand{kSceneA, kHero}).ok);
+        c.consumeInvalidations();
+        CHECK(c.execute(SetSpriteRendererAssetCommand{kSceneA, kHero, "img-hero"}).ok);
+        CHECK(c.consumeInvalidations()
+              == (EditorInvalidation::Inspector | EditorInvalidation::Viewport));
+    }
+
+    // -- (8) Undo restores the previous asset ---------------------------------
+    {
+        EditorCoordinator c{makeSpriteDoc()};
+        CHECK(c.execute(AddSpriteRendererCommand{kSceneA, kHero}).ok);
+        CHECK(c.execute(SetSpriteRendererAssetCommand{kSceneA, kHero, "img-hero"}).ok);
+        CHECK(c.execute(SetSpriteRendererAssetCommand{kSceneA, kHero, "img-alt"}).ok);
+        CHECK(c.document().findInstanceInScene(kSceneA, kHero)->spriteRenderer->imageAssetId == "img-alt");
+        c.undo();
+        CHECK(c.document().findInstanceInScene(kSceneA, kHero)->spriteRenderer->imageAssetId == "img-hero");
+    }
+
+    // -- (9)(10) The render projection reflects presence, visibility and asset -
+    {
+        EditorCoordinator c{makeSpriteDoc()};
+        CHECK(!spriteRenderViewOf(*c.document().findInstanceInScene(kSceneA, kHero)).present);
+        CHECK(c.execute(AddSpriteRendererCommand{kSceneA, kHero}).ok);
+        CHECK(c.execute(SetSpriteRendererAssetCommand{kSceneA, kHero, "img-hero"}).ok);
+        CHECK(c.execute(SetSpriteRendererVisibleCommand{kSceneA, kHero, false}).ok);
+        const SpriteRenderView v = spriteRenderViewOf(*c.document().findInstanceInScene(kSceneA, kHero));
+        CHECK(v.present);
+        CHECK(!v.visible);
+        CHECK(v.assetId == "img-hero");
+        // (10) the projection changes after execute and after undo.
+        c.undo(); c.undo();   // undo asset, undo... visibility
+        c.undo();             // undo add
+        CHECK(!spriteRenderViewOf(*c.document().findInstanceInScene(kSceneA, kHero)).present);
+    }
+
+    // -- (11) Serializer round-trip preserves component + asset reference ------
+    {
+        EditorCoordinator c{makeSpriteDoc()};
+        CHECK(c.execute(AddSpriteRendererCommand{kSceneA, kHero}).ok);
+        CHECK(c.execute(SetSpriteRendererAssetCommand{kSceneA, kHero, "img-hero"}).ok);
+        CHECK(c.execute(SetSpriteRendererVisibleCommand{kSceneA, kHero, false}).ok);
+        const auto ser = ProjectSerializer::serialize(c.document());
+        CHECK(ser.ok);
+        const auto de = ProjectSerializer::deserialize(ser.value);
+        CHECK(de.ok);
+        const SceneInstanceDef* inst = de.value.findInstanceInScene(kSceneA, kHero);
+        CHECK(inst != nullptr && inst->spriteRenderer.has_value());
+        CHECK(inst->spriteRenderer->imageAssetId == "img-hero");
+        CHECK(inst->spriteRenderer->visible == false);
+        CHECK(de.value.hasImageAsset("img-hero"));             // catalog round-tripped
+    }
+
+    // -- (12) Real save/reload preserves the component ------------------------
+    {
+        EditorCoordinator c{makeSpriteDoc()};
+        CHECK(c.execute(AddSpriteRendererCommand{kSceneA, kHero}).ok);
+        CHECK(c.execute(SetSpriteRendererAssetCommand{kSceneA, kHero, "img-hero"}).ok);
+        const std::filesystem::path dir = testTempDir();
+        const std::filesystem::path path = dir / "sprite.artcade-project";
+        CHECK(saveProjectToFile(c, path).ok);
+
+        EditorCoordinator reloaded{makeReplacementDoc()};
+        CHECK(loadProjectFromFile(reloaded, path).ok);
+        const SceneInstanceDef* inst = reloaded.document().findInstanceInScene(kSceneA, kHero);
+        CHECK(inst != nullptr && inst->spriteRenderer.has_value());
+        CHECK(inst->spriteRenderer->imageAssetId == "img-hero");
+    }
+
+    // -- (13) No Inspector/workspace state leaks into the serialized project ---
+    {
+        EditorCoordinator c{makeSpriteDoc()};
+        CHECK(c.execute(AddSpriteRendererCommand{kSceneA, kHero}).ok);
+        const auto ser = ProjectSerializer::serialize(c.document());
+        CHECK(ser.value.find("selection") == std::string::npos);
+        CHECK(ser.value.find("Inspector") == std::string::npos);
+        CHECK(ser.value.find("expanded") == std::string::npos);
+    }
+
+    // -- (14) Commands act on the explicit scene, never an implicit active one -
+    {
+        EditorCoordinator c{makeSpriteDoc()};
+        CHECK(c.execute(CreateEntityCommand{kSceneB, 500, "T", "T", {}}).ok);
+        CHECK(c.state().activeSceneId == kSceneA);                       // active is A
+        CHECK(c.execute(AddSpriteRendererCommand{kSceneB, 500}).ok);     // explicit B
+        CHECK(c.document().findInstanceInScene(kSceneB, 500)->spriteRenderer.has_value());
+        CHECK(!c.document().findInstanceInScene(kSceneA, kHero)->spriteRenderer.has_value());
+    }
+
+    // -- Inspector action: one click → one command on the authoritative target -
+    {
+        EditorCoordinator c{makeSpriteDoc()};
+        c.apply(SelectEntityIntent{kHero});
+        const std::size_t before = c.undoSize();
+        CHECK(addSpriteRenderer(c).ok);
+        CHECK(c.undoSize() == before + 1);
+        CHECK(c.document().findInstanceInScene(kSceneA, kHero)->spriteRenderer.has_value());
+        // No selection → no-op, no command.
+        EditorCoordinator empty{makeSpriteDoc()};
+        CHECK(!addSpriteRenderer(empty).ok);
+        CHECK(empty.undoSize() == 0);
     }
 
     std::cout << "editor-core-test: " << g_passed << " passed, "

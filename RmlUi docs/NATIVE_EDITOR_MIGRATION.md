@@ -90,8 +90,9 @@ il vecchio editor non e' rimosso.
 | Play Current Scene | WASM bridge / preview path | `EditorCoordinator::playCurrentScene` (guarded by `canPlayCurrentScene`) | Done | No |
 | Project file I/O | React/Tauri file path | `readProjectTextFile` + `loadProjectFromText` + atomic save | In progress | No |
 | Runtime viewport | WASM/runtime preview | `SceneFrameSnapshot` or minimal projection | Planned | No |
-| Components inspector | React Inspector | Feature commands + read-only queries | Planned | No |
-| Asset references | React asset stores | Stable IDs in `ProjectDocument` | Planned | No |
+| Sprite Renderer component | React Inspector | `sprite_commands` + `inspector_actions` (instance-scoped) | Done | No |
+| Components inspector | React Inspector | Feature commands + read-only queries | In progress | No |
+| Asset references | React asset stores | `AssetId` -> `ProjectDoc.imageAssets`, validated | In progress | No |
 | Logic Board | React Logic Board state | Logic Board document + commands | Planned | No |
 
 ## Feature Template

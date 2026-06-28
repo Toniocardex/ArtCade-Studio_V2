@@ -1,6 +1,7 @@
 #include "editor-native/view/scene_view.h"
 
 #include "editor-native/model/project_document.h"
+#include "editor-native/model/sprite_render_view.h"
 
 #include <raylib.h>
 
@@ -82,9 +83,20 @@ void SceneView::render(const ProjectDocument& document,
         const float h = 48.f * (scl.y == 0.f ? 1.f : scl.y);
         const Rectangle box{pos.x - w * 0.5f, pos.y - h * 0.5f, w, h};
 
+        // A hidden sprite renderer dims the placeholder; an assigned image asset
+        // adds an inner accent — so the viewport visibly reflects the component.
+        const SpriteRenderView sprite = spriteRenderViewOf(inst);
+        const float alpha = (sprite.present && !sprite.visible) ? 0.28f : 0.92f;
+        const auto a8 = static_cast<unsigned char>(alpha * 255.f);
+
         const Vec3* fill = fillFor(document, inst.objectTypeId);
-        DrawRectangleRec(box, fill ? toColor(*fill, 0.92f) : Color{120, 124, 132, 235});
+        DrawRectangleRec(box, fill ? toColor(*fill, alpha) : Color{120, 124, 132, a8});
         DrawRectangleLinesEx(box, 1.f / cam.zoom, Color{12, 14, 18, 200});
+
+        if (sprite.present && !sprite.assetId.empty()) {
+            const Rectangle inner{box.x + w * 0.3f, box.y + h * 0.3f, w * 0.4f, h * 0.4f};
+            DrawRectangleRec(inner, Color{86, 134, 214, a8});
+        }
 
         if (inst.id == selection.primaryEntity) {
             const Rectangle sel = Rectangle{box.x - 3.f, box.y - 3.f, box.width + 6.f, box.height + 6.f};

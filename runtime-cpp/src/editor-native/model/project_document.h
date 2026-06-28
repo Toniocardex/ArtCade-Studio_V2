@@ -8,14 +8,18 @@
 
 namespace ArtCade::EditorNative {
 
+class AddSpriteRendererCommand;
 class CreateEntityCommand;
 class CreateSceneCommand;
 class DeleteEntityCommand;
 class DeleteSceneCommand;
 class EditorCoordinator;
+class RemoveSpriteRendererCommand;
 class RenameEntityCommand;
 class SetEntityPositionCommand;
 class SetSceneBackgroundCommand;
+class SetSpriteRendererAssetCommand;
+class SetSpriteRendererVisibleCommand;
 class SetStartSceneCommand;
 
 // =============================================================================
@@ -43,6 +47,8 @@ public:
     const SceneDef*          findScene(const SceneId& id) const;
     bool                     hasScene(const SceneId& id) const;
     const SceneInstanceDef*  findInstanceInScene(const SceneId& sceneId, EntityId id) const;
+    /** True if @p id is a known image asset (ProjectDoc.imageAssets). */
+    bool                     hasImageAsset(const AssetId& id) const;
 
     bool      isDirty()      const { return revision_ != savedRevision_; }
     uint64_t  revision()     const { return revision_; }
@@ -54,14 +60,18 @@ public:
     void replace(ProjectDoc doc);
 
 private:
+    friend class AddSpriteRendererCommand;
     friend class CreateEntityCommand;
     friend class CreateSceneCommand;
     friend class DeleteEntityCommand;
     friend class DeleteSceneCommand;
     friend class EditorCoordinator;
+    friend class RemoveSpriteRendererCommand;
     friend class RenameEntityCommand;
     friend class SetEntityPositionCommand;
     friend class SetSceneBackgroundCommand;
+    friend class SetSpriteRendererAssetCommand;
+    friend class SetSpriteRendererVisibleCommand;
     friend class SetStartSceneCommand;
 
     // ---- Patch (authoring mutations; called by commands) --------------------
@@ -81,6 +91,11 @@ private:
     bool createInstance(const SceneId& sceneId, SceneInstanceDef instance);
     bool insertInstance(const SceneId& sceneId, std::size_t index, SceneInstanceDef instance);
     bool deleteInstance(const SceneId& sceneId, EntityId id);
+    // Sprite-renderer component patch verbs (explicit, no property bag).
+    bool addSpriteRenderer(const SceneId& sceneId, EntityId id, SpriteRendererComponent component);
+    bool removeSpriteRenderer(const SceneId& sceneId, EntityId id);
+    bool setSpriteRendererVisible(const SceneId& sceneId, EntityId id, bool visible);
+    bool setSpriteRendererAsset(const SceneId& sceneId, EntityId id, AssetId assetId);
     void replaceClean(ProjectDocument replacement);
     void markSaved();
 

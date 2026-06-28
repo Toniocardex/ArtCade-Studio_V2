@@ -391,6 +391,16 @@ struct TilesetAsset {
     int         rows     = 1;
 };
 
+/**
+ * Per-instance sprite rendering override authored by the native editor. The
+ * AssetId references the project's image catalog (ProjectDoc.imageAssets);
+ * empty means "no image". Optional on the instance so absence is explicit.
+ */
+struct SpriteRendererComponent {
+    AssetId imageAssetId;     // "" = no image
+    bool    visible = true;
+};
+
 /** Scene placement of an object type (project format v2). */
 struct SceneInstanceDef {
     EntityId    id           = 0;
@@ -399,6 +409,7 @@ struct SceneInstanceDef {
     Transform   transform;
     bool        visible      = true;
     std::string layerId;      // render layer id ("" = default layer)
+    std::optional<SpriteRendererComponent> spriteRenderer;
     std::unordered_map<std::string, GameVariableValue> localVariableOverrides;
 };
 

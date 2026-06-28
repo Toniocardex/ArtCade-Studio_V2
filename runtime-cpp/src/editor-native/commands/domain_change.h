@@ -16,13 +16,22 @@ enum class DomainChangeKind {
     EntityAdded,
     EntityRemoved,
     EntityChanged,
+    ComponentAdded,
+    ComponentRemoved,
+    ComponentChanged,
     AssetChanged,
+};
+
+enum class ComponentKind {
+    None,
+    SpriteRenderer,
 };
 
 struct DomainChange {
     DomainChangeKind kind = DomainChangeKind::None;
     SceneId          sceneId;
     EntityId         entityId = INVALID_ENTITY;
+    ComponentKind    componentKind = ComponentKind::None;
 
     static DomainChange none() { return {}; }
     static DomainChange sceneAdded(SceneId scene) {
@@ -73,6 +82,30 @@ struct DomainChange {
         change.kind = DomainChangeKind::EntityRemoved;
         change.sceneId = std::move(scene);
         change.entityId = entity;
+        return change;
+    }
+    static DomainChange componentAdded(SceneId scene, EntityId entity, ComponentKind component) {
+        DomainChange change;
+        change.kind = DomainChangeKind::ComponentAdded;
+        change.sceneId = std::move(scene);
+        change.entityId = entity;
+        change.componentKind = component;
+        return change;
+    }
+    static DomainChange componentRemoved(SceneId scene, EntityId entity, ComponentKind component) {
+        DomainChange change;
+        change.kind = DomainChangeKind::ComponentRemoved;
+        change.sceneId = std::move(scene);
+        change.entityId = entity;
+        change.componentKind = component;
+        return change;
+    }
+    static DomainChange componentChanged(SceneId scene, EntityId entity, ComponentKind component) {
+        DomainChange change;
+        change.kind = DomainChangeKind::ComponentChanged;
+        change.sceneId = std::move(scene);
+        change.entityId = entity;
+        change.componentKind = component;
         return change;
     }
 };

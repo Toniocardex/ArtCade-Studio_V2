@@ -56,6 +56,41 @@ void InspectorPanel::refresh(Rml::ElementDocument* document,
     html += field("Position X", "commit-pos-x", num(inst->transform.position.x));
     html += field("Position Y", "commit-pos-y", num(inst->transform.position.y));
 
+    // -- Sprite Renderer component --------------------------------------------
+    html += "<div class=\"prop-group-title\">Sprite Renderer</div>";
+    if (!inst->spriteRenderer.has_value()) {
+        html += "<button class=\"panel-btn\" data-action=\"add-sprite-renderer\">"
+                "Add Sprite Renderer</button>";
+    } else {
+        const SpriteRendererComponent& sr = *inst->spriteRenderer;
+
+        // Visible toggle (commits immediately).
+        html += "<div class=\"prop-row\"><span class=\"prop-label\">Visible</span>"
+                "<button class=\"panel-btn\" data-action=\"toggle-sprite-visible\">";
+        html += sr.visible ? "On" : "Off";
+        html += "</button></div>";
+
+        // Image asset: current value + clickable options read from the catalog.
+        html += "<div class=\"prop-row\"><span class=\"prop-label\">Image</span>"
+                "<span class=\"prop-readonly\">";
+        html += sr.imageAssetId.empty() ? "(none)" : escapeRml(sr.imageAssetId);
+        html += "</span></div>";
+
+        html += "<div class=\"asset-options\">";
+        html += "<div class=\"asset-option\" data-action=\"set-sprite-asset\" data-arg=\"\">"
+                "(none)</div>";
+        for (const ImageAssetDef& asset : coordinator.document().data().imageAssets) {
+            html += "<div class=\"asset-option";
+            if (asset.assetId == sr.imageAssetId) html += " selected";
+            html += "\" data-action=\"set-sprite-asset\" data-arg=\"" + escapeRml(asset.assetId)
+                  + "\">" + escapeRml(asset.assetId) + "</div>";
+        }
+        html += "</div>";
+
+        html += "<button class=\"panel-btn\" data-action=\"remove-sprite-renderer\">"
+                "Remove Component</button>";
+    }
+
     body->SetInnerRML(html);
 }
 
