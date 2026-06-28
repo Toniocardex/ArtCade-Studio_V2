@@ -50,6 +50,53 @@ Dettaglio normativo completo in `RMLUI_MIGRATION_CONTRACT.md` (§Autorita',
 criteri del solo spike: valgono per ogni feature di ogni fase qui sotto, finche'
 il vecchio editor non e' rimosso.
 
+## Cadenza di lavoro
+
+I paletti sopra sono rigidi. La cadenza di lavoro non lo e': si interviene solo
+quando si protegge un rischio reale, non per purezza fine a se stessa.
+
+Bloccare sempre, senza compromessi, quando un incremento introduce:
+
+- doppie fonti di verita';
+- mutazioni fuori da Command/Intent (o, in Play, fuori dal confine runtime
+  esplicito del coordinator);
+- polling o sincronizzazione nascosta;
+- runtime che legge l'authoring durante Play;
+- renderer che legge direttamente il dominio;
+- dipendenze invertite;
+- perdita dati;
+- invalidazioni o persistenza incoerenti.
+
+Non fermare il lavoro per:
+
+- accessor migliorabili ma gia' corretti;
+- nomi non perfetti;
+- wrapper aggiuntivi;
+- astrazioni preventive;
+- edge case teorici senza impatto reale;
+- refactor che non sbloccano una capability concreta.
+
+Criterio operativo per ogni incremento:
+
+```text
+capability visibile
+-> implementazione end-to-end
+-> test/build/smoke
+-> chiusura
+-> step successivo
+```
+
+Non:
+
+```text
+feature -> audit -> micro-refactor -> secondo audit -> wrapper
+       -> terzo audit -> feature mai conclusa
+```
+
+La baseline e' considerata solida. Ogni incremento deve produrre valore
+funzionale reale; la pulizia architetturale e' ammessa solo quando protegge un
+paletto o sblocca la capability in corso.
+
 ## Fasi
 
 1. Fondazioni: `ProjectDocument`, `EditorState`, `SelectionState`,
