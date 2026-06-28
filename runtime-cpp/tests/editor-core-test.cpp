@@ -1356,7 +1356,7 @@ int main() {
         CHECK(c.playProject().ok);
         c.consumeInvalidations(); // Start Play Toolbar | Viewport | Console.
         const std::size_t logBefore = c.consoleLog().size();
-        CHECK(c.playSession()->translateEntity(kHero, Vec2{5.f, 0.f}));
+        CHECK(c.translateRuntimeEntity(kHero, Vec2{5.f, 0.f}));
 
         const SceneFrameSnapshot playFrame = collectSceneFrameSnapshot(*c.playSession());
         CHECK(playFrame.sprites.size() == 1);
@@ -1380,10 +1380,10 @@ int main() {
     {
         EditorCoordinator c{makeInheritedDoc()};
         CHECK(c.playProject().ok);
-        CHECK(!c.playSession()->translateEntity(9999, Vec2{1.f, 0.f}));
-        CHECK(!c.playSession()->translateEntity(kHero, Vec2{
+        CHECK(!c.translateRuntimeEntity(9999, Vec2{1.f, 0.f}));
+        CHECK(!c.translateRuntimeEntity(kHero, Vec2{
             std::numeric_limits<float>::infinity(), 0.f}));
-        CHECK(!c.playSession()->translateEntity(kHero, Vec2{
+        CHECK(!c.translateRuntimeEntity(kHero, Vec2{
             0.f, std::numeric_limits<float>::quiet_NaN()}));
 
         const SceneFrameSnapshot playFrame = collectSceneFrameSnapshot(*c.playSession());
@@ -1396,7 +1396,7 @@ int main() {
         EditorCoordinator c{makeInheritedDoc()};
         CHECK(c.execute(CreateEntityCommand{kSceneA, 100, "Enemy", "Enemy", {40.f, 20.f}}).ok);
         CHECK(c.playProject().ok);
-        CHECK(c.playSession()->translateEntity(100, Vec2{10.f, 0.f}));
+        CHECK(c.translateRuntimeEntity(100, Vec2{10.f, 0.f}));
 
         const RuntimeEntity* hero = c.playSession()->findEntity(kHero);
         const RuntimeEntity* enemy = c.playSession()->findEntity(100);
@@ -1411,12 +1411,32 @@ int main() {
     {
         EditorCoordinator c{makeInheritedDoc()};
         CHECK(c.playProject().ok);
-        CHECK(c.playSession()->translateEntity(kHero, Vec2{5.f, 0.f}));
+        CHECK(c.translateRuntimeEntity(kHero, Vec2{5.f, 0.f}));
         CHECK(c.stopPlaying().ok);
         CHECK(c.playProject().ok);
         const RuntimeEntity* hero = c.playSession()->findEntity(kHero);
         CHECK(hero != nullptr);
         CHECK(hero->transform.position.x == 10.f);
+    }
+
+    // -- translateRuntimeEntity is inert without an active PlaySession ----------
+    {
+        EditorCoordinator c{makeInheritedDoc()};
+        const uint64_t revisionBefore = c.document().revision();
+        const bool dirtyBefore = c.document().isDirty();
+        const std::size_t undoBefore = c.undoSize();
+        const std::size_t logBefore = c.consoleLog().size();
+        c.consumeInvalidations();
+
+        CHECK(!c.isPlaying());
+        CHECK(!c.translateRuntimeEntity(kHero, Vec2{5.f, 0.f}));
+
+        CHECK(c.consumeInvalidations() == EditorInvalidation::None);
+        CHECK(c.consoleLog().size() == logBefore);            // no warning
+        CHECK(c.document().revision() == revisionBefore);     // no authoring effect
+        CHECK(c.document().isDirty() == dirtyBefore);
+        CHECK(c.undoSize() == undoBefore);
+        CHECK(c.document().findInstanceInScene(kSceneA, kHero)->transform.position.x == 10.f);
     }
 
     // == Start-scene invariant: scenes exist => startSceneId is valid ==========

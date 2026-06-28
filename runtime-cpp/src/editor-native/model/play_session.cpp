@@ -93,6 +93,13 @@ RuntimeEntity* PlaySession::findEntity(EntityId id) {
     return nullptr;
 }
 
+const RuntimeEntity* PlaySession::findEntity(EntityId id) const {
+    for (const RuntimeEntity& entity : scene_.entities) {
+        if (entity.id == id) return &entity;
+    }
+    return nullptr;
+}
+
 bool PlaySession::translateEntity(EntityId id, Vec2 delta) {
     if (!finite(delta)) return false;
     RuntimeEntity* entity = findEntity(id);

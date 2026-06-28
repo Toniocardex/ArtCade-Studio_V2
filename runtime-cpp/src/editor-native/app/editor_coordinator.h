@@ -76,12 +76,17 @@ public:
     const PlaySession* playSession() const {
         return playSession_ ? &*playSession_ : nullptr;
     }
-    PlaySession* playSession() {
-        return playSession_ ? &*playSession_ : nullptr;
-    }
     EditorOperationResult playProject();
     EditorOperationResult playCurrentScene();
     EditorOperationResult stopPlaying();
+
+    // Narrow runtime mutation: the only way to move a running entity from outside
+    // the session. It keeps PlaySession's mutable surface private to the
+    // coordinator so editor_app/panels/toolbar cannot open parallel mutation
+    // paths. It is not an EditorCommand: no revision, dirty, undo or
+    // invalidation. Returns false when there is no active session or the move
+    // is rejected by the session (unknown entity, non-finite delta).
+    bool translateRuntimeEntity(EntityId id, Vec2 delta);
 
     // ---- intent path (workspace/editor state) -------------------------------
     EditorOperationResult apply(const SelectEntityIntent& intent);

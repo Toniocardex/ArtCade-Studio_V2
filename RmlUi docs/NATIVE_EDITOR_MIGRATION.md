@@ -268,19 +268,29 @@ The toolbar should label the runtime target, for example `PLAYING - Scene A`.
 That label is derived from `PlaySession::scene()` and exists only to avoid UX
 ambiguity when the workspace active scene changes during Play.
 
-The first runtime mutation is intentionally minimal:
+The first runtime mutation is intentionally minimal and flows through one narrow
+coordinator entry point, not a mutable session handle:
 
 ```text
 Raylib input
 -> application computes Vec2 delta
+-> EditorCoordinator::translateRuntimeEntity(entityId, delta)
 -> PlaySession::translateEntity(entityId, delta)
 -> RuntimeEntity.transform.position
 -> Play SceneFrameSnapshot
 ```
 
 It is not an `EditorCommand` and it does not touch `ProjectDocument`, undo,
-revision, dirty state or JSON. `Stop` destroys the session, so the next Play
-starts again from the authoring document.
+revision, dirty state or JSON. The coordinator exposes the session read-only
+(`const PlaySession*`) and keeps the mutable surface private, so panels, toolbar
+and shortcuts cannot open parallel mutation paths. `Stop` destroys the session,
+so the next Play starts again from the authoring document.
+
+The WASD/arrow mapping that drives the first runtime entity (`routePlaySmokeInput`
+in `editor_app`) is a temporary smoke harness to verify the slice visually, not
+engine behaviour. Real runtime motion will come from authoring (a Logic
+Board/Lua action on the transform); the harness is to be replaced or removed
+once verified, so no project silently gains an undefined movement rule.
 
 ## RmlUi input commit baseline
 

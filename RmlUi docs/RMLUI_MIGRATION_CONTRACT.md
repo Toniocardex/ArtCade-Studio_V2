@@ -373,19 +373,24 @@ non dallo `EditorState.activeSceneId`, per evitare ambiguita' quando il
 workspace viene cambiato durante Play.
 
 La `PlaySession` puo' mutare durante Play. Le mutazioni runtime non sono
-`EditorCommand`:
+`EditorCommand` e passano per un solo entry point stretto del coordinator:
 
 ```text
-PlaySession::translateEntity(id, delta)
+input piattaforma
+-> EditorCoordinator::translateRuntimeEntity(id, delta)
+-> PlaySession::translateEntity(id, delta)
 -> RuntimeEntity.transform.position
 -> collectSceneFrameSnapshot(PlaySession)
 -> viewport Play aggiornato
 ```
 
 Non producono `DomainChange`, non entrano in undo, non cambiano revision/dirty
-del `ProjectDocument` e vengono scartate da `Stop`. Il livello applicativo puo'
-tradurre input piattaforma in chiamate esplicite sulla sessione, ma
-`PlaySession` non deve conoscere Raylib, tastiera, RmlUi o filesystem.
+del `ProjectDocument` e vengono scartate da `Stop`. Il coordinator espone la
+`PlaySession` solo in lettura (`const PlaySession*`); la superficie mutabile
+resta privata, cosi' UI, toolbar e shortcut non aprono percorsi di mutazione
+paralleli. Il livello applicativo traduce input piattaforma in chiamate
+esplicite al coordinator, ma `PlaySession` non deve conoscere Raylib, tastiera,
+RmlUi o filesystem.
 
 ## Invalidazione pull-based
 

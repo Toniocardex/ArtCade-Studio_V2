@@ -235,6 +235,14 @@ EditorOperationResult EditorCoordinator::stopPlaying() {
     return EditorOperationResult::success(EditorInvalidation::Toolbar | EditorInvalidation::Viewport);
 }
 
+bool EditorCoordinator::translateRuntimeEntity(EntityId id, Vec2 delta) {
+    // Runtime-only mutation; no authoring effect and no panel invalidation. The
+    // Play viewport renders every frame, so a moved entity is shown without a
+    // Viewport flag (that flag is for structural/UI-mode changes, not motion).
+    if (!playSession_) return false;
+    return playSession_->translateEntity(id, delta);
+}
+
 // ----------------------------------------------------------------------------
 // Intent path — workspace state only; never the ProjectDocument, never undo.
 // ----------------------------------------------------------------------------

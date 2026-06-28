@@ -66,8 +66,16 @@ void routeViewportInput(EditorCoordinator& coordinator, const ViewportRect& rect
     }
 }
 
-void routePlayRuntimeInput(PlaySession& session, const RmlInputResult& rml) {
+// TEMPORARY smoke harness, not engine behaviour. It drives the first runtime
+// entity with WASD/arrows only to verify visually that PlaySession mutates and
+// the Play snapshot updates while authoring stays intact. Real runtime
+// behaviour will come from authoring (a Logic Board/Lua action on the
+// transform); this must not become an implicit, project-wide movement rule.
+// Remove it, or replace it with that real source, once the slice is verified.
+void routePlaySmokeInput(EditorCoordinator& coordinator, const RmlInputResult& rml) {
     if (rml.textFocus) return;
+    const PlaySession* session = coordinator.playSession();
+    if (!session || session->entities().empty()) return;
     Vec2 delta{};
     const float step = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT) ? 4.f : 1.f;
     if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) delta.x += step;
@@ -75,9 +83,7 @@ void routePlayRuntimeInput(PlaySession& session, const RmlInputResult& rml) {
     if (IsKeyDown(KEY_DOWN)  || IsKeyDown(KEY_S)) delta.y += step;
     if (IsKeyDown(KEY_UP)    || IsKeyDown(KEY_W)) delta.y -= step;
     if (delta.x == 0.f && delta.y == 0.f) return;
-    if (!session.entities().empty()) {
-        (void)session.translateEntity(session.entities().front().id, delta);
-    }
+    (void)coordinator.translateRuntimeEntity(session->entities().front().id, delta);
 }
 
 std::filesystem::path editorResourceRoot() {
@@ -175,9 +181,7 @@ int EditorApp::run(int argc, char** argv) {
         const RmlInputResult rml = pumpRmlInput(host.context());
         const ViewportRect rect = viewportRectFromDocument(host.document());
         routeViewportInput(coordinator, rect, rml);
-        if (PlaySession* playSession = coordinator.playSession()) {
-            routePlayRuntimeInput(*playSession, rml);
-        }
+        routePlaySmokeInput(coordinator, rml);
 
         ui.processFrame();
         host.update();
