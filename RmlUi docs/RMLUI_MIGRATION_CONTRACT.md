@@ -372,6 +372,21 @@ La UI puo' mostrare il target runtime come affordance, per esempio
 non dallo `EditorState.activeSceneId`, per evitare ambiguita' quando il
 workspace viene cambiato durante Play.
 
+La `PlaySession` puo' mutare durante Play. Le mutazioni runtime non sono
+`EditorCommand`:
+
+```text
+PlaySession::translateEntity(id, delta)
+-> RuntimeEntity.transform.position
+-> collectSceneFrameSnapshot(PlaySession)
+-> viewport Play aggiornato
+```
+
+Non producono `DomainChange`, non entrano in undo, non cambiano revision/dirty
+del `ProjectDocument` e vengono scartate da `Stop`. Il livello applicativo puo'
+tradurre input piattaforma in chiamate esplicite sulla sessione, ma
+`PlaySession` non deve conoscere Raylib, tastiera, RmlUi o filesystem.
+
 ## Invalidazione pull-based
 
 Il coordinator decide cosa e' invalido. I pannelli decidono come rappresentarlo.

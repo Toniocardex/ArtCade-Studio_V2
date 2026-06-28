@@ -76,6 +76,9 @@ public:
     const PlaySession* playSession() const {
         return playSession_ ? &*playSession_ : nullptr;
     }
+    PlaySession* playSession() {
+        return playSession_ ? &*playSession_ : nullptr;
+    }
     EditorOperationResult playProject();
     EditorOperationResult playCurrentScene();
     EditorOperationResult stopPlaying();

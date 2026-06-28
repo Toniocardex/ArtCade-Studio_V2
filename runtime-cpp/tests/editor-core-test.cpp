@@ -1345,6 +1345,80 @@ int main() {
         CHECK(editAfterStop.sprites.empty());
     }
 
+    // -- Runtime translation mutates PlaySession only and is discarded on Stop -
+    {
+        EditorCoordinator c{makeInheritedDoc()};
+        const uint64_t revisionBefore = c.document().revision();
+        const uint64_t savedBefore = c.document().savedRevision();
+        const bool dirtyBefore = c.document().isDirty();
+        const std::size_t undoBefore = c.undoSize();
+
+        CHECK(c.playProject().ok);
+        c.consumeInvalidations(); // Start Play Toolbar | Viewport | Console.
+        const std::size_t logBefore = c.consoleLog().size();
+        CHECK(c.playSession()->translateEntity(kHero, Vec2{5.f, 0.f}));
+
+        const SceneFrameSnapshot playFrame = collectSceneFrameSnapshot(*c.playSession());
+        CHECK(playFrame.sprites.size() == 1);
+        CHECK(playFrame.sprites[0].destination.x == -9.f); // x=15, width=48
+        CHECK(c.document().findInstanceInScene(kSceneA, kHero)->transform.position.x == 10.f);
+        CHECK(c.document().revision() == revisionBefore);
+        CHECK(c.document().savedRevision() == savedBefore);
+        CHECK(c.document().isDirty() == dirtyBefore);
+        CHECK(c.undoSize() == undoBefore);
+        CHECK(c.consoleLog().size() == logBefore);
+        CHECK(c.consumeInvalidations() == EditorInvalidation::None);
+
+        CHECK(c.stopPlaying().ok);
+        const SceneFrameSnapshot editFrame =
+            collectSceneFrameSnapshot(c.document(), kSceneA, INVALID_ENTITY);
+        CHECK(editFrame.sprites.size() == 1);
+        CHECK(editFrame.sprites[0].destination.x == -14.f); // back to authoring x=10
+    }
+
+    // -- Runtime translation rejects invalid targets and invalid deltas --------
+    {
+        EditorCoordinator c{makeInheritedDoc()};
+        CHECK(c.playProject().ok);
+        CHECK(!c.playSession()->translateEntity(9999, Vec2{1.f, 0.f}));
+        CHECK(!c.playSession()->translateEntity(kHero, Vec2{
+            std::numeric_limits<float>::infinity(), 0.f}));
+        CHECK(!c.playSession()->translateEntity(kHero, Vec2{
+            0.f, std::numeric_limits<float>::quiet_NaN()}));
+
+        const SceneFrameSnapshot playFrame = collectSceneFrameSnapshot(*c.playSession());
+        CHECK(playFrame.sprites.size() == 1);
+        CHECK(playFrame.sprites[0].destination.x == -14.f);
+    }
+
+    // -- Runtime translation affects only the target entity -------------------
+    {
+        EditorCoordinator c{makeInheritedDoc()};
+        CHECK(c.execute(CreateEntityCommand{kSceneA, 100, "Enemy", "Enemy", {40.f, 20.f}}).ok);
+        CHECK(c.playProject().ok);
+        CHECK(c.playSession()->translateEntity(100, Vec2{10.f, 0.f}));
+
+        const RuntimeEntity* hero = c.playSession()->findEntity(kHero);
+        const RuntimeEntity* enemy = c.playSession()->findEntity(100);
+        CHECK(hero != nullptr);
+        CHECK(enemy != nullptr);
+        CHECK(hero->transform.position.x == 10.f);
+        CHECK(enemy->transform.position.x == 50.f);
+        CHECK(c.document().findInstanceInScene(kSceneA, 100)->transform.position.x == 40.f);
+    }
+
+    // -- A new Play session starts from authoring, not the previous runtime ----
+    {
+        EditorCoordinator c{makeInheritedDoc()};
+        CHECK(c.playProject().ok);
+        CHECK(c.playSession()->translateEntity(kHero, Vec2{5.f, 0.f}));
+        CHECK(c.stopPlaying().ok);
+        CHECK(c.playProject().ok);
+        const RuntimeEntity* hero = c.playSession()->findEntity(kHero);
+        CHECK(hero != nullptr);
+        CHECK(hero->transform.position.x == 10.f);
+    }
+
     // == Start-scene invariant: scenes exist => startSceneId is valid ==========
 
     // -- (1)(2)(3) First scene becomes the start scene; workspace untouched ----

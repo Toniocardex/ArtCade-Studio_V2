@@ -3,6 +3,7 @@
 #include "editor-native/model/project_document.h"
 #include "editor-native/model/sprite_render_view.h"
 
+#include <cmath>
 #include <utility>
 
 namespace ArtCade::EditorNative {
@@ -20,6 +21,10 @@ const Vec3* fillFor(const ProjectDocument& document, const std::string& typeId) 
     const auto& types = document.data().objectTypes;
     const auto it = types.find(typeId);
     return it == types.end() ? nullptr : &it->second.sprite.fillColor;
+}
+
+bool finite(Vec2 value) {
+    return std::isfinite(value.x) && std::isfinite(value.y);
 }
 
 } // namespace
@@ -79,6 +84,29 @@ std::optional<PlaySession> PlaySession::startActiveScene(const ProjectDocument& 
                                                         const SceneId& sceneId,
                                                         std::string* error) {
     return materialize(document, sceneId, error);
+}
+
+RuntimeEntity* PlaySession::findEntity(EntityId id) {
+    for (RuntimeEntity& entity : scene_.entities) {
+        if (entity.id == id) return &entity;
+    }
+    return nullptr;
+}
+
+const RuntimeEntity* PlaySession::findEntity(EntityId id) const {
+    for (const RuntimeEntity& entity : scene_.entities) {
+        if (entity.id == id) return &entity;
+    }
+    return nullptr;
+}
+
+bool PlaySession::translateEntity(EntityId id, Vec2 delta) {
+    if (!finite(delta)) return false;
+    RuntimeEntity* entity = findEntity(id);
+    if (!entity) return false;
+    entity->transform.position.x += delta.x;
+    entity->transform.position.y += delta.y;
+    return true;
 }
 
 } // namespace ArtCade::EditorNative

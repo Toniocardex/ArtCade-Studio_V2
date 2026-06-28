@@ -268,6 +268,20 @@ The toolbar should label the runtime target, for example `PLAYING - Scene A`.
 That label is derived from `PlaySession::scene()` and exists only to avoid UX
 ambiguity when the workspace active scene changes during Play.
 
+The first runtime mutation is intentionally minimal:
+
+```text
+Raylib input
+-> application computes Vec2 delta
+-> PlaySession::translateEntity(entityId, delta)
+-> RuntimeEntity.transform.position
+-> Play SceneFrameSnapshot
+```
+
+It is not an `EditorCommand` and it does not touch `ProjectDocument`, undo,
+revision, dirty state or JSON. `Stop` destroys the session, so the next Play
+starts again from the authoring document.
+
 ## RmlUi input commit baseline
 
 Inspector text and number fields use RmlUi as a local edit buffer. Typing does

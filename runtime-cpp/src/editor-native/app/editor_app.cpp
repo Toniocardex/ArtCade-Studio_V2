@@ -66,6 +66,20 @@ void routeViewportInput(EditorCoordinator& coordinator, const ViewportRect& rect
     }
 }
 
+void routePlayRuntimeInput(PlaySession& session, const RmlInputResult& rml) {
+    if (rml.textFocus) return;
+    Vec2 delta{};
+    const float step = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT) ? 4.f : 1.f;
+    if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) delta.x += step;
+    if (IsKeyDown(KEY_LEFT)  || IsKeyDown(KEY_A)) delta.x -= step;
+    if (IsKeyDown(KEY_DOWN)  || IsKeyDown(KEY_S)) delta.y += step;
+    if (IsKeyDown(KEY_UP)    || IsKeyDown(KEY_W)) delta.y -= step;
+    if (delta.x == 0.f && delta.y == 0.f) return;
+    if (!session.entities().empty()) {
+        (void)session.translateEntity(session.entities().front().id, delta);
+    }
+}
+
 std::filesystem::path editorResourceRoot() {
     return std::filesystem::path(GetApplicationDirectory()) / "resources";
 }
@@ -161,6 +175,9 @@ int EditorApp::run(int argc, char** argv) {
         const RmlInputResult rml = pumpRmlInput(host.context());
         const ViewportRect rect = viewportRectFromDocument(host.document());
         routeViewportInput(coordinator, rect, rml);
+        if (PlaySession* playSession = coordinator.playSession()) {
+            routePlayRuntimeInput(*playSession, rml);
+        }
 
         ui.processFrame();
         host.update();
