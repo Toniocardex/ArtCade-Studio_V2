@@ -124,7 +124,7 @@ paletto o sblocca la capability in corso.
 | Transform edit | TS project/store path | `SetEntityPositionCommand` -> `ProjectDocument` | In progress | No |
 | Entity rename | TS project/store path | `RenameEntityCommand` -> `ProjectDocument` | In progress | No |
 | Scene background edit | TS project/store path | `SetSceneBackgroundCommand` -> `ProjectDocument` | In progress | No |
-| Scene properties (Scene Inspector) | TS scene settings panel | No-selection Inspector shows the active scene: `RenameSceneCommand`, `SetSceneSizeCommand` (Dimensions; resize never moves instances), Set as Start, entity count | Done | No |
+| Scene properties (Scene Inspector) | TS scene settings panel | No-selection Inspector shows the active scene: GENERAL (`RenameSceneCommand`, ID, Set as Start, entity count), WORLD BOUNDS (`SetSceneSizeCommand` in `wu`; resize never moves instances; Fit View to Bounds = workspace camera), DIAGNOSTICS (entities outside bounds, derived) | Done | No |
 | Scene create | TS project/store path | `CreateSceneCommand` -> `ProjectDocument` | Done | No |
 | Scene delete | TS project/store path | `DeleteSceneCommand` -> `ProjectDocument` (exact undo) | Done | No |
 | Entity create (+Entity) | TS project/store path | atomic `CreateEntityWithDefaultTypeCommand` -> always a NEW `ObjectTypeDef` + its instance (independent object); never reuses a type | Done | No |
@@ -879,11 +879,28 @@ no entity + active scene   -> Scene Inspector   (activeSceneId, no new state)
 no entity + no scene       -> "Select an entity"
 ```
 
-Clicking a scene tab already clears the entity selection (`SelectSceneIntent`), so
-the Scene Inspector appears with no extra intent. MVP sections: **Scene** (Name
-editable, ID read-only), **Dimensions** (Width/Height), **Start Scene** (a "Set as
-Start" button, or a "Project start scene" marker when it already is), and
-**Statistics** (entity count, read-only).
+Clicking a scene tab — or empty viewport space (pick returns INVALID, clearing the
+selection) — shows the Scene Inspector with no extra intent. Three concepts stay
+**deliberately separate** and must not be welded: **scene world bounds** (the
+authoring extent, edited here), **game resolution** (logical output — Project
+Settings, later) and **camera viewport** (runtime visible region — a camera
+component, later). So the bounds section is "World Bounds", not "Resolution".
+
+MVP+ sections:
+
+```text
+GENERAL       Name (Command) · ID (read-only) · Start (Set as Start / marker) · Entities
+WORLD BOUNDS  Width · Height (whole pixels, shown in `wu`) · Fit View to Bounds
+DIAGNOSTICS   Outside bounds (count of entities whose derived bounds leave the scene)
+```
+
+`Fit View to Bounds` is **workspace-only** — it recenters pan and zooms to fit via
+intents (no command, no dirty); the viewport pixel rect is known only to the
+application, so it runs through an app handler like the file/import triggers.
+DIAGNOSTICS is a derived query recomputed on each Inspector refresh (no authority,
+no cache); a non-zero count reads as a soft warning. Empty states are explicit:
+**no scene → "No scene open"**, scene + no entity → Scene Inspector, entity →
+Entity Inspector.
 
 Edits go through commands like everything else: `RenameSceneCommand`
 (Hierarchy|Inspector|Viewport|Toolbar) and the new `SetSceneSizeCommand`

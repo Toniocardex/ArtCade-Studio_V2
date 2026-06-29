@@ -433,6 +433,21 @@ int EditorApp::run(int argc, char** argv) {
         else            coordinator.logInfo("Imported " + result.assetId);
     });
 
+    // Fit View to Bounds: frame the active scene in the viewport. Workspace-only
+    // (recenter pan + zoom-to-fit via intents); the rect is known only here.
+    ui.setFitViewHandler([&]() {
+        const SceneId active = coordinator.state().activeSceneId;
+        const SceneDef* scene = coordinator.document().findScene(active);
+        if (!scene || scene->worldSize.x <= 0.f || scene->worldSize.y <= 0.f) return;
+        const ViewportRect rect = viewportRectFromDocument(host.document());
+        if (rect.width <= 0 || rect.height <= 0) return;
+        const float fit = 0.9f * std::min(static_cast<float>(rect.width) / scene->worldSize.x,
+                                          static_cast<float>(rect.height) / scene->worldSize.y);
+        const EditorSceneViewState view = coordinator.sceneView(active);
+        coordinator.apply(PanViewportIntent{active, {-view.pan.x, -view.pan.y}});  // recenter
+        coordinator.apply(SetViewportZoomIntent{active, fit});
+    });
+
     const auto viewportDefaultSpawn = [&]() -> std::optional<Vec2> {
         const SceneId& active = coordinator.state().activeSceneId;
         const SceneDef* scene = coordinator.document().findScene(active);

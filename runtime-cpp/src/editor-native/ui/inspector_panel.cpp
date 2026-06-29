@@ -40,6 +40,21 @@ std::string field(const char* label, const char* action, const std::string& valu
     return row;
 }
 
+// Like field(), with a trailing unit suffix (e.g. "wu") shown after the input.
+std::string fieldWithUnit(const char* label, const char* action, const std::string& value,
+                          const char* unit, bool disabled) {
+    std::string row = "<div class=\"prop-row\"><span class=\"prop-label\">";
+    row += label;
+    row += "</span><input type=\"text\" class=\"prop-input\" data-action=\"";
+    row += action;
+    row += "\" value=\"" + escapeRml(value) + "\"";
+    if (disabled) row += " disabled=\"disabled\"";
+    row += "/><span class=\"prop-unit\">";
+    row += unit;
+    row += "</span></div>";
+    return row;
+}
+
 // A component section header: icon + NAME, an ownership badge, and an optional
 // remove (x). `badge`/`removeAction` empty are skipped — Identity has neither, a
 // structural section (Transform) has a badge but no remove.
@@ -113,7 +128,7 @@ void InspectorPanel::refresh(Rml::ElementDocument* document,
         const SceneId& activeScene = coordinator.state().activeSceneId;
         const SceneDef* scene = coordinator.document().findScene(activeScene);
         if (!scene) {
-            body->SetInnerRML("<p class=\"inspector-empty\">Select an entity</p>");
+            body->SetInnerRML("<p class=\"inspector-empty\">No scene open</p>");
             return;
         }
         const bool playing = coordinator.isPlaying();
@@ -121,28 +136,47 @@ void InspectorPanel::refresh(Rml::ElementDocument* document,
         const std::string btn = playing ? "panel-btn disabled" : "panel-btn";
 
         std::string html;
-        html += header("&#xeb34;", "Scene", "", "", "", playing);
+
+        // -- GENERAL -----------------------------------------------------------
+        html += header("&#xeb34;", "General", "", "", "", playing);
         html += field("Name", "commit-scene-name", scene->name, playing);
         html += "<div class=\"prop-row\"><span class=\"prop-label\">ID</span>"
                 "<span class=\"prop-readonly\">" + escapeRml(scene->id) + "</span></div>";
-
-        html += header("&#xf22f;", "Dimensions", "", "", "", playing);
-        html += field("Width", "commit-scene-width", num(scene->worldSize.x), playing);
-        html += field("Height", "commit-scene-height", num(scene->worldSize.y), playing);
-
-        html += header("&#xeb2e;", "Start Scene", "", "", "", playing);
+        html += "<div class=\"prop-row\"><span class=\"prop-label\">Start</span>";
         if (isStart) {
-            html += "<div class=\"prop-row\"><span class=\"prop-readonly\">"
-                    "<span class=\"icon\">&#xeb2e;</span> Project start scene</span></div>";
+            html += "<span class=\"prop-readonly\"><span class=\"icon\">&#xeb2e;</span> "
+                    "Start scene</span>";
         } else {
             html += "<button class=\"" + btn + "\" data-action=\"set-start-scene\">"
-                    "<span class=\"icon\">&#xeb2e;</span>Set as Start</button>";
+                    "Set as Start</button>";
         }
-
-        html += header("&#xebdc;", "Statistics", "", "", "", playing);
+        html += "</div>";
         html += "<div class=\"prop-row\"><span class=\"prop-label\">Entities</span>"
                 "<span class=\"prop-readonly\">"
               + std::to_string(scene->instances.size()) + "</span></div>";
+
+        // -- WORLD BOUNDS (world units; resizing never moves instances) ---------
+        html += header("&#xf22f;", "World Bounds", "", "", "", playing);
+        html += fieldWithUnit("Width", "commit-scene-width", num(scene->worldSize.x), "wu", playing);
+        html += fieldWithUnit("Height", "commit-scene-height", num(scene->worldSize.y), "wu", playing);
+        // Fit View is workspace-only (camera), never a command — always available.
+        html += "<button class=\"panel-btn\" data-action=\"fit-view-to-bounds\">"
+                "<span class=\"icon\">&#xeb8b;</span>Fit View to Bounds</button>";
+
+        // -- DIAGNOSTICS (derived query, recomputed each refresh) --------------
+        const SceneFrameSnapshot diag =
+            collectSceneFrameSnapshot(coordinator.document(), activeScene, INVALID_ENTITY);
+        int outside = 0;
+        for (const SceneFrameEntity& e : diag.entities) {
+            if (const std::optional<WorldRect> b = editorBoundsForEntity(diag, e.entityId))
+                if (classifySceneContainment(*b, diag.worldSize) != SceneContainment::Inside)
+                    ++outside;
+        }
+        html += header("&#xea06;", "Diagnostics", "", "", "", playing);
+        html += "<div class=\"prop-row\"><span class=\"prop-label\">Outside bounds</span>"
+                "<span class=\"prop-readonly";
+        if (outside > 0) html += " warn";
+        html += "\">" + std::to_string(outside) + "</span></div>";
 
         body->SetInnerRML(html);
         return;

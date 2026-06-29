@@ -52,6 +52,11 @@ public:
     // application. Every kind converges on this one handler.
     using ImportAssetRequest = std::function<void(AssetKind)>;
     void setImportHandler(ImportAssetRequest importAsset);
+    // Fit the SceneView camera to the active scene's bounds. Needs the viewport
+    // pixel rect, which only the application knows; it is workspace-only (camera
+    // intents, no command). Unset makes the action a no-op.
+    using WorkspaceRequest = std::function<void()>;
+    void setFitViewHandler(WorkspaceRequest fitView);
 
     using EntityPlacementRequest = std::function<void()>;
     void setEntityPlacementHandlers(EntityPlacementRequest addEntity,
@@ -96,6 +101,7 @@ private:
     EntityPlacementRequest              addInstanceRequest_;
     EntityPlacementRequest              createEntityHereRequest_;
     EntityPlacementRequest              createInstanceHereRequest_;
+    WorkspaceRequest                    fitViewRequest_;
     bool                                viewportContextMenuVisible_ = false;
 };
 

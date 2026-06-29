@@ -170,6 +170,10 @@ void EditorUi::setImportHandler(ImportAssetRequest importAsset) {
     importAssetRequest_ = std::move(importAsset);
 }
 
+void EditorUi::setFitViewHandler(WorkspaceRequest fitView) {
+    fitViewRequest_ = std::move(fitView);
+}
+
 void EditorUi::setEntityPlacementHandlers(EntityPlacementRequest addEntity,
                                           EntityPlacementRequest addInstance,
                                           EntityPlacementRequest createEntityHere,
@@ -401,6 +405,8 @@ void EditorUi::handleAction(const std::string& action, const std::string& arg,
     } else if (action == "commit-scene-name") {
         if (!value.empty())
             coordinator_.execute(RenameSceneCommand{coordinator_.state().activeSceneId, value});
+    } else if (action == "fit-view-to-bounds") {
+        if (fitViewRequest_) fitViewRequest_();   // workspace-only (camera), no command
     } else if (action == "commit-scene-width" || action == "commit-scene-height") {
         const SceneDef* scene =
             coordinator_.document().findScene(coordinator_.state().activeSceneId);
