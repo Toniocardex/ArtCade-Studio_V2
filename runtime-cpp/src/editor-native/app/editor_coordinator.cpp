@@ -291,6 +291,10 @@ void EditorCoordinator::advanceRuntime(float dt) {
     if (playSession_) playSession_->advance(dt);
 }
 
+void EditorCoordinator::updateRuntime(const RuntimeInputSnapshot& input, float dt) {
+    if (playSession_) playSession_->update(input, dt);
+}
+
 // ----------------------------------------------------------------------------
 // Intent path — workspace state only; never the ProjectDocument, never undo.
 // ----------------------------------------------------------------------------

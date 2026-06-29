@@ -343,7 +343,17 @@ int EditorApp::run(int argc, char** argv) {
         const ViewportRect rect = viewportRectFromDocument(host.document());
         routeViewportInput(coordinator, rect, rml);
         if (coordinator.isPlaying()) {
-            coordinator.advanceRuntime(GetFrameTime());   // authored motion tick
+            const float dt = GetFrameTime();
+            coordinator.advanceRuntime(dt);               // authored motion (LinearMover)
+            // Gameplay input is neutral while a text field has focus.
+            RuntimeInputSnapshot input;
+            if (!rml.textFocus) {
+                input.moveLeft  = IsKeyDown(KEY_LEFT)  || IsKeyDown(KEY_A);
+                input.moveRight = IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D);
+                input.moveUp    = IsKeyDown(KEY_UP)    || IsKeyDown(KEY_W);
+                input.moveDown  = IsKeyDown(KEY_DOWN)  || IsKeyDown(KEY_S);
+            }
+            coordinator.updateRuntime(input, dt);         // input-driven (TopDownController)
         } else {
             routeViewportPickDrag(coordinator, rect, rml, drag);
         }

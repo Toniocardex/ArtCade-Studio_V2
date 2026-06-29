@@ -4,6 +4,7 @@
 #include "editor-native/commands/box_collider_commands.h"
 #include "editor-native/commands/linear_mover_commands.h"
 #include "editor-native/commands/sprite_commands.h"
+#include "editor-native/commands/top_down_controller_commands.h"
 
 namespace ArtCade::EditorNative {
 
@@ -136,6 +137,30 @@ EditorOperationResult setLinearMoverSpeed(EditorCoordinator& coordinator, float 
         return EditorOperationResult::failure("No selected object type");
     }
     return coordinator.execute(SetLinearMoverSpeedCommand{objectTypeId, speed});
+}
+
+EditorOperationResult addTopDownController(EditorCoordinator& coordinator) {
+    std::string objectTypeId;
+    if (!selectedObjectType(coordinator, objectTypeId)) {
+        return EditorOperationResult::failure("No selected object type");
+    }
+    return coordinator.execute(AddTopDownControllerCommand{objectTypeId});
+}
+
+EditorOperationResult removeTopDownController(EditorCoordinator& coordinator) {
+    std::string objectTypeId;
+    if (!selectedObjectType(coordinator, objectTypeId)) {
+        return EditorOperationResult::failure("No selected object type");
+    }
+    return coordinator.execute(RemoveTopDownControllerCommand{objectTypeId});
+}
+
+EditorOperationResult setTopDownControllerSpeed(EditorCoordinator& coordinator, float speed) {
+    std::string objectTypeId;
+    if (!selectedObjectType(coordinator, objectTypeId)) {
+        return EditorOperationResult::failure("No selected object type");
+    }
+    return coordinator.execute(SetTopDownControllerSpeedCommand{objectTypeId, speed});
 }
 
 } // namespace ArtCade::EditorNative

@@ -286,4 +286,29 @@ bool ProjectDocument::setLinearMoverSpeed(const std::string& objectTypeId, float
     return true;
 }
 
+bool ProjectDocument::addTopDownController(const std::string& objectTypeId,
+                                          TopDownControllerComponent component) {
+    auto it = doc_.objectTypes.find(objectTypeId);
+    if (it == doc_.objectTypes.end() || it->second.topDownController.has_value()) return false;
+    it->second.topDownController = component;
+    markDirty();
+    return true;
+}
+
+bool ProjectDocument::removeTopDownController(const std::string& objectTypeId) {
+    auto it = doc_.objectTypes.find(objectTypeId);
+    if (it == doc_.objectTypes.end() || !it->second.topDownController.has_value()) return false;
+    it->second.topDownController.reset();
+    markDirty();
+    return true;
+}
+
+bool ProjectDocument::setTopDownControllerSpeed(const std::string& objectTypeId, float speed) {
+    auto it = doc_.objectTypes.find(objectTypeId);
+    if (it == doc_.objectTypes.end() || !it->second.topDownController.has_value()) return false;
+    it->second.topDownController->maxSpeed = speed;
+    markDirty();
+    return true;
+}
+
 } // namespace ArtCade::EditorNative

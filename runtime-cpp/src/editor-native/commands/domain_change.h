@@ -27,6 +27,7 @@ enum class ComponentKind {
     SpriteRenderer,
     BoxCollider2D,
     LinearMover,
+    TopDownController,
 };
 
 struct DomainChange {

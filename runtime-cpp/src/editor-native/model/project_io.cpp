@@ -206,6 +206,14 @@ nlohmann::json objectTypeToJson(const std::string& id, const EntityDef& def) {
             {"speed", def.linearMover->speed},
         };
     }
+    if (def.topDownController.has_value()) {
+        json["topDownController"] = nlohmann::json{
+            {"maxSpeed", def.topDownController->maxSpeed},
+            {"acceleration", def.topDownController->acceleration},
+            {"friction", def.topDownController->friction},
+            {"fourDirections", def.topDownController->fourDirections},
+        };
+    }
     return json;
 }
 
@@ -289,6 +297,15 @@ DeserializeResult ProjectSerializer::deserialize(std::string_view source) {
                 component.directionY = m.value("directionY", component.directionY);
                 component.speed = m.value("speed", component.speed);
                 def.linearMover = component;
+            }
+            if (item.contains("topDownController") && item["topDownController"].is_object()) {
+                const auto& t = item["topDownController"];
+                TopDownControllerComponent component;
+                component.maxSpeed = t.value("maxSpeed", component.maxSpeed);
+                component.acceleration = t.value("acceleration", component.acceleration);
+                component.friction = t.value("friction", component.friction);
+                component.fourDirections = t.value("fourDirections", component.fourDirections);
+                def.topDownController = component;
             }
             doc.objectTypes.emplace(id, std::move(def));
         }
@@ -421,6 +438,13 @@ DeserializeResult ProjectValidator::validate(ProjectDocument document) {
                 || !std::isfinite(def.linearMover->speed)
                 || def.linearMover->speed < 0.f) {
                 return DeserializeResult::failure("LinearMover has invalid direction or speed");
+            }
+        }
+        if (def.topDownController.has_value()) {
+            const TopDownControllerComponent& tdc = *def.topDownController;
+            if (!std::isfinite(tdc.maxSpeed) || tdc.maxSpeed < 0.f
+                || !std::isfinite(tdc.acceleration) || !std::isfinite(tdc.friction)) {
+                return DeserializeResult::failure("TopDownController has invalid speed");
             }
         }
     }

@@ -276,6 +276,13 @@ void EditorUi::handleAction(const std::string& action, const std::string& arg,
                     setLinearMoverSpeed(coordinator_, *parsed);
             }
         }
+    } else if (action == "add-top-down") {
+        addTopDownController(coordinator_);
+    } else if (action == "remove-top-down") {
+        removeTopDownController(coordinator_);
+    } else if (action == "commit-topdown-speed") {
+        const std::optional<float> parsed = parseNumberField(value);
+        if (parsed.has_value()) setTopDownControllerSpeed(coordinator_, *parsed);
     } else if (action == "commit-pos-x") {
         commitInspectorPositionX(coordinator_, selected, value);
     } else if (action == "commit-pos-y") {

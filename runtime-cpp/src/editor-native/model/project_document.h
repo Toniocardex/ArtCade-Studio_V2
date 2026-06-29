@@ -24,6 +24,9 @@ class SetEntityPositionCommand;
 class SetBoxColliderEnabledCommand;
 class SetLinearMoverDirectionCommand;
 class SetLinearMoverSpeedCommand;
+class AddTopDownControllerCommand;
+class RemoveTopDownControllerCommand;
+class SetTopDownControllerSpeedCommand;
 class SetBoxColliderOffsetCommand;
 class SetBoxColliderSizeCommand;
 class SetBoxColliderTriggerCommand;
@@ -89,6 +92,9 @@ private:
     friend class SetBoxColliderTriggerCommand;
     friend class SetLinearMoverDirectionCommand;
     friend class SetLinearMoverSpeedCommand;
+    friend class AddTopDownControllerCommand;
+    friend class RemoveTopDownControllerCommand;
+    friend class SetTopDownControllerSpeedCommand;
     friend class SetSceneBackgroundCommand;
     friend class SetSpriteRendererAssetCommand;
     friend class SetSpriteRendererVisibleCommand;
@@ -129,6 +135,12 @@ private:
     bool removeLinearMover(const std::string& objectTypeId);
     bool setLinearMoverDirection(const std::string& objectTypeId, Vec2 direction);
     bool setLinearMoverSpeed(const std::string& objectTypeId, float speed);
+    // TopDownController is authored on the object type only. This slice edits the
+    // movement speed (canonical maxSpeed); the other canonical fields persist
+    // untouched.
+    bool addTopDownController(const std::string& objectTypeId, TopDownControllerComponent component);
+    bool removeTopDownController(const std::string& objectTypeId);
+    bool setTopDownControllerSpeed(const std::string& objectTypeId, float speed);
     void replaceClean(ProjectDocument replacement);
     void markSaved();
     // Set the current revision to a previously observed value (undo/redo). Unlike

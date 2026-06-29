@@ -16,6 +16,11 @@ struct RuntimeSpriteComponent {
     bool visible = true;
 };
 
+// Input-driven top-down movement at a constant speed (the canonical maxSpeed).
+struct RuntimeTopDownController {
+    float speed = 0.f;
+};
+
 struct RuntimeEntity {
     EntityId id = INVALID_ENTITY;
     std::string name;
@@ -23,6 +28,16 @@ struct RuntimeEntity {
     Vec2 velocity{};   // world units/second, resolved from authoring at materialize
     Vec3 fillColor{0.47f, 0.49f, 0.52f};
     std::optional<RuntimeSpriteComponent> sprite;
+    std::optional<RuntimeTopDownController> topDownController;
+};
+
+// Per-frame gameplay input, built by the application from the platform and fed to
+// the session. PlaySession stays free of Raylib/RmlUi.
+struct RuntimeInputSnapshot {
+    bool moveLeft = false;
+    bool moveRight = false;
+    bool moveUp = false;
+    bool moveDown = false;
 };
 
 struct RuntimeScene {
@@ -65,6 +80,11 @@ public:
     // Runtime simulation step: integrates each entity's authored velocity into
     // its transform. Pure runtime mutation — never touches ProjectDocument.
     void advance(float dt);
+
+    // Input-driven step: moves each TopDownController entity by the (diagonal-
+    // normalized) input direction at its speed. Pure runtime mutation; opposite
+    // inputs cancel; non-finite or non-positive dt is a no-op.
+    void update(const RuntimeInputSnapshot& input, float dt);
 
 private:
     static std::optional<PlaySession> materialize(const ProjectDocument& document,

@@ -40,6 +40,14 @@ const LinearMoverComponent* moverFor(const ProjectDocument& document,
     return &*it->second.linearMover;
 }
 
+const TopDownControllerComponent* controllerFor(const ProjectDocument& document,
+                                                const std::string& typeId) {
+    const auto& types = document.data().objectTypes;
+    const auto it = types.find(typeId);
+    if (it == types.end() || !it->second.topDownController) return nullptr;
+    return &*it->second.topDownController;
+}
+
 } // namespace
 
 std::optional<PlaySession> PlaySession::materialize(const ProjectDocument& document,
@@ -70,6 +78,10 @@ std::optional<PlaySession> PlaySession::materialize(const ProjectDocument& docum
             const Vec2 dir = normalizeOrZero(Vec2{mover->directionX, mover->directionY});
             const float speed = std::max(0.f, mover->speed);
             entity.velocity = Vec2{dir.x * speed, dir.y * speed};
+        }
+        if (const TopDownControllerComponent* controller =
+                controllerFor(document, instance.objectTypeId)) {
+            entity.topDownController = RuntimeTopDownController{std::max(0.f, controller->maxSpeed)};
         }
 
         const SpriteRenderView sprite =
@@ -117,6 +129,24 @@ void PlaySession::advance(float dt) {
     for (RuntimeEntity& entity : scene_.entities) {
         entity.transform.position.x += entity.velocity.x * dt;
         entity.transform.position.y += entity.velocity.y * dt;
+    }
+}
+
+void PlaySession::update(const RuntimeInputSnapshot& input, float dt) {
+    if (!std::isfinite(dt) || dt <= 0.f) return;
+
+    // Opposite inputs cancel; the diagonal is normalized so it is never faster.
+    const Vec2 direction = normalizeOrZero(Vec2{
+        static_cast<float>(input.moveRight) - static_cast<float>(input.moveLeft),
+        static_cast<float>(input.moveDown) - static_cast<float>(input.moveUp),
+    });
+    if (direction.x == 0.f && direction.y == 0.f) return;
+
+    for (RuntimeEntity& entity : scene_.entities) {
+        if (!entity.topDownController) continue;
+        const float speed = entity.topDownController->speed;
+        entity.transform.position.x += direction.x * speed * dt;
+        entity.transform.position.y += direction.y * speed * dt;
     }
 }
 

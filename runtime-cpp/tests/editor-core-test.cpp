@@ -14,6 +14,7 @@
 #include "editor-native/app/inspector_actions.h"
 #include "editor-native/commands/box_collider_commands.h"
 #include "editor-native/commands/linear_mover_commands.h"
+#include "editor-native/commands/top_down_controller_commands.h"
 #include "editor-native/commands/entity_commands.h"
 #include "editor-native/commands/scene_commands.h"
 #include "editor-native/commands/sprite_commands.h"
@@ -137,6 +138,16 @@ static ProjectDoc makeMoverDoc() {
     lm.directionY = 0.f;
     lm.speed = 100.f;
     doc.objectTypes.at("Hero").linearMover = lm;
+    return doc;
+}
+
+// makeInheritedDoc plus a TopDownController on "Hero" (speed = maxSpeed), so the
+// kHero instance is input-driven during Play.
+static ProjectDoc makeTopDownDoc(float speed = 100.f) {
+    ProjectDoc doc = makeInheritedDoc();
+    TopDownControllerComponent tdc;
+    tdc.maxSpeed = speed;
+    doc.objectTypes.at("Hero").topDownController = tdc;
     return doc;
 }
 
@@ -1652,6 +1663,140 @@ int main() {
         CHECK(m->directionX == 3.f);
         CHECK(m->speed == 100.f);
         CHECK(m->_paused == false);
+    }
+
+    // == TopDownController (authoring + runtime input) ========================
+
+    // -- Decisive: input moves the runtime entity; authoring untouched --------
+    {
+        EditorCoordinator c{makeTopDownDoc(100.f)};
+        const uint64_t revisionBefore = c.document().revision();
+        const bool dirtyBefore = c.document().isDirty();
+        const std::size_t undoBefore = c.undoSize();
+
+        CHECK(c.playProject().ok);
+        RuntimeInputSnapshot in;
+        in.moveRight = true;
+        c.updateRuntime(in, 0.5f);                       // 100 * 0.5 = +50
+
+        CHECK(c.playSession()->findEntity(kHero)->transform.position.x == 60.f);
+        CHECK(c.document().findInstanceInScene(kSceneA, kHero)->transform.position.x == 10.f);
+        CHECK(c.document().revision() == revisionBefore);
+        CHECK(c.document().isDirty() == dirtyBefore);
+        CHECK(c.undoSize() == undoBefore);
+
+        CHECK(c.stopPlaying().ok);
+        CHECK(c.document().findInstanceInScene(kSceneA, kHero)->transform.position.x == 10.f);
+    }
+
+    // -- No controller => no movement; restart re-materializes authoring ------
+    {
+        EditorCoordinator c{makeInheritedDoc()};
+        CHECK(c.playProject().ok);
+        RuntimeInputSnapshot in; in.moveRight = true;
+        c.updateRuntime(in, 1.0f);
+        CHECK(c.playSession()->findEntity(kHero)->transform.position.x == 10.f);
+        CHECK(c.stopPlaying().ok);
+    }
+    {
+        EditorCoordinator c{makeTopDownDoc(100.f)};
+        CHECK(c.playProject().ok);
+        RuntimeInputSnapshot in; in.moveRight = true;
+        c.updateRuntime(in, 1.0f);                       // moved to 110
+        CHECK(c.stopPlaying().ok);
+        CHECK(c.playProject().ok);                       // fresh session from authoring
+        CHECK(c.playSession()->findEntity(kHero)->transform.position.x == 10.f);
+    }
+
+    // -- Opposite inputs cancel; non-finite/negative dt is a no-op -----------
+    {
+        EditorCoordinator c{makeTopDownDoc(100.f)};
+        CHECK(c.playProject().ok);
+        RuntimeInputSnapshot both; both.moveLeft = true; both.moveRight = true;
+        c.updateRuntime(both, 1.0f);
+        CHECK(c.playSession()->findEntity(kHero)->transform.position.x == 10.f);
+
+        RuntimeInputSnapshot right; right.moveRight = true;
+        c.updateRuntime(right, -1.0f);
+        c.updateRuntime(right, std::numeric_limits<float>::infinity());
+        CHECK(c.playSession()->findEntity(kHero)->transform.position.x == 10.f);
+    }
+
+    // -- Diagonal is normalized: never faster than a single axis --------------
+    {
+        EditorCoordinator c{makeTopDownDoc(100.f)};
+        CHECK(c.playProject().ok);
+        RuntimeInputSnapshot diag; diag.moveRight = true; diag.moveDown = true;
+        c.updateRuntime(diag, 1.0f);
+        const Transform& t = c.playSession()->findEntity(kHero)->transform;
+        const float dx = t.position.x - 10.f;
+        const float dy = t.position.y - 20.f;
+        CHECK(dx == dy);                                 // symmetric
+        CHECK(dx > 0.f && dx < 100.f);                   // each axis below full speed
+        CHECK(std::abs((dx * dx + dy * dy) - 10000.f) < 0.5f);   // total step ≈ speed*dt
+    }
+
+    // -- Higher speed produces a larger displacement -------------------------
+    {
+        EditorCoordinator slow{makeTopDownDoc(100.f)};
+        EditorCoordinator fast{makeTopDownDoc(200.f)};
+        CHECK(slow.playProject().ok);
+        CHECK(fast.playProject().ok);
+        RuntimeInputSnapshot in; in.moveRight = true;
+        slow.updateRuntime(in, 0.5f);
+        fast.updateRuntime(in, 0.5f);
+        CHECK(slow.playSession()->findEntity(kHero)->transform.position.x == 60.f);
+        CHECK(fast.playSession()->findEntity(kHero)->transform.position.x == 110.f);
+    }
+
+    // -- Two controller entities both move -----------------------------------
+    {
+        EditorCoordinator c{makeTopDownDoc(100.f)};
+        CHECK(c.execute(CreateEntityCommand{kSceneA, 201, "Hero", "Hero2", {30.f, 0.f}}).ok);
+        CHECK(c.playProject().ok);
+        RuntimeInputSnapshot in; in.moveRight = true;
+        c.updateRuntime(in, 1.0f);
+        CHECK(c.playSession()->findEntity(kHero)->transform.position.x == 110.f);
+        CHECK(c.playSession()->findEntity(201)->transform.position.x == 130.f);
+    }
+
+    // -- save/load preserves the component; Add/Remove/SetSpeed undo+redo -----
+    {
+        EditorCoordinator c{makeTopDownDoc(140.f)};
+        const std::filesystem::path path = testTempDir() / "topdown.artcade-project";
+        CHECK(saveProjectToFile(c, path).ok);
+        EditorCoordinator reloaded{ProjectDoc{}};
+        CHECK(loadProjectFromFile(reloaded, path).ok);
+        const auto& tdc = reloaded.document().data().objectTypes.at("Hero").topDownController;
+        CHECK(tdc.has_value());
+        CHECK(tdc->maxSpeed == 140.f);
+    }
+    {
+        EditorCoordinator c{makeInheritedDoc()};
+        CHECK(c.execute(AddTopDownControllerCommand{"Hero"}).ok);
+        CHECK(c.execute(SetTopDownControllerSpeedCommand{"Hero", 250.f}).ok);
+        CHECK(c.document().data().objectTypes.at("Hero").topDownController->maxSpeed == 250.f);
+        CHECK(c.undo().ok);   // undo speed
+        CHECK(c.document().data().objectTypes.at("Hero").topDownController->maxSpeed == 260.f);
+        CHECK(c.undo().ok);   // undo add
+        CHECK(!c.document().data().objectTypes.at("Hero").topDownController.has_value());
+        CHECK(c.redo().ok);   // redo add
+        CHECK(c.document().data().objectTypes.at("Hero").topDownController.has_value());
+        CHECK(c.redo().ok);   // redo speed
+        CHECK(c.document().data().objectTypes.at("Hero").topDownController->maxSpeed == 250.f);
+    }
+
+    // -- Invalid speed rejected; Add invalidates Inspector only --------------
+    {
+        EditorCoordinator c{makeTopDownDoc(100.f)};
+        const uint64_t revisionBefore = c.document().revision();
+        CHECK(!c.execute(SetTopDownControllerSpeedCommand{"Hero", -1.f}).ok);
+        CHECK(c.document().revision() == revisionBefore);
+        EditorCoordinator c2{makeInheritedDoc()};
+        c2.consumeInvalidations();
+        const EditorOperationResult r = c2.execute(AddTopDownControllerCommand{"Hero"});
+        CHECK(r.ok);
+        CHECK(r.invalidation == EditorInvalidation::Inspector);
     }
 
     // == Viewport camera transform + picking ==================================

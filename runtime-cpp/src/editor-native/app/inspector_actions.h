@@ -39,4 +39,8 @@ EditorOperationResult removeLinearMover(EditorCoordinator& coordinator);
 EditorOperationResult setLinearMoverDirection(EditorCoordinator& coordinator, Vec2 direction);
 EditorOperationResult setLinearMoverSpeed(EditorCoordinator& coordinator, float speed);
 
+EditorOperationResult addTopDownController(EditorCoordinator& coordinator);
+EditorOperationResult removeTopDownController(EditorCoordinator& coordinator);
+EditorOperationResult setTopDownControllerSpeed(EditorCoordinator& coordinator, float speed);
+
 } // namespace ArtCade::EditorNative

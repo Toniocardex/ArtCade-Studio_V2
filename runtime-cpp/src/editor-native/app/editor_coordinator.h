@@ -87,6 +87,10 @@ public:
     // No-op when not playing; never an EditorCommand, never touches the document.
     void advanceRuntime(float dt);
 
+    // Input-driven runtime step (TopDownController). Same guarantees as
+    // advanceRuntime; no-op when not playing.
+    void updateRuntime(const RuntimeInputSnapshot& input, float dt);
+
     // ---- intent path (workspace/editor state) -------------------------------
     EditorOperationResult apply(const SelectEntityIntent& intent);
     EditorOperationResult apply(const SelectSceneIntent& intent);

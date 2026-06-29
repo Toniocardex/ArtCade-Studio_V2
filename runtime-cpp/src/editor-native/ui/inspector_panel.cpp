@@ -161,6 +161,22 @@ void InspectorPanel::refresh(Rml::ElementDocument* document,
                 "<span class=\"icon\">&#xeb41;</span>Remove Component</button>";
     }
 
+    // -- Top Down Controller component (object-type owned) -------------------
+    html += "<div class=\"prop-group-title\">" + icon("&#xec8e;") + "Top Down Controller</div>";
+    html += "<div class=\"prop-row\"><span class=\"prop-label\">Scope</span>"
+            "<span class=\"prop-readonly\">Shared by object type</span></div>";
+    const TopDownControllerComponent* controller =
+        (typeIt != types.end() && typeIt->second.topDownController)
+            ? &*typeIt->second.topDownController : nullptr;
+    if (!controller) {
+        html += "<button class=\"panel-btn\" data-action=\"add-top-down\">"
+                "<span class=\"icon\">&#xeb0b;</span>Add Top Down Controller</button>";
+    } else {
+        html += field("Speed", "commit-topdown-speed", num(controller->maxSpeed));
+        html += "<button class=\"panel-btn\" data-action=\"remove-top-down\">"
+                "<span class=\"icon\">&#xeb41;</span>Remove Component</button>";
+    }
+
     body->SetInnerRML(html);
 }
 

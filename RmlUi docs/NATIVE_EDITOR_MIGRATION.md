@@ -139,6 +139,7 @@ paletto o sblocca la capability in corso.
 | Runtime viewport | WASM/runtime preview | `SceneFrameSnapshot` + derived texture cache | In progress | No |
 | Viewport pick + drag | React canvas pointer handlers | `pickEntityAt` + `SelectEntityIntent`; drag preview local, one `SetEntityPositionCommand` on release | Done | No |
 | Authored runtime motion | Logic Board / Lua runtime | `EntityDef.linearMover` -> `RuntimeEntity.velocity` -> `PlaySession::advance` via `advanceRuntime`; edited via `linear_mover_commands` + Inspector, persisted in the object-type subset | Done | No |
+| TopDownController (input) | Logic Board / Lua runtime | `EntityDef.topDownController` -> `RuntimeTopDownController` -> `PlaySession::update` via `updateRuntime` with `RuntimeInputSnapshot`; edited via `top_down_controller_commands` + Inspector, persisted | Done | No |
 | Unsaved-changes guard | React beforeunload / dialogs | `resolveUnsavedGuard` (pure) + native confirm; guards Open and Exit (Save/Discard/Cancel, Save-fail aborts); Open blocked during Play | Done (New pending) | No |
 | Play materialization | WASM bridge / preview path | `PlaySession` from `ProjectDocument` once at Start Play | In progress | No |
 | Sprite Renderer component | React Inspector | `sprite_commands` + `inspector_actions` (instance-scoped) | Done | No |
@@ -318,17 +319,19 @@ The toolbar should label the runtime target, for example `PLAYING - Scene A`.
 That label is derived from `PlaySession::scene()` and exists only to avoid UX
 ambiguity when the workspace active scene changes during Play.
 
-Runtime mutations flow through a narrow coordinator entry point, never a mutable
+Runtime mutations flow through narrow coordinator entry points, never a mutable
 session handle:
 
 ```text
-EditorCoordinator::advanceRuntime(dt)                  // authored-motion tick
+EditorCoordinator::advanceRuntime(dt)          // autonomous motion (LinearMover)
 -> PlaySession::advance
+EditorCoordinator::updateRuntime(input, dt)    // input-driven (TopDownController)
+-> PlaySession::update(RuntimeInputSnapshot, dt)
 -> RuntimeEntity.transform.position
 -> Play SceneFrameSnapshot
 ```
 
-It is not an `EditorCommand`; it does not touch `ProjectDocument`, undo, revision,
+Neither is an `EditorCommand`; neither touches `ProjectDocument`, undo, revision,
 dirty state or JSON. The coordinator exposes the session read-only
 (`const PlaySession*`) and keeps the mutable surface private, so panels, toolbar
 and shortcuts cannot open parallel mutation paths. `Stop` destroys the session,
@@ -351,6 +354,24 @@ BoxCollider2D, undoable) and persisted in the object-type subset by
 `ProjectSerializer`. `_paused` stays a runtime flag and is deliberately not
 serialized. Mover edits invalidate only the Inspector — motion has no edit-mode
 viewport visual; it is observed in Play, which renders every frame.
+
+The first *input-driven* behaviour is the canonical `TopDownController`. It closes
+the full gameplay loop: authored in the Inspector (this slice edits the speed =
+`maxSpeed`; acceleration/friction/fourDirections persist untouched), materialized
+into `RuntimeTopDownController`, and moved each Play frame by a
+`RuntimeInputSnapshot` the application builds from the platform:
+
+```text
+Raylib keys -> RuntimeInputSnapshot -> EditorCoordinator::updateRuntime(input, dt)
+-> PlaySession::update: direction = normalizeOrZero(right-left, down-up)
+-> position += direction * speed * dt   (each controller entity)
+```
+
+`PlaySession` never sees Raylib. Opposite inputs cancel, the diagonal is
+normalized (never faster — a fixed behaviour, not a property), non-finite or
+non-positive `dt` is a no-op, and input is neutral while an RmlUi text field has
+focus. Edits use `top_down_controller_commands` (object-type scope, undo/redo,
+Inspector-only invalidation) and persist in the object-type subset.
 
 ## RmlUi input commit baseline
 

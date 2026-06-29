@@ -58,6 +58,11 @@ ProjectDoc makeDemoProject() {
     patrol.speed = 90.f;
     doc.objectTypes.at("Enemy").linearMover = patrol;
 
+    // The Player is driven by gameplay input during Play (WASD / arrows).
+    TopDownControllerComponent playerControl;
+    playerControl.maxSpeed = 180.f;
+    doc.objectTypes.at("Player").topDownController = playerControl;
+
     SceneDef a;
     a.id = "scene-a";
     a.name = "Level 1";
