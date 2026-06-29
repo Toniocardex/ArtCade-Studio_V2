@@ -655,6 +655,7 @@ left press in viewport
 
 drag
 -> local preview only: the draw path offsets the dragged entity in its snapshot
+   (placeholder, sprite AND collider overlay, so they move together)
 -> no command, no revision, no invalidation
 
 left release

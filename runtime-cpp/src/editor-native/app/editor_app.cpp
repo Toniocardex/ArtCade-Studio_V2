@@ -437,6 +437,10 @@ int EditorApp::run(int argc, char** argv) {
                 if (e.entityId == drag.entity) { e.bounds.x += d.x; e.bounds.y += d.y; }
             for (SceneFrameSprite& s : snapshot.sprites)
                 if (s.entityId == drag.entity) { s.destination.x += d.x; s.destination.y += d.y; }
+            // The collider overlay must follow the dragged entity too, otherwise it
+            // lingers at the old position until the move commits on release.
+            for (SceneFrameCollider& col : snapshot.colliders)
+                if (col.entityId == drag.entity) { col.worldBounds.x += d.x; col.worldBounds.y += d.y; }
         }
         // Sprite source paths are relative to the loaded project; with no project
         // open yet (a new/Untitled project) they fall back to the executable resources.
