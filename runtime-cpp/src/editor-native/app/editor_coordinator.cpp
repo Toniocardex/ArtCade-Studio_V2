@@ -254,8 +254,10 @@ EditorOperationResult EditorCoordinator::playProject() {
     }
     playSession_.emplace(std::move(*session));
     logInfo("Play project started (document untouched)");
-    accumulate(EditorInvalidation::Toolbar | EditorInvalidation::Viewport);
-    return EditorOperationResult::success(EditorInvalidation::Toolbar | EditorInvalidation::Viewport);
+    accumulate(EditorInvalidation::Toolbar | EditorInvalidation::Viewport
+               | EditorInvalidation::Inspector);
+    return EditorOperationResult::success(EditorInvalidation::Toolbar
+               | EditorInvalidation::Viewport | EditorInvalidation::Inspector);
 }
 
 EditorOperationResult EditorCoordinator::playCurrentScene() {
@@ -273,8 +275,10 @@ EditorOperationResult EditorCoordinator::playCurrentScene() {
     }
     playSession_.emplace(std::move(*session));
     logInfo("Play current scene started (document untouched)");
-    accumulate(EditorInvalidation::Toolbar | EditorInvalidation::Viewport);
-    return EditorOperationResult::success(EditorInvalidation::Toolbar | EditorInvalidation::Viewport);
+    accumulate(EditorInvalidation::Toolbar | EditorInvalidation::Viewport
+               | EditorInvalidation::Inspector);
+    return EditorOperationResult::success(EditorInvalidation::Toolbar
+               | EditorInvalidation::Viewport | EditorInvalidation::Inspector);
 }
 
 EditorOperationResult EditorCoordinator::stopPlaying() {
@@ -283,8 +287,10 @@ EditorOperationResult EditorCoordinator::stopPlaying() {
     }
     playSession_.reset();   // RAII: back to the untouched authoring document
     logInfo("Stopped - back to authoring document");
-    accumulate(EditorInvalidation::Toolbar | EditorInvalidation::Viewport);
-    return EditorOperationResult::success(EditorInvalidation::Toolbar | EditorInvalidation::Viewport);
+    accumulate(EditorInvalidation::Toolbar | EditorInvalidation::Viewport
+               | EditorInvalidation::Inspector);
+    return EditorOperationResult::success(EditorInvalidation::Toolbar
+               | EditorInvalidation::Viewport | EditorInvalidation::Inspector);
 }
 
 void EditorCoordinator::advanceRuntime(float dt) {

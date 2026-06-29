@@ -345,6 +345,16 @@ Workspace intents may still run when they do not mutate the document. This is a
 coordinator-level rule, so it applies equally to RmlUi buttons, menu actions,
 shortcuts and tests.
 
+The Inspector mirrors this freeze as an affordance (enforcement stays in the
+coordinator): while Play runs, its editable inputs render `disabled` and its
+action buttons carry the `disabled` class. This is the fix for a real UX trap —
+an enabled field let the user type e.g. `Speed = 1000` during Play; the commit
+was silently rejected, so Stop + Play never saw the value. An `<input disabled>`
+in RmlUi cannot take focus or typing (`ElementFormControl::IsDisabled()` is
+attribute-presence based), so no misleading uncommitted buffer can form. For this
+to toggle correctly, `playProject` / `playCurrentScene` / `stopPlaying` now also
+invalidate `Inspector`, so it re-renders frozen on Start and editable on Stop.
+
 During Play, scene-selection intents affect only the workspace:
 
 ```text

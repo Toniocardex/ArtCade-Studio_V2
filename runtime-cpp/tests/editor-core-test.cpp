@@ -1352,6 +1352,18 @@ int main() {
         CHECK(!c.isPlaying());
     }
 
+    // -- Start/Stop Play invalidate the Inspector (freeze/unfreeze fields) -----
+    //    The authoring document is frozen during Play, so the Inspector must
+    //    re-render to disable its editable controls — and re-enable them on Stop.
+    {
+        EditorCoordinator c{makeDoc()};
+        c.consumeInvalidations();
+        CHECK(c.playProject().ok);
+        CHECK(has(c.consumeInvalidations(), EditorInvalidation::Inspector));
+        CHECK(c.stopPlaying().ok);
+        CHECK(has(c.consumeInvalidations(), EditorInvalidation::Inspector));
+    }
+
     // -- (8) Selecting a scene enables Play Current Scene ----------------------
     {
         EditorCoordinator c{makeDoc()};

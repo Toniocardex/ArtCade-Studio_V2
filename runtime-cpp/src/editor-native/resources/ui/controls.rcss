@@ -176,6 +176,11 @@
     background-color: #3b82f626;
     border-color: #3b82f6;
 }
+.asset-option.disabled {
+    color: #3f3f46;
+    background-color: #161618;
+    border-color: #242427;
+}
 
 /* -- Scene tabs — flat ----------------------------------------------------- */
 .scene-tabs {
@@ -255,3 +260,9 @@
 }
 .prop-input:hover { border-color: #323236; }
 .prop-input:focus { border-color: #3b82f6; }
+/* Frozen while Play runs: the field is non-editable, so it reads as inert. */
+.prop-input:disabled {
+    background-color: #161618;
+    border-color: #242427;
+    color: #52525b;
+}
