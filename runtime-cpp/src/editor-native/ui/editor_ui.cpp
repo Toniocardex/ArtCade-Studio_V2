@@ -178,8 +178,9 @@ void EditorUi::refreshToolbar() {
     setEnabled("btn-play-project", !playing && coordinator_.canPlayProject());
     setEnabled("btn-play-scene",   !playing && coordinator_.canPlayCurrentScene());
     setEnabled("btn-stop",         playing);
-    // Undo is a derived affordance: available only with history and outside Play.
+    // Undo/Redo are derived affordances: available only with history and outside Play.
     setEnabled("btn-undo",         !playing && coordinator_.canUndo());
+    setEnabled("btn-redo",         !playing && coordinator_.canRedo());
 }
 
 void EditorUi::handleAction(const std::string& action, const std::string& arg,
@@ -285,6 +286,8 @@ void EditorUi::handleAction(const std::string& action, const std::string& arg,
                 RenameEntityCommand{coordinator_.state().activeSceneId, selected, value});
     } else if (action == "undo") {
         coordinator_.undo();
+    } else if (action == "redo") {
+        coordinator_.redo();
     } else if (action == "zoom-in" || action == "zoom-out") {
         const SceneId active = coordinator_.state().activeSceneId;
         const float current = coordinator_.sceneView(active).zoom;

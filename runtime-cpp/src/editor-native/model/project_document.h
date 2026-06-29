@@ -131,6 +131,10 @@ private:
     bool setLinearMoverSpeed(const std::string& objectTypeId, float speed);
     void replaceClean(ProjectDocument replacement);
     void markSaved();
+    // Set the current revision to a previously observed value (undo/redo). Unlike
+    // markDirty it does not allocate a new id, so a redo back to the saved state
+    // reports clean again. Never moves the monotonic high-water mark.
+    void restoreRevision(uint64_t revision) { revision_ = revision; }
 
     SceneDef*         mutableScene(const SceneId& id);
     SceneInstanceDef* mutableInstanceInScene(const SceneId& sceneId, EntityId id);
@@ -139,6 +143,10 @@ private:
     ProjectDoc doc_{};
     uint64_t   revision_     = 0;
     uint64_t   savedRevision_ = 0;
+    // Monotonic allocator for revision ids. It never decreases, so a command
+    // executed after an undo gets a fresh id that cannot collide with the
+    // (now discarded) redo branch — keeping isDirty() correct.
+    uint64_t   revisionHighWater_ = 0;
     uint32_t   replaceCount_ = 0;
 };
 

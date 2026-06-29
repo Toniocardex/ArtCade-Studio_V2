@@ -27,6 +27,7 @@
         <button id="btn-stop" class="tool-btn" data-action="stop"><span class="icon">&#xed4a;</span>Stop</button>
         <span class="tool-sep"></span>
         <button id="btn-undo" class="tool-btn" data-action="undo"><span class="icon">&#xeb77;</span>Undo</button>
+        <button id="btn-redo" class="tool-btn" data-action="redo"><span class="icon">&#xeb13;</span>Redo</button>
         <span class="tool-sep"></span>
         <button class="tool-btn" data-action="zoom-out"><span class="icon">&#xeb57;</span>Zoom -</button>
         <button class="tool-btn" data-action="zoom-in"><span class="icon">&#xeb56;</span>Zoom +</button>

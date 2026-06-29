@@ -50,7 +50,7 @@ SceneInstanceDef* ProjectDocument::mutableInstanceInScene(const SceneId& sceneId
 }
 
 void ProjectDocument::markDirty() {
-    ++revision_;
+    revision_ = ++revisionHighWater_;
 }
 
 void ProjectDocument::replace(ProjectDoc doc) {
@@ -62,8 +62,8 @@ void ProjectDocument::replace(ProjectDoc doc) {
 void ProjectDocument::replaceClean(ProjectDocument replacement) {
     doc_ = std::move(replacement.doc_);
     ++replaceCount_;
-    ++revision_;
-    savedRevision_ = revision_;
+    revision_ = ++revisionHighWater_;
+    savedRevision_ = revision_;   // a freshly loaded document is clean
 }
 
 void ProjectDocument::markSaved() {

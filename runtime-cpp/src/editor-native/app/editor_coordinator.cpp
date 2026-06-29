@@ -89,7 +89,7 @@ EditorOperationResult EditorCoordinator::executeOwned(
     accumulate(result.invalidation);
     accumulate(reconcileWorkspace());   // keep EditorState valid in the same op
     accumulate(EditorInvalidation::Toolbar);   // undo became available
-    history_.push(std::move(command));
+    history_.record(std::move(command), revisionBefore, revisionAfter);
     return result;
 }
 
@@ -103,14 +103,45 @@ EditorOperationResult EditorCoordinator::undo() {
     if (!history_.canUndo()) {
         return EditorOperationResult::failure("Nothing to undo");
     }
-    std::unique_ptr<EditorCommand> command = history_.popForUndo();
-    EditorOperationResult result = command->undo(document_);
+    CommandEntry entry = history_.takeUndo();
+    EditorOperationResult result = entry.command->undo(document_);
     if (result.ok) {
+        document_.restoreRevision(entry.revisionBefore);   // dirty reflects state A
         accumulate(result.invalidation);
         accumulate(reconcileWorkspace());
-        accumulate(EditorInvalidation::Toolbar);   // undo availability changed
+        accumulate(EditorInvalidation::Toolbar);           // undo/redo availability changed
+        history_.pushRedo(std::move(entry));               // now redoable
     } else {
         appendConsole(ConsoleMessage::Level::Error, result.error);
+        history_.pushUndo(std::move(entry));               // unchanged: keep it undoable
+    }
+    return result;
+}
+
+EditorOperationResult EditorCoordinator::redo() {
+    if (isPlaying()) {
+        appendConsole(ConsoleMessage::Level::Warning,
+                      "Stop Play before redoing authoring changes");
+        return EditorOperationResult::failure("Cannot redo while Play is running");
+    }
+
+    if (!history_.canRedo()) {
+        return EditorOperationResult::failure("Nothing to redo");
+    }
+    // Redo re-applies the same command with its already-captured values; it does
+    // not build an inverse or re-read the UI. restoreRevision returns to the
+    // command's recorded post-state, so a redo back to the saved revision is clean.
+    CommandEntry entry = history_.takeRedo();
+    EditorOperationResult result = entry.command->apply(document_);
+    if (result.ok) {
+        document_.restoreRevision(entry.revisionAfter);    // dirty reflects state B
+        accumulate(result.invalidation);
+        accumulate(reconcileWorkspace());
+        accumulate(EditorInvalidation::Toolbar);
+        history_.pushUndo(std::move(entry));               // undoable again
+    } else {
+        appendConsole(ConsoleMessage::Level::Error, result.error);
+        history_.pushRedo(std::move(entry));               // unchanged: keep it redoable
     }
     return result;
 }

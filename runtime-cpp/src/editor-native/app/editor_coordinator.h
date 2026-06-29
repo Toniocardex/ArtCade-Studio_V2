@@ -58,8 +58,11 @@ public:
     }
 
     bool                  canUndo() const { return history_.canUndo(); }
+    bool                  canRedo() const { return history_.canRedo(); }
     std::size_t           undoSize() const { return history_.size(); }
+    std::size_t           redoSize() const { return history_.redoSize(); }
     EditorOperationResult undo();
+    EditorOperationResult redo();
     EditorOperationResult replaceProject(ProjectDocument replacement);
     EditorOperationResult markProjectSaved();
 

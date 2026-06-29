@@ -131,7 +131,7 @@ paletto o sblocca la capability in corso.
 | Hierarchy add/delete wiring | React Hierarchy buttons | `hierarchy_actions` (UI-free) -> `EditorCoordinator` | Done | No |
 | Start scene | TS project/store path | `SetStartSceneCommand`; first scene auto-keeps invariant | Done | No |
 | Workspace reconciliation | React effects/listeners | `EditorCoordinator::reconcileWorkspace` (same op) | Done | No |
-| Undo | React/editor history path | `CommandStack` + toolbar button & Ctrl+Z (one `EditorCoordinator::undo` entry); enabled state derived from `canUndo() && !isPlaying()` | Done (no redo yet) | No |
+| Undo / Redo | React/editor history path | `CommandStack` (undo+redo) + toolbar buttons & Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z (single `undo`/`redo` coordinator entries); enabled derived from `can(Un\|Re)do() && !isPlaying()`; per-entry revision restore keeps dirty correct across the walk | Done | No |
 | Project replace/load boundary | React/Tauri file path | `EditorCoordinator::replaceProject(ProjectDocument)` | In progress | No |
 | Play Project | WASM bridge / preview path | `EditorCoordinator::playProject` (guarded by `canPlayProject`) | Done | No |
 | Play Current Scene | WASM bridge / preview path | `EditorCoordinator::playCurrentScene` (guarded by `canPlayCurrentScene`) | Done | No |
@@ -403,6 +403,29 @@ left release
 The drag state is transient presentation owned by the application; it never
 enters `ProjectDocument`. Pick + drag is Edit-mode only; Play keeps its own input
 path. `pickEntityAt` and `screenToWorld` are unit-tested in `editor-core`.
+
+## Undo / Redo baseline
+
+`CommandStack` owns an undo and a redo stack of `CommandEntry{command,
+revisionBefore, revisionAfter}`. A new command records onto undo and discards the
+redo branch. Undo runs `command->undo`, redo re-runs the same `command->apply`
+(no inverse is built, no UI re-read) — the existing commands are reusable because
+each captures its previous value once and keeps its next value.
+
+```text
+toolbar Undo / Ctrl+Z          -> EditorCoordinator::undo  -> restoreRevision(before)
+toolbar Redo / Ctrl+Y/Shift+Z  -> EditorCoordinator::redo  -> restoreRevision(after)
+```
+
+Dirty stays correct across the walk because revisions are stable ids, not a
+counter bumped per mutation: `markDirty` allocates from a monotonic high-water
+mark, and undo/redo *restore* the entry's recorded id. So a redo back to the
+saved revision reports clean, and a command executed after an undo gets a fresh
+id that cannot collide with the discarded branch. `replaceProject` clears both
+stacks; Save updates `savedRevision` only. Both ops are coordinator-guarded
+during Play (rejected, console warning, no authoring mutation); the disabled
+buttons are affordance only. Single entry points, no transaction manager, no
+history dropdown, no command grouping.
 
 ## Unsaved-changes guard baseline
 

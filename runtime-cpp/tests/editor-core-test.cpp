@@ -1471,6 +1471,101 @@ int main() {
         CHECK(c.canUndo());                  // derived state returns after Stop
     }
 
+    // == Redo (history walk) ==================================================
+
+    // -- (1) Execute -> Undo -> Redo restores the document exactly ------------
+    {
+        EditorCoordinator c{makeDoc()};
+        CHECK(c.execute(SetEntityPositionCommand{kSceneA, kHero, Vec2{99.f, 20.f}}).ok);
+        CHECK(c.undo().ok);
+        CHECK(c.document().findInstanceInScene(kSceneA, kHero)->transform.position.x == 10.f);
+        CHECK(c.canRedo());
+        CHECK(c.redo().ok);
+        CHECK(c.document().findInstanceInScene(kSceneA, kHero)->transform.position.x == 99.f);
+        CHECK(c.document().findInstanceInScene(kSceneA, kHero)->transform.position.y == 20.f);
+        CHECK(!c.canRedo());
+        CHECK(c.canUndo());
+    }
+
+    // -- (2) Redo restores the entry's recorded revision ----------------------
+    {
+        EditorCoordinator c{makeDoc()};
+        CHECK(c.execute(SetEntityPositionCommand{kSceneA, kHero, Vec2{99.f, 20.f}}).ok);
+        const uint64_t revAfter = c.document().revision();
+        CHECK(c.undo().ok);
+        CHECK(c.document().revision() != revAfter);     // moved off the post-state
+        CHECK(c.redo().ok);
+        CHECK(c.document().revision() == revAfter);      // exactly the recorded id
+    }
+
+    // -- (3) Undo/Redo cross savedRevision (dirty correctness) ---------------
+    {
+        EditorCoordinator c{makeDoc()};
+        CHECK(c.execute(SetEntityPositionCommand{kSceneA, kHero, Vec2{99.f, 20.f}}).ok);
+        CHECK(c.markProjectSaved().ok);
+        CHECK(!c.document().isDirty());
+        CHECK(c.undo().ok);
+        CHECK(c.document().isDirty());                   // undone away from saved
+        CHECK(c.redo().ok);
+        CHECK(!c.document().isDirty());                  // redo back to the saved state
+    }
+
+    // -- (4) A new command after Undo discards the redo branch ----------------
+    {
+        EditorCoordinator c{makeDoc()};
+        CHECK(c.execute(SetEntityPositionCommand{kSceneA, kHero, Vec2{99.f, 20.f}}).ok);
+        CHECK(c.undo().ok);
+        CHECK(c.canRedo());
+        CHECK(c.execute(SetEntityPositionCommand{kSceneA, kHero, Vec2{50.f, 20.f}}).ok);
+        CHECK(!c.canRedo());                             // B is no longer redoable
+        CHECK(!c.redo().ok);
+    }
+
+    // -- (5) replaceProject clears redo; (6) Save keeps it --------------------
+    {
+        EditorCoordinator c{makeDoc()};
+        CHECK(c.execute(SetEntityPositionCommand{kSceneA, kHero, Vec2{99.f, 20.f}}).ok);
+        CHECK(c.undo().ok);
+        CHECK(c.canRedo());
+        CHECK(c.markProjectSaved().ok);
+        CHECK(c.canRedo());                              // (6) save does not clear redo
+        CHECK(c.replaceProject(ProjectDocument{makeReplacementDoc()}).ok);
+        CHECK(!c.canRedo());                             // (5) replace clears redo
+    }
+
+    // -- (7) Redo with no entry fails without effect --------------------------
+    {
+        EditorCoordinator c{makeDoc()};
+        const uint64_t revisionBefore = c.document().revision();
+        CHECK(!c.redo().ok);
+        CHECK(c.document().revision() == revisionBefore);
+    }
+
+    // -- (8) Redo is rejected during Play ------------------------------------
+    {
+        EditorCoordinator c{makeDoc()};
+        CHECK(c.execute(SetEntityPositionCommand{kSceneA, kHero, Vec2{99.f, 20.f}}).ok);
+        CHECK(c.undo().ok);
+        CHECK(c.playProject().ok);
+        CHECK(!c.redo().ok);                             // coordinator guard
+        CHECK(c.canRedo());                              // entry preserved
+        CHECK(c.stopPlaying().ok);
+        CHECK(c.canRedo());
+    }
+
+    // -- (10) Redo's invalidation matches the original command ----------------
+    {
+        EditorCoordinator c{makeDoc()};
+        CHECK(c.execute(SetEntityPositionCommand{kSceneA, kHero, Vec2{99.f, 20.f}}).ok);
+        CHECK(c.undo().ok);
+        c.consumeInvalidations();
+        CHECK(c.redo().ok);
+        const EditorInvalidation inv = c.consumeInvalidations();
+        CHECK(has(inv, EditorInvalidation::Inspector));
+        CHECK(has(inv, EditorInvalidation::Viewport));
+        CHECK(has(inv, EditorInvalidation::Toolbar));
+    }
+
     // == Unsaved-changes guard (decision matrix) ==============================
     {
         // A clean project proceeds immediately, whatever the (unused) choice.
