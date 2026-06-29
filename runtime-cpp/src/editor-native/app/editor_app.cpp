@@ -71,12 +71,12 @@ ViewportRect viewportRectFromDocument(Rml::ElementDocument* document) {
 }
 
 void routeViewportInput(EditorCoordinator& coordinator, const ViewportRect& rect,
-                        const RmlInputResult& rml) {
+                        const RmlInputResult& rml, bool contextMenuHit) {
     // Inside the viewport region we are not over a panel; a focused text field
     // still blocks the viewport (prompt §19 / §24.16).
     const ViewportInputContext ctx{
         rect.contains(GetMouseX(), GetMouseY()),
-        /*rmlConsumedEvent*/ false,
+        /*rmlConsumedEvent*/ contextMenuHit,
         rml.textFocus,
         /*rmlPopupOpen*/ false,
     };
@@ -133,7 +133,8 @@ bool sceneSurfaceContains(const ViewportRect& rect, const SceneViewCamera& camer
 // Motion between press and release is shown as a local preview by the draw path,
 // not as a stream of commands.
 void routeViewportPickDrag(EditorCoordinator& coordinator, const ViewportRect& rect,
-                           const RmlInputResult& rml, ViewportDrag& drag) {
+                           const RmlInputResult& rml, ViewportDrag& drag,
+                           bool contextMenuHit) {
     const SceneId active = coordinator.state().activeSceneId;
     const SceneFrameSnapshot frame = collectSceneFrameSnapshot(
         coordinator.document(), active, coordinator.selection().primaryEntity);
@@ -143,7 +144,7 @@ void routeViewportPickDrag(EditorCoordinator& coordinator, const ViewportRect& r
 
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         const ViewportInputContext ctx{rect.contains(GetMouseX(), GetMouseY()),
-                                       /*rmlConsumedEvent*/ false, rml.textFocus,
+                                       /*rmlConsumedEvent*/ contextMenuHit, rml.textFocus,
                                        /*rmlPopupOpen*/ false};
         if (shouldViewportReceiveInput(ctx)) {
             const Vec2 world = screenToWorld(cam, mouse);
@@ -173,7 +174,8 @@ void routeViewportPickDrag(EditorCoordinator& coordinator, const ViewportRect& r
 void routeViewportContextMenu(EditorCoordinator& coordinator, EditorUi& ui,
                               const ViewportRect& rect, const RmlInputResult& rml,
                               ViewportContextClick& click,
-                              std::optional<Vec2>& pendingSpawnPosition) {
+                              std::optional<Vec2>& pendingSpawnPosition,
+                              bool contextMenuHit) {
     if (coordinator.isPlaying()) {
         click = ViewportContextClick{};
         pendingSpawnPosition.reset();
@@ -181,7 +183,8 @@ void routeViewportContextMenu(EditorCoordinator& coordinator, EditorUi& ui,
         return;
     }
 
-    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) || IsMouseButtonPressed(MOUSE_BUTTON_MIDDLE)) {
+    if ((IsMouseButtonPressed(MOUSE_BUTTON_LEFT) || IsMouseButtonPressed(MOUSE_BUTTON_MIDDLE))
+        && !contextMenuHit) {
         ui.hideViewportContextMenu();
     }
 
@@ -189,7 +192,7 @@ void routeViewportContextMenu(EditorCoordinator& coordinator, EditorUi& ui,
         ui.hideViewportContextMenu();
         pendingSpawnPosition.reset();
         const ViewportInputContext ctx{rect.contains(GetMouseX(), GetMouseY()),
-                                       /*rmlConsumedEvent*/ false, rml.textFocus,
+                                       /*rmlConsumedEvent*/ contextMenuHit, rml.textFocus,
                                        /*rmlPopupOpen*/ false};
         if (shouldViewportReceiveInput(ctx)) {
             click = ViewportContextClick{true, GetMousePosition()};
@@ -207,7 +210,7 @@ void routeViewportContextMenu(EditorCoordinator& coordinator, EditorUi& ui,
     }
 
     const ViewportInputContext ctx{rect.contains(GetMouseX(), GetMouseY()),
-                                   /*rmlConsumedEvent*/ false, rml.textFocus,
+                                   /*rmlConsumedEvent*/ contextMenuHit, rml.textFocus,
                                    /*rmlPopupOpen*/ false};
     if (!shouldViewportReceiveInput(ctx)) return;
 
@@ -521,7 +524,10 @@ int EditorApp::run(int argc, char** argv) {
         }
 
         const ViewportRect rect = viewportRectFromDocument(host.document());
-        routeViewportInput(coordinator, rect, rml);
+        const bool contextMenuHit = ui.isViewportContextMenuHit(
+            static_cast<int>(static_cast<float>(GetMouseX()) * uiPixelScaleX()),
+            static_cast<int>(static_cast<float>(GetMouseY()) * uiPixelScaleY()));
+        routeViewportInput(coordinator, rect, rml, contextMenuHit);
         if (coordinator.isPlaying()) {
             const float dt = GetFrameTime();
             coordinator.advanceRuntime(dt);               // authored motion (LinearMover)
@@ -538,9 +544,9 @@ int EditorApp::run(int argc, char** argv) {
             }
             coordinator.updateRuntime(input, dt);         // input-driven (TopDownController)
         } else {
-            routeViewportPickDrag(coordinator, rect, rml, drag);
+            routeViewportPickDrag(coordinator, rect, rml, drag, contextMenuHit);
             routeViewportContextMenu(coordinator, ui, rect, rml, contextClick,
-                                     pendingContextSpawn);
+                                     pendingContextSpawn, contextMenuHit);
         }
 
         ui.processFrame();

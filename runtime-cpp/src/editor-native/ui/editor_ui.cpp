@@ -186,6 +186,7 @@ void EditorUi::showViewportContextMenu(int physicalX, int physicalY,
         menu->SetProperty("left", std::to_string(physicalX) + "px");
         menu->SetProperty("top", std::to_string(physicalY) + "px");
         menu->SetClass("hidden", false);
+        viewportContextMenuVisible_ = true;
     }
     if (Rml::Element* item = document_->GetElementById("ctx-create-instance")) {
         item->SetClass("hidden", !canCreateInstance);
@@ -197,6 +198,21 @@ void EditorUi::hideViewportContextMenu() {
     if (Rml::Element* menu = document_->GetElementById("viewport-context-menu")) {
         menu->SetClass("hidden", true);
     }
+    viewportContextMenuVisible_ = false;
+}
+
+bool EditorUi::isViewportContextMenuHit(int physicalX, int physicalY) const {
+    if (!document_ || !viewportContextMenuVisible_) return false;
+    Rml::Element* menu = document_->GetElementById("viewport-context-menu");
+    if (!menu) return false;
+    const Rml::Vector2f offset = menu->GetAbsoluteOffset();
+    const float left = offset.x;
+    const float top = offset.y;
+    const float right = left + menu->GetClientWidth();
+    const float bottom = top + menu->GetClientHeight();
+    const float x = static_cast<float>(physicalX);
+    const float y = static_cast<float>(physicalY);
+    return x >= left && x < right && y >= top && y < bottom;
 }
 
 void EditorUi::refreshToolbar() {

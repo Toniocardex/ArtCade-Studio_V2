@@ -61,6 +61,7 @@ public:
 
     void showViewportContextMenu(int physicalX, int physicalY, bool canCreateInstance);
     void hideViewportContextMenu();
+    bool isViewportContextMenuHit(int physicalX, int physicalY) const;
 
     // Copies the selected Console message (full model text) to the clipboard via
     // raylib's SetClipboardText. The single entry point shared by the Copy button
@@ -95,6 +96,7 @@ private:
     EntityPlacementRequest              addInstanceRequest_;
     EntityPlacementRequest              createEntityHereRequest_;
     EntityPlacementRequest              createInstanceHereRequest_;
+    bool                                viewportContextMenuVisible_ = false;
 };
 
 } // namespace ArtCade::EditorNative
