@@ -460,26 +460,39 @@ history dropdown, no command grouping.
 
 ## Image import + Assets panel baseline
 
-The native editor imports its own PNGs, so it no longer depends on assets staged
-by hand. The filesystem stays an application concern; the document only records a
-portable reference:
+The native editor imports its own images, so it no longer depends on assets
+staged by hand. There is **one canonical import entry point**; every UI source
+converges on it, with no per-UI import path:
 
 ```text
-Import Image (saved project only)
--> openImageFileDialog (PNG)
--> copy into <projectRoot>/assets/images/<unique>.png   (no implicit overwrite)
--> AddImageAssetCommand{assetId, "assets/images/<unique>.png"}
-   (on command failure the copied file is rolled back)
--> Assets invalidation -> panel refresh
+Assets panel ─┐
+File > Import ─┤ (future)
+Drag & Drop ──┼─> importAsset(coordinator, projectRoot, {kind, sourcePath})
+Inspector ────┘ (future)
 ```
 
-The copy and dedup live in `editor_app`; `ProjectDocument` only gets `AssetId` +
-relative `sourcePath` (never an absolute path). One suffix keeps the file name and
-the `AssetId` unique together. Import requires a saved project so the resource
-root exists; it is blocked during Play. Assignment reuses the existing
-`set-sprite-asset` command (no special path); removal is `RemoveImageAssetCommand`
-and **does not delete the file on disk** (orphan cleanup is a separate feature).
-Undo/redo cover both add and remove; save/reload preserve the catalog.
+`importAsset` (in `asset_import`) owns the common pipeline — reject during Play,
+require a saved project, validate the source, choose a portable unique
+destination, copy, run the per-kind command, roll the copy back on failure — then
+switches on `AssetKind` to a typed command. The single entry point is about the
+*operation*; the per-kind domain stays typed (`AddImageAssetCommand`, later
+`AddAudioAssetCommand` / `AddFontAssetCommand`). Only Image is implemented;
+Audio/Font return an explicit "not supported yet".
+
+```text
+importAsset(Image)
+-> copy into <projectRoot>/assets/images/<unique>.<ext>   (no implicit overwrite)
+-> AddImageAssetCommand{assetId, "assets/images/<unique>.<ext>"}
+   (file rolled back if the command fails)
+```
+
+The UI trigger (Assets panel "Import Image") only picks the file via
+`openImageFileDialog` and calls `importAsset`. `ProjectDocument` only gets
+`AssetId` + relative `sourcePath` (never absolute). One suffix keeps the file name
+and the `AssetId` unique together. Import and use are distinct operations:
+assignment reuses `set-sprite-asset` (`SetSpriteRendererAssetCommand`), removal is
+`RemoveImageAssetCommand` and **does not delete the file on disk** (orphan cleanup
+is separate). Undo/redo cover add and remove; save/reload preserve the catalog.
 
 Textures resolve against the **project root** (`currentProjectPath.parent_path()`)
 for a loaded project, falling back to the executable resources for the in-code

@@ -28,6 +28,7 @@ add_library(artcade-editor-core STATIC
     commands/scene_commands.cpp
     commands/sprite_commands.cpp
     app/editor_coordinator.cpp
+    app/asset_import.cpp
     app/hierarchy_actions.cpp
     app/inspector_actions.cpp
     app/inspector_commit.cpp

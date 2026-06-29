@@ -8,6 +8,7 @@
 #include "editor-native/app/hierarchy_actions.h"
 #include "editor-native/app/input_routing.h"
 #include "editor-native/app/inspector_commit.h"
+#include "editor-native/app/asset_import.h"
 #include "editor-native/app/project_file.h"
 #include "editor-native/app/project_load.h"
 #include "editor-native/app/unsaved_guard.h"
@@ -1842,6 +1843,50 @@ int main() {
         const ImageAssetDef* asset = reloaded.document().findImageAsset("img-x");
         CHECK(asset != nullptr);
         CHECK(asset->sourcePath == "assets/images/x.png");
+    }
+
+    // == Asset import pipeline (single canonical entry point) =================
+    {
+        const std::filesystem::path root = testTempDir() / "import-basic";
+        std::error_code ec;
+        std::filesystem::remove_all(root, ec);
+        std::filesystem::create_directories(root, ec);
+        const std::filesystem::path src = testTempDir() / "src.png";
+        { std::ofstream f(src, std::ios::binary); f << "PNGDATA"; }
+
+        EditorCoordinator c{makeDoc()};
+        const ImportAssetResult r = importAsset(c, root, {AssetKind::Image, src});
+        CHECK(r.ok);
+        CHECK(r.assetId == "src");
+        CHECK(c.document().findImageAsset("src")->sourcePath == "assets/images/src.png");
+        CHECK(std::filesystem::exists(root / "assets" / "images" / "src.png"));
+        CHECK(c.canUndo());   // import is an authoring command
+
+        // Re-import the same source: unique file name + AssetId, no overwrite.
+        const ImportAssetResult r2 = importAsset(c, root, {AssetKind::Image, src});
+        CHECK(r2.ok);
+        CHECK(r2.assetId == "src_2");
+        CHECK(std::filesystem::exists(root / "assets" / "images" / "src_2.png"));
+    }
+
+    // -- import rejects: unsaved project, unsupported kind/format, during Play -
+    {
+        const std::filesystem::path src = testTempDir() / "reject.png";
+        { std::ofstream f(src, std::ios::binary); f << "PNGDATA"; }
+        EditorCoordinator c{makeDoc()};
+        CHECK(!importAsset(c, {}, {AssetKind::Image, src}).ok);          // unsaved
+        CHECK(!importAsset(c, testTempDir(), {AssetKind::Audio, src}).ok); // not supported yet
+        CHECK(c.document().data().imageAssets.empty());
+
+        const std::filesystem::path gif = testTempDir() / "x.gif";
+        { std::ofstream f(gif, std::ios::binary); f << "GIF"; }
+        const std::filesystem::path root = testTempDir() / "import-reject";
+        std::error_code ec; std::filesystem::create_directories(root, ec);
+        CHECK(!importAsset(c, root, {AssetKind::Image, gif}).ok);        // bad format
+        CHECK(c.document().data().imageAssets.empty());
+
+        CHECK(c.playProject().ok);
+        CHECK(!importAsset(c, root, {AssetKind::Image, src}).ok);        // during Play
     }
 
     // == Viewport camera transform + picking ==================================
