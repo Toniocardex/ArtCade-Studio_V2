@@ -1,6 +1,7 @@
 #include "editor-native/app/hierarchy_actions.h"
 
 #include "editor-native/app/editor_coordinator.h"
+#include "editor-native/commands/editor_intent.h"
 #include "editor-native/commands/entity_commands.h"
 #include "editor-native/commands/scene_commands.h"
 #include "editor-native/model/project_document.h"
@@ -18,6 +19,20 @@ std::string makeUniqueObjectTypeId(const ProjectDocument& document) {
     for (int n = 1;; ++n) {
         std::string candidate = "object-" + std::to_string(n);
         if (!document.hasObjectType(candidate)) return candidate;
+    }
+}
+
+// A scene-unique display name from @p base: "base", then "base 2", "base 3", ...
+std::string makeUniqueInstanceName(const SceneDef& scene, const std::string& base) {
+    const auto taken = [&](const std::string& name) {
+        for (const SceneInstanceDef& inst : scene.instances)
+            if (inst.instanceName == name) return true;
+        return false;
+    };
+    if (!taken(base)) return base;
+    for (int n = 2;; ++n) {
+        std::string candidate = base + " " + std::to_string(n);
+        if (!taken(candidate)) return candidate;
     }
 }
 
@@ -77,6 +92,36 @@ EditorOperationResult addEntity(EditorCoordinator& coordinator) {
     const std::string objectTypeId = makeUniqueObjectTypeId(coordinator.document());
     return coordinator.execute(CreateEntityWithDefaultTypeCommand{
         sceneId, id, objectTypeId, /*objectTypeName*/ "Entity", instanceName});
+}
+
+EditorOperationResult addInstanceOfSelectedType(EditorCoordinator& coordinator) {
+    const SceneId& sceneId = coordinator.state().activeSceneId;
+    if (sceneId.empty() || !coordinator.document().hasScene(sceneId)) {
+        return EditorOperationResult::failure("No active scene to add an instance to");
+    }
+    const EntityId selected = coordinator.selection().primaryEntity;
+    const SceneInstanceDef* source =
+        coordinator.document().findInstanceInScene(sceneId, selected);
+    if (!source) {
+        return EditorOperationResult::failure("Select an entity to instance its type");
+    }
+    const std::string objectTypeId = source->objectTypeId;
+    // The chosen type must really exist in the catalog (no "Entity" fallback, no
+    // first-available guess); otherwise fail without mutating anything.
+    const EntityDef* type = coordinator.document().findObjectType(objectTypeId);
+    if (!type) {
+        return EditorOperationResult::failure("Selected entity has no object type");
+    }
+    const EntityId id = nextAvailableEntityId(coordinator.document(), sceneId);
+    const std::string name =
+        makeUniqueInstanceName(*coordinator.document().findScene(sceneId), type->name);
+    // Reuse the existing structural command — a new instance bound to the existing
+    // type (shared components, no ObjectTypeDef duplicated).
+    const EditorOperationResult result =
+        coordinator.execute(CreateEntityCommand{sceneId, id, objectTypeId, name});
+    // Select the new instance — workspace state, not an undo-history entry.
+    if (result.ok) coordinator.apply(SelectEntityIntent{id});
+    return result;
 }
 
 EditorOperationResult deleteSelectedEntity(EditorCoordinator& coordinator) {

@@ -44,6 +44,7 @@
                 <button id="btn-del-scene" class="panel-btn" data-action="delete-scene"><span class="icon">&#xeb41;</span>Scene</button>
                 <button id="btn-set-start" class="panel-btn" data-action="set-start-scene"><span class="icon">&#xeb2e;</span>Start</button>
                 <button id="btn-add-entity" class="panel-btn" data-action="add-entity"><span class="icon">&#xeb0b;</span>Entity</button>
+                <button id="btn-add-instance" class="panel-btn" data-action="add-instance"><span class="icon">&#xeb0b;</span>Instance</button>
                 <button id="btn-del-entity" class="panel-btn" data-action="delete-entity"><span class="icon">&#xeb41;</span>Entity</button>
             </div>
             <div id="hierarchy-list" class="tree"></div>

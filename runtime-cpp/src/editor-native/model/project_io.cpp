@@ -527,6 +527,16 @@ DeserializeResult ProjectValidator::validate(ProjectDocument document) {
                 return DeserializeResult::failure("PlatformerController has invalid values");
             }
         }
+        // One movement writer per object type is a project invariant, not just a
+        // runtime convenience: reject a file that carries several rather than
+        // silently letting materialize pick one by priority.
+        const int movementDrivers = (def.linearMover.has_value() ? 1 : 0)
+                                  + (def.topDownController.has_value() ? 1 : 0)
+                                  + (def.platformerController.has_value() ? 1 : 0);
+        if (movementDrivers > 1) {
+            return DeserializeResult::failure(
+                "Object type has multiple movement drivers (only one is allowed)");
+        }
     }
 
     if (!data.scenes.empty()) {

@@ -1252,6 +1252,89 @@ int main() {
         CHECK(reloaded.document().findInstanceInScene("s", idB)->objectTypeId == typeB);
     }
 
+    // -- Add Instance: another instance of the selected entity's type ----------
+    //    Unlike +Entity, +Instance reuses the chosen ObjectTypeId (shared
+    //    components, no ObjectTypeDef duplicated) and selects the new instance.
+    {
+        EditorCoordinator c{makeInheritedDoc()};            // kHero -> "Hero" type w/ sprite
+        c.apply(SelectEntityIntent{kHero});
+        const std::size_t typesBefore = c.document().data().objectTypes.size();
+
+        CHECK(addInstanceOfSelectedType(c).ok);
+        const EntityId newId = nextAvailableEntityId(c.document(), kSceneA) - 1;
+        const SceneInstanceDef* inst = c.document().findInstanceInScene(kSceneA, newId);
+        CHECK(newId != kHero);                                          // (1) new EntityId
+        CHECK(inst != nullptr);
+        CHECK(inst->objectTypeId == "Hero");                           // (2) reuses the type
+        CHECK(c.document().data().objectTypes.size() == typesBefore);  // no type duplicated
+        CHECK(c.selection().primaryEntity == newId);                  // (12) selected via intent
+
+        // (3) independent Transform (its own, not the source's {10,20}).
+        const SceneInstanceDef* src = c.document().findInstanceInScene(kSceneA, kHero);
+        CHECK((inst->transform.position.x != src->transform.position.x)
+              || (inst->transform.position.y != src->transform.position.y));
+
+        // (4)(5) a component added to the type materializes on BOTH instances.
+        CHECK(c.execute(AddBoxColliderCommand{"Hero"}).ok);
+        CHECK(c.playProject().ok);
+        CHECK(c.playSession()->findEntity(kHero)->collider.has_value());
+        CHECK(c.playSession()->findEntity(newId)->collider.has_value());
+        CHECK(c.stopPlaying().ok);
+    }
+
+    // -- (7)(8) Undo removes only the instance; the type survives; redo restores
+    {
+        EditorCoordinator c{makeInheritedDoc()};
+        c.apply(SelectEntityIntent{kHero});
+        CHECK(addInstanceOfSelectedType(c).ok);
+        const EntityId newId = nextAvailableEntityId(c.document(), kSceneA) - 1;
+
+        CHECK(c.undo().ok);
+        CHECK(c.document().findInstanceInScene(kSceneA, newId) == nullptr);  // instance gone
+        CHECK(c.document().hasObjectType("Hero"));                            // type kept
+        CHECK(c.document().findInstanceInScene(kSceneA, kHero) != nullptr);   // source kept
+
+        CHECK(c.redo().ok);
+        CHECK(c.document().findInstanceInScene(kSceneA, newId)->objectTypeId == "Hero");
+    }
+
+    // -- (9) Save/reload keeps the instance <-> type relation ------------------
+    {
+        EditorCoordinator c{makeInheritedDoc()};
+        c.apply(SelectEntityIntent{kHero});
+        CHECK(addInstanceOfSelectedType(c).ok);
+        const EntityId newId = nextAvailableEntityId(c.document(), kSceneA) - 1;
+        const std::filesystem::path path = testTempDir() / "add-instance.artcade-project";
+        CHECK(saveProjectToFile(c, path).ok);
+        EditorCoordinator reloaded{ProjectDoc{}};
+        CHECK(loadProjectFromFile(reloaded, path).ok);
+        CHECK(reloaded.document().findInstanceInScene(kSceneA, newId)->objectTypeId == "Hero");
+        CHECK(reloaded.document().findInstanceInScene(kSceneA, kHero)->objectTypeId == "Hero");
+        CHECK(reloaded.document().hasObjectType("Hero"));
+    }
+
+    // -- (10) Empty catalog: Add Instance is a no-op, never a placeholder ------
+    {
+        ProjectDoc fresh; fresh.activeSceneId = "s";
+        SceneDef scene; scene.id = "s"; scene.name = "S";
+        fresh.scenes.emplace("s", scene);
+        EditorCoordinator c{fresh};
+        CHECK(!addInstanceOfSelectedType(c).ok);                  // no selection -> fail
+        CHECK(c.document().data().objectTypes.empty());           // no "Entity" placeholder
+        CHECK(c.document().findScene("s")->instances.empty());    // no instance
+    }
+
+    // -- (11) During Play, Add Instance is rejected without mutation -----------
+    {
+        EditorCoordinator c{makeInheritedDoc()};
+        c.apply(SelectEntityIntent{kHero});
+        CHECK(c.playProject().ok);
+        const std::size_t before = c.document().findScene(kSceneA)->instances.size();
+        CHECK(!addInstanceOfSelectedType(c).ok);
+        CHECK(c.document().findScene(kSceneA)->instances.size() == before);
+        CHECK(c.stopPlaying().ok);
+    }
+
     // -- (5) Delete Entity uses the authoritative scene + selection ------------
     {
         EditorCoordinator c{makeDoc()};
@@ -3080,6 +3163,23 @@ int main() {
         const std::string dup =
             R"({"scenes":[],"objectTypes":[{"id":"A"},{"id":"A"}]})";
         CHECK(!ProjectSerializer::deserialize(dup).ok);
+    }
+
+    // -- A type carrying two movement drivers is rejected (one-writer invariant)
+    {
+        ProjectDoc doc;
+        doc.activeSceneId = "s";
+        SceneDef s; s.id = "s"; s.name = "S";
+        SceneInstanceDef inst; inst.id = 1; inst.objectTypeId = "T"; inst.instanceName = "T";
+        s.instances.push_back(inst);
+        doc.scenes.emplace("s", s);
+        EntityDef t; t.className = "T"; t.name = "T";
+        t.topDownController = TopDownControllerComponent{};
+        t.platformerController = PlatformerControllerComponent{};
+        doc.objectTypes.emplace("T", t);
+        // The runtime priority is only an internal defense; the project itself is
+        // invalid and must be rejected explicitly at load.
+        CHECK(!ProjectValidator::validate(ProjectDocument{doc}).ok);
     }
 
     // -- (6) The serializer does not copy the base component into instances ----

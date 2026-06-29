@@ -221,6 +221,8 @@ void EditorUi::handleAction(const std::string& action, const std::string& arg,
         deleteScene(coordinator_, arg.empty() ? coordinator_.state().activeSceneId : arg);
     } else if (action == "add-entity") {
         addEntity(coordinator_);
+    } else if (action == "add-instance") {
+        addInstanceOfSelectedType(coordinator_);
     } else if (action == "delete-entity") {
         deleteSelectedEntity(coordinator_);
     } else if (action == "set-start-scene") {

@@ -127,7 +127,7 @@ paletto o sblocca la capability in corso.
 | Scene create | TS project/store path | `CreateSceneCommand` -> `ProjectDocument` | Done | No |
 | Scene delete | TS project/store path | `DeleteSceneCommand` -> `ProjectDocument` (exact undo) | Done | No |
 | Entity create (+Entity) | TS project/store path | atomic `CreateEntityWithDefaultTypeCommand` -> always a NEW `ObjectTypeDef` + its instance (independent object); never reuses a type | Done | No |
-| Add Instance of a type | TS project/store path | `CreateEntityCommand(existingTypeId)` -> new instance sharing the type's components (prefab semantics) | Planned (command exists) | No |
+| Add Instance of a type | TS project/store path | `addInstanceOfSelectedType` -> `CreateEntityCommand(existingTypeId)` (reused) + `SelectEntityIntent`; new instance shares the type's components (prefab semantics) | Done | No |
 | Entity delete | TS project/store path | `DeleteEntityCommand` -> `ProjectDocument` (index-faithful undo) | Done | No |
 | Hierarchy add/delete wiring | React Hierarchy buttons | `hierarchy_actions` (UI-free) -> `EditorCoordinator` | Done | No |
 | Start scene | TS project/store path | `SetStartSceneCommand`; first scene auto-keeps invariant | Done | No |
@@ -178,8 +178,8 @@ Add Entity
 ```
 
 Reusing a type — placing another instance that *intentionally* shares its
-components — is a separate **Add Instance** operation (not yet wired); it would
-use `CreateEntityCommand(existingTypeId)`. The two must stay distinct:
+components — is the separate **Add Instance** operation (`addInstanceOfSelectedType`,
+see below). The two stay distinct:
 
 ```text
 Add Entity              -> new ObjectTypeId + new EntityId   (independent object)
@@ -558,14 +558,51 @@ empty input.
 
 **Single movement writer.** A `RuntimeEntity.transform` has exactly one driver:
 an object type may own only one of `TopDownController`, `PlatformerController`,
-`LinearMover`. Each Add command rejects a second driver ("remove it first"), and
-materialize applies a fixed priority (Platformer > TopDown > LinearMover) so even
-a hand-edited file yields one writer — no priority/composition system. Same purity
-as collisions: `Stop` restores the authoring position, restart resets
-`verticalVelocity`/`grounded`, and the document/revision/dirty/history never move.
+`LinearMover`. Each Add command rejects a second driver ("remove it first"). This
+is also a **project invariant, not just a runtime convenience**: `ProjectValidator`
+rejects a loaded file whose object type carries more than one driver, rather than
+silently letting materialize choose. Materialize still applies a fixed priority
+(Platformer > TopDown > LinearMover) as an internal defense, but a multi-driver
+document is invalid and never loads — no priority/composition system as normal
+semantics. Same purity as collisions: `Stop` restores the authoring position,
+restart resets `verticalVelocity`/`grounded`, and the document/revision/dirty/
+history never move.
 
-Next on this chain: richer platforming (coyote time, jump buffer) when a concrete
-need appears, or wiring "Add Instance".
+## Add Instance baseline
+
+ArtCade's core distinction is now complete in the UI: an **Object Type** is the
+shared definition, an **Entity Instance** is a concrete, transformable presence in
+a scene. Two Hierarchy buttons make it unambiguous:
+
+```text
++ Entity   -> new ObjectTypeId + new EntityId   (independent object)
++ Instance -> existing ObjectTypeId + new EntityId   (shared components)
+```
+
+`+Instance` (`addInstanceOfSelectedType`) places another instance of the
+**selected entity's** object type. (A free type picker is deferred: with the
+current 1:1 type↔entity creation every type is named "Entity", so a dropdown
+would be indistinguishable; selecting the source entity is the unambiguous choice
+today.) It **reuses the existing `CreateEntityCommand`** — no second command, no
+coordinator wrapper — then selects the new instance with `SelectEntityIntent`
+(workspace state, not an undo entry):
+
+```text
++Instance -> CreateEntityCommand(activeScene, newEntityId, selectedObjectTypeId, uniqueName)
+          -> on success: SelectEntityIntent(newEntityId)
+```
+
+The new instance gets a fresh `EntityId` and its own Transform but keeps the
+chosen `ObjectTypeId`; no `ObjectTypeDef` is duplicated and no component is
+copied. Editing the type's collider/sprite/movement therefore updates every
+instance — intentional prefab sharing. Undo removes only the instance (the type,
+even if it was the last instance, is never touched); redo restores the same ids
+and link. Edge cases: empty catalog disables it (no selection → no placeholder,
+no `"Entity"` fallback, no first-type guess); during Play the coordinator rejects
+the command and the button is disabled; a missing type or scene fails without
+mutation. Deliberately out of scope: catalog drag-and-drop, a prefab browser,
+instance counts, make-unique, instance→type conversion, generalized overrides,
+deep duplication.
 
 ## RmlUi input commit baseline
 

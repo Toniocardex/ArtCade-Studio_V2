@@ -43,8 +43,22 @@ EditorOperationResult deleteScene(EditorCoordinator& coordinator, const SceneId&
 /** Make @p sceneId the gameplay start scene (no-op if it already is). */
 EditorOperationResult setStartScene(EditorCoordinator& coordinator, const SceneId& sceneId);
 
-/** Place a new instance in the active scene. Does not change the selection. */
+/**
+ * "+Entity": place a brand-new, independent object — a new object type plus its
+ * first instance. Does not change the selection.
+ */
 EditorOperationResult addEntity(EditorCoordinator& coordinator);
+
+/**
+ * "+Instance": place another instance of the SELECTED entity's object type. The
+ * new instance gets a fresh EntityId and its own Transform but reuses the chosen
+ * ObjectTypeId, so the object-type-owned components (sprite, collider, movement)
+ * are intentionally shared — no ObjectTypeDef is duplicated and no component is
+ * copied. Reuses the existing CreateEntityCommand (no second command), then
+ * selects the new instance via intent (workspace state, not in the undo history).
+ * No selection / unknown type / no scene → failure without mutation.
+ */
+EditorOperationResult addInstanceOfSelectedType(EditorCoordinator& coordinator);
 
 /** Delete the selected instance from the active scene. No selection → no-op. */
 EditorOperationResult deleteSelectedEntity(EditorCoordinator& coordinator);

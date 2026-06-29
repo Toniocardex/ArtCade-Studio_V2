@@ -104,6 +104,9 @@ void HierarchyPanel::refresh(Rml::ElementDocument* document,
     setEnabled("btn-add-scene",  !playing);
     setEnabled("btn-del-scene",  hasActiveScene && !playing);
     setEnabled("btn-add-entity", hasActiveScene && !playing);
+    // +Instance needs a selected entity to know which object type to instance;
+    // an empty catalog therefore disables it (no entity -> no selection).
+    setEnabled("btn-add-instance", hasSelection && !playing);
     setEnabled("btn-del-entity", hasSelection && !playing);
     // "Start" sets the active scene as start scene — pointless if it already is.
     setEnabled("btn-set-start",  hasActiveScene && activeSceneId != startSceneId && !playing);
