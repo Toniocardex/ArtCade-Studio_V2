@@ -12,4 +12,7 @@ std::optional<std::filesystem::path> openProjectFileDialog();
 std::optional<std::filesystem::path> saveProjectFileDialog(
     const std::filesystem::path& suggested);
 
+// Pick a PNG image to import into the project. nullopt when cancelled.
+std::optional<std::filesystem::path> openImageFileDialog();
+
 } // namespace ArtCade::EditorNative

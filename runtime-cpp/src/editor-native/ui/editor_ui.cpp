@@ -5,6 +5,7 @@
 #include "editor-native/app/inspector_actions.h"
 #include "editor-native/app/inspector_commit.h"
 #include "editor-native/commands/entity_commands.h"
+#include "editor-native/commands/image_asset_commands.h"
 
 #include <RmlUi/Core/Context.h>
 #include <RmlUi/Core/Element.h>
@@ -125,7 +126,8 @@ void EditorUi::bind() {
     // Initial full paint of every panel.
     coordinator_.consumeInvalidations();
     applyInvalidations(EditorInvalidation::Hierarchy | EditorInvalidation::Inspector
-                       | EditorInvalidation::Console  | EditorInvalidation::Toolbar);
+                       | EditorInvalidation::Console  | EditorInvalidation::Toolbar
+                       | EditorInvalidation::Assets);
 }
 
 void EditorUi::processFrame() {
@@ -140,6 +142,8 @@ void EditorUi::applyInvalidations(EditorInvalidation flags) {
         inspector_.refresh(document_, coordinator_);
     if (has(flags, EditorInvalidation::Console))
         console_.refresh(document_, coordinator_);
+    if (has(flags, EditorInvalidation::Assets) || has(flags, EditorInvalidation::Project))
+        assets_.refresh(document_, coordinator_);
     if (has(flags, EditorInvalidation::Toolbar))
         refreshToolbar();
 }
@@ -152,6 +156,10 @@ void EditorUi::setProjectFileHandlers(ProjectFileRequest open,
     openProjectRequest_   = std::move(open);
     saveProjectRequest_   = std::move(save);
     saveProjectAsRequest_ = std::move(saveAs);
+}
+
+void EditorUi::setImageImportHandler(ProjectFileRequest importImage) {
+    importImageRequest_ = std::move(importImage);
 }
 
 void EditorUi::refreshToolbar() {
@@ -306,6 +314,10 @@ void EditorUi::handleAction(const std::string& action, const std::string& arg,
         coordinator_.playCurrentScene();   // guarded; no-op without an active scene
     } else if (action == "stop") {
         coordinator_.stopPlaying();
+    } else if (action == "import-image") {
+        if (importImageRequest_) importImageRequest_();
+    } else if (action == "remove-image-asset") {
+        if (!arg.empty()) coordinator_.execute(RemoveImageAssetCommand{arg});
     } else if (action == "open-project") {
         if (openProjectRequest_) openProjectRequest_();
     } else if (action == "save-project") {

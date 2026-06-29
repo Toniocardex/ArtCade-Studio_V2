@@ -18,10 +18,14 @@ bool ProjectDocument::hasScene(const SceneId& id) const {
 }
 
 bool ProjectDocument::hasImageAsset(const AssetId& id) const {
+    return findImageAsset(id) != nullptr;
+}
+
+const ImageAssetDef* ProjectDocument::findImageAsset(const AssetId& id) const {
     for (const ImageAssetDef& asset : doc_.imageAssets) {
-        if (asset.assetId == id) return true;
+        if (asset.assetId == id) return &asset;
     }
-    return false;
+    return nullptr;
 }
 
 SceneDef* ProjectDocument::mutableScene(const SceneId& id) {
@@ -309,6 +313,24 @@ bool ProjectDocument::setTopDownControllerSpeed(const std::string& objectTypeId,
     it->second.topDownController->maxSpeed = speed;
     markDirty();
     return true;
+}
+
+bool ProjectDocument::addImageAsset(ImageAssetDef asset) {
+    if (asset.assetId.empty() || hasImageAsset(asset.assetId)) return false;
+    doc_.imageAssets.push_back(std::move(asset));
+    markDirty();
+    return true;
+}
+
+bool ProjectDocument::removeImageAsset(const AssetId& assetId) {
+    for (auto it = doc_.imageAssets.begin(); it != doc_.imageAssets.end(); ++it) {
+        if (it->assetId == assetId) {
+            doc_.imageAssets.erase(it);
+            markDirty();
+            return true;
+        }
+    }
+    return false;
 }
 
 } // namespace ArtCade::EditorNative

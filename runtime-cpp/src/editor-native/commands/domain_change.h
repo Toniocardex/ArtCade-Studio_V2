@@ -36,6 +36,7 @@ struct DomainChange {
     EntityId         entityId = INVALID_ENTITY;
     std::string      objectTypeId;
     ComponentKind    componentKind = ComponentKind::None;
+    AssetId          assetId;
 
     bool isNone() const { return kind == DomainChangeKind::None; }
 
@@ -136,6 +137,12 @@ struct DomainChange {
         change.kind = DomainChangeKind::ComponentChanged;
         change.objectTypeId = std::move(objectType);
         change.componentKind = component;
+        return change;
+    }
+    static DomainChange assetChanged(AssetId asset) {
+        DomainChange change;
+        change.kind = DomainChangeKind::AssetChanged;
+        change.assetId = std::move(asset);
         return change;
     }
 };

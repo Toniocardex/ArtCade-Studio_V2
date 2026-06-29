@@ -1,6 +1,7 @@
 #pragma once
 
 #include "editor-native/commands/editor_invalidation.h"
+#include "editor-native/ui/assets_panel.h"
 #include "editor-native/ui/console_panel.h"
 #include "editor-native/ui/hierarchy_panel.h"
 #include "editor-native/ui/inspector_panel.h"
@@ -44,6 +45,9 @@ public:
     void setProjectFileHandlers(ProjectFileRequest open,
                                 ProjectFileRequest save,
                                 ProjectFileRequest saveAs);
+    // Import copies a file into the project and runs AddImageAssetCommand; it
+    // needs the filesystem and a saved project, so it lives in the application.
+    void setImageImportHandler(ProjectFileRequest importImage);
 
     // Called by the listener; routes one UI interaction to command/intent.
     void handleAction(const std::string& action, const std::string& arg,
@@ -62,10 +66,12 @@ private:
     HierarchyPanel                      hierarchy_;
     InspectorPanel                      inspector_;
     ConsolePanel                        console_;
+    AssetsPanel                         assets_;
     std::unique_ptr<Rml::EventListener> listener_;
     ProjectFileRequest                  openProjectRequest_;
     ProjectFileRequest                  saveProjectRequest_;
     ProjectFileRequest                  saveProjectAsRequest_;
+    ProjectFileRequest                  importImageRequest_;
 };
 
 } // namespace ArtCade::EditorNative

@@ -27,6 +27,8 @@ class SetLinearMoverSpeedCommand;
 class AddTopDownControllerCommand;
 class RemoveTopDownControllerCommand;
 class SetTopDownControllerSpeedCommand;
+class AddImageAssetCommand;
+class RemoveImageAssetCommand;
 class SetBoxColliderOffsetCommand;
 class SetBoxColliderSizeCommand;
 class SetBoxColliderTriggerCommand;
@@ -62,6 +64,7 @@ public:
     const SceneInstanceDef*  findInstanceInScene(const SceneId& sceneId, EntityId id) const;
     /** True if @p id is a known image asset (ProjectDoc.imageAssets). */
     bool                     hasImageAsset(const AssetId& id) const;
+    const ImageAssetDef*     findImageAsset(const AssetId& id) const;
 
     bool      isDirty()      const { return revision_ != savedRevision_; }
     uint64_t  revision()     const { return revision_; }
@@ -95,6 +98,8 @@ private:
     friend class AddTopDownControllerCommand;
     friend class RemoveTopDownControllerCommand;
     friend class SetTopDownControllerSpeedCommand;
+    friend class AddImageAssetCommand;
+    friend class RemoveImageAssetCommand;
     friend class SetSceneBackgroundCommand;
     friend class SetSpriteRendererAssetCommand;
     friend class SetSpriteRendererVisibleCommand;
@@ -141,6 +146,11 @@ private:
     bool addTopDownController(const std::string& objectTypeId, TopDownControllerComponent component);
     bool removeTopDownController(const std::string& objectTypeId);
     bool setTopDownControllerSpeed(const std::string& objectTypeId, float speed);
+    // Image asset catalog. The application copies the file on disk; the document
+    // only records AssetId + portable relative sourcePath. Add rejects a
+    // duplicate AssetId. Removal does not touch the file on disk.
+    bool addImageAsset(ImageAssetDef asset);
+    bool removeImageAsset(const AssetId& assetId);
     void replaceClean(ProjectDocument replacement);
     void markSaved();
     // Set the current revision to a previously observed value (undo/redo). Unlike

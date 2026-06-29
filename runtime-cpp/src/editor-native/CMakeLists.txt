@@ -23,6 +23,7 @@ add_library(artcade-editor-core STATIC
     commands/box_collider_commands.cpp
     commands/linear_mover_commands.cpp
     commands/top_down_controller_commands.cpp
+    commands/image_asset_commands.cpp
     commands/entity_commands.cpp
     commands/scene_commands.cpp
     commands/sprite_commands.cpp
@@ -112,6 +113,7 @@ if(ARTCADE_BUILD_NATIVE_EDITOR)
         ui/hierarchy_panel.cpp
         ui/inspector_panel.cpp
         ui/console_panel.cpp
+        ui/assets_panel.cpp
         demo/demo_project.cpp
     )
     if(WIN32)

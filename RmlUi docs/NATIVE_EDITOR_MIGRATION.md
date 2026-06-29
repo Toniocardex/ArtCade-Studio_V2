@@ -147,6 +147,7 @@ paletto o sblocca la capability in corso.
 | Object type persistence | React project store | `ProjectSerializer` minimal subset + referential validation | Done | No |
 | Components inspector | React Inspector | Feature commands + read-only queries | In progress | No |
 | Asset references | React asset stores | `AssetId` -> `ProjectDoc.imageAssets.sourcePath`, validated | In progress | No |
+| Image import + Assets panel | React asset import/store | PNG picker -> copy into `<projectRoot>/assets/images` -> `AddImageAssetCommand` (relative path); Assets panel lists/uses/removes; textures resolve from the project root | Done (PNG only) | No |
 | Logic Board | React Logic Board state | Logic Board document + commands | Planned | No |
 
 ## Component resolution (sprite renderer)
@@ -456,6 +457,35 @@ stacks; Save updates `savedRevision` only. Both ops are coordinator-guarded
 during Play (rejected, console warning, no authoring mutation); the disabled
 buttons are affordance only. Single entry points, no transaction manager, no
 history dropdown, no command grouping.
+
+## Image import + Assets panel baseline
+
+The native editor imports its own PNGs, so it no longer depends on assets staged
+by hand. The filesystem stays an application concern; the document only records a
+portable reference:
+
+```text
+Import Image (saved project only)
+-> openImageFileDialog (PNG)
+-> copy into <projectRoot>/assets/images/<unique>.png   (no implicit overwrite)
+-> AddImageAssetCommand{assetId, "assets/images/<unique>.png"}
+   (on command failure the copied file is rolled back)
+-> Assets invalidation -> panel refresh
+```
+
+The copy and dedup live in `editor_app`; `ProjectDocument` only gets `AssetId` +
+relative `sourcePath` (never an absolute path). One suffix keeps the file name and
+the `AssetId` unique together. Import requires a saved project so the resource
+root exists; it is blocked during Play. Assignment reuses the existing
+`set-sprite-asset` command (no special path); removal is `RemoveImageAssetCommand`
+and **does not delete the file on disk** (orphan cleanup is a separate feature).
+Undo/redo cover both add and remove; save/reload preserve the catalog.
+
+Textures resolve against the **project root** (`currentProjectPath.parent_path()`)
+for a loaded project, falling back to the executable resources for the in-code
+demo. The renderer still consumes only `SceneFrameSnapshot` + `TextureCache`;
+`TextureCache::invalidate(assetId)` is available for a future catalog change that
+keeps the same id.
 
 ## Unsaved-changes guard baseline
 

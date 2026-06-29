@@ -25,6 +25,10 @@ constexpr wchar_t kFilter[] =
     L"JSON (*.json)\0*.json\0"
     L"All Files (*.*)\0*.*\0";
 
+constexpr wchar_t kImageFilter[] =
+    L"PNG Image (*.png)\0*.png\0"
+    L"All Files (*.*)\0*.*\0";
+
 OPENFILENAMEW makeOfn(wchar_t* buffer) {
     OPENFILENAMEW ofn{};
     ofn.lStructSize = sizeof(ofn);
@@ -58,11 +62,26 @@ std::optional<std::filesystem::path> saveProjectFileDialog(
     return std::filesystem::path(buffer);
 }
 
+std::optional<std::filesystem::path> openImageFileDialog() {
+    wchar_t buffer[MAX_PATH] = {0};
+    OPENFILENAMEW ofn{};
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner   = GetActiveWindow();
+    ofn.lpstrFilter = kImageFilter;
+    ofn.lpstrFile   = buffer;
+    ofn.nMaxFile    = MAX_PATH;
+    ofn.lpstrDefExt = L"png";
+    ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
+    if (!GetOpenFileNameW(&ofn)) return std::nullopt;   // cancelled
+    return std::filesystem::path(buffer);
+}
+
 #else  // non-Windows: the native editor is Windows-first; no picker yet.
 
 std::optional<std::filesystem::path> openProjectFileDialog() { return std::nullopt; }
 std::optional<std::filesystem::path> saveProjectFileDialog(
     const std::filesystem::path&) { return std::nullopt; }
+std::optional<std::filesystem::path> openImageFileDialog() { return std::nullopt; }
 
 #endif
 

@@ -15,6 +15,7 @@
 #include "editor-native/commands/box_collider_commands.h"
 #include "editor-native/commands/linear_mover_commands.h"
 #include "editor-native/commands/top_down_controller_commands.h"
+#include "editor-native/commands/image_asset_commands.h"
 #include "editor-native/commands/entity_commands.h"
 #include "editor-native/commands/scene_commands.h"
 #include "editor-native/commands/sprite_commands.h"
@@ -1797,6 +1798,50 @@ int main() {
         const EditorOperationResult r = c2.execute(AddTopDownControllerCommand{"Hero"});
         CHECK(r.ok);
         CHECK(r.invalidation == EditorInvalidation::Inspector);
+    }
+
+    // == Image asset catalog (import target) ==================================
+
+    // -- Add: catalog gains the asset; duplicate rejected; undo/redo ----------
+    {
+        EditorCoordinator c{makeDoc()};
+        c.consumeInvalidations();
+        const EditorOperationResult r =
+            c.execute(AddImageAssetCommand{"img-x", "assets/images/x.png"});
+        CHECK(r.ok);
+        CHECK(r.invalidation == (EditorInvalidation::Assets | EditorInvalidation::Inspector));
+        CHECK(c.document().hasImageAsset("img-x"));
+        CHECK(c.document().findImageAsset("img-x")->sourcePath == "assets/images/x.png");
+
+        CHECK(!c.execute(AddImageAssetCommand{"img-x", "assets/images/y.png"}).ok);  // dup
+        CHECK(c.undo().ok);
+        CHECK(!c.document().hasImageAsset("img-x"));
+        CHECK(c.redo().ok);
+        CHECK(c.document().hasImageAsset("img-x"));
+    }
+
+    // -- Remove: exact undo restores the source path; unknown id fails --------
+    {
+        EditorCoordinator c{makeSpriteDoc()};   // img-hero -> sprites/hero.ppm
+        CHECK(c.document().hasImageAsset("img-hero"));
+        CHECK(c.execute(RemoveImageAssetCommand{"img-hero"}).ok);
+        CHECK(!c.document().hasImageAsset("img-hero"));
+        CHECK(c.undo().ok);
+        CHECK(c.document().findImageAsset("img-hero")->sourcePath == "sprites/hero.ppm");
+        CHECK(!c.execute(RemoveImageAssetCommand{"nope"}).ok);
+    }
+
+    // -- save/load preserves the catalog with the relative path ---------------
+    {
+        EditorCoordinator c{makeDoc()};
+        CHECK(c.execute(AddImageAssetCommand{"img-x", "assets/images/x.png"}).ok);
+        const std::filesystem::path path = testTempDir() / "assets.artcade-project";
+        CHECK(saveProjectToFile(c, path).ok);
+        EditorCoordinator reloaded{ProjectDoc{}};
+        CHECK(loadProjectFromFile(reloaded, path).ok);
+        const ImageAssetDef* asset = reloaded.document().findImageAsset("img-x");
+        CHECK(asset != nullptr);
+        CHECK(asset->sourcePath == "assets/images/x.png");
     }
 
     // == Viewport camera transform + picking ==================================

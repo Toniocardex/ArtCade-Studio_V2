@@ -47,7 +47,7 @@
             </div>
             <div id="hierarchy-list" class="tree"></div>
             <div class="panel-header"><span class="icon">&#xeaad;</span>ASSETS</div>
-            <div class="assets-stub">Sprites - Audio - Fonts</div>
+            <div id="assets-list" class="assets"></div>
         </div>
 
         <div id="split-left" class="vsplit" data-action="resize-left"></div>

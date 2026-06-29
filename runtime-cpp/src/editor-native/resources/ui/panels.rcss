@@ -15,11 +15,26 @@
     border-bottom: 1px #27272a;
 }
 
-.assets-stub {
+.assets {
     display: block;
-    padding: 10dp 12dp;
+    padding: 6dp 8dp;
+}
+.assets-empty {
+    display: block;
+    padding: 6dp 4dp;
     color: #52525b;
     font-size: 11dp;
+}
+.asset-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    margin: 2dp 0;
+}
+.asset-name {
+    flex: 1;
+    color: #c4c4c8;
+    font-size: 12dp;
 }
 
 /* Console */

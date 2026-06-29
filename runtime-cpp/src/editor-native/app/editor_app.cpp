@@ -10,6 +10,7 @@
 #include "editor-native/app/unsaved_guard.h"
 #include "editor-native/commands/editor_intent.h"
 #include "editor-native/commands/entity_commands.h"
+#include "editor-native/commands/image_asset_commands.h"
 #include "editor-native/demo/demo_project.h"
 #include "editor-native/model/play_session.h"
 #include "editor-native/model/scene_frame_snapshot.h"
@@ -294,6 +295,60 @@ int EditorApp::run(int argc, char** argv) {
                 saveTo(*picked);
         });
 
+    // Image import: copy a PNG into the project's assets/images and record it via
+    // a command. Application-level (filesystem + picker); the document only gets
+    // a portable relative path. Needs a saved project so the resource root exists.
+    ui.setImageImportHandler([&]() {
+        if (coordinator.isPlaying()) {
+            coordinator.logWarning("Stop Play before importing images");
+            return;
+        }
+        if (currentProjectPath.empty()) {
+            coordinator.logWarning("Save the project before importing images");
+            return;
+        }
+        const std::optional<std::filesystem::path> picked = openImageFileDialog();
+        if (!picked) return;  // cancelled
+
+        const std::filesystem::path imagesDir =
+            currentProjectPath.parent_path() / "assets" / "images";
+        std::error_code ec;
+        std::filesystem::create_directories(imagesDir, ec);
+        if (ec) {
+            coordinator.logError("Could not create assets/images: " + ec.message());
+            return;
+        }
+
+        // One suffix keeps file name and AssetId unique together — no implicit
+        // overwrite, no duplicate id.
+        const std::string stem = picked->stem().string();
+        const std::string ext = picked->extension().string();
+        std::string fileName = stem + ext;
+        AssetId assetId = stem;
+        for (int n = 2; std::filesystem::exists(imagesDir / fileName)
+                        || coordinator.document().hasImageAsset(assetId); ++n) {
+            fileName = stem + "_" + std::to_string(n) + ext;
+            assetId = stem + "_" + std::to_string(n);
+        }
+
+        const std::filesystem::path dest = imagesDir / fileName;
+        std::filesystem::copy_file(*picked, dest, ec);
+        if (ec) {
+            coordinator.logError("Could not copy image: " + ec.message());
+            return;
+        }
+
+        const std::string relPath = "assets/images/" + fileName;
+        const EditorOperationResult result =
+            coordinator.execute(AddImageAssetCommand{assetId, relPath});
+        if (!result.ok) {
+            std::filesystem::remove(dest, ec);   // roll back the copied file
+            coordinator.logError("Import failed: " + result.error);
+            return;
+        }
+        coordinator.logInfo("Imported " + fileName);
+    });
+
     int   frame       = 0;
     int   lastRenderW = GetRenderWidth();
     int   lastRenderH = GetRenderHeight();
@@ -383,9 +438,13 @@ int EditorApp::run(int argc, char** argv) {
             for (SceneFrameSprite& s : snapshot.sprites)
                 if (s.entityId == drag.entity) { s.destination.x += d.x; s.destination.y += d.y; }
         }
+        // Sprite source paths are relative to the loaded project; the demo (no
+        // project path) falls back to the executable resources.
+        const std::filesystem::path assetRoot =
+            currentProjectPath.empty() ? resourceRoot : currentProjectPath.parent_path();
         const auto textureRequests = playSession
-            ? textureRequestsFor(playSession->assets(), resourceRoot)
-            : textureRequestsFor(coordinator.document().data(), resourceRoot);
+            ? textureRequestsFor(playSession->assets(), assetRoot)
+            : textureRequestsFor(coordinator.document().data(), assetRoot);
         textureCache.prepare(snapshot.sprites, textureRequests);
         sceneView.render(snapshot, coordinator.sceneView(active), rect, textureCache);
         host.render();
