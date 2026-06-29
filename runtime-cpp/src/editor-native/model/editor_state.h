@@ -18,6 +18,10 @@ constexpr float kZoomMax = 8.0f;
 struct EditorSceneViewState {
     Vec2  pan{};
     float zoom = 1.0f;
+    // True once the one-time auto-fit has run for this scene. Lives here (not an
+    // app-side registry) so it shares the single sceneViews lifecycle: cleared by
+    // replaceProject, pruned with a deleted scene, reset for a fresh scene.
+    bool  initialized = false;
 };
 
 enum class EditorTool {

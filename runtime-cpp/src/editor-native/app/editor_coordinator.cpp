@@ -56,6 +56,10 @@ const EditorSceneViewState& EditorCoordinator::sceneView(const SceneId& id) cons
     return it == state_.sceneViews.end() ? defaultSceneView_ : it->second;
 }
 
+void EditorCoordinator::markSceneViewInitialized(const SceneId& id) {
+    state_.sceneViews[id].initialized = true;   // workspace only; no dirty/invalidation
+}
+
 // ----------------------------------------------------------------------------
 // Command path
 // ----------------------------------------------------------------------------

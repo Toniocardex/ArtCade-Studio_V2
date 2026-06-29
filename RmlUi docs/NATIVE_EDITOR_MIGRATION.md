@@ -698,9 +698,13 @@ stays fixed. Pan only runs when the cursor is over the viewport, no text field i
 focused, and no entity drag is in progress; Space+left is a pan gesture, so the
 pick path ignores a left-press while Space is held.
 
-A scene is **auto-fit once**, the first time it is seen active in Edit mode
-(tracked app-side, not in the state, to keep `EditorSceneViewState` minimal). It
-never re-fits on selection, window resize, scene resize, or returning from Play —
+A scene is **auto-fit once**, the first time it is seen active in Edit mode. The
+`initialized` flag lives in the scene's view state (`EditorSceneViewState`), not an
+app-side registry, so it shares the single `sceneViews` lifecycle — cleared by
+`replaceProject`, pruned with a deleted scene, reset for a fresh one — with no
+second tracker to reconcile. The app marks it only after a real fit (so a
+not-yet-laid-out viewport retries next frame). It never re-fits on selection,
+window resize, scene resize, or returning from Play —
 that would make the view jump; "lost the view" is recovered explicitly with Fit
 View. Pan is free (no hard clamp to bounds) so off-screen spawns and side margins
 stay visible; Fit View is the recovery. No scrollbars, minimap, navigator, pan

@@ -54,6 +54,9 @@ public:
     const EditorUiState&   uiState()   const { return uiState_; }
     const EditorState&     state()     const { return state_; }
     const EditorSceneViewState& sceneView(const SceneId& id) const;
+    // Workspace-only: mark a scene's editor view as auto-fitted (one-time). Never
+    // touches ProjectDocument, revision, dirty or history.
+    void markSceneViewInitialized(const SceneId& id);
     const std::vector<ConsoleMessage>& consoleLog() const { return console_; }
     // Read-only lookup by index for the Console panel's clipboard copy. Returns
     // nullptr for nullopt or an out-of-range index, so a stale selection is safe.

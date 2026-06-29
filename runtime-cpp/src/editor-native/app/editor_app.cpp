@@ -29,7 +29,6 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
-#include <unordered_set>
 
 // raylib (5.0) has no public way to cancel a requested window close, so we reset
 // GLFW's flag directly to keep the app open when the user picks Cancel in the
@@ -459,12 +458,12 @@ int EditorApp::run(int argc, char** argv) {
     // Workspace-only (recenter pan to 0 + zoom-to-fit via intents); the viewport
     // rect is known only here. Shared by the Scene Inspector button and the
     // first-open auto-fit below.
-    const auto fitActiveScene = [&]() {
+    const auto fitActiveScene = [&]() -> bool {
         const SceneId active = coordinator.state().activeSceneId;
         const SceneDef* scene = coordinator.document().findScene(active);
-        if (!scene || scene->worldSize.x <= 0.f || scene->worldSize.y <= 0.f) return;
+        if (!scene || scene->worldSize.x <= 0.f || scene->worldSize.y <= 0.f) return false;
         const ViewportRect rect = viewportRectFromDocument(host.document());
-        if (rect.width <= 0 || rect.height <= 0) return;
+        if (rect.width <= 0 || rect.height <= 0) return false;
         constexpr float kPad = 28.f;   // keep the scene off the panel edges
         const float availW = std::max(1.f, static_cast<float>(rect.width) - kPad * 2.f);
         const float availH = std::max(1.f, static_cast<float>(rect.height) - kPad * 2.f);
@@ -472,13 +471,9 @@ int EditorApp::run(int argc, char** argv) {
         const EditorSceneViewState view = coordinator.sceneView(active);
         coordinator.apply(PanViewportIntent{active, {-view.pan.x, -view.pan.y}});  // centre (pan 0)
         coordinator.apply(SetViewportZoomIntent{active, fit});                     // intent clamps
+        return true;
     };
-    ui.setFitViewHandler(fitActiveScene);
-
-    // Auto-fit a scene the first time it is seen active in Edit mode (workspace
-    // only). Tracked app-side so it never re-fits on selection, resize or return
-    // from Play; "lost the view" is recovered explicitly with Fit View.
-    std::unordered_set<SceneId> autoFitted;
+    ui.setFitViewHandler([&]() { fitActiveScene(); });
 
     const auto viewportDefaultSpawn = [&]() -> std::optional<Vec2> {
         const SceneId& active = coordinator.state().activeSceneId;
@@ -590,9 +585,14 @@ int EditorApp::run(int argc, char** argv) {
             }
             coordinator.updateRuntime(input, dt);         // input-driven (TopDownController)
         } else {
-            // First time this scene is active in Edit mode: frame it once.
+            // First time this scene is active in Edit mode: frame it once. The
+            // flag lives in the scene's view state, so it shares the sceneViews
+            // lifecycle (cleared/pruned with the scene). Mark only after a real
+            // fit, so a not-yet-laid-out viewport retries next frame.
             const SceneId& editScene = coordinator.state().activeSceneId;
-            if (!editScene.empty() && autoFitted.insert(editScene).second) fitActiveScene();
+            if (!editScene.empty() && !coordinator.sceneView(editScene).initialized) {
+                if (fitActiveScene()) coordinator.markSceneViewInitialized(editScene);
+            }
             routeViewportPickDrag(coordinator, rect, rml, drag, contextMenuHit);
             routeViewportContextMenu(coordinator, ui, rect, rml, contextClick,
                                      pendingContextSpawn, contextMenuHit);

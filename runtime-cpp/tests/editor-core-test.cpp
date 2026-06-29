@@ -2904,6 +2904,100 @@ int main() {
         CHECK(reloaded.document().findScene(kSceneA)->worldSize.y == 360.f);
     }
 
+    // == Scene view navigation (workspace camera) =============================
+
+    // -- Zoom under the cursor keeps the world point beneath the mouse fixed ---
+    //    Mirrors routeViewportInput: read world-before, apply zoom, compensate
+    //    with one pan. Uses the single makeSceneViewCamera/screenToWorld.
+    {
+        const ViewportRect rect{0, 0, 800, 600};
+        const Vec2 worldSize{1000.f, 1000.f};
+        const Vec2 mouse{220.f, 140.f};   // off-centre, so a centre-zoom would drift
+        EditorCoordinator c{makeDoc()};
+        c.apply(SetViewportZoomIntent{kSceneA, 1.0f});
+        c.apply(PanViewportIntent{kSceneA, {30.f, -20.f}});
+
+        const EditorSceneViewState before = c.sceneView(kSceneA);
+        const Vec2 worldBefore = screenToWorld(makeSceneViewCamera(rect, before, worldSize), mouse);
+        c.apply(SetViewportZoomIntent{kSceneA, before.zoom * 1.5f});
+        const EditorSceneViewState mid = c.sceneView(kSceneA);
+        const Vec2 worldMid = screenToWorld(makeSceneViewCamera(rect, mid, worldSize), mouse);
+        c.apply(PanViewportIntent{kSceneA, {worldBefore.x - worldMid.x, worldBefore.y - worldMid.y}});
+
+        const EditorSceneViewState fixed = c.sceneView(kSceneA);
+        const Vec2 worldFinal = screenToWorld(makeSceneViewCamera(rect, fixed, worldSize), mouse);
+        CHECK(std::abs(worldFinal.x - worldBefore.x) < 0.01f);
+        CHECK(std::abs(worldFinal.y - worldBefore.y) < 0.01f);
+    }
+
+    // -- Zoom is clamped to [10%, 800%] ---------------------------------------
+    {
+        EditorCoordinator c{makeDoc()};
+        c.apply(SetViewportZoomIntent{kSceneA, 100.0f});
+        CHECK(c.sceneView(kSceneA).zoom == SceneViewLimits::kZoomMax);
+        c.apply(SetViewportZoomIntent{kSceneA, 0.0001f});
+        CHECK(c.sceneView(kSceneA).zoom == SceneViewLimits::kZoomMin);
+    }
+
+    // -- Reset to 100% changes only the zoom, never the target (pan) ----------
+    {
+        EditorCoordinator c{makeDoc()};
+        c.apply(PanViewportIntent{kSceneA, {50.f, 30.f}});
+        c.apply(SetViewportZoomIntent{kSceneA, 3.0f});
+        c.apply(SetViewportZoomIntent{kSceneA, 1.0f});   // "Reset 100%"
+        CHECK(c.sceneView(kSceneA).zoom == 1.0f);
+        CHECK(c.sceneView(kSceneA).pan.x == 50.f);       // target unchanged
+        CHECK(c.sceneView(kSceneA).pan.y == 30.f);
+    }
+
+    // -- Each scene keeps its own pan and zoom --------------------------------
+    {
+        EditorCoordinator c{makeDoc()};
+        c.apply(SetViewportZoomIntent{kSceneA, 2.0f});
+        c.apply(PanViewportIntent{kSceneA, {10.f, 0.f}});
+        c.apply(SetViewportZoomIntent{kSceneB, 0.5f});
+        c.apply(PanViewportIntent{kSceneB, {-5.f, 5.f}});
+        CHECK(c.sceneView(kSceneA).zoom == 2.0f);
+        CHECK(c.sceneView(kSceneA).pan.x == 10.f);
+        CHECK(c.sceneView(kSceneB).zoom == 0.5f);
+        CHECK(c.sceneView(kSceneB).pan.y == 5.f);
+    }
+
+    // -- Camera ops are workspace-only: no dirty / revision / undo ------------
+    {
+        EditorCoordinator c{makeDoc()};
+        const uint64_t rev = c.document().revision();
+        c.apply(SetViewportZoomIntent{kSceneA, 2.0f});
+        c.apply(PanViewportIntent{kSceneA, {5.f, 5.f}});
+        CHECK(!c.document().isDirty());
+        CHECK(c.document().revision() == rev);
+        CHECK(c.undoSize() == 0);
+    }
+
+    // -- Auto-fit flag lives in the scene view state, cleared by replaceProject
+    {
+        EditorCoordinator c{makeDoc()};
+        CHECK(!c.sceneView(kSceneA).initialized);
+        c.markSceneViewInitialized(kSceneA);
+        CHECK(c.sceneView(kSceneA).initialized);
+        c.apply(SetViewportZoomIntent{kSceneA, 2.0f});
+        CHECK(c.sceneView(kSceneA).initialized);          // survives camera edits
+        CHECK(c.replaceProject(ProjectDocument{makeReplacementDoc()}).ok);
+        CHECK(!c.sceneView(kSceneA).initialized);          // sceneViews cleared on replace
+    }
+
+    // -- Start/Stop Play does not disturb the Edit camera ---------------------
+    {
+        EditorCoordinator c{makeDoc()};
+        c.apply(SetViewportZoomIntent{kSceneA, 2.5f});
+        c.apply(PanViewportIntent{kSceneA, {12.f, -8.f}});
+        CHECK(c.playProject().ok);
+        CHECK(c.stopPlaying().ok);
+        CHECK(c.sceneView(kSceneA).zoom == 2.5f);
+        CHECK(c.sceneView(kSceneA).pan.x == 12.f);
+        CHECK(c.sceneView(kSceneA).pan.y == -8.f);
+    }
+
     // == Start-scene invariant: scenes exist => startSceneId is valid ==========
 
     // -- (1)(2)(3) First scene becomes the start scene; workspace untouched ----
