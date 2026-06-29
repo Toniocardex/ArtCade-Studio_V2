@@ -70,5 +70,10 @@
         <div class="panel-header"><span class="icon">&#xebdc;</span>CONSOLE<button id="btn-console-copy" class="header-btn disabled" data-action="copy-console">Copy</button></div>
         <div id="console-list" class="console"></div>
     </div>
+
+    <div id="viewport-context-menu" class="context-menu hidden">
+        <div class="context-entry" data-action="create-entity-here"><span class="icon">&#xeb0b;</span>Create Entity Here</div>
+        <div id="ctx-create-instance" class="context-entry" data-action="create-instance-here"><span class="icon">&#xeb0b;</span>Create Instance Here</div>
+    </div>
 </body>
 </rml>

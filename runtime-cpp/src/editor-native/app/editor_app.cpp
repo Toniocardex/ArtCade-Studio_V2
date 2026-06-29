@@ -5,6 +5,7 @@
 #include "editor-native/app/editor_coordinator.h"
 #include "editor-native/app/editor_input.h"
 #include "editor-native/app/file_dialog.h"
+#include "editor-native/app/hierarchy_actions.h"
 #include "editor-native/app/input_routing.h"
 #include "editor-native/app/project_file.h"
 #include "editor-native/app/rml_host.h"
@@ -22,6 +23,7 @@
 
 #include <raylib.h>
 
+#include <algorithm>
 #include <cstring>
 #include <filesystem>
 #include <optional>
@@ -105,6 +107,28 @@ struct ViewportDrag {
     Vec2     startEntityPos{};
 };
 
+struct ViewportContextClick {
+    bool    tracking = false;
+    Vector2 start{};
+};
+
+bool sceneSurfaceContains(const ViewportRect& rect, const SceneViewCamera& camera,
+                          Vec2 worldSize, Vec2 screen) {
+    const auto project = [&](Vec2 world) {
+        return Vec2{
+            (world.x - camera.target.x) * camera.zoom + camera.offset.x,
+            (world.y - camera.target.y) * camera.zoom + camera.offset.y,
+        };
+    };
+    const Vec2 a = project(Vec2{0.0f, 0.0f});
+    const Vec2 b = project(worldSize);
+    const float left = std::max(static_cast<float>(rect.x), std::min(a.x, b.x));
+    const float right = std::min(static_cast<float>(rect.x + rect.width), std::max(a.x, b.x));
+    const float top = std::max(static_cast<float>(rect.y), std::min(a.y, b.y));
+    const float bottom = std::min(static_cast<float>(rect.y + rect.height), std::max(a.y, b.y));
+    return screen.x >= left && screen.x < right && screen.y >= top && screen.y < bottom;
+}
+
 // Edit-mode pick + drag: press hit-tests and selects; release commits one move.
 // Motion between press and release is shown as a local preview by the draw path,
 // not as a stream of commands.
@@ -144,6 +168,71 @@ void routeViewportPickDrag(EditorCoordinator& coordinator, const ViewportRect& r
         }
         drag = ViewportDrag{};
     }
+}
+
+void routeViewportContextMenu(EditorCoordinator& coordinator, EditorUi& ui,
+                              const ViewportRect& rect, const RmlInputResult& rml,
+                              ViewportContextClick& click,
+                              std::optional<Vec2>& pendingSpawnPosition) {
+    if (coordinator.isPlaying()) {
+        click = ViewportContextClick{};
+        pendingSpawnPosition.reset();
+        ui.hideViewportContextMenu();
+        return;
+    }
+
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) || IsMouseButtonPressed(MOUSE_BUTTON_MIDDLE)) {
+        ui.hideViewportContextMenu();
+    }
+
+    if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
+        ui.hideViewportContextMenu();
+        pendingSpawnPosition.reset();
+        const ViewportInputContext ctx{rect.contains(GetMouseX(), GetMouseY()),
+                                       /*rmlConsumedEvent*/ false, rml.textFocus,
+                                       /*rmlPopupOpen*/ false};
+        if (shouldViewportReceiveInput(ctx)) {
+            click = ViewportContextClick{true, GetMousePosition()};
+        }
+    }
+
+    if (!click.tracking || !IsMouseButtonReleased(MOUSE_BUTTON_RIGHT)) return;
+
+    const Vector2 end = GetMousePosition();
+    const Vector2 delta{end.x - click.start.x, end.y - click.start.y};
+    click = ViewportContextClick{};
+    constexpr float kClickThresholdPx = 4.0f;
+    if (delta.x * delta.x + delta.y * delta.y > kClickThresholdPx * kClickThresholdPx) {
+        return;
+    }
+
+    const ViewportInputContext ctx{rect.contains(GetMouseX(), GetMouseY()),
+                                   /*rmlConsumedEvent*/ false, rml.textFocus,
+                                   /*rmlPopupOpen*/ false};
+    if (!shouldViewportReceiveInput(ctx)) return;
+
+    const SceneId& active = coordinator.state().activeSceneId;
+    const SceneDef* scene = coordinator.document().findScene(active);
+    if (!scene) return;
+
+    const SceneViewCamera camera = makeSceneViewCamera(rect, coordinator.sceneView(active),
+                                                       scene->worldSize);
+    const Vec2 mouse{static_cast<float>(GetMouseX()), static_cast<float>(GetMouseY())};
+    if (!sceneSurfaceContains(rect, camera, scene->worldSize, mouse)) return;
+
+    SpawnPositionOptions options;
+    options.edgeMargin = 0.0f;   // "Here" should mean the clicked world position.
+    pendingSpawnPosition =
+        normalizeSpawnPosition(screenToWorld(camera, mouse), scene->worldSize, options);
+    bool canCreateInstance = false;
+    if (const SceneInstanceDef* selected = coordinator.document().findInstanceInScene(
+            active, coordinator.selection().primaryEntity)) {
+        canCreateInstance = coordinator.document().findObjectType(selected->objectTypeId) != nullptr;
+    }
+    ui.showViewportContextMenu(
+        static_cast<int>(mouse.x * uiPixelScaleX()),
+        static_cast<int>(mouse.y * uiPixelScaleY()),
+        canCreateInstance);
 }
 
 std::filesystem::path editorResourceRoot() {
@@ -238,6 +327,8 @@ int EditorApp::run(int argc, char** argv) {
     SceneView sceneView;
     TextureCache textureCache;
     ViewportDrag drag;
+    ViewportContextClick contextClick;
+    std::optional<Vec2> pendingContextSpawn;
 
     // Project I/O is owned by the application: it holds the texture cache it must
     // clear when the document is replaced, and the platform file pickers. The UI
@@ -339,6 +430,43 @@ int EditorApp::run(int argc, char** argv) {
         else            coordinator.logInfo("Imported " + result.assetId);
     });
 
+    const auto viewportDefaultSpawn = [&]() -> std::optional<Vec2> {
+        const SceneId& active = coordinator.state().activeSceneId;
+        const SceneDef* scene = coordinator.document().findScene(active);
+        if (!scene) return std::nullopt;
+        const ViewportRect rect = viewportRectFromDocument(host.document());
+        if (!rect.valid()) {
+            return normalizeSpawnPosition(
+                Vec2{scene->worldSize.x * 0.5f, scene->worldSize.y * 0.5f},
+                scene->worldSize);
+        }
+        return defaultSpawnPosition(rect, coordinator.sceneView(active), scene->worldSize);
+    };
+
+    ui.setEntityPlacementHandlers(
+        [&]() {
+            if (const auto pos = viewportDefaultSpawn()) addEntityAt(coordinator, *pos);
+            else addEntity(coordinator);
+        },
+        [&]() {
+            if (const auto pos = viewportDefaultSpawn())
+                addInstanceOfSelectedTypeAt(coordinator, *pos);
+            else
+                addInstanceOfSelectedType(coordinator);
+        },
+        [&]() {
+            if (pendingContextSpawn) {
+                addEntityAt(coordinator, *pendingContextSpawn);
+                pendingContextSpawn.reset();
+            }
+        },
+        [&]() {
+            if (pendingContextSpawn) {
+                addInstanceOfSelectedTypeAt(coordinator, *pendingContextSpawn);
+                pendingContextSpawn.reset();
+            }
+        });
+
     refreshWindowTitle();   // empty start project -> "Untitled"
 
     int   frame       = 0;
@@ -411,6 +539,8 @@ int EditorApp::run(int argc, char** argv) {
             coordinator.updateRuntime(input, dt);         // input-driven (TopDownController)
         } else {
             routeViewportPickDrag(coordinator, rect, rml, drag);
+            routeViewportContextMenu(coordinator, ui, rect, rml, contextClick,
+                                     pendingContextSpawn);
         }
 
         ui.processFrame();

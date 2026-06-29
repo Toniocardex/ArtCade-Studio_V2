@@ -2,6 +2,8 @@
 
 #include "core/types.h"
 #include "editor-native/commands/editor_operation_result.h"
+#include "editor-native/model/editor_state.h"
+#include "editor-native/view/scene_view_camera.h"
 
 namespace ArtCade::EditorNative {
 
@@ -34,6 +36,22 @@ SceneId makeUniqueSceneId(const ProjectDocument& document);
 
 // ---- Actions ----------------------------------------------------------------
 
+struct SpawnPositionOptions {
+    bool  snapToGrid = false;
+    float gridSize = 48.0f;
+    float edgeMargin = 16.0f;
+};
+
+/** Normalize an explicit world-space spawn point: optional grid snap, then scene clamp. */
+Vec2 normalizeSpawnPosition(Vec2 worldPosition, Vec2 sceneSize,
+                            SpawnPositionOptions options = {});
+
+/** Default toolbar placement: the current visible viewport centre in world space. */
+Vec2 defaultSpawnPosition(const ViewportRect& viewport,
+                          const EditorSceneViewState& view,
+                          Vec2 sceneSize,
+                          SpawnPositionOptions options = {});
+
 /** Create a new, uniquely-id'd scene. Does not change the active scene. */
 EditorOperationResult addScene(EditorCoordinator& coordinator);
 
@@ -47,6 +65,7 @@ EditorOperationResult setStartScene(EditorCoordinator& coordinator, const SceneI
  * "+Entity": place a brand-new, independent object — a new object type plus its
  * first instance. Does not change the selection.
  */
+EditorOperationResult addEntityAt(EditorCoordinator& coordinator, Vec2 spawnPosition);
 EditorOperationResult addEntity(EditorCoordinator& coordinator);
 
 /**
@@ -58,6 +77,8 @@ EditorOperationResult addEntity(EditorCoordinator& coordinator);
  * selects the new instance via intent (workspace state, not in the undo history).
  * No selection / unknown type / no scene → failure without mutation.
  */
+EditorOperationResult addInstanceOfSelectedTypeAt(EditorCoordinator& coordinator,
+                                                  Vec2 spawnPosition);
 EditorOperationResult addInstanceOfSelectedType(EditorCoordinator& coordinator);
 
 /** Delete the selected instance from the active scene. No selection → no-op. */

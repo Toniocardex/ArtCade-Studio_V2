@@ -169,6 +169,36 @@ void EditorUi::setImportHandler(ImportAssetRequest importAsset) {
     importAssetRequest_ = std::move(importAsset);
 }
 
+void EditorUi::setEntityPlacementHandlers(EntityPlacementRequest addEntity,
+                                          EntityPlacementRequest addInstance,
+                                          EntityPlacementRequest createEntityHere,
+                                          EntityPlacementRequest createInstanceHere) {
+    addEntityRequest_ = std::move(addEntity);
+    addInstanceRequest_ = std::move(addInstance);
+    createEntityHereRequest_ = std::move(createEntityHere);
+    createInstanceHereRequest_ = std::move(createInstanceHere);
+}
+
+void EditorUi::showViewportContextMenu(int physicalX, int physicalY,
+                                       bool canCreateInstance) {
+    if (!document_) return;
+    if (Rml::Element* menu = document_->GetElementById("viewport-context-menu")) {
+        menu->SetProperty("left", std::to_string(physicalX) + "px");
+        menu->SetProperty("top", std::to_string(physicalY) + "px");
+        menu->SetClass("hidden", false);
+    }
+    if (Rml::Element* item = document_->GetElementById("ctx-create-instance")) {
+        item->SetClass("hidden", !canCreateInstance);
+    }
+}
+
+void EditorUi::hideViewportContextMenu() {
+    if (!document_) return;
+    if (Rml::Element* menu = document_->GetElementById("viewport-context-menu")) {
+        menu->SetClass("hidden", true);
+    }
+}
+
 void EditorUi::refreshToolbar() {
     if (!document_) return;
     const bool playing = coordinator_.isPlaying();
@@ -233,9 +263,17 @@ void EditorUi::handleAction(const std::string& action, const std::string& arg,
         // No arg → the active scene; the coordinator reconciles the workspace.
         deleteScene(coordinator_, arg.empty() ? coordinator_.state().activeSceneId : arg);
     } else if (action == "add-entity") {
-        addEntity(coordinator_);
+        if (addEntityRequest_) addEntityRequest_();
+        else addEntity(coordinator_);
     } else if (action == "add-instance") {
-        addInstanceOfSelectedType(coordinator_);
+        if (addInstanceRequest_) addInstanceRequest_();
+        else addInstanceOfSelectedType(coordinator_);
+    } else if (action == "create-entity-here") {
+        hideViewportContextMenu();
+        if (createEntityHereRequest_) createEntityHereRequest_();
+    } else if (action == "create-instance-here") {
+        hideViewportContextMenu();
+        if (createInstanceHereRequest_) createInstanceHereRequest_();
     } else if (action == "delete-entity") {
         deleteSelectedEntity(coordinator_);
     } else if (action == "set-start-scene") {

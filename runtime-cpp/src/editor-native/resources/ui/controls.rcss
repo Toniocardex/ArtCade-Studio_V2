@@ -219,6 +219,32 @@
     border-color: #242427;
 }
 
+/* -- Viewport context menu ------------------------------------------------- */
+.context-menu {
+    display: block;
+    position: absolute;
+    z-index: 200;
+    min-width: 188dp;
+    padding: 4dp;
+    background-color: #1c1c1f;
+    border: 1px #323236;
+    border-radius: 6dp;
+}
+.context-entry {
+    display: block;
+    height: 28dp;
+    line-height: 28dp;
+    padding: 0 10dp;
+    border-radius: 4dp;
+    color: #a1a1aa;
+    font-size: 12dp;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: background-color 0.1s, color 0.1s;
+}
+.context-entry:hover { background-color: #222226; color: #d4d4d8; }
+.hidden { display: none; }
+
 /* -- Scene tabs — flat ----------------------------------------------------- */
 .scene-tabs {
     display: flex;

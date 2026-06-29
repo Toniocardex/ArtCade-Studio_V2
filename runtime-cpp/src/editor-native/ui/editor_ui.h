@@ -53,6 +53,15 @@ public:
     using ImportAssetRequest = std::function<void(AssetKind)>;
     void setImportHandler(ImportAssetRequest importAsset);
 
+    using EntityPlacementRequest = std::function<void()>;
+    void setEntityPlacementHandlers(EntityPlacementRequest addEntity,
+                                    EntityPlacementRequest addInstance,
+                                    EntityPlacementRequest createEntityHere,
+                                    EntityPlacementRequest createInstanceHere);
+
+    void showViewportContextMenu(int physicalX, int physicalY, bool canCreateInstance);
+    void hideViewportContextMenu();
+
     // Copies the selected Console message (full model text) to the clipboard via
     // raylib's SetClipboardText. The single entry point shared by the Copy button
     // and Ctrl+C. Returns false (no-op) when nothing is selected.
@@ -82,6 +91,10 @@ private:
     ProjectFileRequest                  saveProjectRequest_;
     ProjectFileRequest                  saveProjectAsRequest_;
     ImportAssetRequest                  importAssetRequest_;
+    EntityPlacementRequest              addEntityRequest_;
+    EntityPlacementRequest              addInstanceRequest_;
+    EntityPlacementRequest              createEntityHereRequest_;
+    EntityPlacementRequest              createInstanceHereRequest_;
 };
 
 } // namespace ArtCade::EditorNative

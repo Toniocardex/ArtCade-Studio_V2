@@ -6,6 +6,8 @@
 #include "editor-native/commands/scene_commands.h"
 #include "editor-native/model/project_document.h"
 
+#include <algorithm>
+#include <cmath>
 #include <string>
 
 namespace ArtCade::EditorNative {
@@ -36,6 +38,22 @@ std::string makeUniqueInstanceName(const SceneDef& scene, const std::string& bas
     }
 }
 
+float finiteOr(float value, float fallback) {
+    return std::isfinite(value) ? value : fallback;
+}
+
+float snapAxis(float value, float gridSize) {
+    return std::round(value / gridSize) * gridSize;
+}
+
+float clampSpawnAxis(float value, float size, float margin) {
+    const float safeSize = std::max(0.0f, finiteOr(size, 0.0f));
+    const float safeMargin = std::max(0.0f, finiteOr(margin, 0.0f));
+    const float low = std::min(safeMargin, safeSize * 0.5f);
+    const float high = std::max(low, safeSize - low);
+    return std::clamp(finiteOr(value, low), low, high);
+}
+
 } // namespace
 
 EntityId nextAvailableEntityId(const ProjectDocument& document, const SceneId& sceneId) {
@@ -53,6 +71,30 @@ SceneId makeUniqueSceneId(const ProjectDocument& document) {
         SceneId candidate = "scene-" + std::to_string(n);
         if (!document.hasScene(candidate)) return candidate;
     }
+}
+
+Vec2 normalizeSpawnPosition(Vec2 worldPosition, Vec2 sceneSize,
+                            SpawnPositionOptions options) {
+    Vec2 out = worldPosition;
+    if (options.snapToGrid && std::isfinite(options.gridSize) && options.gridSize > 0.0f) {
+        out.x = snapAxis(out.x, options.gridSize);
+        out.y = snapAxis(out.y, options.gridSize);
+    }
+    out.x = clampSpawnAxis(out.x, sceneSize.x, options.edgeMargin);
+    out.y = clampSpawnAxis(out.y, sceneSize.y, options.edgeMargin);
+    return out;
+}
+
+Vec2 defaultSpawnPosition(const ViewportRect& viewport,
+                          const EditorSceneViewState& view,
+                          Vec2 sceneSize,
+                          SpawnPositionOptions options) {
+    const SceneViewCamera camera = makeSceneViewCamera(viewport, view, sceneSize);
+    const Vec2 screenCenter{
+        static_cast<float>(viewport.x) + static_cast<float>(viewport.width) * 0.5f,
+        static_cast<float>(viewport.y) + static_cast<float>(viewport.height) * 0.5f,
+    };
+    return normalizeSpawnPosition(screenToWorld(camera, screenCenter), sceneSize, options);
 }
 
 EditorOperationResult addScene(EditorCoordinator& coordinator) {
@@ -76,27 +118,41 @@ EditorOperationResult setStartScene(EditorCoordinator& coordinator, const SceneI
     return coordinator.execute(SetStartSceneCommand{sceneId});
 }
 
-EditorOperationResult addEntity(EditorCoordinator& coordinator) {
+EditorOperationResult addEntityAt(EditorCoordinator& coordinator, Vec2 spawnPosition) {
     const SceneId& sceneId = coordinator.state().activeSceneId;
-    if (sceneId.empty() || !coordinator.document().hasScene(sceneId)) {
+    const SceneDef* scene = coordinator.document().findScene(sceneId);
+    if (sceneId.empty() || !scene) {
         return EditorOperationResult::failure("No active scene to add an entity to");
     }
     // "+Entity" creates an independent object: always a NEW object type plus its
     // first instance — never a reuse of an existing type. Reusing a type (placing
     // another instance that intentionally shares its components) is a separate
-    // "Add Instance" operation, not yet wired. Because BoxCollider2D, LinearMover
+    // "Add Instance" operation. Because BoxCollider2D, LinearMover
     // and TopDownController are object-type-owned, a fresh EntityId alone would not
     // make the components independent; a fresh ObjectTypeId is required.
     const EntityId id = nextAvailableEntityId(coordinator.document(), sceneId);
     const std::string instanceName = "Entity " + std::to_string(id);
     const std::string objectTypeId = makeUniqueObjectTypeId(coordinator.document());
     return coordinator.execute(CreateEntityWithDefaultTypeCommand{
-        sceneId, id, objectTypeId, /*objectTypeName*/ "Entity", instanceName});
+        sceneId, id, objectTypeId, /*objectTypeName*/ "Entity", instanceName,
+        spawnPosition});
 }
 
-EditorOperationResult addInstanceOfSelectedType(EditorCoordinator& coordinator) {
+EditorOperationResult addEntity(EditorCoordinator& coordinator) {
+    const SceneDef* scene = coordinator.document().findScene(coordinator.state().activeSceneId);
+    if (!scene) return EditorOperationResult::failure("No active scene to add an entity to");
+    return addEntityAt(
+        coordinator,
+        normalizeSpawnPosition(
+            Vec2{scene->worldSize.x * 0.5f, scene->worldSize.y * 0.5f},
+            scene->worldSize));
+}
+
+EditorOperationResult addInstanceOfSelectedTypeAt(EditorCoordinator& coordinator,
+                                                  Vec2 spawnPosition) {
     const SceneId& sceneId = coordinator.state().activeSceneId;
-    if (sceneId.empty() || !coordinator.document().hasScene(sceneId)) {
+    const SceneDef* scene = coordinator.document().findScene(sceneId);
+    if (sceneId.empty() || !scene) {
         return EditorOperationResult::failure("No active scene to add an instance to");
     }
     const EntityId selected = coordinator.selection().primaryEntity;
@@ -118,10 +174,21 @@ EditorOperationResult addInstanceOfSelectedType(EditorCoordinator& coordinator) 
     // Reuse the existing structural command — a new instance bound to the existing
     // type (shared components, no ObjectTypeDef duplicated).
     const EditorOperationResult result =
-        coordinator.execute(CreateEntityCommand{sceneId, id, objectTypeId, name});
+        coordinator.execute(CreateEntityCommand{
+            sceneId, id, objectTypeId, name, spawnPosition});
     // Select the new instance — workspace state, not an undo-history entry.
     if (result.ok) coordinator.apply(SelectEntityIntent{id});
     return result;
+}
+
+EditorOperationResult addInstanceOfSelectedType(EditorCoordinator& coordinator) {
+    const SceneDef* scene = coordinator.document().findScene(coordinator.state().activeSceneId);
+    if (!scene) return EditorOperationResult::failure("No active scene to add an instance to");
+    return addInstanceOfSelectedTypeAt(
+        coordinator,
+        normalizeSpawnPosition(
+            Vec2{scene->worldSize.x * 0.5f, scene->worldSize.y * 0.5f},
+            scene->worldSize));
 }
 
 EditorOperationResult deleteSelectedEntity(EditorCoordinator& coordinator) {

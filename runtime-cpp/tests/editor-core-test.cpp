@@ -1070,6 +1070,55 @@ int main() {
         CHECK(c.undoSize() == 1);                                  // exactly one command
         CHECK(c.document().findInstanceInScene(kSceneA, 43) != nullptr);
         CHECK(c.document().findInstanceInScene(kSceneA, 43)->id != kHero); // no collision
+        CHECK(c.document().findInstanceInScene(kSceneA, 43)->transform.position.x == 256.f);
+        CHECK(c.document().findInstanceInScene(kSceneA, 43)->transform.position.y == 160.f);
+    }
+
+    // -- Default spawn uses the visible viewport centre, not world origin -----
+    {
+        ViewportRect rect{100, 50, 800, 600};
+        EditorSceneViewState view;
+        const Vec2 spawn = defaultSpawnPosition(rect, view, Vec2{512.f, 320.f});
+        CHECK(spawn.x == 256.f);
+        CHECK(spawn.y == 160.f);
+
+        view.zoom = 2.f;
+        view.pan = Vec2{40.f, -30.f};
+        const Vec2 panned = defaultSpawnPosition(rect, view, Vec2{512.f, 320.f});
+        CHECK(panned.x == 296.f);
+        CHECK(panned.y == 130.f);
+    }
+
+    // -- Spawn normalization snaps then clamps inside the scene ---------------
+    {
+        SpawnPositionOptions snap;
+        snap.snapToGrid = true;
+        snap.gridSize = 48.f;
+        snap.edgeMargin = 16.f;
+        const Vec2 snapped = normalizeSpawnPosition(Vec2{31.f, 73.f}, Vec2{512.f, 320.f}, snap);
+        CHECK(snapped.x == 48.f);
+        CHECK(snapped.y == 96.f);
+
+        const Vec2 clamped = normalizeSpawnPosition(Vec2{-100.f, 1000.f}, Vec2{512.f, 320.f});
+        CHECK(clamped.x == 16.f);
+        CHECK(clamped.y == 304.f);
+    }
+
+    // -- Explicit placement is passed through the single create command path --
+    {
+        EditorCoordinator c{makeInheritedDoc()};
+        CHECK(addEntityAt(c, Vec2{123.f, 234.f}).ok);
+        const EntityId id = nextAvailableEntityId(c.document(), kSceneA) - 1;
+        const SceneInstanceDef* inst = c.document().findInstanceInScene(kSceneA, id);
+        CHECK(inst != nullptr);
+        CHECK(inst->transform.position.x == 123.f);
+        CHECK(inst->transform.position.y == 234.f);
+
+        CHECK(c.undo().ok);
+        CHECK(c.document().findInstanceInScene(kSceneA, id) == nullptr);
+        CHECK(c.redo().ok);
+        CHECK(c.document().findInstanceInScene(kSceneA, id)->transform.position.x == 123.f);
+        CHECK(c.document().findInstanceInScene(kSceneA, id)->transform.position.y == 234.f);
     }
 
     // -- (3) Add Entity invalidates only the expected views --------------------
@@ -1280,6 +1329,25 @@ int main() {
         CHECK(c.playSession()->findEntity(kHero)->collider.has_value());
         CHECK(c.playSession()->findEntity(newId)->collider.has_value());
         CHECK(c.stopPlaying().ok);
+    }
+
+    // -- Add Instance uses the same explicit placement path -------------------
+    {
+        EditorCoordinator c{makeInheritedDoc()};
+        c.apply(SelectEntityIntent{kHero});
+        CHECK(addInstanceOfSelectedTypeAt(c, Vec2{200.f, 120.f}).ok);
+        const EntityId newId = nextAvailableEntityId(c.document(), kSceneA) - 1;
+        const SceneInstanceDef* inst = c.document().findInstanceInScene(kSceneA, newId);
+        CHECK(inst != nullptr);
+        CHECK(inst->objectTypeId == "Hero");
+        CHECK(inst->transform.position.x == 200.f);
+        CHECK(inst->transform.position.y == 120.f);
+
+        CHECK(c.undo().ok);
+        CHECK(c.document().findInstanceInScene(kSceneA, newId) == nullptr);
+        CHECK(c.redo().ok);
+        CHECK(c.document().findInstanceInScene(kSceneA, newId)->transform.position.x == 200.f);
+        CHECK(c.document().findInstanceInScene(kSceneA, newId)->transform.position.y == 120.f);
     }
 
     // -- (7)(8) Undo removes only the instance; the type survives; redo restores
