@@ -1,11 +1,13 @@
 #include "editor-native/app/editor_app.h"
 
+#include "editor-native/app/confirm_dialog.h"
 #include "editor-native/app/editor_coordinator.h"
 #include "editor-native/app/editor_input.h"
 #include "editor-native/app/file_dialog.h"
 #include "editor-native/app/input_routing.h"
 #include "editor-native/app/project_file.h"
 #include "editor-native/app/rml_host.h"
+#include "editor-native/app/unsaved_guard.h"
 #include "editor-native/commands/editor_intent.h"
 #include "editor-native/commands/entity_commands.h"
 #include "editor-native/demo/demo_project.h"
@@ -25,6 +27,11 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+
+// raylib (5.0) has no public way to cancel a requested window close, so we reset
+// GLFW's flag directly to keep the app open when the user picks Cancel in the
+// unsaved-changes guard. GetWindowHandle() returns the GLFWwindow*.
+extern "C" void glfwSetWindowShouldClose(void* window, int value);
 
 namespace ArtCade::EditorNative {
 
@@ -236,17 +243,38 @@ int EditorApp::run(int argc, char** argv) {
     // clear when the document is replaced, and the platform file pickers. The UI
     // only requests these operations; it never touches files or the renderer.
     std::filesystem::path currentProjectPath;
-    const auto saveTo = [&](const std::filesystem::path& path) {
+    const auto saveTo = [&](const std::filesystem::path& path) -> bool {
         const ProjectSaveResult result = saveProjectToFile(coordinator, path);
         if (!result.ok) {
             coordinator.logError("Save failed: " + result.error.message);
-            return;
+            return false;
         }
         currentProjectPath = path;
         coordinator.logInfo("Saved " + path.filename().string());
+        return true;
+    };
+    // Save to the current path, or prompt for one. False when cancelled or failed.
+    const auto saveCurrent = [&]() -> bool {
+        if (currentProjectPath.empty()) {
+            const auto picked = saveProjectFileDialog(currentProjectPath);
+            return picked ? saveTo(*picked) : false;
+        }
+        return saveTo(currentProjectPath);
+    };
+    // Unsaved-changes guard for destructive actions. Returns true to proceed.
+    const auto guardPasses = [&]() -> bool {
+        if (!coordinator.document().isDirty()) return true;
+        const UnsavedChoice choice = confirmUnsavedChanges();
+        const bool saveOk = (choice == UnsavedChoice::Save) ? saveCurrent() : false;
+        return resolveUnsavedGuard(true, choice, saveOk) == GuardOutcome::Proceed;
     };
     ui.setProjectFileHandlers(
         [&]() {  // Open
+            if (coordinator.isPlaying()) {
+                coordinator.logWarning("Stop Play before opening another project");
+                return;
+            }
+            if (!guardPasses()) return;     // dirty + Cancel / failed Save: abort
             const std::optional<std::filesystem::path> picked = openProjectFileDialog();
             if (!picked) return;  // cancelled
             const ProjectLoadResult result = loadProjectFromFile(coordinator, *picked);
@@ -259,12 +287,7 @@ int EditorApp::run(int argc, char** argv) {
             coordinator.logInfo("Opened " + picked->filename().string());
         },
         [&]() {  // Save (Save As when no current path)
-            if (currentProjectPath.empty()) {
-                if (const auto picked = saveProjectFileDialog(currentProjectPath))
-                    saveTo(*picked);
-            } else {
-                saveTo(currentProjectPath);
-            }
+            saveCurrent();
         },
         [&]() {  // Save As
             if (const auto picked = saveProjectFileDialog(currentProjectPath))
@@ -275,7 +298,18 @@ int EditorApp::run(int argc, char** argv) {
     int   lastRenderW = GetRenderWidth();
     int   lastRenderH = GetRenderHeight();
     float lastDpi     = dpi > 0.f ? dpi : 1.f;
-    while (!WindowShouldClose()) {
+    while (true) {
+        // Exit guard: a requested close (window X) is held until the unsaved
+        // guard passes. On Cancel we clear GLFW's close flag and keep running.
+        // Screenshot mode skips the guard (no window interaction).
+        if (WindowShouldClose()) {
+            if (shotPath.empty() && !guardPasses()) {
+                glfwSetWindowShouldClose(GetWindowHandle(), 0);
+            } else {
+                break;
+            }
+        }
+
         // Re-sync RmlUi on a resize *or* a DPI change (e.g. the window dragged
         // onto a monitor with different scaling): both alter the physical
         // framebuffer size and/or the dp ratio, and must stay in lockstep.

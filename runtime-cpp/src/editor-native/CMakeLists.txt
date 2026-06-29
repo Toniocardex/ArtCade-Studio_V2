@@ -103,6 +103,7 @@ if(ARTCADE_BUILD_NATIVE_EDITOR)
         app/rml_host.cpp
         app/editor_input.cpp
         app/file_dialog.cpp
+        app/confirm_dialog.cpp
         view/texture_cache.cpp
         view/scene_view.cpp
         ui/editor_ui.cpp

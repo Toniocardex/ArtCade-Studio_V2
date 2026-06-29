@@ -10,6 +10,7 @@
 #include "editor-native/app/inspector_commit.h"
 #include "editor-native/app/project_file.h"
 #include "editor-native/app/project_load.h"
+#include "editor-native/app/unsaved_guard.h"
 #include "editor-native/app/inspector_actions.h"
 #include "editor-native/commands/box_collider_commands.h"
 #include "editor-native/commands/linear_mover_commands.h"
@@ -1505,6 +1506,21 @@ int main() {
         c.advanceRuntime(1.0f);
         CHECK(c.document().revision() == revisionBefore);
         CHECK(c.consumeInvalidations() == EditorInvalidation::None);
+    }
+
+    // == Unsaved-changes guard (decision matrix) ==============================
+    {
+        // A clean project proceeds immediately, whatever the (unused) choice.
+        CHECK(resolveUnsavedGuard(false, UnsavedChoice::Cancel, false) == GuardOutcome::Proceed);
+        CHECK(resolveUnsavedGuard(false, UnsavedChoice::Save, false) == GuardOutcome::Proceed);
+
+        // Dirty: Cancel aborts; Discard proceeds.
+        CHECK(resolveUnsavedGuard(true, UnsavedChoice::Cancel, false) == GuardOutcome::Abort);
+        CHECK(resolveUnsavedGuard(true, UnsavedChoice::Discard, false) == GuardOutcome::Proceed);
+
+        // Dirty + Save: proceed only when the save succeeded.
+        CHECK(resolveUnsavedGuard(true, UnsavedChoice::Save, true) == GuardOutcome::Proceed);
+        CHECK(resolveUnsavedGuard(true, UnsavedChoice::Save, false) == GuardOutcome::Abort);
     }
 
     // == LinearMover editing + persistence ====================================

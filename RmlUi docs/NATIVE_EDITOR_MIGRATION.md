@@ -139,6 +139,7 @@ paletto o sblocca la capability in corso.
 | Runtime viewport | WASM/runtime preview | `SceneFrameSnapshot` + derived texture cache | In progress | No |
 | Viewport pick + drag | React canvas pointer handlers | `pickEntityAt` + `SelectEntityIntent`; drag preview local, one `SetEntityPositionCommand` on release | Done | No |
 | Authored runtime motion | Logic Board / Lua runtime | `EntityDef.linearMover` -> `RuntimeEntity.velocity` -> `PlaySession::advance` via `advanceRuntime`; edited via `linear_mover_commands` + Inspector, persisted in the object-type subset | Done | No |
+| Unsaved-changes guard | React beforeunload / dialogs | `resolveUnsavedGuard` (pure) + native confirm; guards Open and Exit (Save/Discard/Cancel, Save-fail aborts); Open blocked during Play | Done (New pending) | No |
 | Play materialization | WASM bridge / preview path | `PlaySession` from `ProjectDocument` once at Start Play | In progress | No |
 | Sprite Renderer component | React Inspector | `sprite_commands` + `inspector_actions` (instance-scoped) | Done | No |
 | BoxCollider2D component | React Inspector / physics form | `box_collider_commands` on `EntityDef.boxCollider2D` | Done | No |
@@ -403,6 +404,33 @@ left release
 The drag state is transient presentation owned by the application; it never
 enters `ProjectDocument`. Pick + drag is Edit-mode only; Play keeps its own input
 path. `pickEntityAt` and `screenToWorld` are unit-tested in `editor-core`.
+
+## Unsaved-changes guard baseline
+
+Now that the editor makes real, persistable edits, a destructive action must not
+silently lose work. The guard wraps Open Project and Exit (and New Project when
+it is wired):
+
+```text
+destructive action requested
+-> document.isDirty()?
+   no  -> run immediately
+   yes -> native confirm: Save / Discard / Cancel
+          Save    -> atomic save; run only if it succeeds
+          Discard -> run, dropping changes
+          Cancel  -> change nothing
+```
+
+The decision is a pure, unit-tested function, `resolveUnsavedGuard(dirty, choice,
+saveSucceeded)`; the confirm itself is a blocking native dialog, so no pending
+state machine, modal manager, event bus, or dirty polling is introduced. The
+"which action was requested" is implicit in the synchronous call site, not stored
+in `ProjectDocument` or `EditorUiState`.
+
+A failed Save keeps the project loaded and dirty and aborts the action. On Exit,
+Cancel clears the platform close flag and keeps the app running. Open/New are
+rejected outright during Play ("Stop Play before opening another project") with
+no hidden auto-stop; Exit may still run the guard and then terminate.
 
 ## Feature Template
 
