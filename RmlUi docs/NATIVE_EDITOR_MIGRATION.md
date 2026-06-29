@@ -125,6 +125,7 @@ paletto o sblocca la capability in corso.
 | Entity rename | TS project/store path | `RenameEntityCommand` -> `ProjectDocument` | In progress | No |
 | Scene background edit | TS project/store path | `SetSceneBackgroundCommand` -> `ProjectDocument` | In progress | No |
 | Scene properties (Scene Inspector) | TS scene settings panel | No-selection Inspector shows the active scene: GENERAL (`RenameSceneCommand`, ID, Set as Start, entity count), WORLD BOUNDS (`SetSceneSizeCommand` in `wu`; resize never moves instances; Fit View to Bounds = workspace camera), DIAGNOSTICS (entities outside bounds, derived) | Done | No |
+| Scene layers | React layer panel | Per-scene `SceneDef.layers` (order authority) + `defaultLayerId`; `EntityInstance.layerId` membership; `scene_layer_commands` (Add/Rename/Move/Remove/SetEntityLayer); active/hidden in `EditorSceneViewState` (intents); layer-ordered snapshot collector; Scene Inspector LAYERS + Entity layer picker | Done | No |
 | Scene create | TS project/store path | `CreateSceneCommand` -> `ProjectDocument` | Done | No |
 | Scene delete | TS project/store path | `DeleteSceneCommand` -> `ProjectDocument` (exact undo) | Done | No |
 | Entity create (+Entity) | TS project/store path | atomic `CreateEntityWithDefaultTypeCommand` -> always a NEW `ObjectTypeDef` + its instance (independent object); never reuses a type | Done | No |
@@ -960,6 +961,54 @@ Deferred to their own slices (not added here without a consumer): scene layers
 living in `EditorState.sceneViews`), and global/runtime scene properties (gravity,
 camera, music, ambient, background) which arrive with the capability that uses
 them. Collapsible sections likewise wait until complexity demands them.
+
+## Scene layers baseline
+
+A scene layer is a small, precise concept: it belongs to a scene, determines
+organization and render order of instances, and nothing else (not collision,
+physics, logic, camera or asset folders — `Scene Layer != Collision Layer`). The
+guiding rule is one authority per datum, one entry point per operation, a renderer
+that receives a ready projection.
+
+```text
+SceneDef.layers          -> the SINGLE order authority (index 0 = background, last = foreground)
+SceneDef.defaultLayerId  -> persistent fallback; every scene always has a real Default layer
+EntityInstance.layerId   -> the SINGLE membership authority
+EditorSceneViewState     -> activeLayerId + hiddenLayerIds (workspace; never persisted/dirty)
+```
+
+There is no `int order` / `zIndex` beside the vector, no membership copy in the
+object type or a parallel map, and no `LayerManager` — responsibilities stay in
+ProjectDocument (data) / commands (persistent mutation) / intents (workspace) /
+the snapshot collector (order + filter) / the renderer (draw).
+
+Persistent mutations are typed commands (dirty + undo): `AddSceneLayerCommand`
+(unique id + name), `RenameSceneLayerCommand`, `MoveSceneLayerCommand` (reorders
+in the vector — no order field), `RemoveSceneLayerCommand` (the **Default layer is
+never removable, a non-empty layer is rejected** — no implicit entity move), and
+`SetEntityLayerCommand`. Creation threads an explicit layer: `+Entity` /
+`+Instance` / `Create Here` read the workspace active layer and pass it to the
+command, which only validates the layer exists in the scene (it never deduces the
+layer itself). Active layer and editor visibility are workspace intents
+(`SetActiveLayerIntent`, `ToggleLayerEditorVisibilityIntent`) — no dirty, no undo;
+`reconcileWorkspace` repoints a vanished active layer to the default and drops
+vanished hidden ids after a remove / project replace / scene change.
+
+`createScene` always makes a real `Default` layer; legacy files with no layers are
+migrated at load (a Default is created and every instance assigned to it) — no
+`""`/`"default"` fallback survives past load, the same discipline as the
+objectType fix. The renderer stays passive: the Edit `collectSceneFrameSnapshot`
+emits sprites/colliders already in layer order (back-to-front), skipping
+`hiddenLayers`; picking reverse-iterates the same snapshot, so render and pick
+share one order with no parallel sort. Editor visibility is **never** copied into
+the `PlaySession` — a layer hidden in Edit still renders in Play (and a separate
+persistent `runtimeVisible` is deliberately deferred so the two never conflate).
+
+Scene Inspector shows a LAYERS list (active marker, eye toggle, up/down reorder,
+remove on non-default, Add Layer; rows reversed so the foreground is on top); the
+Entity Inspector shows a layer picker (`SetEntityLayerCommand`). Deferred until a
+concrete need: layer lock, runtime visibility, drag-and-drop reorder, per-entity
+z-index within a layer, parallax, and a rename-from-UI affordance.
 
 ## Feature Template
 

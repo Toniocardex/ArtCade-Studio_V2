@@ -156,8 +156,10 @@ void routeViewportPickDrag(EditorCoordinator& coordinator, const ViewportRect& r
                            const RmlInputResult& rml, ViewportDrag& drag,
                            bool contextMenuHit) {
     const SceneId active = coordinator.state().activeSceneId;
+    // Hidden layers are not pickable: the snapshot the picker reads excludes them.
     const SceneFrameSnapshot frame = collectSceneFrameSnapshot(
-        coordinator.document(), active, coordinator.selection().primaryEntity);
+        coordinator.document(), active, coordinator.selection().primaryEntity,
+        coordinator.sceneView(active).hiddenLayerIds);
     const SceneViewCamera cam =
         makeSceneViewCamera(rect, coordinator.sceneView(active), frame.worldSize);
     const Vec2 mouse{static_cast<float>(GetMouseX()), static_cast<float>(GetMouseY())};
@@ -609,7 +611,8 @@ int EditorApp::run(int argc, char** argv) {
         SceneFrameSnapshot snapshot = playSession
             ? collectSceneFrameSnapshot(*playSession)
             : collectSceneFrameSnapshot(coordinator.document(), active,
-                                        coordinator.selection().primaryEntity);
+                                        coordinator.selection().primaryEntity,
+                                        coordinator.sceneView(active).hiddenLayerIds);
         if (!playSession && drag.active) {
             // Local drag preview: offset the dragged entity by the live delta so
             // the move is visible before the single command lands on release.

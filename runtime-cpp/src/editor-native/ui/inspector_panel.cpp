@@ -161,7 +161,44 @@ void InspectorPanel::refresh(Rml::ElementDocument* document,
         html += fieldWithUnit("Height", "commit-scene-height", num(scene->worldSize.y), "wu", playing);
         // Fit View is workspace-only (camera), never a command — always available.
         html += "<button class=\"panel-btn\" data-action=\"fit-view-to-bounds\">"
-                "<span class=\"icon\">&#xeb8b;</span>Fit View to Bounds</button>";
+                "<span class=\"icon\">&#xf22f;</span>Fit View to Bounds</button>";
+
+        // -- LAYERS (per-scene render order; top row = foreground) -------------
+        html += header("&#xee9e;", "Layers", "", "", "", playing);
+        const EditorSceneViewState& view = coordinator.sceneView(activeScene);
+        std::string activeLayer = view.activeLayerId;
+        if (activeLayer.empty() || !coordinator.document().hasLayer(activeScene, activeLayer))
+            activeLayer = scene->defaultLayerId;
+        // Render rows reversed so the foreground layer (last in scene.layers) is on top.
+        for (std::size_t i = scene->layers.size(); i-- > 0;) {
+            const SceneLayerDef& layer = scene->layers[i];
+            const bool isActive  = layer.id == activeLayer;
+            const bool isHidden  = view.hiddenLayerIds.count(layer.id) > 0;
+            const bool isDefault = layer.id == scene->defaultLayerId;
+            html += "<div class=\"layer-row";
+            if (isActive) html += " active";
+            if (isHidden) html += " hidden";
+            html += "\">";
+            html += "<span class=\"layer-eye\" data-action=\"toggle-layer-visible\" data-arg=\""
+                  + escapeRml(layer.id) + "\"><span class=\"icon\">&#xea9a;</span></span>";
+            html += "<span class=\"layer-name\" data-action=\"select-layer\" data-arg=\""
+                  + escapeRml(layer.id) + "\">";
+            if (isActive) html += "&#x25cf; ";   // active marker
+            html += escapeRml(layer.name) + "</span>";
+            if (!playing) {
+                html += "<span class=\"layer-btn\" data-action=\"move-layer-up\" data-arg=\""
+                      + escapeRml(layer.id) + "\">&#x2191;</span>";
+                html += "<span class=\"layer-btn\" data-action=\"move-layer-down\" data-arg=\""
+                      + escapeRml(layer.id) + "\">&#x2193;</span>";
+                if (!isDefault)
+                    html += "<span class=\"layer-remove\" data-action=\"remove-layer\" data-arg=\""
+                          + escapeRml(layer.id) + "\">&#xd7;</span>";
+            }
+            html += "</div>";
+        }
+        if (!playing)
+            html += "<button class=\"" + btn + "\" data-action=\"add-layer\">"
+                    "<span class=\"icon\">&#xeb0b;</span>Add Layer</button>";
 
         // -- DIAGNOSTICS (derived query, recomputed each refresh) --------------
         const SceneFrameSnapshot diag =
@@ -202,6 +239,24 @@ void InspectorPanel::refresh(Rml::ElementDocument* document,
     const std::string typeLabel = type ? type->name : inst->objectTypeId;
     html += "<div class=\"prop-row\"><span class=\"prop-label\">Type</span>"
             "<span class=\"prop-readonly\">" + escapeRml(typeLabel) + "</span></div>";
+
+    // Layer picker (only when the scene declares layers; legacy scenes have none).
+    const SceneDef* instScene = coordinator.document().findScene(coordinator.state().activeSceneId);
+    if (instScene && !instScene->layers.empty()) {
+        std::string curLayerName = inst->layerId;
+        for (const SceneLayerDef& l : instScene->layers)
+            if (l.id == inst->layerId) curLayerName = l.name;
+        html += "<div class=\"prop-row\"><span class=\"prop-label\">Layer</span>"
+                "<span class=\"prop-readonly\">" + escapeRml(curLayerName) + "</span></div>";
+        html += "<div class=\"asset-options\">";
+        for (const SceneLayerDef& l : instScene->layers) {
+            html += "<div class=\"" + opt;
+            if (l.id == inst->layerId) html += " selected";
+            html += "\" data-action=\"set-entity-layer\" data-arg=\"" + escapeRml(l.id)
+                  + "\">" + escapeRml(l.name) + "</div>";
+        }
+        html += "</div>";
+    }
 
     // -- Transform (instance-owned; structural, no remove) --------------------
     html += header("&#xf22f;", "Transform", "INSTANCE", "", "", playing);

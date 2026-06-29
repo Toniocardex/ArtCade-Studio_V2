@@ -211,6 +211,22 @@ EditorInvalidation EditorCoordinator::reconcileWorkspace() {
         extra |= EditorInvalidation::Inspector;
     }
 
+    // 4. Per-scene layer workspace state must reference existing layers: an active
+    //    layer that vanished falls back to the scene default; a hidden id that
+    //    vanished is dropped. (After a layer remove / project replace / scene undo.)
+    for (auto& [sceneId, view] : state_.sceneViews) {
+        const SceneDef* scene = document_.findScene(sceneId);
+        if (!scene) continue;
+        if (!view.activeLayerId.empty() && !document_.hasLayer(sceneId, view.activeLayerId)) {
+            view.activeLayerId = scene->defaultLayerId;
+            extra |= EditorInvalidation::Inspector;
+        }
+        for (auto it = view.hiddenLayerIds.begin(); it != view.hiddenLayerIds.end();) {
+            if (!document_.hasLayer(sceneId, *it)) it = view.hiddenLayerIds.erase(it);
+            else ++it;
+        }
+    }
+
     return extra;
 }
 
@@ -361,6 +377,27 @@ EditorOperationResult EditorCoordinator::apply(const SetHierarchyFilterIntent& i
     uiState_.hierarchyFilter = intent.filter;
     accumulate(EditorInvalidation::Hierarchy);
     return EditorOperationResult::success(EditorInvalidation::Hierarchy);
+}
+
+EditorOperationResult EditorCoordinator::apply(const SetActiveLayerIntent& intent) {
+    if (!document_.hasLayer(intent.sceneId, intent.layerId)) {
+        return EditorOperationResult::failure("Unknown layer id");
+    }
+    state_.sceneViews[intent.sceneId].activeLayerId = intent.layerId;
+    accumulate(EditorInvalidation::Inspector);
+    return EditorOperationResult::success(EditorInvalidation::Inspector);
+}
+
+EditorOperationResult EditorCoordinator::apply(const ToggleLayerEditorVisibilityIntent& intent) {
+    if (!document_.hasLayer(intent.sceneId, intent.layerId)) {
+        return EditorOperationResult::failure("Unknown layer id");
+    }
+    auto& hidden = state_.sceneViews[intent.sceneId].hiddenLayerIds;
+    if (hidden.erase(intent.layerId) == 0) hidden.insert(intent.layerId);
+    const EditorInvalidation inv = EditorInvalidation::Inspector
+        | EditorInvalidation::Hierarchy | EditorInvalidation::Viewport;
+    accumulate(inv);
+    return EditorOperationResult::success(inv);
 }
 
 EditorOperationResult EditorCoordinator::apply(const SetActiveToolIntent& intent) {

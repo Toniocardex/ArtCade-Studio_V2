@@ -4,6 +4,8 @@
 #include "editor-native/model/box_collider_view.h"
 
 #include <optional>
+#include <string>
+#include <unordered_set>
 #include <vector>
 
 namespace ArtCade::EditorNative {
@@ -52,9 +54,15 @@ enum class SceneContainment {
     FullyOutside,
 };
 
+// Edit projection. Entities/sprites are emitted in per-scene layer order
+// (scene.layers, index 0 = background, last = foreground), so the renderer draws
+// back-to-front and reverse-iterating picks the topmost. Layers in @p hiddenLayers
+// are skipped entirely (not drawn, not pickable). A scene without layers (legacy)
+// keeps its instance order. The renderer never reads scene.layers itself.
 SceneFrameSnapshot collectSceneFrameSnapshot(const ProjectDocument& document,
                                              const SceneId& sceneId,
-                                             EntityId selectedEntity);
+                                             EntityId selectedEntity,
+                                             const std::unordered_set<std::string>& hiddenLayers = {});
 SceneFrameSnapshot collectSceneFrameSnapshot(const PlaySession& session);
 
 // Derived editor geometry for selection, recovery, and containment warnings.

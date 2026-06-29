@@ -35,6 +35,19 @@ struct SetHierarchyFilterIntent {
     std::string filter;
 };
 
+// The layer new entities go into (workspace, per scene). Validated against the
+// scene's layers; an invalid id is ignored.
+struct SetActiveLayerIntent {
+    SceneId     sceneId;
+    std::string layerId;
+};
+
+// Hide/show a layer in the Edit viewport only (workspace; never the runtime).
+struct ToggleLayerEditorVisibilityIntent {
+    SceneId     sceneId;
+    std::string layerId;
+};
+
 struct SetActiveToolIntent {
     EditorTool tool = EditorTool::Select;
 };

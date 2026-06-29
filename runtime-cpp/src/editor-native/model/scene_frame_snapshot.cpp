@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <unordered_set>
 
 namespace ArtCade::EditorNative {
 
@@ -68,7 +69,8 @@ WorldRect unite(const WorldRect& a, const WorldRect& b) {
 
 SceneFrameSnapshot collectSceneFrameSnapshot(const ProjectDocument& document,
                                              const SceneId& sceneId,
-                                             EntityId selectedEntity) {
+                                             EntityId selectedEntity,
+                                             const std::unordered_set<std::string>& hiddenLayers) {
     SceneFrameSnapshot snapshot;
     snapshot.sceneId = sceneId;
 
@@ -79,32 +81,49 @@ SceneFrameSnapshot collectSceneFrameSnapshot(const ProjectDocument& document,
     snapshot.sceneName = scene->name;
     snapshot.worldSize = scene->worldSize;
     snapshot.backgroundColor = scene->backgroundColor;
-    snapshot.colliders = collectBoxColliderBounds(document, sceneId, selectedEntity);
 
-    for (const SceneInstanceDef& inst : scene->instances) {
+    // An instance's effective layer: its layerId if it is a real scene layer,
+    // otherwise the scene default ("" / legacy / dangling -> default).
+    const auto effectiveLayer = [&](const SceneInstanceDef& inst) -> std::string {
+        if (!inst.layerId.empty() && document.hasLayer(sceneId, inst.layerId)) return inst.layerId;
+        return scene->defaultLayerId;
+    };
+
+    std::unordered_set<EntityId> visible;   // for filtering the collider overlay
+    const auto emit = [&](const SceneInstanceDef& inst) {
         const SceneFrameRect bounds = instanceBounds(inst);
         const Vec3* fill = fillFor(document, inst.objectTypeId);
         const bool selected = inst.id == selectedEntity;
         snapshot.entities.push_back(SceneFrameEntity{
-            inst.id,
-            inst.instanceName,
-            fill ? *fill : Vec3{0.47f, 0.49f, 0.52f},
-            bounds,
-            selected,
-        });
-
+            inst.id, inst.instanceName,
+            fill ? *fill : Vec3{0.47f, 0.49f, 0.52f}, bounds, selected});
         const SpriteRenderView sprite = resolveSpriteRenderer(document, sceneId, inst.id);
         if (sprite.present && !sprite.assetId.empty()) {
             snapshot.sprites.push_back(SceneFrameSprite{
-                inst.id,
-                sprite.assetId,
-                bounds,
-                Vec2{bounds.width * 0.5f, bounds.height * 0.5f},
-                sprite.visible,
-                selected,
-            });
+                inst.id, sprite.assetId, bounds,
+                Vec2{bounds.width * 0.5f, bounds.height * 0.5f}, sprite.visible, selected});
+        }
+        visible.insert(inst.id);
+    };
+
+    if (scene->layers.empty()) {
+        // Legacy scene with no layers: keep the raw instance order.
+        for (const SceneInstanceDef& inst : scene->instances) emit(inst);
+    } else {
+        // Back-to-front: layers[0] is background, last is foreground; skip hidden.
+        for (const SceneLayerDef& layer : scene->layers) {
+            if (hiddenLayers.count(layer.id)) continue;
+            for (const SceneInstanceDef& inst : scene->instances)
+                if (effectiveLayer(inst) == layer.id) emit(inst);
         }
     }
+
+    // Collider overlays follow the same visibility as their entities.
+    snapshot.colliders = collectBoxColliderBounds(document, sceneId, selectedEntity);
+    snapshot.colliders.erase(
+        std::remove_if(snapshot.colliders.begin(), snapshot.colliders.end(),
+                       [&](const SceneFrameCollider& c) { return visible.count(c.entityId) == 0; }),
+        snapshot.colliders.end());
 
     return snapshot;
 }

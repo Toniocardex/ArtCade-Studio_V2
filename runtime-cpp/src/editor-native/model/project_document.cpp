@@ -136,7 +136,83 @@ bool ProjectDocument::createScene(const SceneId& id, const std::string& name) {
     SceneDef scene;
     scene.id = id;
     scene.name = name;
+    // Every scene always has a real Default layer (the persistent fallback).
+    scene.layers.push_back(SceneLayerDef{"default", "Default", false});
+    scene.defaultLayerId = "default";
     doc_.scenes.emplace(id, std::move(scene));
+    markDirty();
+    return true;
+}
+
+bool ProjectDocument::hasLayer(const SceneId& sceneId, const std::string& layerId) const {
+    const SceneDef* scene = findScene(sceneId);
+    if (!scene) return false;
+    for (const SceneLayerDef& layer : scene->layers) {
+        if (layer.id == layerId) return true;
+    }
+    return false;
+}
+
+bool ProjectDocument::addSceneLayer(const SceneId& sceneId, const std::string& layerId,
+                                    const std::string& name, std::size_t index) {
+    SceneDef* scene = mutableScene(sceneId);
+    if (!scene || layerId.empty() || name.empty()) return false;
+    for (const SceneLayerDef& layer : scene->layers) {
+        if (layer.id == layerId) return false;   // unique id
+    }
+    if (index > scene->layers.size()) index = scene->layers.size();
+    scene->layers.insert(scene->layers.begin() + static_cast<std::ptrdiff_t>(index),
+                         SceneLayerDef{layerId, name, false});
+    markDirty();
+    return true;
+}
+
+bool ProjectDocument::renameSceneLayer(const SceneId& sceneId, const std::string& layerId,
+                                       const std::string& name) {
+    SceneDef* scene = mutableScene(sceneId);
+    if (!scene || name.empty()) return false;
+    for (SceneLayerDef& layer : scene->layers) {
+        if (layer.id == layerId) { layer.name = name; markDirty(); return true; }
+    }
+    return false;
+}
+
+bool ProjectDocument::moveSceneLayer(const SceneId& sceneId, const std::string& layerId,
+                                     std::size_t index) {
+    SceneDef* scene = mutableScene(sceneId);
+    if (!scene) return false;
+    std::size_t from = scene->layers.size();
+    for (std::size_t i = 0; i < scene->layers.size(); ++i) {
+        if (scene->layers[i].id == layerId) { from = i; break; }
+    }
+    if (from == scene->layers.size()) return false;
+    if (index >= scene->layers.size()) index = scene->layers.size() - 1;
+    if (index == from) return false;   // no-op
+    const SceneLayerDef moved = scene->layers[from];
+    scene->layers.erase(scene->layers.begin() + static_cast<std::ptrdiff_t>(from));
+    scene->layers.insert(scene->layers.begin() + static_cast<std::ptrdiff_t>(index), moved);
+    markDirty();
+    return true;
+}
+
+bool ProjectDocument::removeSceneLayer(const SceneId& sceneId, const std::string& layerId) {
+    SceneDef* scene = mutableScene(sceneId);
+    if (!scene) return false;
+    for (std::size_t i = 0; i < scene->layers.size(); ++i) {
+        if (scene->layers[i].id == layerId) {
+            scene->layers.erase(scene->layers.begin() + static_cast<std::ptrdiff_t>(i));
+            markDirty();
+            return true;
+        }
+    }
+    return false;
+}
+
+bool ProjectDocument::setInstanceLayer(const SceneId& sceneId, EntityId id,
+                                       const std::string& layerId) {
+    SceneInstanceDef* inst = mutableInstanceInScene(sceneId, id);
+    if (!inst) return false;
+    inst->layerId = layerId;
     markDirty();
     return true;
 }

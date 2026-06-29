@@ -7,6 +7,7 @@
 #include "editor-native/app/inspector_commit.h"
 #include "editor-native/commands/entity_commands.h"
 #include "editor-native/commands/scene_commands.h"
+#include "editor-native/commands/scene_layer_commands.h"
 #include "editor-native/commands/image_asset_commands.h"
 #include "editor-native/commands/audio_asset_commands.h"
 #include "editor-native/commands/font_asset_commands.h"
@@ -303,6 +304,43 @@ void EditorUi::handleAction(const std::string& action, const std::string& arg,
     } else if (action == "add-instance") {
         if (addInstanceRequest_) addInstanceRequest_();
         else addInstanceOfSelectedType(coordinator_);
+    } else if (action == "select-layer") {
+        coordinator_.apply(SetActiveLayerIntent{coordinator_.state().activeSceneId, arg});
+    } else if (action == "toggle-layer-visible") {
+        coordinator_.apply(
+            ToggleLayerEditorVisibilityIntent{coordinator_.state().activeSceneId, arg});
+    } else if (action == "add-layer") {
+        const SceneId active = coordinator_.state().activeSceneId;
+        const SceneDef* scene = coordinator_.document().findScene(active);
+        if (scene) {
+            int n = 1;
+            std::string id;
+            do { id = "layer-" + std::to_string(n++); }
+            while (coordinator_.document().hasLayer(active, id));
+            coordinator_.execute(AddSceneLayerCommand{
+                active, id, "Layer " + std::to_string(n - 1), scene->layers.size()});
+        }
+    } else if (action == "move-layer-up" || action == "move-layer-down") {
+        const SceneId active = coordinator_.state().activeSceneId;
+        const SceneDef* scene = coordinator_.document().findScene(active);
+        if (scene) {
+            std::size_t i = scene->layers.size();
+            for (std::size_t k = 0; k < scene->layers.size(); ++k)
+                if (scene->layers[k].id == arg) { i = k; break; }
+            if (i < scene->layers.size()) {
+                // "up" in the panel = toward foreground = a higher vector index.
+                if (action == "move-layer-up")
+                    coordinator_.execute(MoveSceneLayerCommand{active, arg, i + 1});
+                else if (i > 0)
+                    coordinator_.execute(MoveSceneLayerCommand{active, arg, i - 1});
+            }
+        }
+    } else if (action == "remove-layer") {
+        coordinator_.execute(RemoveSceneLayerCommand{coordinator_.state().activeSceneId, arg});
+    } else if (action == "set-entity-layer") {
+        if (selected != INVALID_ENTITY)
+            coordinator_.execute(
+                SetEntityLayerCommand{coordinator_.state().activeSceneId, selected, arg});
     } else if (action == "create-entity-here") {
         hideViewportContextMenu();
         if (createEntityHereRequest_) createEntityHereRequest_();

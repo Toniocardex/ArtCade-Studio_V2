@@ -109,6 +109,8 @@ public:
     EditorOperationResult apply(const SetViewportZoomIntent& intent);
     EditorOperationResult apply(const PanViewportIntent& intent);
     EditorOperationResult apply(const SetHierarchyFilterIntent& intent);
+    EditorOperationResult apply(const SetActiveLayerIntent& intent);
+    EditorOperationResult apply(const ToggleLayerEditorVisibilityIntent& intent);
     EditorOperationResult apply(const SetActiveToolIntent& intent);
     EditorOperationResult apply(const ToggleConsoleIntent& intent);
     EditorOperationResult apply(const ResizePanelIntent& intent);

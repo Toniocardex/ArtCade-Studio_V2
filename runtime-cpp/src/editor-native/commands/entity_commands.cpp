@@ -20,10 +20,12 @@ constexpr EditorInvalidation kStructureInvalidation =
 // ----------------------------------------------------------------------------
 CreateEntityCommand::CreateEntityCommand(SceneId sceneId, EntityId id,
                                          std::string objectTypeId,
-                                         std::string instanceName, Vec2 position)
+                                         std::string instanceName, Vec2 position,
+                                         std::string layerId)
     : sceneId_(std::move(sceneId)), id_(id),
       objectTypeId_(std::move(objectTypeId)),
-      instanceName_(std::move(instanceName)), position_(position) {}
+      instanceName_(std::move(instanceName)), position_(position),
+      layerId_(std::move(layerId)) {}
 
 EditorOperationResult CreateEntityCommand::apply(ProjectDocument& document) {
     if (id_ == 0) {
@@ -38,11 +40,16 @@ EditorOperationResult CreateEntityCommand::apply(ProjectDocument& document) {
     if (document.findInstanceInScene(sceneId_, id_)) {
         return EditorOperationResult::failure("An instance with that id already exists");
     }
+    // An explicit layer must exist in the scene; "" means the scene default.
+    if (!layerId_.empty() && !document.hasLayer(sceneId_, layerId_)) {
+        return EditorOperationResult::failure("Target layer does not exist in the scene");
+    }
     SceneInstanceDef instance;
     instance.id                 = id_;
     instance.objectTypeId       = objectTypeId_;
     instance.instanceName       = instanceName_;
     instance.transform.position = position_;
+    instance.layerId            = layerId_;
     if (!document.createInstance(sceneId_, std::move(instance))) {
         return EditorOperationResult::failure("Failed to create instance");
     }
@@ -63,10 +70,11 @@ EditorOperationResult CreateEntityCommand::undo(ProjectDocument& document) {
 // ----------------------------------------------------------------------------
 CreateEntityWithDefaultTypeCommand::CreateEntityWithDefaultTypeCommand(
     SceneId sceneId, EntityId id, std::string objectTypeId, std::string objectTypeName,
-    std::string instanceName, Vec2 position)
+    std::string instanceName, Vec2 position, std::string layerId)
     : sceneId_(std::move(sceneId)), id_(id),
       objectTypeId_(std::move(objectTypeId)), objectTypeName_(std::move(objectTypeName)),
-      instanceName_(std::move(instanceName)), position_(position) {}
+      instanceName_(std::move(instanceName)), position_(position),
+      layerId_(std::move(layerId)) {}
 
 EditorOperationResult CreateEntityWithDefaultTypeCommand::apply(ProjectDocument& document) {
     if (id_ == 0) {
@@ -86,6 +94,9 @@ EditorOperationResult CreateEntityWithDefaultTypeCommand::apply(ProjectDocument&
     if (document.findInstanceInScene(sceneId_, id_)) {
         return EditorOperationResult::failure("An instance with that id already exists");
     }
+    if (!layerId_.empty() && !document.hasLayer(sceneId_, layerId_)) {
+        return EditorOperationResult::failure("Target layer does not exist in the scene");
+    }
 
     EntityDef type;
     type.className = objectTypeId_;   // the catalog key (mirrors load: className == id)
@@ -99,6 +110,7 @@ EditorOperationResult CreateEntityWithDefaultTypeCommand::apply(ProjectDocument&
     instance.objectTypeId       = objectTypeId_;
     instance.instanceName       = instanceName_;
     instance.transform.position = position_;
+    instance.layerId            = layerId_;
     if (!document.createInstance(sceneId_, std::move(instance))) {
         document.removeObjectType(objectTypeId_);   // unreachable after validation; no partial state
         return EditorOperationResult::failure("Failed to create instance");

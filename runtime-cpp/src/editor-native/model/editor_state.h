@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace ArtCade::EditorNative {
 
@@ -22,6 +23,10 @@ struct EditorSceneViewState {
     // app-side registry) so it shares the single sceneViews lifecycle: cleared by
     // replaceProject, pruned with a deleted scene, reset for a fresh scene.
     bool  initialized = false;
+    // Layer workspace state (never persisted, never dirties): the layer new
+    // entities go into, and the layers hidden in the Edit viewport only.
+    std::string                     activeLayerId;
+    std::unordered_set<std::string> hiddenLayerIds;
 };
 
 enum class EditorTool {

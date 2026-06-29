@@ -436,6 +436,12 @@ struct SceneDef {
     Vec2                cameraStart  = { 0.f, 0.f };
     Vec4                backgroundColor;
     std::vector<EntityId> entityIds;
+    // Native editor per-scene render layers: `layers` is the SINGLE authority of
+    // render order (index 0 = background, last = foreground). `defaultLayerId` is
+    // the persistent fallback every scene must have. Distinct from the global
+    // ProjectDoc.layers / layerSettings (used by the legacy runtime).
+    std::vector<SceneLayerDef> layers;
+    std::string               defaultLayerId;
     std::vector<SceneInstanceDef> instances;
     /** Merged grid for physics / legacy single-layer projects. */
     TilemapData         tilemap;     // cols==0 → absent

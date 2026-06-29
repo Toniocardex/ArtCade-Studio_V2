@@ -24,6 +24,16 @@ std::string makeUniqueObjectTypeId(const ProjectDocument& document) {
     }
 }
 
+// The layer new entities go into: the workspace active layer when it is a real
+// layer of this scene, otherwise the scene's persistent default ("" for a legacy
+// scene with no layers). The caller passes this explicitly to the command.
+std::string activeLayerFor(const EditorCoordinator& coordinator, const SceneId& sceneId) {
+    const std::string& active = coordinator.sceneView(sceneId).activeLayerId;
+    if (!active.empty() && coordinator.document().hasLayer(sceneId, active)) return active;
+    const SceneDef* scene = coordinator.document().findScene(sceneId);
+    return scene ? scene->defaultLayerId : std::string{};
+}
+
 // A scene-unique display name from @p base: "base", then "base 2", "base 3", ...
 std::string makeUniqueInstanceName(const SceneDef& scene, const std::string& base) {
     const auto taken = [&](const std::string& name) {
@@ -135,7 +145,7 @@ EditorOperationResult addEntityAt(EditorCoordinator& coordinator, Vec2 spawnPosi
     const std::string objectTypeId = makeUniqueObjectTypeId(coordinator.document());
     return coordinator.execute(CreateEntityWithDefaultTypeCommand{
         sceneId, id, objectTypeId, /*objectTypeName*/ "Entity", instanceName,
-        spawnPosition});
+        spawnPosition, /*layerId*/ activeLayerFor(coordinator, sceneId)});
 }
 
 EditorOperationResult addEntity(EditorCoordinator& coordinator) {
@@ -175,7 +185,8 @@ EditorOperationResult addInstanceOfSelectedTypeAt(EditorCoordinator& coordinator
     // type (shared components, no ObjectTypeDef duplicated).
     const EditorOperationResult result =
         coordinator.execute(CreateEntityCommand{
-            sceneId, id, objectTypeId, name, spawnPosition});
+            sceneId, id, objectTypeId, name, spawnPosition,
+            /*layerId*/ activeLayerFor(coordinator, sceneId)});
     // Select the new instance — workspace state, not an undo-history entry.
     if (result.ok) coordinator.apply(SelectEntityIntent{id});
     return result;

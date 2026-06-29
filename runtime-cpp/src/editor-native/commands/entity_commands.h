@@ -16,7 +16,7 @@ namespace ArtCade::EditorNative {
 class CreateEntityCommand final : public EditorCommand {
 public:
     CreateEntityCommand(SceneId sceneId, EntityId id, std::string objectTypeId,
-                        std::string instanceName, Vec2 position = {});
+                        std::string instanceName, Vec2 position = {}, std::string layerId = {});
 
     EditorOperationResult apply(ProjectDocument& document) override;
     EditorOperationResult undo(ProjectDocument& document) override;
@@ -28,6 +28,7 @@ private:
     std::string objectTypeId_;
     std::string instanceName_;
     Vec2        position_{};
+    std::string layerId_;   // "" = scene default (the caller passes the active layer)
 };
 
 // Place the first entity in a project with an empty object-type catalog: it
@@ -41,7 +42,8 @@ class CreateEntityWithDefaultTypeCommand final : public EditorCommand {
 public:
     CreateEntityWithDefaultTypeCommand(SceneId sceneId, EntityId id,
                                        std::string objectTypeId, std::string objectTypeName,
-                                       std::string instanceName, Vec2 position = {});
+                                       std::string instanceName, Vec2 position = {},
+                                       std::string layerId = {});
 
     EditorOperationResult apply(ProjectDocument& document) override;
     EditorOperationResult undo(ProjectDocument& document) override;
@@ -54,6 +56,7 @@ private:
     std::string objectTypeName_;
     std::string instanceName_;
     Vec2        position_{};
+    std::string layerId_;   // "" = scene default (the caller passes the active layer)
 };
 
 /** Remove one placed instance. Invalidates Hierarchy | Viewport. */

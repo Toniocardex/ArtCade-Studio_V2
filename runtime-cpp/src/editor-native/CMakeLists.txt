@@ -29,6 +29,7 @@ add_library(artcade-editor-core STATIC
     commands/font_asset_commands.cpp
     commands/entity_commands.cpp
     commands/scene_commands.cpp
+    commands/scene_layer_commands.cpp
     commands/sprite_commands.cpp
     app/editor_coordinator.cpp
     app/asset_import.cpp

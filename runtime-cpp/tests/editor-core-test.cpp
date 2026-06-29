@@ -17,6 +17,7 @@
 #include "editor-native/commands/linear_mover_commands.h"
 #include "editor-native/commands/top_down_controller_commands.h"
 #include "editor-native/commands/platformer_controller_commands.h"
+#include "editor-native/commands/scene_layer_commands.h"
 #include "editor-native/commands/image_asset_commands.h"
 #include "editor-native/commands/audio_asset_commands.h"
 #include "editor-native/commands/font_asset_commands.h"
@@ -2996,6 +2997,170 @@ int main() {
         CHECK(c.sceneView(kSceneA).zoom == 2.5f);
         CHECK(c.sceneView(kSceneA).pan.x == 12.f);
         CHECK(c.sceneView(kSceneA).pan.y == -8.f);
+    }
+
+    // == Scene layers =========================================================
+
+    // -- New scene has a Default layer; new entities get the active layer ------
+    {
+        EditorCoordinator c{ProjectDoc{}};
+        CHECK(c.execute(CreateSceneCommand{"s", "S"}).ok);
+        const SceneDef* scene = c.document().findScene("s");
+        CHECK(scene->layers.size() == 1);
+        CHECK(scene->defaultLayerId == "default");
+        CHECK(c.document().hasLayer("s", "default"));
+        CHECK(!c.document().hasLayer("s", "nope"));
+
+        c.apply(SelectSceneIntent{"s"});
+        CHECK(addEntity(c).ok);
+        const EntityId id = nextAvailableEntityId(c.document(), "s") - 1;
+        CHECK(c.document().findInstanceInScene("s", id)->layerId == "default");
+    }
+
+    // -- Add / rename / move / remove; default + non-empty protected ----------
+    {
+        EditorCoordinator c{ProjectDoc{}};
+        CHECK(c.execute(CreateSceneCommand{"s", "S"}).ok);
+        CHECK(c.execute(AddSceneLayerCommand{"s", "fg", "Foreground", 1}).ok);
+        CHECK(c.execute(AddSceneLayerCommand{"s", "bg", "Background", 0}).ok);
+        {
+            const SceneDef* s = c.document().findScene("s");
+            CHECK(s->layers.size() == 3);
+            CHECK(s->layers[0].id == "bg");
+            CHECK(s->layers[1].id == "default");
+            CHECK(s->layers[2].id == "fg");
+        }
+        CHECK(!c.execute(AddSceneLayerCommand{"s", "fg", "Dup", 0}).ok);       // dup id
+        CHECK(!c.execute(AddSceneLayerCommand{"s", "x", "Foreground", 0}).ok); // dup name
+        CHECK(c.execute(RenameSceneLayerCommand{"s", "fg", "Top"}).ok);
+        CHECK(c.document().findScene("s")->layers[2].name == "Top");
+        CHECK(c.execute(MoveSceneLayerCommand{"s", "bg", 2}).ok);              // bg -> top
+        CHECK(c.document().findScene("s")->layers[2].id == "bg");
+        CHECK(!c.execute(RemoveSceneLayerCommand{"s", "default"}).ok);        // default protected
+        CHECK(c.execute(RemoveSceneLayerCommand{"s", "fg"}).ok);              // empty -> removed
+        CHECK(c.document().findScene("s")->layers.size() == 2);
+        // undo the remove restores it at its original index
+        CHECK(c.undo().ok);
+        CHECK(c.document().hasLayer("s", "fg"));
+    }
+
+    // -- A non-empty layer cannot be removed ----------------------------------
+    {
+        EditorCoordinator c{ProjectDoc{}};
+        CHECK(c.execute(CreateSceneCommand{"s", "S"}).ok);
+        CHECK(c.execute(AddSceneLayerCommand{"s", "fg", "Foreground", 1}).ok);
+        CHECK(c.execute(CreateEntityWithDefaultTypeCommand{
+                  "s", 1, "obj-1", "Hero", "Hero", {}, "fg"}).ok);
+        CHECK(!c.execute(RemoveSceneLayerCommand{"s", "fg"}).ok);
+    }
+
+    // -- SetEntityLayer: same type on different layers; undo/redo -------------
+    {
+        EditorCoordinator c{ProjectDoc{}};
+        CHECK(c.execute(CreateSceneCommand{"s", "S"}).ok);
+        CHECK(c.execute(AddSceneLayerCommand{"s", "fg", "Foreground", 1}).ok);
+        CHECK(c.execute(CreateEntityWithDefaultTypeCommand{
+                  "s", 1, "obj-1", "Hero", "A", {}, "default"}).ok);
+        CHECK(c.execute(CreateEntityCommand{"s", 2, "obj-1", "B", {}, "fg"}).ok);  // shares type
+        CHECK(c.document().findInstanceInScene("s", 1)->objectTypeId
+              == c.document().findInstanceInScene("s", 2)->objectTypeId);
+        CHECK(c.document().findInstanceInScene("s", 1)->layerId == "default");
+        CHECK(c.document().findInstanceInScene("s", 2)->layerId == "fg");
+
+        CHECK(c.execute(SetEntityLayerCommand{"s", 1, "fg"}).ok);
+        CHECK(c.document().findInstanceInScene("s", 1)->layerId == "fg");
+        CHECK(c.undo().ok);
+        CHECK(c.document().findInstanceInScene("s", 1)->layerId == "default");
+        CHECK(c.redo().ok);
+        CHECK(c.document().findInstanceInScene("s", 1)->layerId == "fg");
+        CHECK(!c.execute(SetEntityLayerCommand{"s", 1, "nope"}).ok);   // dest must exist
+    }
+
+    // -- Render order follows scene.layers; hidden layers are skipped ---------
+    {
+        EditorCoordinator c{ProjectDoc{}};
+        CHECK(c.execute(CreateSceneCommand{"s", "S"}).ok);
+        CHECK(c.execute(AddSceneLayerCommand{"s", "fg", "Foreground", 1}).ok);  // [default, fg]
+        CHECK(c.execute(CreateEntityWithDefaultTypeCommand{
+                  "s", 1, "obj-1", "Bg", "Bg", {}, "default"}).ok);
+        CHECK(c.execute(CreateEntityWithDefaultTypeCommand{
+                  "s", 2, "obj-2", "Fg", "Fg", {}, "fg"}).ok);
+
+        const SceneFrameSnapshot snap = collectSceneFrameSnapshot(c.document(), "s", INVALID_ENTITY);
+        CHECK(snap.entities.size() == 2);
+        CHECK(snap.entities.front().entityId == 1);   // background drawn first
+        CHECK(snap.entities.back().entityId == 2);    // foreground on top
+
+        std::unordered_set<std::string> hidden{"fg"};
+        const SceneFrameSnapshot vis =
+            collectSceneFrameSnapshot(c.document(), "s", INVALID_ENTITY, hidden);
+        CHECK(vis.entities.size() == 1);
+        CHECK(vis.entities.front().entityId == 1);    // hidden fg excluded
+    }
+
+    // -- Editor visibility is workspace-only; Play renders the layer anyway ----
+    {
+        EditorCoordinator c{ProjectDoc{}};
+        CHECK(c.execute(CreateSceneCommand{"s", "S"}).ok);
+        CHECK(c.execute(AddSceneLayerCommand{"s", "fg", "Foreground", 1}).ok);
+        CHECK(c.execute(CreateEntityWithDefaultTypeCommand{
+                  "s", 1, "obj-1", "Fg", "Fg", {}, "fg"}).ok);
+        const uint64_t rev = c.document().revision();
+        const bool dirtyBefore = c.document().isDirty();
+        c.apply(ToggleLayerEditorVisibilityIntent{"s", "fg"});
+        CHECK(c.sceneView("s").hiddenLayerIds.count("fg") == 1);
+        CHECK(c.document().isDirty() == dirtyBefore);   // workspace only: dirty unchanged
+        CHECK(c.document().revision() == rev);
+        CHECK(c.playProject().ok);                     // "s" is the start scene (first scene)
+        const SceneFrameSnapshot play = collectSceneFrameSnapshot(*c.playSession());
+        CHECK(play.entities.size() == 1);              // editor-hidden does not affect Play
+        CHECK(c.stopPlaying().ok);
+    }
+
+    // -- replaceProject drops stale active/hidden layer workspace -------------
+    {
+        EditorCoordinator c{ProjectDoc{}};
+        CHECK(c.execute(CreateSceneCommand{"s", "S"}).ok);
+        CHECK(c.execute(AddSceneLayerCommand{"s", "fg", "Foreground", 1}).ok);
+        c.apply(SetActiveLayerIntent{"s", "fg"});
+        c.apply(ToggleLayerEditorVisibilityIntent{"s", "fg"});
+        CHECK(c.sceneView("s").activeLayerId == "fg");
+        CHECK(c.replaceProject(ProjectDocument{makeReplacementDoc()}).ok);
+        CHECK(c.sceneView("s").activeLayerId.empty());
+        CHECK(c.sceneView("s").hiddenLayerIds.empty());
+    }
+
+    // -- Save/reload preserves layers, order and assignment -------------------
+    {
+        EditorCoordinator c{ProjectDoc{}};
+        CHECK(c.execute(CreateSceneCommand{"s", "S"}).ok);
+        CHECK(c.execute(AddSceneLayerCommand{"s", "fg", "Foreground", 1}).ok);  // [default, fg]
+        CHECK(c.execute(CreateEntityWithDefaultTypeCommand{
+                  "s", 1, "obj-1", "Hero", "Hero", {}, "fg"}).ok);
+        const std::filesystem::path path = testTempDir() / "layers.artcade-project";
+        CHECK(saveProjectToFile(c, path).ok);
+        EditorCoordinator r{ProjectDoc{}};
+        CHECK(loadProjectFromFile(r, path).ok);
+        const SceneDef* s = r.document().findScene("s");
+        CHECK(s->layers.size() == 2);
+        CHECK(s->layers[0].id == "default");
+        CHECK(s->layers[1].id == "fg");
+        CHECK(s->defaultLayerId == "default");
+        CHECK(r.document().findInstanceInScene("s", 1)->layerId == "fg");
+    }
+
+    // -- A legacy file with no layers migrates to a Default layer --------------
+    {
+        EditorCoordinator c{ProjectDoc{}};
+        const auto loaded = loadProjectFromText(c,
+            R"({"activeSceneId":"s","scenes":[{"id":"s","instances":[)"
+            R"({"id":1,"objectTypeId":"T","instanceName":"T"}]}],)"
+            R"("objectTypes":[{"id":"T"}]})");
+        CHECK(loaded.ok);
+        const SceneDef* s = c.document().findScene("s");
+        CHECK(!s->layers.empty());
+        CHECK(s->defaultLayerId == s->layers.front().id);
+        CHECK(c.document().findInstanceInScene("s", 1)->layerId == s->defaultLayerId);
     }
 
     // == Start-scene invariant: scenes exist => startSceneId is valid ==========

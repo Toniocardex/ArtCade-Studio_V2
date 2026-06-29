@@ -27,6 +27,11 @@ class SetLinearMoverSpeedCommand;
 class AddTopDownControllerCommand;
 class RemoveTopDownControllerCommand;
 class SetTopDownControllerSpeedCommand;
+class AddSceneLayerCommand;
+class RenameSceneLayerCommand;
+class MoveSceneLayerCommand;
+class RemoveSceneLayerCommand;
+class SetEntityLayerCommand;
 class AddPlatformerControllerCommand;
 class RemovePlatformerControllerCommand;
 class SetPlatformerValueCommand;
@@ -73,6 +78,8 @@ public:
     const SceneInstanceDef*  findInstanceInScene(const SceneId& sceneId, EntityId id) const;
     /** True if @p id is a known object type (ProjectDoc.objectTypes). */
     bool                     hasObjectType(const std::string& id) const;
+    /** True if @p layerId is a render layer of scene @p sceneId. */
+    bool                     hasLayer(const SceneId& sceneId, const std::string& layerId) const;
     const EntityDef*         findObjectType(const std::string& id) const;
     /** True if @p id is a known image asset (ProjectDoc.imageAssets). */
     bool                     hasImageAsset(const AssetId& id) const;
@@ -115,6 +122,11 @@ private:
     friend class AddTopDownControllerCommand;
     friend class RemoveTopDownControllerCommand;
     friend class SetTopDownControllerSpeedCommand;
+    friend class AddSceneLayerCommand;
+    friend class RenameSceneLayerCommand;
+    friend class MoveSceneLayerCommand;
+    friend class RemoveSceneLayerCommand;
+    friend class SetEntityLayerCommand;
     friend class AddPlatformerControllerCommand;
     friend class RemovePlatformerControllerCommand;
     friend class SetPlatformerValueCommand;
@@ -156,6 +168,18 @@ private:
     // rejects a duplicate id; removeObjectType is its exact inverse.
     bool createObjectType(EntityDef type);
     bool removeObjectType(const std::string& id);
+    // Per-scene render layers. `layers` is the single order authority (index 0 =
+    // background). addSceneLayer inserts at an index; moveSceneLayer reorders in
+    // place; removeSceneLayer drops a layer (caller enforces the empty/non-default
+    // policy); setInstanceLayer reassigns one instance. The Default layer is
+    // created by createScene and is never removed by these verbs.
+    bool addSceneLayer(const SceneId& sceneId, const std::string& layerId,
+                       const std::string& name, std::size_t index);
+    bool renameSceneLayer(const SceneId& sceneId, const std::string& layerId,
+                          const std::string& name);
+    bool moveSceneLayer(const SceneId& sceneId, const std::string& layerId, std::size_t index);
+    bool removeSceneLayer(const SceneId& sceneId, const std::string& layerId);
+    bool setInstanceLayer(const SceneId& sceneId, EntityId id, const std::string& layerId);
     bool createInstance(const SceneId& sceneId, SceneInstanceDef instance);
     bool insertInstance(const SceneId& sceneId, std::size_t index, SceneInstanceDef instance);
     bool deleteInstance(const SceneId& sceneId, EntityId id);

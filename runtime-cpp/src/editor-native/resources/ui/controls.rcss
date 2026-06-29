@@ -260,6 +260,49 @@
 .context-entry:hover { background-color: #222226; color: #d4d4d8; }
 .hidden { display: none; }
 
+/* -- Scene Inspector: layer rows ------------------------------------------- */
+.layer-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    height: 26dp;
+    padding: 0 4dp;
+    border-radius: 3dp;
+    color: #a1a1aa;
+    transition: background-color 0.1s, color 0.1s;
+}
+.layer-row:hover { background-color: #1c1c1f; }
+.layer-row.active { background-color: #3b82f626; color: #d4d4d8; }
+.layer-row.hidden { color: #52525b; }
+.layer-eye {
+    display: inline-block;
+    width: 22dp;
+    text-align: center;
+    color: #8a8a93;
+}
+.layer-row.hidden .layer-eye { color: #3f3f46; }
+.layer-name { flex: 1; font-size: 12dp; padding: 0 4dp; }
+.layer-btn {
+    display: inline-block;
+    width: 20dp;
+    text-align: center;
+    color: #6b6b73;
+    font-size: 13dp;
+    border-radius: 3dp;
+    transition: background-color 0.1s, color 0.1s;
+}
+.layer-btn:hover { background-color: #222226; color: #d4d4d8; }
+.layer-remove {
+    display: inline-block;
+    width: 20dp;
+    text-align: center;
+    color: #6b6b73;
+    font-size: 13dp;
+    border-radius: 3dp;
+    transition: background-color 0.1s, color 0.1s;
+}
+.layer-remove:hover { background-color: #2a1f20; color: #e5706b; }
+
 /* -- Scene tabs — flat ----------------------------------------------------- */
 .scene-tabs {
     display: flex;

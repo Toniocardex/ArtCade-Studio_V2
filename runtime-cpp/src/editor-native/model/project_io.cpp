@@ -116,6 +116,32 @@ SceneDef readScene(const nlohmann::json& value, const SceneId& fallbackId) {
             if (readInstance(item, instance)) scene.instances.push_back(std::move(instance));
         }
     }
+    if (value.contains("layers") && value["layers"].is_array()) {
+        for (const auto& item : value["layers"]) {
+            if (!item.is_object()) continue;
+            SceneLayerDef layer;
+            layer.id = readString(item, "id", nullptr);
+            layer.name = readString(item, "name", nullptr, layer.id);
+            if (!layer.id.empty()) scene.layers.push_back(layer);
+        }
+    }
+    scene.defaultLayerId = readString(value, "defaultLayerId", "default_layer_id");
+
+    // Migration: every scene must have a real Default layer; normalize the
+    // default id and every instance to a real layer (legacy "" / dangling ->
+    // default). No fictitious fallback survives past load.
+    const auto layerExists = [&](const std::string& id) {
+        for (const SceneLayerDef& l : scene.layers) if (l.id == id) return true;
+        return false;
+    };
+    if (scene.layers.empty()) {
+        scene.layers.push_back(SceneLayerDef{"default", "Default", false});
+        scene.defaultLayerId = "default";
+    }
+    if (!layerExists(scene.defaultLayerId)) scene.defaultLayerId = scene.layers.front().id;
+    for (SceneInstanceDef& inst : scene.instances) {
+        if (!layerExists(inst.layerId)) inst.layerId = scene.defaultLayerId;
+    }
     return scene;
 }
 
@@ -231,6 +257,11 @@ nlohmann::json sceneToJson(const SceneDef& scene) {
     for (const SceneInstanceDef& instance : scene.instances) {
         instances.push_back(instanceToJson(instance));
     }
+    // Per-scene render layers: the order of the array IS the render order.
+    nlohmann::json layers = nlohmann::json::array();
+    for (const SceneLayerDef& layer : scene.layers) {
+        layers.push_back(nlohmann::json{{"id", layer.id}, {"name", layer.name}});
+    }
 
     return nlohmann::json{
         {"id", scene.id},
@@ -238,6 +269,8 @@ nlohmann::json sceneToJson(const SceneDef& scene) {
         {"worldSize", vec2ToJson(scene.worldSize)},
         {"viewportSize", vec2ToJson(scene.viewportSize)},
         {"backgroundColor", vec4ToJson(scene.backgroundColor)},
+        {"layers", std::move(layers)},
+        {"defaultLayerId", scene.defaultLayerId},
         {"instances", std::move(instances)},
     };
 }
@@ -456,6 +489,24 @@ DeserializeResult ProjectValidator::validate(ProjectDocument document) {
             return DeserializeResult::failure("Scene map key does not match scene id");
         }
 
+        // Per-scene layer invariants (only when the scene declares layers; a
+        // legacy/in-memory scene with none renders its instances directly).
+        std::unordered_set<std::string> layerIds;
+        if (!scene.layers.empty()) {
+            for (const SceneLayerDef& layer : scene.layers) {
+                if (layer.id.empty()) {
+                    return DeserializeResult::failure("Scene layer id cannot be empty");
+                }
+                if (!layerIds.insert(layer.id).second) {
+                    return DeserializeResult::failure("Duplicate scene layer id");
+                }
+            }
+            if (scene.defaultLayerId.empty() || layerIds.count(scene.defaultLayerId) == 0) {
+                return DeserializeResult::failure(
+                    "Scene defaultLayerId must reference an existing layer");
+            }
+        }
+
         std::unordered_set<EntityId> entityIds;
         for (const SceneInstanceDef& instance : scene.instances) {
             if (instance.id == INVALID_ENTITY) {
@@ -466,6 +517,11 @@ DeserializeResult ProjectValidator::validate(ProjectDocument document) {
             }
             if (instance.objectTypeId.empty()) {
                 return DeserializeResult::failure("Entity objectTypeId cannot be empty");
+            }
+            // When the scene has layers, an instance must reference a real one.
+            if (!scene.layers.empty() && !instance.layerId.empty()
+                && layerIds.count(instance.layerId) == 0) {
+                return DeserializeResult::failure("Instance references a missing scene layer");
             }
             // When the project defines an object-type catalog, every instance must
             // reference an existing type (a dangling reference is rejected). A
