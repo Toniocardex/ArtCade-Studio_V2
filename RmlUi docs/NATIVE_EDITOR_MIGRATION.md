@@ -126,7 +126,8 @@ paletto o sblocca la capability in corso.
 | Scene background edit | TS project/store path | `SetSceneBackgroundCommand` -> `ProjectDocument` | In progress | No |
 | Scene create | TS project/store path | `CreateSceneCommand` -> `ProjectDocument` | Done | No |
 | Scene delete | TS project/store path | `DeleteSceneCommand` -> `ProjectDocument` (exact undo) | Done | No |
-| Entity create | TS project/store path | `CreateEntityCommand` (reuse type) or atomic `CreateEntityWithDefaultTypeCommand` (empty catalog) -> always a real `ObjectTypeDef`, never a sentinel id | Done | No |
+| Entity create (+Entity) | TS project/store path | atomic `CreateEntityWithDefaultTypeCommand` -> always a NEW `ObjectTypeDef` + its instance (independent object); never reuses a type | Done | No |
+| Add Instance of a type | TS project/store path | `CreateEntityCommand(existingTypeId)` -> new instance sharing the type's components (prefab semantics) | Planned (command exists) | No |
 | Entity delete | TS project/store path | `DeleteEntityCommand` -> `ProjectDocument` (index-faithful undo) | Done | No |
 | Hierarchy add/delete wiring | React Hierarchy buttons | `hierarchy_actions` (UI-free) -> `EditorCoordinator` | Done | No |
 | Start scene | TS project/store path | `SetStartSceneCommand`; first scene auto-keeps invariant | Done | No |
@@ -163,23 +164,38 @@ object-type-scoped component command (`AddTopDownController`, `AddBoxCollider`,
 `AddLinearMover`) then failed with "Unknown object type: Entity".
 
 The fix lives at the single canonical creation path, not scattered across the
-component commands:
+component commands. **"+Entity" always creates an independent object** — a new
+object type plus its first instance — never a reuse of an existing type:
 
 ```text
 Add Entity
--> defaultObjectTypeId(document)  (now std::optional)
-   has a value -> CreateEntityCommand(existingTypeId)         (reuse, instance only)
-   nullopt     -> CreateEntityWithDefaultTypeCommand          (empty catalog)
-                  └─ creates a real ObjectTypeDef (id "object-N", name "Entity")
-                  └─ creates the instance referencing that id
+-> objectTypeId = makeUniqueObjectTypeId(document)   ("object-N", always new)
+-> CreateEntityWithDefaultTypeCommand
+   └─ creates a real ObjectTypeDef (id "object-N", name "Entity")
+   └─ creates the instance referencing that id
 -> one command, one undo/redo entry
 ```
+
+Reusing a type — placing another instance that *intentionally* shares its
+components — is a separate **Add Instance** operation (not yet wired); it would
+use `CreateEntityCommand(existingTypeId)`. The two must stay distinct:
+
+```text
+Add Entity              -> new ObjectTypeId + new EntityId   (independent object)
+Add Instance of a type  -> existing ObjectTypeId + new EntityId  (shared components)
+```
+
+Why a fresh `EntityId` is not enough: `BoxCollider2D`, `LinearMover` and
+`TopDownController` are **object-type-owned**, so two instances of the same type
+share them by design (correct for prefabs/enemies). For two *independent* objects
+each must own a distinct `ObjectTypeId`; otherwise adding a collider to one shows
+up on the other.
 
 `CreateEntityWithDefaultTypeCommand` is atomic: it validates both ids up front
 (no partial mutation possible), creates the type then the instance, and its undo
 removes exactly both. Redo re-applies the stored ids — it never generates new
 ones. The id is an internal token (`object-N`); the display name (`"Entity"`) is
-separate and is what the Inspector's Type field now shows (it reads
+separate and is what the Inspector's Type field shows (it reads
 `findObjectType(id)->name`, falling back to the id for a legacy/catalog-less
 instance). No `NewProjectService`, no two coordinated UI commands, no hidden
 fallback inside the component commands, no transaction manager.

@@ -5,31 +5,15 @@
 #include "editor-native/commands/scene_commands.h"
 #include "editor-native/model/project_document.h"
 
-#include <optional>
 #include <string>
 
 namespace ArtCade::EditorNative {
 
 namespace {
 
-// Object type a freshly placed instance references. The Hierarchy "Add Entity"
-// gate does not yet pick a type, so it reuses an existing one (lexicographically
-// first, for determinism). An empty catalog has no real type to reference, so
-// this returns nullopt instead of a sentinel name — the first entity then takes
-// the create-type path. A proper object-type picker is Inspector/asset work.
-std::optional<std::string> defaultObjectTypeId(const ProjectDocument& document) {
-    const std::string* best = nullptr;
-    for (const auto& [id, def] : document.data().objectTypes) {
-        (void)def;
-        if (!best || id < *best) best = &id;
-    }
-    if (!best) return std::nullopt;
-    return *best;
-}
-
-// A real, unique object-type id for the first entity in an empty catalog. The id
-// is a stable token ("object-N"), never the display name — a visual name must
-// not double as an identifier.
+// A real, unique object-type id for a newly created entity. The id is a stable
+// token ("object-N"), never the display name — a visual name must not double as
+// an identifier.
 std::string makeUniqueObjectTypeId(const ProjectDocument& document) {
     for (int n = 1;; ++n) {
         std::string candidate = "object-" + std::to_string(n);
@@ -82,15 +66,14 @@ EditorOperationResult addEntity(EditorCoordinator& coordinator) {
     if (sceneId.empty() || !coordinator.document().hasScene(sceneId)) {
         return EditorOperationResult::failure("No active scene to add an entity to");
     }
+    // "+Entity" creates an independent object: always a NEW object type plus its
+    // first instance — never a reuse of an existing type. Reusing a type (placing
+    // another instance that intentionally shares its components) is a separate
+    // "Add Instance" operation, not yet wired. Because BoxCollider2D, LinearMover
+    // and TopDownController are object-type-owned, a fresh EntityId alone would not
+    // make the components independent; a fresh ObjectTypeId is required.
     const EntityId id = nextAvailableEntityId(coordinator.document(), sceneId);
     const std::string instanceName = "Entity " + std::to_string(id);
-    const std::optional<std::string> existingType = defaultObjectTypeId(coordinator.document());
-    if (existingType) {
-        // Reuse the existing object type — the instance references a real, persisted id.
-        return coordinator.execute(
-            CreateEntityCommand{sceneId, id, *existingType, instanceName});
-    }
-    // Empty catalog: create a real object type + the instance atomically.
     const std::string objectTypeId = makeUniqueObjectTypeId(coordinator.document());
     return coordinator.execute(CreateEntityWithDefaultTypeCommand{
         sceneId, id, objectTypeId, /*objectTypeName*/ "Entity", instanceName});

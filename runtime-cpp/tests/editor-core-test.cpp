@@ -1155,18 +1155,58 @@ int main() {
         CHECK(c.document().findInstanceInScene("s", 1)->objectTypeId == typeId);
     }
 
-    // -- (6) Non-empty catalog: Add Entity reuses the existing type ------------
+    // -- (6) Add Entity always creates a NEW independent object type -----------
+    //    "+Entity" must never reuse an existing type (that is "Add Instance"):
+    //    each entity gets its own ObjectTypeId so the object-type-owned components
+    //    stay independent across entities.
     {
-        EditorCoordinator c{makeInheritedDoc()};            // catalog has a real "Hero" type
+        EditorCoordinator c{makeInheritedDoc()};            // catalog already has "Hero"
         CHECK(c.document().hasObjectType("Hero"));
         const std::size_t typesBefore = c.document().data().objectTypes.size();
+
+        CHECK(addEntity(c).ok);                             // first +Entity
+        const EntityId idA = nextAvailableEntityId(c.document(), kSceneA) - 1;
+        const std::string typeA = c.document().findInstanceInScene(kSceneA, idA)->objectTypeId;
+        CHECK(addEntity(c).ok);                             // second +Entity
+        const EntityId idB = nextAvailableEntityId(c.document(), kSceneA) - 1;
+        const std::string typeB = c.document().findInstanceInScene(kSceneA, idB)->objectTypeId;
+
+        // (1)(2)(3) two new, distinct types — neither reuses "Hero" nor each other.
+        CHECK(c.document().data().objectTypes.size() == typesBefore + 2);
+        CHECK(typeA != "Hero");
+        CHECK(typeB != "Hero");
+        CHECK(typeA != typeB);
+
+        // (4)(5) a component on A's type does not appear on B's type.
+        CHECK(c.execute(AddTopDownControllerCommand{typeA}).ok);
+        CHECK(c.document().data().objectTypes.at(typeA).topDownController.has_value());
+        CHECK(!c.document().data().objectTypes.at(typeB).topDownController.has_value());
+        CHECK(c.execute(AddBoxColliderCommand{typeB}).ok);
+        CHECK(c.document().data().objectTypes.at(typeB).boxCollider2D.has_value());
+        CHECK(!c.document().data().objectTypes.at(typeA).boxCollider2D.has_value());
+    }
+
+    // -- (6b) Undo of the second Add removes only its type + instance ----------
+    {
+        EditorCoordinator c{makeInheritedDoc()};
         CHECK(addEntity(c).ok);
-        CHECK(c.document().data().objectTypes.size() == typesBefore);   // no new type
-        const EntityId placed = nextAvailableEntityId(c.document(), kSceneA) - 1;
-        const SceneInstanceDef* inst = c.document().findInstanceInScene(kSceneA, placed);
-        CHECK(inst != nullptr);
-        CHECK(inst->objectTypeId == "Hero");                            // reuses the existing type
-        CHECK(c.document().hasObjectType(inst->objectTypeId));
+        const EntityId idA = nextAvailableEntityId(c.document(), kSceneA) - 1;
+        const std::string typeA = c.document().findInstanceInScene(kSceneA, idA)->objectTypeId;
+        CHECK(addEntity(c).ok);
+        const EntityId idB = nextAvailableEntityId(c.document(), kSceneA) - 1;
+        const std::string typeB = c.document().findInstanceInScene(kSceneA, idB)->objectTypeId;
+
+        // (6) undo the second +Entity: only B's type and instance go.
+        CHECK(c.undo().ok);
+        CHECK(c.document().findInstanceInScene(kSceneA, idB) == nullptr);
+        CHECK(!c.document().hasObjectType(typeB));
+        CHECK(c.document().findInstanceInScene(kSceneA, idA) != nullptr);
+        CHECK(c.document().hasObjectType(typeA));            // A untouched
+
+        // (7) redo restores B with the same ids.
+        CHECK(c.redo().ok);
+        CHECK(c.document().findInstanceInScene(kSceneA, idB)->objectTypeId == typeB);
+        CHECK(c.document().hasObjectType(typeB));
     }
 
     // -- (7) A failed create-with-default-type makes no partial mutation -------
@@ -1182,7 +1222,7 @@ int main() {
         CHECK(c.document().revision() == revBefore);        // no partial state
     }
 
-    // -- (8) Save/reload preserves the created type and instance ---------------
+    // -- (8) Save/reload keeps the two created types distinct ------------------
     {
         ProjectDoc fresh;
         fresh.activeSceneId = "s";
@@ -1191,17 +1231,22 @@ int main() {
 
         EditorCoordinator c{fresh};
         CHECK(addEntity(c).ok);
-        const std::string typeId = c.document().data().objectTypes.begin()->first;
+        const EntityId idA = nextAvailableEntityId(c.document(), "s") - 1;
+        const std::string typeA = c.document().findInstanceInScene("s", idA)->objectTypeId;
+        CHECK(addEntity(c).ok);
+        const EntityId idB = nextAvailableEntityId(c.document(), "s") - 1;
+        const std::string typeB = c.document().findInstanceInScene("s", idB)->objectTypeId;
+        CHECK(typeA != typeB);
 
         const std::filesystem::path path = testTempDir() / "default-type.artcade-project";
         CHECK(saveProjectToFile(c, path).ok);
 
         EditorCoordinator reloaded{makeReplacementDoc()};
         CHECK(loadProjectFromFile(reloaded, path).ok);
-        CHECK(reloaded.document().hasObjectType(typeId));
-        const SceneInstanceDef* inst = reloaded.document().findInstanceInScene("s", 1);
-        CHECK(inst != nullptr);
-        CHECK(inst->objectTypeId == typeId);                // reference survives the round-trip
+        CHECK(reloaded.document().hasObjectType(typeA));
+        CHECK(reloaded.document().hasObjectType(typeB));    // both types survive, still distinct
+        CHECK(reloaded.document().findInstanceInScene("s", idA)->objectTypeId == typeA);
+        CHECK(reloaded.document().findInstanceInScene("s", idB)->objectTypeId == typeB);
     }
 
     // -- (5) Delete Entity uses the authoritative scene + selection ------------
