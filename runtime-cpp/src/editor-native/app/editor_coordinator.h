@@ -25,6 +25,12 @@ struct ConsoleMessage {
     std::string text;
 };
 
+// Pure clipboard rendering of a console message. Copies the full, unabbreviated
+// model text (not whatever the panel may truncate) prefixed with the level, so a
+// shared error reads e.g. "[Error] Open failed: ...". Lives in editor-core (no
+// raylib/RmlUi) and is unit-tested; the clipboard call itself stays in the UI.
+std::string formatConsoleMessageForClipboard(const ConsoleMessage& message);
+
 // =============================================================================
 // EditorCoordinator — the one and only coordinator (prompt §5).
 //
@@ -49,6 +55,9 @@ public:
     const EditorState&     state()     const { return state_; }
     const EditorSceneViewState& sceneView(const SceneId& id) const;
     const std::vector<ConsoleMessage>& consoleLog() const { return console_; }
+    // Read-only lookup by index for the Console panel's clipboard copy. Returns
+    // nullptr for nullopt or an out-of-range index, so a stale selection is safe.
+    const ConsoleMessage* consoleMessage(std::optional<std::size_t> index) const;
 
     // ---- command path (authoring; undoable) ---------------------------------
     /** Run a command by value, e.g. execute(SetEntityPositionCommand{scene, id, pos}). */

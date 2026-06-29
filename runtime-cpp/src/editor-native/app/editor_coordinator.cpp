@@ -374,6 +374,22 @@ EditorOperationResult EditorCoordinator::apply(const ResizePanelIntent& intent) 
 // ----------------------------------------------------------------------------
 // Console
 // ----------------------------------------------------------------------------
+const ConsoleMessage* EditorCoordinator::consoleMessage(
+    std::optional<std::size_t> index) const {
+    if (!index || *index >= console_.size()) return nullptr;
+    return &console_[*index];
+}
+
+std::string formatConsoleMessageForClipboard(const ConsoleMessage& message) {
+    const char* label = "Info";
+    switch (message.level) {
+        case ConsoleMessage::Level::Warning: label = "Warning"; break;
+        case ConsoleMessage::Level::Error:   label = "Error";   break;
+        case ConsoleMessage::Level::Info:    label = "Info";    break;
+    }
+    return std::string("[") + label + "] " + message.text;
+}
+
 void EditorCoordinator::appendConsole(ConsoleMessage::Level level, std::string text) {
     console_.push_back(ConsoleMessage{level, std::move(text)});
     accumulate(EditorInvalidation::Console);

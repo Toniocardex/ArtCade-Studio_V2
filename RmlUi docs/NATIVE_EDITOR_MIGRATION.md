@@ -149,6 +149,7 @@ paletto o sblocca la capability in corso.
 | Components inspector | React Inspector | Feature commands + read-only queries | In progress | No |
 | Asset references | React asset stores | `AssetId` -> `ProjectDoc.imageAssets.sourcePath`, validated | In progress | No |
 | Asset import (image/audio/font) | React asset import/store | One `importAsset(AssetKind,...)` pipeline: picker -> copy into `<projectRoot>/assets/{images,audio,fonts}` -> typed `Add{Image,Audio,Font}AssetCommand` (relative path); Assets panel lists/imports/removes per kind; images also assignable | Done (import); audio/font consumers pending | No |
+| Console copy | React console copy/inspect | Local panel row selection + raylib `SetClipboardText` via one `copySelectedConsoleMessage`; Copy button + Ctrl+C; pure `formatConsoleMessageForClipboard` | Done | No |
 | Logic Board | React Logic Board state | Logic Board document + commands | Planned | No |
 
 ## Component resolution (sprite renderer)
@@ -571,6 +572,35 @@ transition is unit-tested in `editor-core`; the guard combinations and the
 during-Play rejection are covered by the existing `resolveUnsavedGuard` and
 `replaceProject`-during-Play tests. Path clearing and the title are application
 state, verified by smoke.
+
+## Console copy baseline
+
+Sharing a full error matters more than free text selection, so the first slice is
+deliberately small: click a Console row to select it, then copy the whole message
+with the Copy button or Ctrl+C. No per-character selection, no single textarea, no
+context menu, no `.log` export.
+
+```text
+click a Console row -> ConsolePanel.selected_ (local UI state)
+Copy button / Ctrl+C -> copySelectedConsoleMessage()
+                     -> coordinator.consoleMessage(index)  (nullptr-safe)
+                     -> formatConsoleMessageForClipboard()  (pure, editor-core)
+                     -> raylib SetClipboardText
+```
+
+The selection is purely local panel state (`std::optional<std::size_t>` into the
+coordinator's full log) — not a Command, Intent, `EditorState`, `ProjectDocument`,
+event bus, clipboard service or generic selection system. It is clamped/reset on
+every refresh, so a shrunk log or replaced project can never leave a dangling
+selection or copyable ghost. The clipboard text comes from the **model** message,
+not the rendered row, so it is the full untruncated text, prefixed with the level
+(`[Error] ...`). `formatConsoleMessageForClipboard` is pure and unit-tested; only
+the `SetClipboardText` call lives in the native UI layer.
+
+Ctrl+C precedence: a focused RmlUi text field keeps its own copy (the editor's
+shortcut is gated by `textFocus`, same as Undo/Redo); otherwise Ctrl+C copies the
+selected message, and with nothing selected it is a no-op. The Copy button is
+disabled whenever there is no selection.
 
 ## Feature Template
 

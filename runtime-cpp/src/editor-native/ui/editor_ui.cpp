@@ -18,6 +18,8 @@
 #include <RmlUi/Core/EventListener.h>
 #include <RmlUi/Core/Input.h>
 
+#include <raylib.h>   // SetClipboardText (Console copy)
+
 #include <cstdlib>
 #include <optional>
 #include <string>
@@ -196,6 +198,13 @@ void EditorUi::refreshToolbar() {
     setEnabled("btn-redo",         !playing && coordinator_.canRedo());
 }
 
+bool EditorUi::copySelectedConsoleMessage() {
+    const ConsoleMessage* message = coordinator_.consoleMessage(console_.selectedIndex());
+    if (!message) return false;
+    SetClipboardText(formatConsoleMessageForClipboard(*message).c_str());
+    return true;
+}
+
 void EditorUi::handleAction(const std::string& action, const std::string& arg,
                             const std::string& value) {
     const EntityId selected = coordinator_.selection().primaryEntity;
@@ -333,6 +342,11 @@ void EditorUi::handleAction(const std::string& action, const std::string& arg,
         if (!arg.empty()) coordinator_.execute(RemoveFontAssetCommand{arg});
     } else if (action == "new-project") {
         if (newProjectRequest_) newProjectRequest_();
+    } else if (action == "select-console") {
+        console_.select(static_cast<std::size_t>(std::strtoul(arg.c_str(), nullptr, 10)),
+                        document_, coordinator_);
+    } else if (action == "copy-console") {
+        copySelectedConsoleMessage();
     } else if (action == "open-project") {
         if (openProjectRequest_) openProjectRequest_();
     } else if (action == "save-project") {

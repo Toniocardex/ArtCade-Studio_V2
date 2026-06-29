@@ -384,6 +384,11 @@ int EditorApp::run(int argc, char** argv) {
                 coordinator.redo();
             } else if (IsKeyPressed(KEY_Z)) {
                 coordinator.undo();
+            } else if (IsKeyPressed(KEY_C)) {
+                // Copy the selected Console message. A focused RmlUi text field
+                // keeps its own Ctrl+C (guarded by textFocus above); with no
+                // selection this is a no-op.
+                ui.copySelectedConsoleMessage();
             }
         }
 

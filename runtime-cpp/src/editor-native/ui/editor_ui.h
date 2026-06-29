@@ -53,6 +53,11 @@ public:
     using ImportAssetRequest = std::function<void(AssetKind)>;
     void setImportHandler(ImportAssetRequest importAsset);
 
+    // Copies the selected Console message (full model text) to the clipboard via
+    // raylib's SetClipboardText. The single entry point shared by the Copy button
+    // and Ctrl+C. Returns false (no-op) when nothing is selected.
+    bool copySelectedConsoleMessage();
+
     // Called by the listener; routes one UI interaction to command/intent.
     void handleAction(const std::string& action, const std::string& arg,
                       const std::string& value);

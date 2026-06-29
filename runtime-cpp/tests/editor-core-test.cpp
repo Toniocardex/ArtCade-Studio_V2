@@ -462,6 +462,33 @@ int main() {
         CHECK(c.uiState().leftPanelWidth == uiBefore.leftPanelWidth);  // UI prefs kept
     }
 
+    // -- Console copy: clipboard formatting + safe indexed lookup -------------
+    //    The selection itself is local panel state (not exercised here); these
+    //    pin the editor-core pieces the copy entry point relies on.
+    {
+        CHECK(formatConsoleMessageForClipboard(
+                  ConsoleMessage{ConsoleMessage::Level::Info, "ready"}) == "[Info] ready");
+        CHECK(formatConsoleMessageForClipboard(
+                  ConsoleMessage{ConsoleMessage::Level::Warning, "watch out"})
+              == "[Warning] watch out");
+        // The full, unabbreviated model text is copied (UI truncation must not leak in).
+        const std::string longText =
+            "Open failed: invalid TopDownController speed: -20 in scene-a/entity-7";
+        CHECK(formatConsoleMessageForClipboard(
+                  ConsoleMessage{ConsoleMessage::Level::Error, longText})
+              == "[Error] " + longText);
+
+        EditorCoordinator c{makeDoc()};
+        CHECK(c.consoleMessage(std::nullopt) == nullptr);  // nothing selected
+        CHECK(c.consoleMessage(0) == nullptr);             // empty log
+        c.logInfo("first");
+        c.logError("second");
+        CHECK(c.consoleMessage(0) != nullptr);
+        CHECK(c.consoleMessage(0)->text == "first");
+        CHECK(c.consoleMessage(1)->level == ConsoleMessage::Level::Error);
+        CHECK(c.consoleMessage(2) == nullptr);             // out of range -> safe
+    }
+
     // -- Load from text mutates only after deserialize/migrate/validate --------
     {
         EditorCoordinator c{makeDoc()};
