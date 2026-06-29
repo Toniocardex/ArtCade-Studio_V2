@@ -4,9 +4,28 @@
 
 #include <raylib.h>
 
+#include <algorithm>
+#include <cmath>
+
 namespace ArtCade::EditorNative {
 
 namespace {
+
+// Pixel rectangle for a scissor region.
+struct PixelRect {
+    int x = 0, y = 0, width = 0, height = 0;
+    bool valid() const { return width > 0 && height > 0; }
+};
+
+// Intersection of the viewport with the scene's on-screen rectangle, so world
+// drawing is clipped to the scene surface rather than the whole panel.
+PixelRect sceneScissor(const ViewportRect& rect, Vector2 topLeft, Vector2 bottomRight) {
+    const int x0 = std::max(rect.x, static_cast<int>(std::floor(topLeft.x)));
+    const int y0 = std::max(rect.y, static_cast<int>(std::floor(topLeft.y)));
+    const int x1 = std::min(rect.x + rect.width,  static_cast<int>(std::ceil(bottomRight.x)));
+    const int y1 = std::min(rect.y + rect.height, static_cast<int>(std::ceil(bottomRight.y)));
+    return PixelRect{x0, y0, x1 - x0, y1 - y0};
+}
 
 Color toColor(const Vec4& c) {
     return Color{
@@ -72,6 +91,14 @@ void SceneView::render(const SceneFrameSnapshot& frame,
     cam.zoom = vc.zoom;
     cam.rotation = 0.f;
 
+    // Clip world-space drawing to the scene surface (intersected with the
+    // viewport): entities that drift outside the scene must not paint over the
+    // panel backdrop. The backdrop fill above stays at viewport scope.
+    const PixelRect sceneClip = sceneScissor(
+        rect, GetWorldToScreen2D(Vector2{0.f, 0.f}, cam),
+        GetWorldToScreen2D(Vector2{world.x, world.y}, cam));
+    if (sceneClip.valid()) {
+    BeginScissorMode(sceneClip.x, sceneClip.y, sceneClip.width, sceneClip.height);
     BeginMode2D(cam);
 
     DrawRectangle(0, 0, static_cast<int>(world.x), static_cast<int>(world.y),
@@ -140,7 +167,10 @@ void SceneView::render(const SceneFrameSnapshot& frame,
     }
 
     EndMode2D();
+    }
 
+    // The scene-name chip is a viewport-space overlay, not clipped to the scene.
+    BeginScissorMode(rect.x, rect.y, rect.width, rect.height);
     // Scene name — subtle rounded chip in the top-left corner of the viewport.
     const char* label = frame.sceneName.c_str();
     const int fontSize = 14;

@@ -404,6 +404,15 @@ a click maps to exactly what is drawn. The renderer builds its Raylib `Camera2D`
 from it; picking inverts the same transform. `pickEntityAt` is a pure query on
 `SceneFrameSnapshot` (sprite occludes placeholder, later draw order wins).
 
+World-space drawing (grid, sprites, placeholders, colliders, selection) is
+scissored to the **scene surface** — the world rectangle projected to screen,
+intersected with the viewport — so an entity whose runtime position drifts
+outside the scene (e.g. a LinearMover with no walls) is clipped at the scene
+edge instead of painting over the panel backdrop. Out-of-bounds positions stay
+legal in the domain (off-screen spawns, side-entering enemies); only rendering is
+clipped. The scene-name chip is a viewport-space overlay drawn after, outside the
+scene scissor.
+
 Selection and move follow the existing command/intent split — no new authority,
 no command per mouse move:
 
