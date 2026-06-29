@@ -117,7 +117,6 @@ if(ARTCADE_BUILD_NATIVE_EDITOR)
         ui/inspector_panel.cpp
         ui/console_panel.cpp
         ui/assets_panel.cpp
-        demo/demo_project.cpp
     )
     if(WIN32)
         list(APPEND ARTCADE_EDITOR_NATIVE_SOURCES artcade_editor_native.rc)
@@ -156,13 +155,6 @@ if(ARTCADE_BUILD_NATIVE_EDITOR)
         COMMAND ${CMAKE_COMMAND} -E copy_directory
             ${CMAKE_CURRENT_SOURCE_DIR}/resources
             $<TARGET_FILE_DIR:artcade-editor-native>/resources
-        COMMAND ${CMAKE_COMMAND} -E make_directory
-            $<TARGET_FILE_DIR:artcade-editor-native>/resources/sprites
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_CURRENT_SOURCE_DIR}/../../../samples/rpg_spritesheet_32px.png
-            ${CMAKE_CURRENT_SOURCE_DIR}/../../../samples/rpg_spritesheet_32px_alpha_check.png
-            ${CMAKE_CURRENT_SOURCE_DIR}/../../../samples/rpg_spritesheet_complete.png
-            $<TARGET_FILE_DIR:artcade-editor-native>/resources/sprites
         COMMENT "[editor-native] copying RML/RCSS resources")
 
     message(STATUS "[ArtCade] Native editor : ENABLED (RmlUi 6.1 + FreeType)")

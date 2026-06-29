@@ -11,7 +11,6 @@
 #include "editor-native/app/unsaved_guard.h"
 #include "editor-native/commands/editor_intent.h"
 #include "editor-native/commands/entity_commands.h"
-#include "editor-native/demo/demo_project.h"
 #include "editor-native/model/play_session.h"
 #include "editor-native/model/scene_frame_snapshot.h"
 #include "editor-native/ui/editor_ui.h"
@@ -204,7 +203,9 @@ int EditorApp::run(int argc, char** argv) {
         if (std::strcmp(argv[i], "--shot") == 0 && i + 1 < argc) shotPath = argv[i + 1];
     }
 
-    EditorCoordinator coordinator(makeDemoProject());
+    // Start empty: the editor opens a real project (File > Open) or builds one
+    // from scratch (add scene/entity, import assets, Save As). No bundled demo.
+    EditorCoordinator coordinator{ProjectDoc{}};
 
     // FLAG_WINDOW_HIGHDPI: create a framebuffer at the monitor's physical
     // resolution so RmlUi rasterises and renders at real pixels (crisp text on
@@ -233,8 +234,6 @@ int EditorApp::run(int argc, char** argv) {
 
     EditorUi ui(coordinator, host.document());
     ui.bind();
-    // Default focus so the inspector shows the headline Position fields.
-    coordinator.apply(SelectEntityIntent{1});
     coordinator.logInfo("ArtCade Studio ready.");
     SceneView sceneView;
     TextureCache textureCache;

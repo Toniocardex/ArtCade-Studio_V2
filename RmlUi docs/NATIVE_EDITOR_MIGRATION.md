@@ -501,8 +501,9 @@ the fields those consumers will read (`loadMode`, `defaultPixelSize`,
 `glyphPreset`).
 
 Textures resolve against the **project root** (`currentProjectPath.parent_path()`)
-for a loaded project, falling back to the executable resources for the in-code
-demo. The renderer still consumes only `SceneFrameSnapshot` + `TextureCache`;
+for a loaded project; with no project open yet the root is the executable
+resources (an empty catalog, nothing to resolve). The renderer still consumes
+only `SceneFrameSnapshot` + `TextureCache`;
 `TextureCache::invalidate(assetId)` is available for a future catalog change that
 keeps the same id.
 
