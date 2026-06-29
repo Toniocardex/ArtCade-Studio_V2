@@ -41,6 +41,11 @@ AddTopDownControllerCommand::AddTopDownControllerCommand(std::string objectTypeI
 EditorOperationResult AddTopDownControllerCommand::apply(ProjectDocument& document) {
     const EntityDef* type = objectTypeOf(document, objectTypeId_);
     if (!type) return EditorOperationResult::failure("Unknown object type: " + objectTypeId_);
+    // One movement writer per object type.
+    if (type->linearMover || type->platformerController) {
+        return EditorOperationResult::failure(
+            "Object type already has a movement driver (remove it first)");
+    }
     if (type->topDownController.has_value()) {
         return EditorOperationResult::success(EditorInvalidation::None);
     }

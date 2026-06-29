@@ -404,6 +404,9 @@ int EditorApp::run(int argc, char** argv) {
                 input.moveRight = IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D);
                 input.moveUp    = IsKeyDown(KEY_UP)    || IsKeyDown(KEY_W);
                 input.moveDown  = IsKeyDown(KEY_DOWN)  || IsKeyDown(KEY_S);
+                // Edge-triggered jump for the PlatformerController (Space / W / Up).
+                input.jumpPressed = IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_W)
+                                 || IsKeyPressed(KEY_UP);
             }
             coordinator.updateRuntime(input, dt);         // input-driven (TopDownController)
         } else {

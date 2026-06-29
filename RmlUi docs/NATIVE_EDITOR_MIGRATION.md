@@ -142,6 +142,7 @@ paletto o sblocca la capability in corso.
 | Authored runtime motion | Logic Board / Lua runtime | `EntityDef.linearMover` -> `RuntimeEntity.velocity` -> `PlaySession::advance` via `advanceRuntime`; edited via `linear_mover_commands` + Inspector, persisted in the object-type subset | Done | No |
 | TopDownController (input) | Logic Board / Lua runtime | `EntityDef.topDownController` -> `RuntimeTopDownController` -> `PlaySession::update` via `updateRuntime` with `RuntimeInputSnapshot`; edited via `top_down_controller_commands` + Inspector, persisted | Done | No |
 | Runtime AABB collisions | Logic Board / Lua physics | `RuntimeBoxCollider` materialized from `EntityDef.boxCollider2D`; both movers route through `PlaySession::moveKinematicEntity` (per-axis swept clamp vs static solids); mover-vs-mover and triggers out of scope | Done | No |
+| PlatformerController | Logic Board / Lua runtime | `EntityDef.platformerController` (Move Speed/Jump Speed/Gravity -> canonical maxSpeed/jumpForce/customGravity) -> `RuntimePlatformerController`; gravity + edge jump via `KinematicMoveResult`; `platformer_controller_commands` + Inspector, persisted; single movement driver enforced | Done | No |
 | Unsaved-changes guard | React beforeunload / dialogs | `resolveUnsavedGuard` (pure) + native confirm; guards New, Open and Exit (Save/Discard/Cancel, Save-fail aborts); New/Open blocked during Play | Done | No |
 | New project | React/Tauri new-project path | App `newProject` (File > New): guard -> `replaceProject(ProjectDocument{ProjectDoc{}})` -> clear path -> "Untitled" title; empty/clean/history-less | Done | No |
 | Play materialization | WASM bridge / preview path | `PlaySession` from `ProjectDocument` once at Start Play | In progress | No |
@@ -519,8 +520,52 @@ entity you place colliders at the edges. Triggers are materialized but inert
 This stays pure runtime: `moveKinematicEntity` mutates only `RuntimeEntity`
 transforms; `ProjectDocument`, revision, dirty and history are untouched, `Stop`
 discards every runtime position and the next Play re-materializes from authoring.
-Next on this chain: PlatformerController (gravity + vertical velocity + grounded
-state + jump).
+
+## Platformer baseline
+
+The PlatformerController closes the first full gameplay loop on top of the AABB
+resolver: side-view movement with gravity, a grounded state and a jump.
+
+Authoring maps three values onto the canonical `PlatformerControllerComponent`
+(the editor never forks the type): **Move Speed -> maxSpeed, Jump Speed ->
+jumpForce, Gravity -> customGravity** (coyoteTime/jumpBuffer/climbSpeed keep their
+defaults). `platformer_controller_commands` (Add/Remove + one
+`SetPlatformerValueCommand` over a `PlatformerField` enum) edit it from the
+Inspector with undo/redo; persistence stores the authored subset. Add starts at
+180 / 420 / 1200, all values validated finite and `>= 0`.
+
+`RuntimePlatformerController` adds the runtime-only `verticalVelocity` and
+`grounded` — not persisted, recreated at Start, dropped at Stop. The per-frame
+step (in `PlaySession::updatePlatformer`) is:
+
+```text
+jumpPressed && grounded -> verticalVelocity = -jumpSpeed; grounded = false  (edge, -Y up)
+verticalVelocity += gravity * dt                                            (+Y down)
+desired = { horizontalInput * moveSpeed * dt , verticalVelocity * dt }
+KinematicMoveResult = moveKinematicEntity(desired)
+  hitCeiling -> verticalVelocity = 0
+  hitGround  -> grounded = true,  verticalVelocity = 0
+  else       -> grounded = false
+```
+
+`moveKinematicEntity` now returns a `KinematicMoveResult`
+(`appliedDelta` + `hitLeft/hitRight/hitCeiling/hitGround`) so grounded is derived
+from the actual downward contact — not a new physics engine, just the result the
+loop needs. Jump is edge-triggered: `RuntimeInputSnapshot.jumpPressed` is computed
+by the application with `IsKeyPressed` (Space/W/Up); `PlaySession` never sees
+Raylib. Because gravity must run every frame, `update` no longer early-returns on
+empty input.
+
+**Single movement writer.** A `RuntimeEntity.transform` has exactly one driver:
+an object type may own only one of `TopDownController`, `PlatformerController`,
+`LinearMover`. Each Add command rejects a second driver ("remove it first"), and
+materialize applies a fixed priority (Platformer > TopDown > LinearMover) so even
+a hand-edited file yields one writer — no priority/composition system. Same purity
+as collisions: `Stop` restores the authoring position, restart resets
+`verticalVelocity`/`grounded`, and the document/revision/dirty/history never move.
+
+Next on this chain: richer platforming (coyote time, jump buffer) when a concrete
+need appears, or wiring "Add Instance".
 
 ## RmlUi input commit baseline
 

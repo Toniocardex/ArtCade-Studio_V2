@@ -21,6 +21,18 @@ struct RuntimeTopDownController {
     float speed = 0.f;
 };
 
+// Side-view platforming: horizontal input + gravity-driven vertical velocity,
+// resolved against solids each frame. verticalVelocity and grounded are runtime-
+// only: not persisted, recreated at Start Play, dropped at Stop. Convention:
+// world +Y is down (gravity is positive, a jump sets a negative velocity).
+struct RuntimePlatformerController {
+    float moveSpeed = 0.f;
+    float jumpSpeed = 0.f;
+    float gravity   = 0.f;
+    float verticalVelocity = 0.f;
+    bool  grounded = false;
+};
+
 // Runtime copy of BoxCollider2D, materialized from the object type at Start Play.
 struct RuntimeBoxCollider {
     Vec2 offset{};
@@ -37,12 +49,24 @@ struct RuntimeEntity {
     Vec3 fillColor{0.47f, 0.49f, 0.52f};
     std::optional<RuntimeSpriteComponent> sprite;
     std::optional<RuntimeTopDownController> topDownController;
+    std::optional<RuntimePlatformerController> platformerController;
     std::optional<RuntimeBoxCollider> collider;
 };
 
 // World-space axis-aligned bounding box (min/max corners).
 struct Aabb {
     float minX = 0.f, minY = 0.f, maxX = 0.f, maxY = 0.f;
+};
+
+// What a kinematic move actually did: the applied delta plus which sides hit a
+// solid. The platformer derives grounded/ceiling from these (world +Y is down,
+// so hitGround is a downward contact, hitCeiling an upward one).
+struct KinematicMoveResult {
+    Vec2 appliedDelta{};
+    bool hitLeft = false;
+    bool hitRight = false;
+    bool hitCeiling = false;
+    bool hitGround = false;
 };
 
 // The single authoritative runtime collider AABB: center = position + offset,
@@ -57,6 +81,9 @@ struct RuntimeInputSnapshot {
     bool moveRight = false;
     bool moveUp = false;
     bool moveDown = false;
+    // Edge-triggered jump (the application computes it with IsKeyPressed, so the
+    // session never sees Raylib). Consumed by the PlatformerController.
+    bool jumpPressed = false;
 };
 
 struct RuntimeScene {
@@ -110,13 +137,19 @@ private:
                                                   const SceneId& sceneId,
                                                   std::string* error);
 
-    // The one internal entry point for runtime movement: both LinearMover
-    // (advance) and TopDownController (update) route a desired delta through here.
-    // It resolves the kinematic mover against the static solids with a per-axis
-    // swept clamp (resolve X, then Y using the new X) so movement slides along
-    // walls and never tunnels through thin ones at high speed. A mover with no
-    // active solid collider moves freely. Returns the delta actually applied.
-    Vec2 moveKinematicEntity(RuntimeEntity& entity, Vec2 desiredDelta);
+    // The one internal entry point for runtime movement: LinearMover (advance),
+    // TopDownController and PlatformerController (update) route a desired delta
+    // through here. It resolves the kinematic mover against the static solids with
+    // a per-axis swept clamp (resolve X, then Y using the new X) so movement
+    // slides along walls and never tunnels through thin ones at high speed. A
+    // mover with no active solid collider moves freely. Returns the applied delta
+    // plus the per-side contact flags the platformer needs.
+    KinematicMoveResult moveKinematicEntity(RuntimeEntity& entity, Vec2 desiredDelta);
+
+    // Per-entity input-driven movement, dispatched by `update` so a single entity
+    // has exactly one movement writer.
+    void updateTopDown(RuntimeEntity& entity, const RuntimeInputSnapshot& input, float dt);
+    void updatePlatformer(RuntimeEntity& entity, const RuntimeInputSnapshot& input, float dt);
 
     RuntimeScene scene_;
     PlayAssetCatalogSnapshot assets_;

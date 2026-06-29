@@ -43,4 +43,10 @@ EditorOperationResult addTopDownController(EditorCoordinator& coordinator);
 EditorOperationResult removeTopDownController(EditorCoordinator& coordinator);
 EditorOperationResult setTopDownControllerSpeed(EditorCoordinator& coordinator, float speed);
 
+EditorOperationResult addPlatformerController(EditorCoordinator& coordinator);
+EditorOperationResult removePlatformerController(EditorCoordinator& coordinator);
+EditorOperationResult setPlatformerMoveSpeed(EditorCoordinator& coordinator, float value);
+EditorOperationResult setPlatformerJumpSpeed(EditorCoordinator& coordinator, float value);
+EditorOperationResult setPlatformerGravity(EditorCoordinator& coordinator, float value);
+
 } // namespace ArtCade::EditorNative

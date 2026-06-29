@@ -196,6 +196,24 @@ void InspectorPanel::refresh(Rml::ElementDocument* document,
                 "<span class=\"icon\">&#xeb41;</span>Remove Component</button>";
     }
 
+    // -- Platformer Controller component (object-type owned) ------------------
+    html += "<div class=\"prop-group-title\">" + icon("&#xec8e;") + "Platformer Controller</div>";
+    html += "<div class=\"prop-row\"><span class=\"prop-label\">Scope</span>"
+            "<span class=\"prop-readonly\">Shared by object type</span></div>";
+    const PlatformerControllerComponent* platformer =
+        (typeIt != types.end() && typeIt->second.platformerController)
+            ? &*typeIt->second.platformerController : nullptr;
+    if (!platformer) {
+        html += "<button class=\"" + btn + "\" data-action=\"add-platformer\">"
+                "<span class=\"icon\">&#xeb0b;</span>Add Platformer Controller</button>";
+    } else {
+        html += field("Move Speed", "commit-platformer-move", num(platformer->maxSpeed), playing);
+        html += field("Jump Speed", "commit-platformer-jump", num(platformer->jumpForce), playing);
+        html += field("Gravity", "commit-platformer-gravity", num(platformer->customGravity), playing);
+        html += "<button class=\"" + btn + "\" data-action=\"remove-platformer\">"
+                "<span class=\"icon\">&#xeb41;</span>Remove Component</button>";
+    }
+
     body->SetInnerRML(html);
 }
 

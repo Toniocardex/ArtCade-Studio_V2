@@ -28,6 +28,7 @@ enum class ComponentKind {
     BoxCollider2D,
     LinearMover,
     TopDownController,
+    PlatformerController,
 };
 
 struct DomainChange {

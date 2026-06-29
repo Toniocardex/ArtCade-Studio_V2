@@ -16,6 +16,7 @@
 #include "editor-native/commands/box_collider_commands.h"
 #include "editor-native/commands/linear_mover_commands.h"
 #include "editor-native/commands/top_down_controller_commands.h"
+#include "editor-native/commands/platformer_controller_commands.h"
 #include "editor-native/commands/image_asset_commands.h"
 #include "editor-native/commands/audio_asset_commands.h"
 #include "editor-native/commands/font_asset_commands.h"
@@ -1124,11 +1125,13 @@ int main() {
         CHECK(c.document().hasObjectType(inst->objectTypeId));
         CHECK(c.document().findObjectType(typeId)->name == "Entity");  // visual name preserved
 
-        // (3) object-type-scoped component commands work immediately.
+        // (3) object-type-scoped component commands work immediately (the type
+        //     resolves). BoxCollider is not a movement driver, so it coexists with
+        //     one driver; a second driver would be rejected (tested separately).
         CHECK(c.execute(AddTopDownControllerCommand{typeId}).ok);
         CHECK(c.document().data().objectTypes.at(typeId).topDownController.has_value());
         CHECK(c.execute(AddBoxColliderCommand{typeId}).ok);
-        CHECK(c.execute(AddLinearMoverCommand{typeId}).ok);
+        CHECK(c.document().data().objectTypes.at(typeId).boxCollider2D.has_value());
     }
 
     // -- Undo/redo of the first entity restores both type and instance ---------
@@ -2134,6 +2137,233 @@ int main() {
             CHECK(c.playProject().ok);
             c.advanceRuntime(10.f);
             CHECK(std::abs(c.playSession()->findEntity(1)->transform.position.x - 48.f) < 0.01f);
+        }
+    }
+
+    // ===== PlatformerController ==============================================
+    // Player (platformer + 32x32 collider, AABB [-16,16]) at (0,0). World +Y is
+    // down. Optional 200x32 floor / ceiling. Floor at y=100 -> top at 84 ->
+    // landing at player.y = 68. Ceiling at y=-40 -> bottom at -24.
+    {
+        const auto makePlatformWorld = [](bool withFloor, float floorY = 100.f,
+                                          bool playerCollider = true, bool floorEnabled = true,
+                                          bool floorTrigger = false, bool withCeiling = false,
+                                          float ceilingY = -40.f) {
+            ProjectDoc doc;
+            doc.projectName = "platform";
+            doc.activeSceneId = "s";
+            SceneDef s; s.id = "s"; s.name = "S"; s.worldSize = {4000.f, 4000.f};
+            SceneInstanceDef player; player.id = 1; player.objectTypeId = "player";
+            player.instanceName = "Player"; player.transform.position = {0.f, 0.f};
+            s.instances.push_back(player);
+            if (withFloor) {
+                SceneInstanceDef floor; floor.id = 2; floor.objectTypeId = "floor";
+                floor.instanceName = "Floor"; floor.transform.position = {0.f, floorY};
+                s.instances.push_back(floor);
+            }
+            if (withCeiling) {
+                SceneInstanceDef ceil; ceil.id = 3; ceil.objectTypeId = "ceil";
+                ceil.instanceName = "Ceiling"; ceil.transform.position = {0.f, ceilingY};
+                s.instances.push_back(ceil);
+            }
+            doc.scenes.emplace("s", s);
+
+            EntityDef playerType; playerType.className = "player"; playerType.name = "Player";
+            PlatformerControllerComponent pc;
+            pc.maxSpeed = 180.f; pc.jumpForce = 420.f; pc.customGravity = 1200.f;
+            playerType.platformerController = pc;
+            if (playerCollider)
+                playerType.boxCollider2D = BoxCollider2DComponent{{0.f, 0.f}, {32.f, 32.f}, true, false};
+            doc.objectTypes.emplace("player", playerType);
+
+            if (withFloor) {
+                EntityDef floorType; floorType.className = "floor"; floorType.name = "Floor";
+                floorType.boxCollider2D =
+                    BoxCollider2DComponent{{0.f, 0.f}, {200.f, 32.f}, floorEnabled, floorTrigger};
+                doc.objectTypes.emplace("floor", floorType);
+            }
+            if (withCeiling) {
+                EntityDef ceilType; ceilType.className = "ceil"; ceilType.name = "Ceiling";
+                ceilType.boxCollider2D = BoxCollider2DComponent{{0.f, 0.f}, {200.f, 32.f}, true, false};
+                doc.objectTypes.emplace("ceil", ceilType);
+            }
+            return doc;
+        };
+        const auto platformerOf = [](EditorCoordinator& c) {
+            return c.playSession()->findEntity(1)->platformerController;
+        };
+        RuntimeInputSnapshot none;
+
+        // Gravity pulls a free player down (no floor); not grounded.
+        {
+            EditorCoordinator c{makePlatformWorld(false)};
+            CHECK(c.playProject().ok);
+            c.updateRuntime(none, 0.1f);
+            const RuntimeEntity* p = c.playSession()->findEntity(1);
+            CHECK(p->transform.position.y > 0.f);
+            CHECK(p->platformerController->verticalVelocity > 0.f);
+            CHECK(!p->platformerController->grounded);
+        }
+
+        // The floor sets grounded and zeroes vertical velocity at the contact.
+        {
+            EditorCoordinator c{makePlatformWorld(true)};
+            CHECK(c.playProject().ok);
+            for (int i = 0; i < 300; ++i) c.updateRuntime(none, 0.05f);
+            const RuntimeEntity* p = c.playSession()->findEntity(1);
+            CHECK(p->platformerController->grounded);
+            CHECK(p->platformerController->verticalVelocity == 0.f);
+            CHECK(std::abs(p->transform.position.y - 68.f) < 0.01f);   // exact contact
+            // Authoring untouched, no dirtying by the runtime.
+            CHECK(c.document().findInstanceInScene("s", 1)->transform.position.y == 0.f);
+            CHECK(!c.document().isDirty());
+        }
+
+        // A high-velocity fall does not tunnel through the floor (swept clamp).
+        {
+            EditorCoordinator c{makePlatformWorld(true)};
+            CHECK(c.playProject().ok);
+            c.updateRuntime(none, 100.f);                  // enormous dt
+            CHECK(std::abs(c.playSession()->findEntity(1)->transform.position.y - 68.f) < 0.01f);
+        }
+
+        // jumpPressed from the ground launches upward (negative vy) and ungrounds.
+        {
+            EditorCoordinator c{makePlatformWorld(true)};
+            CHECK(c.playProject().ok);
+            for (int i = 0; i < 300; ++i) c.updateRuntime(none, 0.05f);   // land
+            const float yGround = c.playSession()->findEntity(1)->transform.position.y;
+            RuntimeInputSnapshot jump; jump.jumpPressed = true;
+            c.updateRuntime(jump, 0.05f);
+            const RuntimeEntity* p = c.playSession()->findEntity(1);
+            CHECK(p->transform.position.y < yGround);                 // moved up
+            CHECK(p->platformerController->verticalVelocity < 0.f);   // rising
+            CHECK(!p->platformerController->grounded);
+        }
+
+        // A jump while airborne is ignored (no re-jump): vy keeps accelerating down.
+        {
+            EditorCoordinator c{makePlatformWorld(false)};
+            CHECK(c.playProject().ok);
+            c.updateRuntime(none, 0.1f);                              // now falling
+            const float vyBefore = platformerOf(c)->verticalVelocity;
+            RuntimeInputSnapshot jump; jump.jumpPressed = true;
+            c.updateRuntime(jump, 0.1f);
+            CHECK(platformerOf(c)->verticalVelocity > vyBefore);      // no upward jump
+        }
+
+        // A ceiling zeroes the rising velocity. Floor flush under the player grounds
+        // it on frame 1; the ceiling at y=-40 stops the jump almost immediately.
+        {
+            EditorCoordinator c{makePlatformWorld(true, /*floorY*/ 32.f, true, true, false,
+                                                  /*withCeiling*/ true, /*ceilingY*/ -40.f)};
+            CHECK(c.playProject().ok);
+            c.updateRuntime(none, 0.05f);                            // ground on the flush floor
+            CHECK(platformerOf(c)->grounded);
+            RuntimeInputSnapshot jump; jump.jumpPressed = true;
+            c.updateRuntime(jump, 0.05f);                            // jump straight into ceiling
+            CHECK(platformerOf(c)->verticalVelocity == 0.f);
+        }
+
+        // A trigger floor never grounds (no block); the player falls through.
+        {
+            EditorCoordinator c{makePlatformWorld(true, 100.f, true, true, /*floorTrigger*/ true)};
+            CHECK(c.playProject().ok);
+            for (int i = 0; i < 50; ++i) c.updateRuntime(none, 0.05f);
+            const RuntimeEntity* p = c.playSession()->findEntity(1);
+            CHECK(!p->platformerController->grounded);
+            CHECK(p->transform.position.y > 84.f);                   // passed the floor line
+        }
+
+        // A disabled floor collider never grounds either.
+        {
+            EditorCoordinator c{makePlatformWorld(true, 100.f, true, /*floorEnabled*/ false)};
+            CHECK(c.playProject().ok);
+            for (int i = 0; i < 50; ++i) c.updateRuntime(none, 0.05f);
+            CHECK(!platformerOf(c)->grounded);
+        }
+
+        // A player without a collider falls freely (never grounds).
+        {
+            EditorCoordinator c{makePlatformWorld(true, 100.f, /*playerCollider*/ false)};
+            CHECK(c.playProject().ok);
+            for (int i = 0; i < 50; ++i) c.updateRuntime(none, 0.05f);
+            const RuntimeEntity* p = c.playSession()->findEntity(1);
+            CHECK(!p->platformerController->grounded);
+            CHECK(p->transform.position.y > 84.f);
+        }
+
+        // Stop restores the authoring position; the next Play re-materializes with
+        // velocity and grounded reset.
+        {
+            EditorCoordinator c{makePlatformWorld(true)};
+            CHECK(c.playProject().ok);
+            for (int i = 0; i < 20; ++i) c.updateRuntime(none, 0.05f);
+            CHECK(c.playSession()->findEntity(1)->transform.position.y > 0.f);
+            const uint64_t revBefore = c.document().revision();
+            CHECK(c.stopPlaying().ok);
+            CHECK(c.document().findInstanceInScene("s", 1)->transform.position.y == 0.f);
+            CHECK(c.document().revision() == revBefore);             // runtime never dirtied
+            CHECK(c.playProject().ok);                              // restart
+            const RuntimeEntity* p = c.playSession()->findEntity(1);
+            CHECK(p->transform.position.y == 0.f);
+            CHECK(p->platformerController->verticalVelocity == 0.f);
+            CHECK(!p->platformerController->grounded);
+        }
+    }
+
+    // ===== PlatformerController authoring ====================================
+    {
+        // Add creates the component with the editor's recommended starting values.
+        {
+            EditorCoordinator c{makeInheritedDoc()};
+            CHECK(c.execute(AddPlatformerControllerCommand{"Hero"}).ok);
+            const auto& pc = c.document().data().objectTypes.at("Hero").platformerController;
+            CHECK(pc.has_value());
+            CHECK(pc->maxSpeed == 180.f);
+            CHECK(pc->jumpForce == 420.f);
+            CHECK(pc->customGravity == 1200.f);
+        }
+
+        // One movement writer: incompatible drivers are rejected both ways.
+        {
+            EditorCoordinator c{makeInheritedDoc()};
+            CHECK(c.execute(AddTopDownControllerCommand{"Hero"}).ok);
+            CHECK(!c.execute(AddPlatformerControllerCommand{"Hero"}).ok);   // topdown present
+            CHECK(!c.execute(AddLinearMoverCommand{"Hero"}).ok);
+            CHECK(c.execute(RemoveTopDownControllerCommand{"Hero"}).ok);
+            CHECK(c.execute(AddPlatformerControllerCommand{"Hero"}).ok);    // now free
+            CHECK(!c.execute(AddTopDownControllerCommand{"Hero"}).ok);      // platformer present
+            CHECK(!c.execute(AddLinearMoverCommand{"Hero"}).ok);
+        }
+
+        // Set values: validation, undo/redo.
+        {
+            EditorCoordinator c{makeInheritedDoc()};
+            CHECK(c.execute(AddPlatformerControllerCommand{"Hero"}).ok);
+            CHECK(!c.execute(SetPlatformerValueCommand{"Hero", PlatformerField::Gravity, -1.f}).ok);
+            CHECK(c.execute(SetPlatformerValueCommand{"Hero", PlatformerField::JumpSpeed, 500.f}).ok);
+            CHECK(c.document().data().objectTypes.at("Hero").platformerController->jumpForce == 500.f);
+            CHECK(c.undo().ok);
+            CHECK(c.document().data().objectTypes.at("Hero").platformerController->jumpForce == 420.f);
+            CHECK(c.redo().ok);
+            CHECK(c.document().data().objectTypes.at("Hero").platformerController->jumpForce == 500.f);
+        }
+
+        // Save/reload preserves the authored subset.
+        {
+            EditorCoordinator c{makeInheritedDoc()};
+            CHECK(c.execute(AddPlatformerControllerCommand{"Hero"}).ok);
+            CHECK(c.execute(SetPlatformerValueCommand{"Hero", PlatformerField::MoveSpeed, 90.f}).ok);
+            const std::filesystem::path path = testTempDir() / "platformer.artcade-project";
+            CHECK(saveProjectToFile(c, path).ok);
+            EditorCoordinator reloaded{ProjectDoc{}};
+            CHECK(loadProjectFromFile(reloaded, path).ok);
+            const auto& pc = reloaded.document().data().objectTypes.at("Hero").platformerController;
+            CHECK(pc.has_value());
+            CHECK(pc->maxSpeed == 90.f);
+            CHECK(pc->jumpForce == 420.f);
+            CHECK(pc->customGravity == 1200.f);
         }
     }
 

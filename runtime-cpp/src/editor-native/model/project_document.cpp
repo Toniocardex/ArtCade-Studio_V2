@@ -340,6 +340,37 @@ bool ProjectDocument::setTopDownControllerSpeed(const std::string& objectTypeId,
     return true;
 }
 
+bool ProjectDocument::addPlatformerController(const std::string& objectTypeId,
+                                             PlatformerControllerComponent component) {
+    auto it = doc_.objectTypes.find(objectTypeId);
+    if (it == doc_.objectTypes.end() || it->second.platformerController.has_value()) return false;
+    it->second.platformerController = component;
+    markDirty();
+    return true;
+}
+
+bool ProjectDocument::removePlatformerController(const std::string& objectTypeId) {
+    auto it = doc_.objectTypes.find(objectTypeId);
+    if (it == doc_.objectTypes.end() || !it->second.platformerController.has_value()) return false;
+    it->second.platformerController.reset();
+    markDirty();
+    return true;
+}
+
+bool ProjectDocument::setPlatformerValue(const std::string& objectTypeId, int field, float value) {
+    auto it = doc_.objectTypes.find(objectTypeId);
+    if (it == doc_.objectTypes.end() || !it->second.platformerController.has_value()) return false;
+    PlatformerControllerComponent& pc = *it->second.platformerController;
+    switch (field) {       // matches commands/PlatformerField
+        case 0: pc.maxSpeed      = value; break;
+        case 1: pc.jumpForce     = value; break;
+        case 2: pc.customGravity = value; break;
+        default: return false;
+    }
+    markDirty();
+    return true;
+}
+
 bool ProjectDocument::addImageAsset(ImageAssetDef asset) {
     if (asset.assetId.empty() || hasImageAsset(asset.assetId)) return false;
     doc_.imageAssets.push_back(std::move(asset));

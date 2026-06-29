@@ -214,6 +214,15 @@ nlohmann::json objectTypeToJson(const std::string& id, const EntityDef& def) {
             {"fourDirections", def.topDownController->fourDirections},
         };
     }
+    if (def.platformerController.has_value()) {
+        // Native editor persists the authored subset: Move Speed / Jump Speed /
+        // Gravity (the other canonical fields stay at their defaults on load).
+        json["platformerController"] = nlohmann::json{
+            {"moveSpeed", def.platformerController->maxSpeed},
+            {"jumpSpeed", def.platformerController->jumpForce},
+            {"gravity", def.platformerController->customGravity},
+        };
+    }
     return json;
 }
 
@@ -306,6 +315,14 @@ DeserializeResult ProjectSerializer::deserialize(std::string_view source) {
                 component.friction = t.value("friction", component.friction);
                 component.fourDirections = t.value("fourDirections", component.fourDirections);
                 def.topDownController = component;
+            }
+            if (item.contains("platformerController") && item["platformerController"].is_object()) {
+                const auto& p = item["platformerController"];
+                PlatformerControllerComponent component;   // others keep defaults
+                component.maxSpeed      = p.value("moveSpeed", component.maxSpeed);
+                component.jumpForce     = p.value("jumpSpeed", component.jumpForce);
+                component.customGravity = p.value("gravity", component.customGravity);
+                def.platformerController = component;
             }
             doc.objectTypes.emplace(id, std::move(def));
         }
@@ -500,6 +517,14 @@ DeserializeResult ProjectValidator::validate(ProjectDocument document) {
             if (!std::isfinite(tdc.maxSpeed) || tdc.maxSpeed < 0.f
                 || !std::isfinite(tdc.acceleration) || !std::isfinite(tdc.friction)) {
                 return DeserializeResult::failure("TopDownController has invalid speed");
+            }
+        }
+        if (def.platformerController.has_value()) {
+            const PlatformerControllerComponent& pc = *def.platformerController;
+            if (!std::isfinite(pc.maxSpeed) || pc.maxSpeed < 0.f
+                || !std::isfinite(pc.jumpForce) || pc.jumpForce < 0.f
+                || !std::isfinite(pc.customGravity) || pc.customGravity < 0.f) {
+                return DeserializeResult::failure("PlatformerController has invalid values");
             }
         }
     }

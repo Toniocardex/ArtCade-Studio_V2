@@ -40,6 +40,11 @@ AddLinearMoverCommand::AddLinearMoverCommand(std::string objectTypeId)
 EditorOperationResult AddLinearMoverCommand::apply(ProjectDocument& document) {
     const EntityDef* type = objectTypeOf(document, objectTypeId_);
     if (!type) return EditorOperationResult::failure("Unknown object type: " + objectTypeId_);
+    // One movement writer per object type.
+    if (type->topDownController || type->platformerController) {
+        return EditorOperationResult::failure(
+            "Object type already has a movement driver (remove it first)");
+    }
     if (type->linearMover.has_value()) {
         return EditorOperationResult::success(EditorInvalidation::None);
     }

@@ -27,6 +27,9 @@ class SetLinearMoverSpeedCommand;
 class AddTopDownControllerCommand;
 class RemoveTopDownControllerCommand;
 class SetTopDownControllerSpeedCommand;
+class AddPlatformerControllerCommand;
+class RemovePlatformerControllerCommand;
+class SetPlatformerValueCommand;
 class AddImageAssetCommand;
 class RemoveImageAssetCommand;
 class AddAudioAssetCommand;
@@ -110,6 +113,9 @@ private:
     friend class AddTopDownControllerCommand;
     friend class RemoveTopDownControllerCommand;
     friend class SetTopDownControllerSpeedCommand;
+    friend class AddPlatformerControllerCommand;
+    friend class RemovePlatformerControllerCommand;
+    friend class SetPlatformerValueCommand;
     friend class AddImageAssetCommand;
     friend class RemoveImageAssetCommand;
     friend class AddAudioAssetCommand;
@@ -168,6 +174,12 @@ private:
     bool addTopDownController(const std::string& objectTypeId, TopDownControllerComponent component);
     bool removeTopDownController(const std::string& objectTypeId);
     bool setTopDownControllerSpeed(const std::string& objectTypeId, float speed);
+    // PlatformerController is authored on the object type only. `field` selects the
+    // canonical scalar (0 = maxSpeed, 1 = jumpForce, 2 = customGravity), matching
+    // commands/PlatformerField so this header stays free of the command enum.
+    bool addPlatformerController(const std::string& objectTypeId, PlatformerControllerComponent component);
+    bool removePlatformerController(const std::string& objectTypeId);
+    bool setPlatformerValue(const std::string& objectTypeId, int field, float value);
     // Image asset catalog. The application copies the file on disk; the document
     // only records AssetId + portable relative sourcePath. Add rejects a
     // duplicate AssetId. Removal does not touch the file on disk.

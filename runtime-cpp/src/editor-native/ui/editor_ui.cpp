@@ -305,6 +305,19 @@ void EditorUi::handleAction(const std::string& action, const std::string& arg,
     } else if (action == "commit-topdown-speed") {
         const std::optional<float> parsed = parseNumberField(value);
         if (parsed.has_value()) setTopDownControllerSpeed(coordinator_, *parsed);
+    } else if (action == "add-platformer") {
+        addPlatformerController(coordinator_);
+    } else if (action == "remove-platformer") {
+        removePlatformerController(coordinator_);
+    } else if (action == "commit-platformer-move") {
+        const std::optional<float> parsed = parseNumberField(value);
+        if (parsed.has_value()) setPlatformerMoveSpeed(coordinator_, *parsed);
+    } else if (action == "commit-platformer-jump") {
+        const std::optional<float> parsed = parseNumberField(value);
+        if (parsed.has_value()) setPlatformerJumpSpeed(coordinator_, *parsed);
+    } else if (action == "commit-platformer-gravity") {
+        const std::optional<float> parsed = parseNumberField(value);
+        if (parsed.has_value()) setPlatformerGravity(coordinator_, *parsed);
     } else if (action == "commit-pos-x") {
         commitInspectorPositionX(coordinator_, selected, value);
     } else if (action == "commit-pos-y") {

@@ -48,6 +48,14 @@ const TopDownControllerComponent* controllerFor(const ProjectDocument& document,
     return &*it->second.topDownController;
 }
 
+const PlatformerControllerComponent* platformerFor(const ProjectDocument& document,
+                                                   const std::string& typeId) {
+    const auto& types = document.data().objectTypes;
+    const auto it = types.find(typeId);
+    if (it == types.end() || !it->second.platformerController) return nullptr;
+    return &*it->second.platformerController;
+}
+
 const BoxCollider2DComponent* colliderFor(const ProjectDocument& document,
                                           const std::string& typeId) {
     const auto& types = document.data().objectTypes;
@@ -111,23 +119,33 @@ std::optional<PlaySession> PlaySession::materialize(const ProjectDocument& docum
         if (const Vec3* fill = fillFor(document, instance.objectTypeId)) {
             entity.fillColor = *fill;
         }
+        // Exactly one movement writer per entity. The Add commands reject a
+        // second driver, but a hand-edited file could still carry several, so
+        // materialize with a fixed priority: Platformer > TopDown > LinearMover.
         const LinearMoverComponent* mover = moverFor(document, instance.objectTypeId);
-        if (mover && !mover->_paused) {
+        const TopDownControllerComponent* controller =
+            controllerFor(document, instance.objectTypeId);
+        const PlatformerControllerComponent* platformer =
+            platformerFor(document, instance.objectTypeId);
+        if (platformer) {
+            entity.platformerController = RuntimePlatformerController{
+                std::max(0.f, platformer->maxSpeed),      // Move Speed
+                std::max(0.f, platformer->jumpForce),     // Jump Speed
+                std::max(0.f, platformer->customGravity), // Gravity
+                0.f, false};
+        } else if (controller) {
+            entity.topDownController = RuntimeTopDownController{std::max(0.f, controller->maxSpeed)};
+        } else if (mover && !mover->_paused) {
             const Vec2 dir = normalizeOrZero(Vec2{mover->directionX, mover->directionY});
             const float speed = std::max(0.f, mover->speed);
             entity.velocity = Vec2{dir.x * speed, dir.y * speed};
-        }
-        const TopDownControllerComponent* controller =
-            controllerFor(document, instance.objectTypeId);
-        if (controller) {
-            entity.topDownController = RuntimeTopDownController{std::max(0.f, controller->maxSpeed)};
         }
         if (const BoxCollider2DComponent* box = colliderFor(document, instance.objectTypeId)) {
             entity.collider = RuntimeBoxCollider{box->offset, box->size, box->enabled, box->isTrigger};
         }
         // A static solid is an obstacle: an active solid collider on an entity that
         // is not itself a kinematic mover (mover-vs-mover is out of scope).
-        const bool isMover = (mover != nullptr) || (controller != nullptr);
+        const bool isMover = (mover != nullptr) || (controller != nullptr) || (platformer != nullptr);
         if (!isMover && isSolid(entity.collider)) {
             session.staticSolids_.push_back(runtimeColliderBounds(entity));
         }
@@ -172,15 +190,16 @@ const RuntimeEntity* PlaySession::findEntity(EntityId id) const {
     return nullptr;
 }
 
-Vec2 PlaySession::moveKinematicEntity(RuntimeEntity& entity, Vec2 desiredDelta) {
+KinematicMoveResult PlaySession::moveKinematicEntity(RuntimeEntity& entity, Vec2 desiredDelta) {
+    KinematicMoveResult result;
+
     // A mover without an active solid collider is unconstrained.
     if (!isSolid(entity.collider)) {
         entity.transform.position.x += desiredDelta.x;
         entity.transform.position.y += desiredDelta.y;
-        return desiredDelta;
+        result.appliedDelta = desiredDelta;
+        return result;
     }
-
-    Vec2 applied{0.f, 0.f};
 
     // -- X axis: clamp against every solid the mover overlaps on Y -------------
     {
@@ -190,8 +209,10 @@ Vec2 PlaySession::moveKinematicEntity(RuntimeEntity& entity, Vec2 desiredDelta) 
             if (m.minY < s.maxY && s.minY < m.maxY)        // strict: touching != overlapping
                 dx = clampAxis(dx, m.minX, m.maxX, s.minX, s.maxX);
         }
+        if (desiredDelta.x > 0.f && dx < desiredDelta.x) result.hitRight = true;
+        if (desiredDelta.x < 0.f && dx > desiredDelta.x) result.hitLeft = true;
         entity.transform.position.x += dx;
-        applied.x = dx;
+        result.appliedDelta.x = dx;
     }
 
     // -- Y axis: re-evaluate with the updated X so corners slide ---------------
@@ -202,11 +223,14 @@ Vec2 PlaySession::moveKinematicEntity(RuntimeEntity& entity, Vec2 desiredDelta) 
             if (m.minX < s.maxX && s.minX < m.maxX)
                 dy = clampAxis(dy, m.minY, m.maxY, s.minY, s.maxY);
         }
+        // World +Y is down: a clamped downward move is ground, upward is ceiling.
+        if (desiredDelta.y > 0.f && dy < desiredDelta.y) result.hitGround = true;
+        if (desiredDelta.y < 0.f && dy > desiredDelta.y) result.hitCeiling = true;
         entity.transform.position.y += dy;
-        applied.y = dy;
+        result.appliedDelta.y = dy;
     }
 
-    return applied;
+    return result;
 }
 
 void PlaySession::advance(float dt) {
@@ -217,21 +241,50 @@ void PlaySession::advance(float dt) {
     }
 }
 
-void PlaySession::update(const RuntimeInputSnapshot& input, float dt) {
-    if (!std::isfinite(dt) || dt <= 0.f) return;
-
+void PlaySession::updateTopDown(RuntimeEntity& entity, const RuntimeInputSnapshot& input,
+                                float dt) {
     // Opposite inputs cancel; the diagonal is normalized so it is never faster.
     const Vec2 direction = normalizeOrZero(Vec2{
         static_cast<float>(input.moveRight) - static_cast<float>(input.moveLeft),
         static_cast<float>(input.moveDown) - static_cast<float>(input.moveUp),
     });
     if (direction.x == 0.f && direction.y == 0.f) return;
+    const float speed = entity.topDownController->speed;
+    moveKinematicEntity(entity, Vec2{direction.x * speed * dt, direction.y * speed * dt});
+}
 
-    // Input-driven movement (TopDownController) routed through the one resolver.
+void PlaySession::updatePlatformer(RuntimeEntity& entity, const RuntimeInputSnapshot& input,
+                                   float dt) {
+    RuntimePlatformerController& pc = *entity.platformerController;
+
+    // Jump is an edge input and only fires from the ground.
+    if (input.jumpPressed && pc.grounded) {
+        pc.verticalVelocity = -pc.jumpSpeed;   // -Y is up
+        pc.grounded = false;
+    }
+    pc.verticalVelocity += pc.gravity * dt;    // +Y is down
+
+    const float dx = (static_cast<float>(input.moveRight) - static_cast<float>(input.moveLeft))
+                     * pc.moveSpeed * dt;
+    const float dy = pc.verticalVelocity * dt;
+
+    const KinematicMoveResult moved = moveKinematicEntity(entity, Vec2{dx, dy});
+
+    if (moved.hitCeiling) pc.verticalVelocity = 0.f;   // stop rising into a ceiling
+    if (moved.hitGround) {
+        pc.grounded = true;
+        pc.verticalVelocity = 0.f;
+    } else {
+        pc.grounded = false;                           // no floor contact this step
+    }
+}
+
+void PlaySession::update(const RuntimeInputSnapshot& input, float dt) {
+    if (!std::isfinite(dt) || dt <= 0.f) return;
+    // One movement writer per entity (enforced at authoring): dispatch by driver.
     for (RuntimeEntity& entity : scene_.entities) {
-        if (!entity.topDownController) continue;
-        const float speed = entity.topDownController->speed;
-        moveKinematicEntity(entity, Vec2{direction.x * speed * dt, direction.y * speed * dt});
+        if (entity.topDownController)        updateTopDown(entity, input, dt);
+        else if (entity.platformerController) updatePlatformer(entity, input, dt);
     }
 }
 

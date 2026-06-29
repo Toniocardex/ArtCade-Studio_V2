@@ -3,6 +3,7 @@
 #include "editor-native/app/editor_coordinator.h"
 #include "editor-native/commands/box_collider_commands.h"
 #include "editor-native/commands/linear_mover_commands.h"
+#include "editor-native/commands/platformer_controller_commands.h"
 #include "editor-native/commands/sprite_commands.h"
 #include "editor-native/commands/top_down_controller_commands.h"
 
@@ -161,6 +162,49 @@ EditorOperationResult setTopDownControllerSpeed(EditorCoordinator& coordinator, 
         return EditorOperationResult::failure("No selected object type");
     }
     return coordinator.execute(SetTopDownControllerSpeedCommand{objectTypeId, speed});
+}
+
+EditorOperationResult addPlatformerController(EditorCoordinator& coordinator) {
+    std::string objectTypeId;
+    if (!selectedObjectType(coordinator, objectTypeId)) {
+        return EditorOperationResult::failure("No selected object type");
+    }
+    return coordinator.execute(AddPlatformerControllerCommand{objectTypeId});
+}
+
+EditorOperationResult removePlatformerController(EditorCoordinator& coordinator) {
+    std::string objectTypeId;
+    if (!selectedObjectType(coordinator, objectTypeId)) {
+        return EditorOperationResult::failure("No selected object type");
+    }
+    return coordinator.execute(RemovePlatformerControllerCommand{objectTypeId});
+}
+
+EditorOperationResult setPlatformerMoveSpeed(EditorCoordinator& coordinator, float value) {
+    std::string objectTypeId;
+    if (!selectedObjectType(coordinator, objectTypeId)) {
+        return EditorOperationResult::failure("No selected object type");
+    }
+    return coordinator.execute(
+        SetPlatformerValueCommand{objectTypeId, PlatformerField::MoveSpeed, value});
+}
+
+EditorOperationResult setPlatformerJumpSpeed(EditorCoordinator& coordinator, float value) {
+    std::string objectTypeId;
+    if (!selectedObjectType(coordinator, objectTypeId)) {
+        return EditorOperationResult::failure("No selected object type");
+    }
+    return coordinator.execute(
+        SetPlatformerValueCommand{objectTypeId, PlatformerField::JumpSpeed, value});
+}
+
+EditorOperationResult setPlatformerGravity(EditorCoordinator& coordinator, float value) {
+    std::string objectTypeId;
+    if (!selectedObjectType(coordinator, objectTypeId)) {
+        return EditorOperationResult::failure("No selected object type");
+    }
+    return coordinator.execute(
+        SetPlatformerValueCommand{objectTypeId, PlatformerField::Gravity, value});
 }
 
 } // namespace ArtCade::EditorNative
