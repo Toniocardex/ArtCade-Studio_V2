@@ -43,6 +43,15 @@ const SceneInstanceDef* ProjectDocument::findInstanceInScene(const SceneId& scen
     return nullptr;
 }
 
+bool ProjectDocument::hasObjectType(const std::string& id) const {
+    return doc_.objectTypes.find(id) != doc_.objectTypes.end();
+}
+
+const EntityDef* ProjectDocument::findObjectType(const std::string& id) const {
+    const auto it = doc_.objectTypes.find(id);
+    return it == doc_.objectTypes.end() ? nullptr : &it->second;
+}
+
 SceneInstanceDef* ProjectDocument::mutableInstanceInScene(const SceneId& sceneId,
                                                           EntityId id) {
     SceneDef* scene = mutableScene(sceneId);
@@ -132,6 +141,22 @@ bool ProjectDocument::restoreScene(SceneDef scene, const SceneId& startSceneId) 
     const SceneId id = scene.id;
     doc_.scenes.emplace(id, std::move(scene));
     doc_.activeSceneId = startSceneId;
+    markDirty();
+    return true;
+}
+
+bool ProjectDocument::createObjectType(EntityDef type) {
+    if (type.className.empty()) return false;
+    if (doc_.objectTypes.find(type.className) != doc_.objectTypes.end()) return false;
+    doc_.objectTypes.emplace(type.className, std::move(type));
+    markDirty();
+    return true;
+}
+
+bool ProjectDocument::removeObjectType(const std::string& id) {
+    const auto it = doc_.objectTypes.find(id);
+    if (it == doc_.objectTypes.end()) return false;
+    doc_.objectTypes.erase(it);
     markDirty();
     return true;
 }

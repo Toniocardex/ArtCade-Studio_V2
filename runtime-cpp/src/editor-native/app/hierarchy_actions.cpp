@@ -5,6 +5,7 @@
 #include "editor-native/commands/scene_commands.h"
 #include "editor-native/model/project_document.h"
 
+#include <optional>
 #include <string>
 
 namespace ArtCade::EditorNative {
@@ -12,16 +13,28 @@ namespace ArtCade::EditorNative {
 namespace {
 
 // Object type a freshly placed instance references. The Hierarchy "Add Entity"
-// gate does not yet pick a type, so prefer a real one (lexicographically first
-// for determinism) and fall back to a placeholder when the catalog is empty. A
-// proper object-type picker is Inspector/asset work.
-std::string defaultObjectTypeId(const ProjectDocument& document) {
+// gate does not yet pick a type, so it reuses an existing one (lexicographically
+// first, for determinism). An empty catalog has no real type to reference, so
+// this returns nullopt instead of a sentinel name — the first entity then takes
+// the create-type path. A proper object-type picker is Inspector/asset work.
+std::optional<std::string> defaultObjectTypeId(const ProjectDocument& document) {
     const std::string* best = nullptr;
     for (const auto& [id, def] : document.data().objectTypes) {
         (void)def;
         if (!best || id < *best) best = &id;
     }
-    return best ? *best : std::string("Entity");
+    if (!best) return std::nullopt;
+    return *best;
+}
+
+// A real, unique object-type id for the first entity in an empty catalog. The id
+// is a stable token ("object-N"), never the display name — a visual name must
+// not double as an identifier.
+std::string makeUniqueObjectTypeId(const ProjectDocument& document) {
+    for (int n = 1;; ++n) {
+        std::string candidate = "object-" + std::to_string(n);
+        if (!document.hasObjectType(candidate)) return candidate;
+    }
 }
 
 } // namespace
@@ -70,9 +83,17 @@ EditorOperationResult addEntity(EditorCoordinator& coordinator) {
         return EditorOperationResult::failure("No active scene to add an entity to");
     }
     const EntityId id = nextAvailableEntityId(coordinator.document(), sceneId);
-    const std::string type = defaultObjectTypeId(coordinator.document());
-    return coordinator.execute(
-        CreateEntityCommand{sceneId, id, type, "Entity " + std::to_string(id)});
+    const std::string instanceName = "Entity " + std::to_string(id);
+    const std::optional<std::string> existingType = defaultObjectTypeId(coordinator.document());
+    if (existingType) {
+        // Reuse the existing object type — the instance references a real, persisted id.
+        return coordinator.execute(
+            CreateEntityCommand{sceneId, id, *existingType, instanceName});
+    }
+    // Empty catalog: create a real object type + the instance atomically.
+    const std::string objectTypeId = makeUniqueObjectTypeId(coordinator.document());
+    return coordinator.execute(CreateEntityWithDefaultTypeCommand{
+        sceneId, id, objectTypeId, /*objectTypeName*/ "Entity", instanceName});
 }
 
 EditorOperationResult deleteSelectedEntity(EditorCoordinator& coordinator) {

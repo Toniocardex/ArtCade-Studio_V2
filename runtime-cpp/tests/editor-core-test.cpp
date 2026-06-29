@@ -1098,6 +1098,112 @@ int main() {
         CHECK(c.consumeInvalidations() == EditorInvalidation::None);
     }
 
+    // -- Empty catalog: Add Entity creates a real object type + instance -------
+    //    Regression for "Unknown object type: Entity": the first entity in a
+    //    catalog-less project must produce a real, persisted object type (never a
+    //    sentinel id) so object-type-scoped components are usable at once.
+    {
+        ProjectDoc fresh;
+        fresh.projectName = "fresh";
+        fresh.activeSceneId = "s";
+        SceneDef scene; scene.id = "s"; scene.name = "S";
+        fresh.scenes.emplace("s", scene);
+
+        EditorCoordinator c{fresh};
+        CHECK(c.document().data().objectTypes.empty());     // empty catalog
+        CHECK(addEntity(c).ok);
+        CHECK(c.undoSize() == 1);                           // (1) one command / one undo entry
+
+        // (1)(2) a real object type now exists and the instance points to it.
+        CHECK(c.document().data().objectTypes.size() == 1);
+        const std::string typeId = c.document().data().objectTypes.begin()->first;
+        CHECK(typeId != "Entity");                          // (9) no sentinel id as objectTypeId
+        const SceneInstanceDef* inst = c.document().findInstanceInScene("s", 1);
+        CHECK(inst != nullptr);
+        CHECK(inst->objectTypeId == typeId);                // (2) references the real type
+        CHECK(c.document().hasObjectType(inst->objectTypeId));
+        CHECK(c.document().findObjectType(typeId)->name == "Entity");  // visual name preserved
+
+        // (3) object-type-scoped component commands work immediately.
+        CHECK(c.execute(AddTopDownControllerCommand{typeId}).ok);
+        CHECK(c.document().data().objectTypes.at(typeId).topDownController.has_value());
+        CHECK(c.execute(AddBoxColliderCommand{typeId}).ok);
+        CHECK(c.execute(AddLinearMoverCommand{typeId}).ok);
+    }
+
+    // -- Undo/redo of the first entity restores both type and instance ---------
+    {
+        ProjectDoc fresh;
+        fresh.activeSceneId = "s";
+        SceneDef scene; scene.id = "s"; scene.name = "S";
+        fresh.scenes.emplace("s", scene);
+
+        EditorCoordinator c{fresh};
+        CHECK(addEntity(c).ok);
+        const std::string typeId = c.document().data().objectTypes.begin()->first;
+
+        // (4) undo removes BOTH the instance and the object type it created.
+        CHECK(c.undo().ok);
+        CHECK(c.document().findInstanceInScene("s", 1) == nullptr);
+        CHECK(c.document().data().objectTypes.empty());
+
+        // (5) redo restores both with the same ids (no fresh generation).
+        CHECK(c.redo().ok);
+        CHECK(c.document().findInstanceInScene("s", 1) != nullptr);
+        CHECK(c.document().data().objectTypes.size() == 1);
+        CHECK(c.document().data().objectTypes.begin()->first == typeId);
+        CHECK(c.document().findInstanceInScene("s", 1)->objectTypeId == typeId);
+    }
+
+    // -- (6) Non-empty catalog: Add Entity reuses the existing type ------------
+    {
+        EditorCoordinator c{makeInheritedDoc()};            // catalog has a real "Hero" type
+        CHECK(c.document().hasObjectType("Hero"));
+        const std::size_t typesBefore = c.document().data().objectTypes.size();
+        CHECK(addEntity(c).ok);
+        CHECK(c.document().data().objectTypes.size() == typesBefore);   // no new type
+        const EntityId placed = nextAvailableEntityId(c.document(), kSceneA) - 1;
+        const SceneInstanceDef* inst = c.document().findInstanceInScene(kSceneA, placed);
+        CHECK(inst != nullptr);
+        CHECK(inst->objectTypeId == "Hero");                            // reuses the existing type
+        CHECK(c.document().hasObjectType(inst->objectTypeId));
+    }
+
+    // -- (7) A failed create-with-default-type makes no partial mutation -------
+    {
+        EditorCoordinator c{makeInheritedDoc()};            // "Hero" already exists
+        const std::size_t typesBefore = c.document().data().objectTypes.size();
+        const uint64_t revBefore = c.document().revision();
+        // objectTypeId collides -> apply fails before any mutation.
+        CHECK(!c.execute(CreateEntityWithDefaultTypeCommand{
+                  kSceneA, 999, "Hero", "Entity", "X"}).ok);
+        CHECK(c.document().data().objectTypes.size() == typesBefore);
+        CHECK(c.document().findInstanceInScene(kSceneA, 999) == nullptr);
+        CHECK(c.document().revision() == revBefore);        // no partial state
+    }
+
+    // -- (8) Save/reload preserves the created type and instance ---------------
+    {
+        ProjectDoc fresh;
+        fresh.activeSceneId = "s";
+        SceneDef scene; scene.id = "s"; scene.name = "S";
+        fresh.scenes.emplace("s", scene);
+
+        EditorCoordinator c{fresh};
+        CHECK(addEntity(c).ok);
+        const std::string typeId = c.document().data().objectTypes.begin()->first;
+
+        const std::filesystem::path path = testTempDir() / "default-type.artcade-project";
+        CHECK(saveProjectToFile(c, path).ok);
+
+        EditorCoordinator reloaded{makeReplacementDoc()};
+        CHECK(loadProjectFromFile(reloaded, path).ok);
+        CHECK(reloaded.document().hasObjectType(typeId));
+        const SceneInstanceDef* inst = reloaded.document().findInstanceInScene("s", 1);
+        CHECK(inst != nullptr);
+        CHECK(inst->objectTypeId == typeId);                // reference survives the round-trip
+    }
+
     // -- (5) Delete Entity uses the authoritative scene + selection ------------
     {
         EditorCoordinator c{makeDoc()};

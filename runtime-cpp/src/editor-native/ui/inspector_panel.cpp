@@ -55,8 +55,12 @@ void InspectorPanel::refresh(Rml::ElementDocument* document,
     std::string html;
     html += "<div class=\"prop-group-title\">" + icon("&#xeb34;") + "Identity</div>";
     html += field("Name", "commit-name", inst->instanceName);
+    // Show the object type's display name (the id is an internal token); fall back
+    // to the id for a legacy/catalog-less instance whose type is not registered.
+    const EntityDef* objectType = coordinator.document().findObjectType(inst->objectTypeId);
+    const std::string typeLabel = objectType ? objectType->name : inst->objectTypeId;
     html += "<div class=\"prop-row\"><span class=\"prop-label\">Type</span>"
-            "<span class=\"prop-readonly\">" + escapeRml(inst->objectTypeId) + "</span></div>";
+            "<span class=\"prop-readonly\">" + escapeRml(typeLabel) + "</span></div>";
 
     html += "<div class=\"prop-group-title\">" + icon("&#xf22f;") + "Transform</div>";
     html += field("Position X", "commit-pos-x", num(inst->transform.position.x));

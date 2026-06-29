@@ -59,6 +59,68 @@ EditorOperationResult CreateEntityCommand::undo(ProjectDocument& document) {
 }
 
 // ----------------------------------------------------------------------------
+// CreateEntityWithDefaultTypeCommand
+// ----------------------------------------------------------------------------
+CreateEntityWithDefaultTypeCommand::CreateEntityWithDefaultTypeCommand(
+    SceneId sceneId, EntityId id, std::string objectTypeId, std::string objectTypeName,
+    std::string instanceName, Vec2 position)
+    : sceneId_(std::move(sceneId)), id_(id),
+      objectTypeId_(std::move(objectTypeId)), objectTypeName_(std::move(objectTypeName)),
+      instanceName_(std::move(instanceName)), position_(position) {}
+
+EditorOperationResult CreateEntityWithDefaultTypeCommand::apply(ProjectDocument& document) {
+    if (id_ == 0) {
+        return EditorOperationResult::failure("Entity id cannot be zero");
+    }
+    if (objectTypeId_.empty()) {
+        return EditorOperationResult::failure("Object type id cannot be empty");
+    }
+    if (!document.findScene(sceneId_)) {
+        return EditorOperationResult::failure("No target scene");
+    }
+    // Validate both ids up front so the two mutations below cannot fail
+    // independently — no partial mutation is possible after this point.
+    if (document.hasObjectType(objectTypeId_)) {
+        return EditorOperationResult::failure("Object type already exists");
+    }
+    if (document.findInstanceInScene(sceneId_, id_)) {
+        return EditorOperationResult::failure("An instance with that id already exists");
+    }
+
+    EntityDef type;
+    type.className = objectTypeId_;   // the catalog key (mirrors load: className == id)
+    type.name     = objectTypeName_;
+    if (!document.createObjectType(std::move(type))) {
+        return EditorOperationResult::failure("Failed to create object type");
+    }
+
+    SceneInstanceDef instance;
+    instance.id                 = id_;
+    instance.objectTypeId       = objectTypeId_;
+    instance.instanceName       = instanceName_;
+    instance.transform.position = position_;
+    if (!document.createInstance(sceneId_, std::move(instance))) {
+        document.removeObjectType(objectTypeId_);   // unreachable after validation; no partial state
+        return EditorOperationResult::failure("Failed to create instance");
+    }
+    return EditorOperationResult::success(kStructureInvalidation,
+                                          DomainChange::entityAdded(sceneId_, id_));
+}
+
+EditorOperationResult CreateEntityWithDefaultTypeCommand::undo(ProjectDocument& document) {
+    // Exact inverse: drop the instance, then remove precisely the object type
+    // this command created.
+    if (!document.deleteInstance(sceneId_, id_)) {
+        return EditorOperationResult::failure("Cannot undo: instance missing");
+    }
+    if (!document.removeObjectType(objectTypeId_)) {
+        return EditorOperationResult::failure("Cannot undo: object type missing");
+    }
+    return EditorOperationResult::success(kStructureInvalidation,
+                                          DomainChange::entityRemoved(sceneId_, id_));
+}
+
+// ----------------------------------------------------------------------------
 // DeleteEntityCommand
 // ----------------------------------------------------------------------------
 DeleteEntityCommand::DeleteEntityCommand(SceneId sceneId, EntityId id)

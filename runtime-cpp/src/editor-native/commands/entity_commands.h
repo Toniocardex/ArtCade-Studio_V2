@@ -30,6 +30,32 @@ private:
     Vec2        position_{};
 };
 
+// Place the first entity in a project with an empty object-type catalog: it
+// creates a real ObjectTypeDef and an instance referencing it, atomically, so
+// the new instance immediately resolves to a persisted type (no "Entity"
+// sentinel) and object-type-scoped components work at once. One UI gesture, one
+// undo entry. The ids are generated once by the caller and kept, so redo
+// re-applies the same ids without generating new ones. Invalidates Hierarchy |
+// Viewport.
+class CreateEntityWithDefaultTypeCommand final : public EditorCommand {
+public:
+    CreateEntityWithDefaultTypeCommand(SceneId sceneId, EntityId id,
+                                       std::string objectTypeId, std::string objectTypeName,
+                                       std::string instanceName, Vec2 position = {});
+
+    EditorOperationResult apply(ProjectDocument& document) override;
+    EditorOperationResult undo(ProjectDocument& document) override;
+    const char* name() const override { return "CreateEntityWithDefaultType"; }
+
+private:
+    SceneId     sceneId_;
+    EntityId    id_;
+    std::string objectTypeId_;
+    std::string objectTypeName_;
+    std::string instanceName_;
+    Vec2        position_{};
+};
+
 /** Remove one placed instance. Invalidates Hierarchy | Viewport. */
 class DeleteEntityCommand final : public EditorCommand {
 public:

@@ -66,6 +66,9 @@ public:
     const SceneDef*          findScene(const SceneId& id) const;
     bool                     hasScene(const SceneId& id) const;
     const SceneInstanceDef*  findInstanceInScene(const SceneId& sceneId, EntityId id) const;
+    /** True if @p id is a known object type (ProjectDoc.objectTypes). */
+    bool                     hasObjectType(const std::string& id) const;
+    const EntityDef*         findObjectType(const std::string& id) const;
     /** True if @p id is a known image asset (ProjectDoc.imageAssets). */
     bool                     hasImageAsset(const AssetId& id) const;
     const ImageAssetDef*     findImageAsset(const AssetId& id) const;
@@ -88,6 +91,7 @@ private:
     friend class AddLinearMoverCommand;
     friend class AddSpriteRendererCommand;
     friend class CreateEntityCommand;
+    friend class CreateEntityWithDefaultTypeCommand;
     friend class CreateSceneCommand;
     friend class DeleteEntityCommand;
     friend class DeleteSceneCommand;
@@ -131,6 +135,12 @@ private:
     bool restoreScene(SceneDef scene, const SceneId& startSceneId);
     // Instance structural verbs. createInstance appends; insertInstance places at
     // a captured index so DeleteEntityCommand undo restores the original order.
+    // Object type catalog. The editor creates a real object type for the first
+    // entity placed in an empty catalog, so every instance.objectTypeId resolves
+    // to a persisted ObjectTypeDef (no "Entity" sentinel id). createObjectType
+    // rejects a duplicate id; removeObjectType is its exact inverse.
+    bool createObjectType(EntityDef type);
+    bool removeObjectType(const std::string& id);
     bool createInstance(const SceneId& sceneId, SceneInstanceDef instance);
     bool insertInstance(const SceneId& sceneId, std::size_t index, SceneInstanceDef instance);
     bool deleteInstance(const SceneId& sceneId, EntityId id);
