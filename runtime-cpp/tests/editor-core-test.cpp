@@ -818,6 +818,47 @@ int main() {
         CHECK(c.document().findInstanceInScene(kSceneA, kHero)->transform.position.x == 10.f);
     }
 
+    // -- Bring Into Scene: explicit recovery via SetEntityPositionCommand ------
+    {
+        EditorCoordinator c{makeInheritedDoc()};
+        c.apply(SelectEntityIntent{kHero});
+        CHECK(c.execute(SetEntityPositionCommand{kSceneA, kHero, Vec2{562.f, -35.f}}).ok);
+        const std::size_t undoBefore = c.undoSize();
+
+        const auto r = bringSelectedEntityIntoScene(c);
+        CHECK(r.ok);
+        CHECK(c.undoSize() == undoBefore + 1);
+        const SceneInstanceDef* inst = c.document().findInstanceInScene(kSceneA, kHero);
+        CHECK(inst != nullptr);
+        CHECK(inst->transform.position.x == 488.f);
+        CHECK(inst->transform.position.y == 24.f);
+
+        CHECK(c.undo().ok);
+        CHECK(c.document().findInstanceInScene(kSceneA, kHero)->transform.position.x == 562.f);
+        CHECK(c.document().findInstanceInScene(kSceneA, kHero)->transform.position.y == -35.f);
+        CHECK(c.redo().ok);
+        CHECK(c.document().findInstanceInScene(kSceneA, kHero)->transform.position.x == 488.f);
+        CHECK(c.document().findInstanceInScene(kSceneA, kHero)->transform.position.y == 24.f);
+    }
+
+    // -- Bring Into Scene no-ops when already inside; Play still blocks edits --
+    {
+        EditorCoordinator inside{makeInheritedDoc()};
+        inside.apply(SelectEntityIntent{kHero});
+        CHECK(inside.execute(SetEntityPositionCommand{kSceneA, kHero, Vec2{100.f, 100.f}}).ok);
+        const std::size_t undoBefore = inside.undoSize();
+        CHECK(bringSelectedEntityIntoScene(inside).ok);
+        CHECK(inside.undoSize() == undoBefore);
+
+        EditorCoordinator playing{makeInheritedDoc()};
+        playing.apply(SelectEntityIntent{kHero});
+        CHECK(playing.execute(SetEntityPositionCommand{kSceneA, kHero, Vec2{562.f, -35.f}}).ok);
+        CHECK(playing.playProject().ok);
+        CHECK(!bringSelectedEntityIntoScene(playing).ok);
+        CHECK(playing.document().findInstanceInScene(kSceneA, kHero)->transform.position.x == 562.f);
+        CHECK(playing.document().findInstanceInScene(kSceneA, kHero)->transform.position.y == -35.f);
+    }
+
     // -- Undo / rename / scene + background commands round-trip ----------------
     {
         EditorCoordinator c{makeDoc()};
@@ -2751,6 +2792,60 @@ int main() {
         f.sprites.push_back(SceneFrameSprite{3, "img", SceneFrameRect{10, 10, 50, 50}, {}, false, false});
         CHECK(pickEntityAt(f, Vec2{20.f, 20.f}) == 2);   // sprite over placeholder
         CHECK(pickEntityAt(f, Vec2{5.f, 5.f}) == 1);     // invisible sprite ignored
+    }
+
+    // -- editorBoundsForEntity: sprite/collider union, else placeholder -------
+    {
+        SceneFrameSnapshot f;
+        f.hasScene = true;
+        f.worldSize = Vec2{100.f, 100.f};
+        f.entities.push_back(SceneFrameEntity{1, "P", {}, SceneFrameRect{0, 0, 10, 10}, false});
+        f.entities.push_back(SceneFrameEntity{2, "Q", {}, SceneFrameRect{70, 70, 10, 10}, false});
+        f.sprites.push_back(SceneFrameSprite{1, "img", SceneFrameRect{20, 0, 10, 10}, {}, true, false});
+        f.sprites.push_back(SceneFrameSprite{1, "hidden", SceneFrameRect{-100, -100, 10, 10}, {}, false, false});
+        f.colliders.push_back(SceneFrameCollider{1, WorldRect{0, 20, 10, 10}, true, false, false});
+
+        const std::optional<WorldRect> bounds = editorBoundsForEntity(f, 1);
+        CHECK(bounds.has_value());
+        CHECK(bounds->x == 0.f);
+        CHECK(bounds->y == 0.f);
+        CHECK(bounds->width == 30.f);
+        CHECK(bounds->height == 30.f);
+
+        const std::optional<WorldRect> fallback = editorBoundsForEntity(f, 2);
+        CHECK(fallback.has_value());
+        CHECK(fallback->x == 70.f);
+        CHECK(fallback->y == 70.f);
+    }
+
+    // -- scene containment and explicit bring-inside math ---------------------
+    {
+        CHECK(classifySceneContainment(WorldRect{10, 10, 20, 20}, Vec2{100, 100})
+              == SceneContainment::Inside);
+        CHECK(classifySceneContainment(WorldRect{90, 10, 20, 20}, Vec2{100, 100})
+              == SceneContainment::PartiallyOutside);
+        CHECK(classifySceneContainment(WorldRect{120, 10, 20, 20}, Vec2{100, 100})
+              == SceneContainment::FullyOutside);
+
+        const std::optional<Vec2> right =
+            positionToBringBoundsInsideScene(WorldRect{90, 10, 20, 20},
+                                             Vec2{100, 20}, Vec2{100, 100});
+        CHECK(right.has_value());
+        CHECK(right->x == 90.f);
+        CHECK(right->y == 20.f);
+
+        const std::optional<Vec2> large =
+            positionToBringBoundsInsideScene(WorldRect{-30, 0, 200, 20},
+                                             Vec2{70, 10}, Vec2{100, 100});
+        CHECK(large.has_value());
+        CHECK(large->x == 50.f);   // entity wider than scene -> centered on X
+        CHECK(large->y == 10.f);
+
+        const std::optional<Vec2> bad =
+            positionToBringBoundsInsideScene(WorldRect{0, 0, 10, 10},
+                                             Vec2{std::numeric_limits<float>::quiet_NaN(), 0},
+                                             Vec2{100, 100});
+        CHECK(!bad.has_value());
     }
 
     // == Start-scene invariant: scenes exist => startSceneId is valid ==========

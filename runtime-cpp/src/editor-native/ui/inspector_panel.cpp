@@ -1,6 +1,7 @@
 #include "editor-native/ui/inspector_panel.h"
 
 #include "editor-native/app/editor_coordinator.h"
+#include "editor-native/model/scene_frame_snapshot.h"
 #include "editor-native/model/sprite_render_view.h"
 #include "editor-native/ui/editor_ui.h"
 
@@ -8,6 +9,7 @@
 #include <RmlUi/Core/ElementDocument.h>
 
 #include <cstdio>
+#include <optional>
 #include <string>
 
 namespace ArtCade::EditorNative {
@@ -67,6 +69,22 @@ std::string header(const char* iconCp, const char* title, const char* badge,
     return h;
 }
 
+std::string outsideSceneWarning(SceneContainment containment, bool playing) {
+    if (containment == SceneContainment::Inside) return {};
+    const char* label = containment == SceneContainment::FullyOutside
+        ? "Outside scene bounds"
+        : "Partially outside scene bounds";
+    std::string html = "<div class=\"outside-warning\">"
+        "<span class=\"icon\">&#xea06;</span><span>";
+    html += label;
+    html += "</span></div>";
+    html += "<button class=\"";
+    html += playing ? "panel-btn disabled" : "panel-btn";
+    html += "\" data-action=\"bring-entity-into-scene\">"
+            "<span class=\"icon\">&#xea5f;</span>Bring Into Scene</button>";
+    return html;
+}
+
 } // namespace
 
 void InspectorPanel::toggleAddMenu(Rml::ElementDocument* document,
@@ -118,6 +136,11 @@ void InspectorPanel::refresh(Rml::ElementDocument* document,
     html += header("&#xf22f;", "Transform", "INSTANCE", "", "", playing);
     html += field("Position X", "commit-pos-x", num(inst->transform.position.x), playing);
     html += field("Position Y", "commit-pos-y", num(inst->transform.position.y), playing);
+    const SceneFrameSnapshot frame = collectSceneFrameSnapshot(
+        coordinator.document(), coordinator.state().activeSceneId, selected);
+    if (const std::optional<WorldRect> bounds = editorBoundsForEntity(frame, selected)) {
+        html += outsideSceneWarning(classifySceneContainment(*bounds, frame.worldSize), playing);
+    }
 
     // -- Sprite Renderer (instance override, or inherited from the type) ------
     const SpriteRenderView resolved =

@@ -181,3 +181,12 @@
     color: #d4d4d8;
     font-size: 12dp;
 }
+.outside-warning {
+    display: block;
+    margin: 2dp 0 7dp 0;
+    padding: 6dp 8dp;
+    border-left: 2dp #d8b44a;
+    background-color: #241f13;
+    color: #d8b44a;
+    font-size: 11dp;
+}

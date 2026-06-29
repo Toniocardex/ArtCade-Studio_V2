@@ -522,7 +522,6 @@ int EditorApp::run(int argc, char** argv) {
                 ui.copySelectedConsoleMessage();
             }
         }
-
         const ViewportRect rect = viewportRectFromDocument(host.document());
         const bool contextMenuHit = ui.isViewportContextMenuHit(
             static_cast<int>(static_cast<float>(GetMouseX()) * uiPixelScaleX()),

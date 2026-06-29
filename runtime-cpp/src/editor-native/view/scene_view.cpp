@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <optional>
 
 namespace ArtCade::EditorNative {
 
@@ -160,7 +161,12 @@ void SceneView::render(const SceneFrameSnapshot& frame,
         }
 
         if (entity.selected) {
-            const Rectangle box = toRectangle(entity.bounds);
+            const std::optional<WorldRect> editorBounds =
+                editorBoundsForEntity(frame, entity.entityId);
+            const Rectangle box = editorBounds
+                ? Rectangle{editorBounds->x, editorBounds->y,
+                            editorBounds->width, editorBounds->height}
+                : toRectangle(entity.bounds);
             const Rectangle sel{box.x - 3.f, box.y - 3.f, box.width + 6.f, box.height + 6.f};
             DrawRectangleLinesEx(sel, 2.f / cam.zoom, Color{59, 130, 246, 255});
         }
@@ -172,6 +178,21 @@ void SceneView::render(const SceneFrameSnapshot& frame,
     // The scene-name chip is a viewport-space overlay, not clipped to the scene.
     BeginScissorMode(rect.x, rect.y, rect.width, rect.height);
     // Scene name — subtle rounded chip in the top-left corner of the viewport.
+    for (const SceneFrameEntity& entity : frame.entities) {
+        if (!entity.selected) continue;
+        const std::optional<WorldRect> bounds = editorBoundsForEntity(frame, entity.entityId);
+        if (!bounds) break;
+        const SceneContainment containment = classifySceneContainment(*bounds, frame.worldSize);
+        if (containment == SceneContainment::Inside) break;
+
+        BeginMode2D(cam);
+        const Rectangle box{bounds->x, bounds->y, bounds->width, bounds->height};
+        DrawRectangleRec(box, Color{216, 180, 74, 32});
+        DrawRectangleLinesEx(box, 2.f / cam.zoom, Color{216, 180, 74, 220});
+        EndMode2D();
+        break;
+    }
+
     const char* label = frame.sceneName.c_str();
     const int fontSize = 14;
     const float textW = static_cast<float>(MeasureText(label, fontSize));

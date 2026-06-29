@@ -3,6 +3,7 @@
 #include "core/types.h"
 #include "editor-native/model/box_collider_view.h"
 
+#include <optional>
 #include <vector>
 
 namespace ArtCade::EditorNative {
@@ -45,10 +46,27 @@ struct SceneFrameSnapshot {
     std::vector<SceneFrameCollider> colliders;
 };
 
+enum class SceneContainment {
+    Inside,
+    PartiallyOutside,
+    FullyOutside,
+};
+
 SceneFrameSnapshot collectSceneFrameSnapshot(const ProjectDocument& document,
                                              const SceneId& sceneId,
                                              EntityId selectedEntity);
 SceneFrameSnapshot collectSceneFrameSnapshot(const PlaySession& session);
+
+// Derived editor geometry for selection, recovery, and containment warnings.
+// Uses the frame projection only: visible sprite bounds and collider bounds are
+// unioned when present; otherwise the editorial placeholder bounds are used.
+std::optional<WorldRect> editorBoundsForEntity(const SceneFrameSnapshot& frame,
+                                               EntityId entityId);
+SceneContainment classifySceneContainment(const WorldRect& entityBounds,
+                                          Vec2 sceneSize);
+std::optional<Vec2> positionToBringBoundsInsideScene(const WorldRect& entityBounds,
+                                                     Vec2 currentPosition,
+                                                     Vec2 sceneSize);
 
 // Topmost entity whose drawn representation contains the world point, or
 // INVALID_ENTITY. A sprite occludes a placeholder; later draw order wins. Pure

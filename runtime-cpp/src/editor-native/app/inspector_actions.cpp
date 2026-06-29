@@ -2,10 +2,12 @@
 
 #include "editor-native/app/editor_coordinator.h"
 #include "editor-native/commands/box_collider_commands.h"
+#include "editor-native/commands/entity_commands.h"
 #include "editor-native/commands/linear_mover_commands.h"
 #include "editor-native/commands/platformer_controller_commands.h"
 #include "editor-native/commands/sprite_commands.h"
 #include "editor-native/commands/top_down_controller_commands.h"
+#include "editor-native/model/scene_frame_snapshot.h"
 
 namespace ArtCade::EditorNative {
 
@@ -58,6 +60,37 @@ EditorOperationResult setSpriteRendererAsset(EditorCoordinator& coordinator, con
         return EditorOperationResult::failure("No selected entity");
     }
     return coordinator.execute(SetSpriteRendererAssetCommand{sceneId, id, assetId});
+}
+
+EditorOperationResult bringSelectedEntityIntoScene(EditorCoordinator& coordinator) {
+    SceneId sceneId; EntityId id;
+    if (!selectedTarget(coordinator, sceneId, id)) {
+        return EditorOperationResult::failure("No selected entity");
+    }
+    const SceneInstanceDef* instance = coordinator.document().findInstanceInScene(sceneId, id);
+    const SceneDef* scene = coordinator.document().findScene(sceneId);
+    if (!instance || !scene) {
+        return EditorOperationResult::failure("No selected entity");
+    }
+
+    const SceneFrameSnapshot frame =
+        collectSceneFrameSnapshot(coordinator.document(), sceneId, id);
+    const std::optional<WorldRect> bounds = editorBoundsForEntity(frame, id);
+    if (!bounds) {
+        return EditorOperationResult::failure("No editor bounds for selected entity");
+    }
+    if (classifySceneContainment(*bounds, frame.worldSize) == SceneContainment::Inside) {
+        return EditorOperationResult::success(EditorInvalidation::None);
+    }
+    const std::optional<Vec2> next =
+        positionToBringBoundsInsideScene(*bounds, instance->transform.position, frame.worldSize);
+    if (!next) {
+        return EditorOperationResult::failure("Cannot bring selected entity into scene");
+    }
+    if (next->x == instance->transform.position.x && next->y == instance->transform.position.y) {
+        return EditorOperationResult::success(EditorInvalidation::None);
+    }
+    return coordinator.execute(SetEntityPositionCommand{sceneId, id, *next});
 }
 
 EditorOperationResult addBoxCollider(EditorCoordinator& coordinator) {

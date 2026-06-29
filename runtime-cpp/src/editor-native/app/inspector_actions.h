@@ -27,6 +27,9 @@ EditorOperationResult setSpriteRendererVisible(EditorCoordinator& coordinator, b
 /** Set the selected sprite renderer's image asset ("" clears it). */
 EditorOperationResult setSpriteRendererAsset(EditorCoordinator& coordinator, const AssetId& assetId);
 
+/** Move the selected entity's editor bounds inside the active scene. */
+EditorOperationResult bringSelectedEntityIntoScene(EditorCoordinator& coordinator);
+
 EditorOperationResult addBoxCollider(EditorCoordinator& coordinator);
 EditorOperationResult removeBoxCollider(EditorCoordinator& coordinator);
 EditorOperationResult setBoxColliderOffset(EditorCoordinator& coordinator, Vec2 offset);

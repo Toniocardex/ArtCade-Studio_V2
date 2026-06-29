@@ -4,6 +4,9 @@
 #include "editor-native/model/project_document.h"
 #include "editor-native/model/sprite_render_view.h"
 
+#include <algorithm>
+#include <cmath>
+
 namespace ArtCade::EditorNative {
 
 namespace {
@@ -31,6 +34,34 @@ SceneFrameRect transformBounds(const Transform& transform) {
     const float width = kDefaultSpriteExtent * (scl.x == 0.f ? 1.f : scl.x);
     const float height = kDefaultSpriteExtent * (scl.y == 0.f ? 1.f : scl.y);
     return SceneFrameRect{pos.x - width * 0.5f, pos.y - height * 0.5f, width, height};
+}
+
+WorldRect toWorldRect(const SceneFrameRect& rect) {
+    return WorldRect{rect.x, rect.y, rect.width, rect.height};
+}
+
+float left(const WorldRect& rect) { return rect.x; }
+float top(const WorldRect& rect) { return rect.y; }
+float right(const WorldRect& rect) { return rect.x + rect.width; }
+float bottom(const WorldRect& rect) { return rect.y + rect.height; }
+
+bool finiteRect(const WorldRect& rect) {
+    return std::isfinite(rect.x) && std::isfinite(rect.y)
+        && std::isfinite(rect.width) && std::isfinite(rect.height)
+        && rect.width >= 0.f && rect.height >= 0.f;
+}
+
+bool finiteScene(Vec2 sceneSize) {
+    return std::isfinite(sceneSize.x) && std::isfinite(sceneSize.y)
+        && sceneSize.x > 0.f && sceneSize.y > 0.f;
+}
+
+WorldRect unite(const WorldRect& a, const WorldRect& b) {
+    const float x0 = std::min(left(a), left(b));
+    const float y0 = std::min(top(a), top(b));
+    const float x1 = std::max(right(a), right(b));
+    const float y1 = std::max(bottom(a), bottom(b));
+    return WorldRect{x0, y0, x1 - x0, y1 - y0};
 }
 
 } // namespace
@@ -130,6 +161,83 @@ EntityId pickEntityAt(const SceneFrameSnapshot& frame, Vec2 worldPoint) {
     for (const SceneFrameSprite& sprite : frame.sprites)
         if (sprite.visible && rectContains(sprite.destination, worldPoint)) hit = sprite.entityId;
     return hit;
+}
+
+std::optional<WorldRect> editorBoundsForEntity(const SceneFrameSnapshot& frame,
+                                               EntityId entityId) {
+    std::optional<WorldRect> bounds;
+    for (const SceneFrameSprite& sprite : frame.sprites) {
+        if (sprite.entityId != entityId || !sprite.visible || sprite.assetId.empty()) continue;
+        const WorldRect rect = toWorldRect(sprite.destination);
+        if (!finiteRect(rect)) continue;
+        bounds = bounds ? unite(*bounds, rect) : rect;
+    }
+    for (const SceneFrameCollider& collider : frame.colliders) {
+        if (collider.entityId != entityId) continue;
+        if (!finiteRect(collider.worldBounds)) continue;
+        bounds = bounds ? unite(*bounds, collider.worldBounds) : collider.worldBounds;
+    }
+    if (bounds) return bounds;
+
+    for (const SceneFrameEntity& entity : frame.entities) {
+        if (entity.entityId != entityId) continue;
+        const WorldRect rect = toWorldRect(entity.bounds);
+        if (finiteRect(rect)) return rect;
+        break;
+    }
+    return std::nullopt;
+}
+
+SceneContainment classifySceneContainment(const WorldRect& entityBounds,
+                                          Vec2 sceneSize) {
+    if (!finiteRect(entityBounds) || !finiteScene(sceneSize)) {
+        return SceneContainment::FullyOutside;
+    }
+
+    const WorldRect scene{0.f, 0.f, sceneSize.x, sceneSize.y};
+    const bool intersects =
+        right(entityBounds) > left(scene)
+        && left(entityBounds) < right(scene)
+        && bottom(entityBounds) > top(scene)
+        && top(entityBounds) < bottom(scene);
+    if (!intersects) return SceneContainment::FullyOutside;
+
+    const bool contained =
+        left(entityBounds) >= left(scene)
+        && right(entityBounds) <= right(scene)
+        && top(entityBounds) >= top(scene)
+        && bottom(entityBounds) <= bottom(scene);
+    return contained ? SceneContainment::Inside : SceneContainment::PartiallyOutside;
+}
+
+std::optional<Vec2> positionToBringBoundsInsideScene(const WorldRect& entityBounds,
+                                                     Vec2 currentPosition,
+                                                     Vec2 sceneSize) {
+    if (!finiteRect(entityBounds) || !finiteScene(sceneSize)
+        || !std::isfinite(currentPosition.x) || !std::isfinite(currentPosition.y)) {
+        return std::nullopt;
+    }
+
+    const WorldRect scene{0.f, 0.f, sceneSize.x, sceneSize.y};
+    Vec2 correction{0.f, 0.f};
+
+    if (entityBounds.width <= scene.width) {
+        if (left(entityBounds) < left(scene)) correction.x = left(scene) - left(entityBounds);
+        else if (right(entityBounds) > right(scene)) correction.x = right(scene) - right(entityBounds);
+    } else {
+        correction.x = (left(scene) + scene.width * 0.5f)
+                     - (left(entityBounds) + entityBounds.width * 0.5f);
+    }
+
+    if (entityBounds.height <= scene.height) {
+        if (top(entityBounds) < top(scene)) correction.y = top(scene) - top(entityBounds);
+        else if (bottom(entityBounds) > bottom(scene)) correction.y = bottom(scene) - bottom(entityBounds);
+    } else {
+        correction.y = (top(scene) + scene.height * 0.5f)
+                     - (top(entityBounds) + entityBounds.height * 0.5f);
+    }
+
+    return Vec2{currentPosition.x + correction.x, currentPosition.y + correction.y};
 }
 
 } // namespace ArtCade::EditorNative

@@ -305,6 +305,8 @@ void EditorUi::handleAction(const std::string& action, const std::string& arg,
             setSpriteRendererVisible(coordinator_, !inst->spriteRenderer->visible);
     } else if (action == "set-sprite-asset") {
         setSpriteRendererAsset(coordinator_, arg);   // arg = assetId ("" clears)
+    } else if (action == "bring-entity-into-scene") {
+        bringSelectedEntityIntoScene(coordinator_);
     } else if (action == "add-box-collider") {
         addBoxCollider(coordinator_);
     } else if (action == "remove-box-collider") {
