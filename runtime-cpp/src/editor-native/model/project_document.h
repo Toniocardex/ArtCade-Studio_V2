@@ -15,11 +15,15 @@ class CreateSceneCommand;
 class DeleteEntityCommand;
 class DeleteSceneCommand;
 class EditorCoordinator;
+class AddLinearMoverCommand;
 class RemoveBoxColliderCommand;
+class RemoveLinearMoverCommand;
 class RemoveSpriteRendererCommand;
 class RenameEntityCommand;
 class SetEntityPositionCommand;
 class SetBoxColliderEnabledCommand;
+class SetLinearMoverDirectionCommand;
+class SetLinearMoverSpeedCommand;
 class SetBoxColliderOffsetCommand;
 class SetBoxColliderSizeCommand;
 class SetBoxColliderTriggerCommand;
@@ -67,6 +71,7 @@ public:
 
 private:
     friend class AddBoxColliderCommand;
+    friend class AddLinearMoverCommand;
     friend class AddSpriteRendererCommand;
     friend class CreateEntityCommand;
     friend class CreateSceneCommand;
@@ -74,6 +79,7 @@ private:
     friend class DeleteSceneCommand;
     friend class EditorCoordinator;
     friend class RemoveBoxColliderCommand;
+    friend class RemoveLinearMoverCommand;
     friend class RemoveSpriteRendererCommand;
     friend class RenameEntityCommand;
     friend class SetEntityPositionCommand;
@@ -81,6 +87,8 @@ private:
     friend class SetBoxColliderOffsetCommand;
     friend class SetBoxColliderSizeCommand;
     friend class SetBoxColliderTriggerCommand;
+    friend class SetLinearMoverDirectionCommand;
+    friend class SetLinearMoverSpeedCommand;
     friend class SetSceneBackgroundCommand;
     friend class SetSpriteRendererAssetCommand;
     friend class SetSpriteRendererVisibleCommand;
@@ -115,6 +123,12 @@ private:
     bool setBoxColliderSize(const std::string& objectTypeId, Vec2 size);
     bool setBoxColliderEnabled(const std::string& objectTypeId, bool enabled);
     bool setBoxColliderTrigger(const std::string& objectTypeId, bool isTrigger);
+    // LinearMover is authored on the object type only (canonical gameplay
+    // component); instances never store it. Pause is a runtime flag, not edited.
+    bool addLinearMover(const std::string& objectTypeId, LinearMoverComponent component);
+    bool removeLinearMover(const std::string& objectTypeId);
+    bool setLinearMoverDirection(const std::string& objectTypeId, Vec2 direction);
+    bool setLinearMoverSpeed(const std::string& objectTypeId, float speed);
     void replaceClean(ProjectDocument replacement);
     void markSaved();
 

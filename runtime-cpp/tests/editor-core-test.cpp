@@ -12,6 +12,7 @@
 #include "editor-native/app/project_load.h"
 #include "editor-native/app/inspector_actions.h"
 #include "editor-native/commands/box_collider_commands.h"
+#include "editor-native/commands/linear_mover_commands.h"
 #include "editor-native/commands/entity_commands.h"
 #include "editor-native/commands/scene_commands.h"
 #include "editor-native/commands/sprite_commands.h"
@@ -1504,6 +1505,66 @@ int main() {
         c.advanceRuntime(1.0f);
         CHECK(c.document().revision() == revisionBefore);
         CHECK(c.consumeInvalidations() == EditorInvalidation::None);
+    }
+
+    // == LinearMover editing + persistence ====================================
+
+    // -- Add resolves a default mover and invalidates Inspector only ----------
+    {
+        EditorCoordinator c{makeInheritedDoc()};
+        c.consumeInvalidations();
+        const EditorOperationResult r = c.execute(AddLinearMoverCommand{"Hero"});
+        CHECK(r.ok);
+        CHECK(r.invalidation == EditorInvalidation::Inspector);   // no edit-viewport visual
+        const EntityDef& hero = c.document().data().objectTypes.at("Hero");
+        CHECK(hero.linearMover.has_value());
+        CHECK(hero.linearMover->speed == 300.f);                  // component default
+    }
+
+    // -- Set speed / direction, then exact undo ------------------------------
+    {
+        EditorCoordinator c{makeMoverDoc()};                      // Hero mover (3,0) @ 100
+        CHECK(c.execute(SetLinearMoverSpeedCommand{"Hero", 250.f}).ok);
+        CHECK(c.document().data().objectTypes.at("Hero").linearMover->speed == 250.f);
+        CHECK(c.execute(SetLinearMoverDirectionCommand{"Hero", Vec2{0.f, 1.f}}).ok);
+        const auto& m = *c.document().data().objectTypes.at("Hero").linearMover;
+        CHECK(m.directionX == 0.f);
+        CHECK(m.directionY == 1.f);
+        CHECK(c.undo().ok);                                       // undo direction
+        CHECK(c.document().data().objectTypes.at("Hero").linearMover->directionX == 3.f);
+        CHECK(c.undo().ok);                                       // undo speed
+        CHECK(c.document().data().objectTypes.at("Hero").linearMover->speed == 100.f);
+    }
+
+    // -- Invalid edits are rejected and mutate nothing -----------------------
+    {
+        EditorCoordinator c{makeMoverDoc()};
+        const uint64_t revisionBefore = c.document().revision();
+        CHECK(!c.execute(SetLinearMoverSpeedCommand{"Hero", -5.f}).ok);
+        CHECK(!c.execute(SetLinearMoverDirectionCommand{"Hero",
+            Vec2{std::numeric_limits<float>::infinity(), 0.f}}).ok);
+        CHECK(c.document().revision() == revisionBefore);
+        CHECK(c.document().data().objectTypes.at("Hero").linearMover->speed == 100.f);
+    }
+
+    // -- Inspector action is a no-op without a selected object type -----------
+    {
+        EditorCoordinator c{makeInheritedDoc()};                  // nothing selected
+        CHECK(!addLinearMover(c).ok);
+    }
+
+    // -- Mover survives save/load; _paused is not persisted ------------------
+    {
+        EditorCoordinator c{makeMoverDoc()};
+        const std::filesystem::path path = testTempDir() / "mover.artcade-project";
+        CHECK(saveProjectToFile(c, path).ok);
+        EditorCoordinator reloaded{ProjectDoc{}};
+        CHECK(loadProjectFromFile(reloaded, path).ok);
+        const auto& m = reloaded.document().data().objectTypes.at("Hero").linearMover;
+        CHECK(m.has_value());
+        CHECK(m->directionX == 3.f);
+        CHECK(m->speed == 100.f);
+        CHECK(m->_paused == false);
     }
 
     // == Viewport camera transform + picking ==================================

@@ -34,4 +34,9 @@ EditorOperationResult setBoxColliderSize(EditorCoordinator& coordinator, Vec2 si
 EditorOperationResult setBoxColliderEnabled(EditorCoordinator& coordinator, bool enabled);
 EditorOperationResult setBoxColliderTrigger(EditorCoordinator& coordinator, bool isTrigger);
 
+EditorOperationResult addLinearMover(EditorCoordinator& coordinator);
+EditorOperationResult removeLinearMover(EditorCoordinator& coordinator);
+EditorOperationResult setLinearMoverDirection(EditorCoordinator& coordinator, Vec2 direction);
+EditorOperationResult setLinearMoverSpeed(EditorCoordinator& coordinator, float speed);
+
 } // namespace ArtCade::EditorNative

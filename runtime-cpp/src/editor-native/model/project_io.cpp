@@ -198,6 +198,14 @@ nlohmann::json objectTypeToJson(const std::string& id, const EntityDef& def) {
             {"isTrigger", def.boxCollider2D->isTrigger},
         };
     }
+    if (def.linearMover.has_value()) {
+        // _paused is a runtime flag, deliberately not persisted.
+        json["linearMover"] = nlohmann::json{
+            {"directionX", def.linearMover->directionX},
+            {"directionY", def.linearMover->directionY},
+            {"speed", def.linearMover->speed},
+        };
+    }
     return json;
 }
 
@@ -273,6 +281,14 @@ DeserializeResult ProjectSerializer::deserialize(std::string_view source) {
                     component.isTrigger = collider["isTrigger"].get<bool>();
                 }
                 def.boxCollider2D = component;
+            }
+            if (item.contains("linearMover") && item["linearMover"].is_object()) {
+                const auto& m = item["linearMover"];
+                LinearMoverComponent component;
+                component.directionX = m.value("directionX", component.directionX);
+                component.directionY = m.value("directionY", component.directionY);
+                component.speed = m.value("speed", component.speed);
+                def.linearMover = component;
             }
             doc.objectTypes.emplace(id, std::move(def));
         }
@@ -397,6 +413,14 @@ DeserializeResult ProjectValidator::validate(ProjectDocument document) {
                 || size.x <= 0.f
                 || size.y <= 0.f) {
                 return DeserializeResult::failure("BoxCollider2D size must be positive");
+            }
+        }
+        if (def.linearMover.has_value()) {
+            if (!std::isfinite(def.linearMover->directionX)
+                || !std::isfinite(def.linearMover->directionY)
+                || !std::isfinite(def.linearMover->speed)
+                || def.linearMover->speed < 0.f) {
+                return DeserializeResult::failure("LinearMover has invalid direction or speed");
             }
         }
     }

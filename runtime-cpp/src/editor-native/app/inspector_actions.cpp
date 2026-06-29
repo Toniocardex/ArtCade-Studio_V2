@@ -2,6 +2,7 @@
 
 #include "editor-native/app/editor_coordinator.h"
 #include "editor-native/commands/box_collider_commands.h"
+#include "editor-native/commands/linear_mover_commands.h"
 #include "editor-native/commands/sprite_commands.h"
 
 namespace ArtCade::EditorNative {
@@ -103,6 +104,38 @@ EditorOperationResult setBoxColliderTrigger(EditorCoordinator& coordinator, bool
         return EditorOperationResult::failure("No selected object type");
     }
     return coordinator.execute(SetBoxColliderTriggerCommand{objectTypeId, isTrigger});
+}
+
+EditorOperationResult addLinearMover(EditorCoordinator& coordinator) {
+    std::string objectTypeId;
+    if (!selectedObjectType(coordinator, objectTypeId)) {
+        return EditorOperationResult::failure("No selected object type");
+    }
+    return coordinator.execute(AddLinearMoverCommand{objectTypeId});
+}
+
+EditorOperationResult removeLinearMover(EditorCoordinator& coordinator) {
+    std::string objectTypeId;
+    if (!selectedObjectType(coordinator, objectTypeId)) {
+        return EditorOperationResult::failure("No selected object type");
+    }
+    return coordinator.execute(RemoveLinearMoverCommand{objectTypeId});
+}
+
+EditorOperationResult setLinearMoverDirection(EditorCoordinator& coordinator, Vec2 direction) {
+    std::string objectTypeId;
+    if (!selectedObjectType(coordinator, objectTypeId)) {
+        return EditorOperationResult::failure("No selected object type");
+    }
+    return coordinator.execute(SetLinearMoverDirectionCommand{objectTypeId, direction});
+}
+
+EditorOperationResult setLinearMoverSpeed(EditorCoordinator& coordinator, float speed) {
+    std::string objectTypeId;
+    if (!selectedObjectType(coordinator, objectTypeId)) {
+        return EditorOperationResult::failure("No selected object type");
+    }
+    return coordinator.execute(SetLinearMoverSpeedCommand{objectTypeId, speed});
 }
 
 } // namespace ArtCade::EditorNative

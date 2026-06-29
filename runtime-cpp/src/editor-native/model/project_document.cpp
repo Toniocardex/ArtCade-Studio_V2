@@ -252,4 +252,38 @@ bool ProjectDocument::setBoxColliderTrigger(const std::string& objectTypeId, boo
     return true;
 }
 
+bool ProjectDocument::addLinearMover(const std::string& objectTypeId,
+                                     LinearMoverComponent component) {
+    auto it = doc_.objectTypes.find(objectTypeId);
+    if (it == doc_.objectTypes.end() || it->second.linearMover.has_value()) return false;
+    it->second.linearMover = component;
+    markDirty();
+    return true;
+}
+
+bool ProjectDocument::removeLinearMover(const std::string& objectTypeId) {
+    auto it = doc_.objectTypes.find(objectTypeId);
+    if (it == doc_.objectTypes.end() || !it->second.linearMover.has_value()) return false;
+    it->second.linearMover.reset();
+    markDirty();
+    return true;
+}
+
+bool ProjectDocument::setLinearMoverDirection(const std::string& objectTypeId, Vec2 direction) {
+    auto it = doc_.objectTypes.find(objectTypeId);
+    if (it == doc_.objectTypes.end() || !it->second.linearMover.has_value()) return false;
+    it->second.linearMover->directionX = direction.x;
+    it->second.linearMover->directionY = direction.y;
+    markDirty();
+    return true;
+}
+
+bool ProjectDocument::setLinearMoverSpeed(const std::string& objectTypeId, float speed) {
+    auto it = doc_.objectTypes.find(objectTypeId);
+    if (it == doc_.objectTypes.end() || !it->second.linearMover.has_value()) return false;
+    it->second.linearMover->speed = speed;
+    markDirty();
+    return true;
+}
+
 } // namespace ArtCade::EditorNative

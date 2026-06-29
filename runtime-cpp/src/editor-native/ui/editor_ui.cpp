@@ -250,6 +250,29 @@ void EditorUi::handleAction(const std::string& action, const std::string& arg,
                     setBoxColliderSize(coordinator_, Vec2{collider.size.x, *parsed});
             }
         }
+    } else if (action == "add-linear-mover") {
+        addLinearMover(coordinator_);
+    } else if (action == "remove-linear-mover") {
+        removeLinearMover(coordinator_);
+    } else if (action == "commit-mover-dir-x" || action == "commit-mover-dir-y"
+               || action == "commit-mover-speed") {
+        const SceneInstanceDef* inst = coordinator_.document().findInstanceInScene(
+            coordinator_.state().activeSceneId, coordinator_.selection().primaryEntity);
+        if (inst) {
+            const auto& types = coordinator_.document().data().objectTypes;
+            const auto typeIt = types.find(inst->objectTypeId);
+            if (typeIt != types.end() && typeIt->second.linearMover) {
+                const LinearMoverComponent& m = *typeIt->second.linearMover;
+                const std::optional<float> parsed = parseNumberField(value);
+                if (!parsed.has_value()) return;
+                if (action == "commit-mover-dir-x")
+                    setLinearMoverDirection(coordinator_, Vec2{*parsed, m.directionY});
+                else if (action == "commit-mover-dir-y")
+                    setLinearMoverDirection(coordinator_, Vec2{m.directionX, *parsed});
+                else
+                    setLinearMoverSpeed(coordinator_, *parsed);
+            }
+        }
     } else if (action == "commit-pos-x") {
         commitInspectorPositionX(coordinator_, selected, value);
     } else if (action == "commit-pos-y") {

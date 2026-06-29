@@ -138,7 +138,7 @@ paletto o sblocca la capability in corso.
 | Project file I/O | React/Tauri file path | `readProjectTextFile` + `loadProjectFromText` + atomic save, wired to GUI Open/Save/Save As (native pickers; app clears texture cache on replace) | Done | No |
 | Runtime viewport | WASM/runtime preview | `SceneFrameSnapshot` + derived texture cache | In progress | No |
 | Viewport pick + drag | React canvas pointer handlers | `pickEntityAt` + `SelectEntityIntent`; drag preview local, one `SetEntityPositionCommand` on release | Done | No |
-| Authored runtime motion | Logic Board / Lua runtime | `EntityDef.linearMover` -> `RuntimeEntity.velocity` -> `PlaySession::advance` via `advanceRuntime` (demo-authored; GUI edit + persist pending) | In progress | No |
+| Authored runtime motion | Logic Board / Lua runtime | `EntityDef.linearMover` -> `RuntimeEntity.velocity` -> `PlaySession::advance` via `advanceRuntime`; edited via `linear_mover_commands` + Inspector, persisted in the object-type subset | Done | No |
 | Play materialization | WASM bridge / preview path | `PlaySession` from `ProjectDocument` once at Start Play | In progress | No |
 | Sprite Renderer component | React Inspector | `sprite_commands` + `inspector_actions` (instance-scoped) | Done | No |
 | BoxCollider2D component | React Inspector / physics form | `box_collider_commands` on `EntityDef.boxCollider2D` | Done | No |
@@ -345,9 +345,12 @@ EntityDef.linearMover (canonical component, object type)
 ```
 
 The runtime integrates whatever the authoring document declares; `editor_app`
-holds no per-entity movement rule. Editing the mover from the GUI and persisting
-it are deliberate follow-ups — the component is currently authored in the demo
-project, so there is no save/load data-loss path yet.
+holds no per-entity movement rule. The mover is authored end-to-end: edited from
+the Inspector via `linear_mover_commands` (object-type scope, same pattern as
+BoxCollider2D, undoable) and persisted in the object-type subset by
+`ProjectSerializer`. `_paused` stays a runtime flag and is deliberately not
+serialized. Mover edits invalidate only the Inspector — motion has no edit-mode
+viewport visual; it is observed in Play, which renders every frame.
 
 ## RmlUi input commit baseline
 

@@ -143,6 +143,24 @@ void InspectorPanel::refresh(Rml::ElementDocument* document,
                 "<span class=\"icon\">&#xeb41;</span>Remove Component</button>";
     }
 
+    // -- Linear Mover component (object-type owned) ---------------------------
+    html += "<div class=\"prop-group-title\">" + icon("&#xf22f;") + "Linear Mover</div>";
+    html += "<div class=\"prop-row\"><span class=\"prop-label\">Scope</span>"
+            "<span class=\"prop-readonly\">Shared by object type</span></div>";
+    const LinearMoverComponent* mover =
+        (typeIt != types.end() && typeIt->second.linearMover)
+            ? &*typeIt->second.linearMover : nullptr;
+    if (!mover) {
+        html += "<button class=\"panel-btn\" data-action=\"add-linear-mover\">"
+                "<span class=\"icon\">&#xeb0b;</span>Add Linear Mover</button>";
+    } else {
+        html += field("Direction X", "commit-mover-dir-x", num(mover->directionX));
+        html += field("Direction Y", "commit-mover-dir-y", num(mover->directionY));
+        html += field("Speed", "commit-mover-speed", num(mover->speed));
+        html += "<button class=\"panel-btn\" data-action=\"remove-linear-mover\">"
+                "<span class=\"icon\">&#xeb41;</span>Remove Component</button>";
+    }
+
     body->SetInnerRML(html);
 }
 
