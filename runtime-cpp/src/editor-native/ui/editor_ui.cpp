@@ -209,6 +209,19 @@ void EditorUi::handleAction(const std::string& action, const std::string& arg,
                             const std::string& value) {
     const EntityId selected = coordinator_.selection().primaryEntity;
 
+    // Inspector Add Component menu: toggle it open/closed, and close it whenever a
+    // component is actually added (the add invalidates the Inspector, which then
+    // re-renders without the menu). The coordinator still guards the commands.
+    if (action == "toggle-add-component") {
+        if (!coordinator_.isPlaying()) inspector_.toggleAddMenu(document_, coordinator_);
+        return;
+    }
+    if (action == "add-sprite-renderer" || action == "add-box-collider"
+        || action == "add-linear-mover" || action == "add-top-down"
+        || action == "add-platformer") {
+        inspector_.closeAddMenu();   // then fall through to execute the add
+    }
+
     if (action == "select-entity") {
         coordinator_.apply(SelectEntityIntent{
             static_cast<EntityId>(std::strtoul(arg.c_str(), nullptr, 10))});

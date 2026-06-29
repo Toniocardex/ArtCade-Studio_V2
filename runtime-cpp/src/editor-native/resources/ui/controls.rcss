@@ -157,6 +157,43 @@
     color: #3f3f46;
 }
 
+/* -- Inspector "Add Component" menu (in-flow toggle, not a popup) ----------- */
+.add-component { display: block; margin: 16dp 0 4dp 0; }
+.add-component-btn {
+    display: block;
+    height: 30dp;
+    line-height: 30dp;
+    text-align: center;
+    border: 1px #3a3a40;
+    border-radius: 4dp;
+    color: #a1a1aa;
+    font-size: 12dp;
+    font-weight: 500;
+    transition: background-color 0.1s, border-color 0.1s, color 0.1s;
+}
+.add-component-btn:hover { border-color: #3b82f6; color: #3b82f6; }
+.add-component-btn.open  { border-color: #3b82f6; color: #d4d4d8; background-color: #3b82f618; }
+.add-component-btn.disabled { border-color: #242427; color: #3f3f46; background-color: transparent; }
+.add-list {
+    display: block;
+    margin-top: 4dp;
+    padding: 4dp;
+    background-color: #1c1c1f;
+    border: 1px #2f2f33;
+    border-radius: 4dp;
+}
+.add-entry {
+    display: block;
+    height: 26dp;
+    line-height: 26dp;
+    padding: 0 10dp;
+    border-radius: 3dp;
+    color: #a1a1aa;
+    font-size: 12dp;
+    transition: background-color 0.1s, color 0.1s;
+}
+.add-entry:hover { background-color: #222226; color: #d4d4d8; }
+
 /* -- Inspector asset picker ------------------------------------------------ */
 .asset-options { display: block; margin: 6dp 0 8dp 0; }
 .asset-option {

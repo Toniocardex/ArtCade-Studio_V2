@@ -117,6 +117,53 @@
     color: #8a8a93;
 }
 
+/* Component section header: eyebrow title + ownership badge + remove (x). */
+.comp-header {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    height: 28dp;
+    margin-top: 14dp;
+    margin-bottom: 6dp;
+    border-bottom: 1px #27272a;
+}
+.comp-title {
+    flex: 1;
+    line-height: 28dp;
+    font-size: 10dp;
+    font-weight: 700;
+    letter-spacing: 1.1dp;
+    text-transform: uppercase;
+    color: #8a8a93;
+}
+.comp-badge {
+    display: inline-block;
+    height: 16dp;
+    line-height: 16dp;
+    padding: 0 6dp;
+    margin-right: 4dp;
+    border-radius: 3dp;
+    background-color: #1c1c1f;
+    border: 1px #2f2f33;
+    color: #71717a;
+    font-size: 9dp;
+    font-weight: 600;
+    letter-spacing: 0.6dp;
+}
+.comp-badge.override { color: #7aa2e8; border-color: #3b82f655; }
+.comp-remove {
+    display: inline-block;
+    width: 22dp;
+    height: 22dp;
+    line-height: 22dp;
+    text-align: center;
+    border-radius: 3dp;
+    color: #6b6b73;
+    transition: background-color 0.1s, color 0.1s;
+}
+.comp-remove:hover { background-color: #2a1f20; color: #e5706b; }
+.comp-remove.disabled { color: #3f3f46; }
+
 .prop-row {
     display: flex;
     flex-direction: row;

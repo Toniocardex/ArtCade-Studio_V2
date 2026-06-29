@@ -831,6 +831,40 @@ shortcut is gated by `textFocus`, same as Undo/Redo); otherwise Ctrl+C copies th
 selected message, and with nothing selected it is a no-op. The Copy button is
 disabled whenever there is no selection.
 
+## Inspector layout baseline
+
+The Inspector shows **only the components actually present** on the selected
+entity. Absent components are no longer pre-listed as empty sections; they are
+added from a single **Add Component** affordance. For a bare entity the panel is
+just `Identity`, `Transform` and the Add Component button — not five "Add X"
+blocks.
+
+Each component section header is compact: `icon NAME  [ownership badge]  [x]`.
+The badge states the real ownership (not decoration) and replaces the repeated
+"Scope: Shared by object type" rows:
+
+```text
+Transform            -> INSTANCE   (structural: no remove)
+Box/Linear/TopDown/Platformer -> TYPE
+Sprite Renderer      -> OVERRIDE (instance) | INHERITED (from the type)
+```
+
+Remove is a small `x` in the header that calls the existing `Remove*Command`
+(undo covers it, so no confirm dialog); Transform and an inherited sprite have no
+`x`. The **Add Component** menu is an in-flow toggle (the only local panel state,
+`addMenuOpen_`, reset on selection change or Play — no `EditorUiState`, no popup
+positioning). It lists **only addable** components, and because the three
+movement drivers are mutually exclusive it offers none once one is present — the
+single-writer invariant made visible (the command guard stays authoritative). The
+button disappears when nothing is addable.
+
+This is presentation only: rendering from queries on Inspector invalidation, all
+edits still through commands. While Play runs every control (fields, toggles,
+remove, the Add menu) is disabled, consistent with the authoring freeze.
+Collapsible sections were deliberately deferred — removing the phantom sections
+already shortens the panel enough; folding can come if complex entities prove it
+necessary.
+
 ## Feature Template
 
 Every migrated feature must fill this before implementation:
