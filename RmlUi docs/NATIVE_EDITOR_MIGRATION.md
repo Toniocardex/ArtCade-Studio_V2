@@ -345,15 +345,44 @@ Workspace intents may still run when they do not mutate the document. This is a
 coordinator-level rule, so it applies equally to RmlUi buttons, menu actions,
 shortcuts and tests.
 
-The Inspector mirrors this freeze as an affordance (enforcement stays in the
-coordinator): while Play runs, its editable inputs render `disabled` and its
-action buttons carry the `disabled` class. This is the fix for a real UX trap —
-an enabled field let the user type e.g. `Speed = 1000` during Play; the commit
-was silently rejected, so Stop + Play never saw the value. An `<input disabled>`
-in RmlUi cannot take focus or typing (`ElementFormControl::IsDisabled()` is
-attribute-presence based), so no misleading uncommitted buffer can form. For this
-to toggle correctly, `playProject` / `playCurrentScene` / `stopPlaying` now also
-invalidate `Inspector`, so it re-renders frozen on Start and editable on Stop.
+The UI mirrors this freeze as an affordance across **every authoring surface**
+(enforcement stays in the coordinator). The rule is blunt and unambiguous: Edit =
+modify the project; Play = observe a frozen runtime copy; Stop = back to authoring.
+While Play runs, read-only is applied to:
+
+```text
+Inspector fields + component Add/Remove + asset assignment
+Hierarchy create/delete (Scene, Entity, Set Start)
+Assets import/remove/use
+Viewport drag
+Undo / Redo
+```
+
+and these stay usable (workspace-only, no authoring mutation):
+
+```text
+entity selection, scene navigation (tabs), pan/zoom, console, Stop
+```
+
+This fixes a real UX trap: an enabled field let the user type e.g.
+`Speed = 1000` during Play; the commit was silently rejected, so Stop + Play
+never saw the value — it looked like ArtCade ignored the edit. An
+`<input disabled>` in RmlUi cannot take focus or typing
+(`ElementFormControl::IsDisabled()` is attribute-presence based), so no
+misleading uncommitted buffer can form; `<button>` is a plain element, so its
+`disabled` class is visual only and clicks still reach the coordinator (rejected,
+consistent with the disabled toolbar buttons). For the state to toggle,
+`playProject` / `playCurrentScene` / `stopPlaying` invalidate
+`Toolbar | Viewport | Inspector | Hierarchy | Assets`, so every panel re-renders
+frozen on Start and editable on Stop — the re-render also rebuilds the Inspector
+inputs from authoritative values, discarding any uncommitted buffer (no ghost
+`1000` left in a field whose real value is `100`).
+
+Live editing during Play (hot-reloading authoring into the running session) is
+deliberately **not** implemented: it would need a sync policy between two worlds
+(which components update, when, and how undo interacts). If wanted later it must
+be an explicit, separate "Live Edit" mode — not an ambiguous exception to this
+rule.
 
 During Play, scene-selection intents affect only the workspace:
 

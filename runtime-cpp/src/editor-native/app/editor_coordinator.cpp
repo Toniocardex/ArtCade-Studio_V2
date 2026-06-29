@@ -23,6 +23,15 @@ constexpr EditorInvalidation kProjectReplaceInvalidation =
     | EditorInvalidation::Viewport | EditorInvalidation::Assets
     | EditorInvalidation::Toolbar | EditorInvalidation::Project;
 
+// Start/Stop Play re-renders every panel whose controls must freeze (disabled)
+// while Play runs and re-enable on Stop: Toolbar (play/undo/redo), Inspector,
+// Hierarchy (create/delete) and Assets (import/remove). Viewport switches between
+// the authoring projection and the Play snapshot.
+constexpr EditorInvalidation kPlayToggleInvalidation =
+    EditorInvalidation::Toolbar | EditorInvalidation::Viewport
+    | EditorInvalidation::Inspector | EditorInvalidation::Hierarchy
+    | EditorInvalidation::Assets;
+
 SceneId normalizedSceneId(const ProjectDocument& document) {
     if (!document.startSceneId().empty() && document.hasScene(document.startSceneId())) {
         return document.startSceneId();
@@ -254,10 +263,11 @@ EditorOperationResult EditorCoordinator::playProject() {
     }
     playSession_.emplace(std::move(*session));
     logInfo("Play project started (document untouched)");
-    accumulate(EditorInvalidation::Toolbar | EditorInvalidation::Viewport
-               | EditorInvalidation::Inspector);
-    return EditorOperationResult::success(EditorInvalidation::Toolbar
-               | EditorInvalidation::Viewport | EditorInvalidation::Inspector);
+    // A Play/Stop toggle re-renders every authoring-affordance panel so their
+    // controls switch to the frozen (disabled) state and back: Inspector fields,
+    // Hierarchy create/delete buttons and Assets import/remove buttons.
+    accumulate(kPlayToggleInvalidation);
+    return EditorOperationResult::success(kPlayToggleInvalidation);
 }
 
 EditorOperationResult EditorCoordinator::playCurrentScene() {
@@ -275,10 +285,11 @@ EditorOperationResult EditorCoordinator::playCurrentScene() {
     }
     playSession_.emplace(std::move(*session));
     logInfo("Play current scene started (document untouched)");
-    accumulate(EditorInvalidation::Toolbar | EditorInvalidation::Viewport
-               | EditorInvalidation::Inspector);
-    return EditorOperationResult::success(EditorInvalidation::Toolbar
-               | EditorInvalidation::Viewport | EditorInvalidation::Inspector);
+    // A Play/Stop toggle re-renders every authoring-affordance panel so their
+    // controls switch to the frozen (disabled) state and back: Inspector fields,
+    // Hierarchy create/delete buttons and Assets import/remove buttons.
+    accumulate(kPlayToggleInvalidation);
+    return EditorOperationResult::success(kPlayToggleInvalidation);
 }
 
 EditorOperationResult EditorCoordinator::stopPlaying() {
@@ -287,10 +298,11 @@ EditorOperationResult EditorCoordinator::stopPlaying() {
     }
     playSession_.reset();   // RAII: back to the untouched authoring document
     logInfo("Stopped - back to authoring document");
-    accumulate(EditorInvalidation::Toolbar | EditorInvalidation::Viewport
-               | EditorInvalidation::Inspector);
-    return EditorOperationResult::success(EditorInvalidation::Toolbar
-               | EditorInvalidation::Viewport | EditorInvalidation::Inspector);
+    // A Play/Stop toggle re-renders every authoring-affordance panel so their
+    // controls switch to the frozen (disabled) state and back: Inspector fields,
+    // Hierarchy create/delete buttons and Assets import/remove buttons.
+    accumulate(kPlayToggleInvalidation);
+    return EditorOperationResult::success(kPlayToggleInvalidation);
 }
 
 void EditorCoordinator::advanceRuntime(float dt) {

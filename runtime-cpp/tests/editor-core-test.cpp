@@ -1352,16 +1352,23 @@ int main() {
         CHECK(!c.isPlaying());
     }
 
-    // -- Start/Stop Play invalidate the Inspector (freeze/unfreeze fields) -----
-    //    The authoring document is frozen during Play, so the Inspector must
-    //    re-render to disable its editable controls — and re-enable them on Stop.
+    // -- Start/Stop Play re-render the authoring-affordance panels -------------
+    //    The authoring document is frozen during Play, so the Inspector,
+    //    Hierarchy and Assets panels must re-render to disable their authoring
+    //    controls on Start — and re-enable them on Stop.
     {
         EditorCoordinator c{makeDoc()};
         c.consumeInvalidations();
         CHECK(c.playProject().ok);
-        CHECK(has(c.consumeInvalidations(), EditorInvalidation::Inspector));
+        const EditorInvalidation started = c.consumeInvalidations();
+        CHECK(has(started, EditorInvalidation::Inspector));
+        CHECK(has(started, EditorInvalidation::Hierarchy));
+        CHECK(has(started, EditorInvalidation::Assets));
         CHECK(c.stopPlaying().ok);
-        CHECK(has(c.consumeInvalidations(), EditorInvalidation::Inspector));
+        const EditorInvalidation stopped = c.consumeInvalidations();
+        CHECK(has(stopped, EditorInvalidation::Inspector));
+        CHECK(has(stopped, EditorInvalidation::Hierarchy));
+        CHECK(has(stopped, EditorInvalidation::Assets));
     }
 
     // -- (8) Selecting a scene enables Play Current Scene ----------------------

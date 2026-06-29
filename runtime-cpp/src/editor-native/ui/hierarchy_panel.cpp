@@ -90,19 +90,23 @@ void HierarchyPanel::refresh(Rml::ElementDocument* document,
     setHtml(document, "hierarchy-list", rows);
 
     // -- Action button availability reflects authoritative state ---------------
-    // Disabling is UX only; the commands still validate their inputs.
+    // Disabling is UX only; the commands still validate their inputs. Every
+    // button here mutates the authoring document, so all are disabled while Play
+    // runs (the authoring document is frozen). Scene tabs and entity rows above
+    // stay clickable — selection and scene navigation are workspace-only.
+    const bool playing        = coordinator.isPlaying();
     const bool hasActiveScene = scene != nullptr;
     const bool hasSelection   = selected != INVALID_ENTITY;
     const auto setEnabled = [&](const char* id, bool enabled) {
         if (Rml::Element* el = document->GetElementById(id))
             el->SetClass("disabled", !enabled);
     };
-    setEnabled("btn-del-scene",  hasActiveScene);
-    setEnabled("btn-add-entity", hasActiveScene);
-    setEnabled("btn-del-entity", hasSelection);
+    setEnabled("btn-add-scene",  !playing);
+    setEnabled("btn-del-scene",  hasActiveScene && !playing);
+    setEnabled("btn-add-entity", hasActiveScene && !playing);
+    setEnabled("btn-del-entity", hasSelection && !playing);
     // "Start" sets the active scene as start scene — pointless if it already is.
-    setEnabled("btn-set-start",  hasActiveScene && activeSceneId != startSceneId);
-    // btn-add-scene is always available.
+    setEnabled("btn-set-start",  hasActiveScene && activeSceneId != startSceneId && !playing);
 }
 
 } // namespace ArtCade::EditorNative
