@@ -103,18 +103,29 @@ EditorOperationResult EditorCoordinator::undo() {
     if (!history_.canUndo()) {
         return EditorOperationResult::failure("Nothing to undo");
     }
+    // Same revision-based contract as executeOwned, applied to the inverse: a
+    // failed undo must not mutate; a successful one must mutate and declare a
+    // change + invalidation. (asserts compile out in release.)
     CommandEntry entry = history_.takeUndo();
+    const uint64_t before = document_.revision();
     EditorOperationResult result = entry.command->undo(document_);
-    if (result.ok) {
-        document_.restoreRevision(entry.revisionBefore);   // dirty reflects state A
-        accumulate(result.invalidation);
-        accumulate(reconcileWorkspace());
-        accumulate(EditorInvalidation::Toolbar);           // undo/redo availability changed
-        history_.pushRedo(std::move(entry));               // now redoable
-    } else {
+    const uint64_t after = document_.revision();
+    (void)before;
+    (void)after;
+    if (!result.ok) {
+        assert(after == before && "failed undo mutated the document");
         appendConsole(ConsoleMessage::Level::Error, result.error);
         history_.pushUndo(std::move(entry));               // unchanged: keep it undoable
+        return result;
     }
+    assert(after != before && "undo succeeded without mutating the document");
+    assert(!result.change.isNone() && "undo reported no DomainChange");
+    assert(result.invalidation != EditorInvalidation::None && "undo reported no invalidation");
+    document_.restoreRevision(entry.revisionBefore);   // dirty reflects state A
+    accumulate(result.invalidation);
+    accumulate(reconcileWorkspace());
+    accumulate(EditorInvalidation::Toolbar);           // undo/redo availability changed
+    history_.pushRedo(std::move(entry));               // now redoable
     return result;
 }
 
@@ -132,17 +143,25 @@ EditorOperationResult EditorCoordinator::redo() {
     // not build an inverse or re-read the UI. restoreRevision returns to the
     // command's recorded post-state, so a redo back to the saved revision is clean.
     CommandEntry entry = history_.takeRedo();
+    const uint64_t before = document_.revision();
     EditorOperationResult result = entry.command->apply(document_);
-    if (result.ok) {
-        document_.restoreRevision(entry.revisionAfter);    // dirty reflects state B
-        accumulate(result.invalidation);
-        accumulate(reconcileWorkspace());
-        accumulate(EditorInvalidation::Toolbar);
-        history_.pushUndo(std::move(entry));               // undoable again
-    } else {
+    const uint64_t after = document_.revision();
+    (void)before;
+    (void)after;
+    if (!result.ok) {
+        assert(after == before && "failed redo mutated the document");
         appendConsole(ConsoleMessage::Level::Error, result.error);
         history_.pushRedo(std::move(entry));               // unchanged: keep it redoable
+        return result;
     }
+    assert(after != before && "redo succeeded without mutating the document");
+    assert(!result.change.isNone() && "redo reported no DomainChange");
+    assert(result.invalidation != EditorInvalidation::None && "redo reported no invalidation");
+    document_.restoreRevision(entry.revisionAfter);    // dirty reflects state B
+    accumulate(result.invalidation);
+    accumulate(reconcileWorkspace());
+    accumulate(EditorInvalidation::Toolbar);
+    history_.pushUndo(std::move(entry));               // undoable again
     return result;
 }
 

@@ -1510,6 +1510,19 @@ int main() {
         CHECK(!c.document().isDirty());                  // redo back to the saved state
     }
 
+    // -- (3b) Save taken at the post-undo state: redo dirties, undo cleans ----
+    {
+        EditorCoordinator c{makeDoc()};
+        CHECK(c.execute(SetEntityPositionCommand{kSceneA, kHero, Vec2{99.f, 20.f}}).ok);
+        CHECK(c.undo().ok);                              // back to state A
+        CHECK(c.markProjectSaved().ok);                 // save AT the post-undo state
+        CHECK(!c.document().isDirty());
+        CHECK(c.redo().ok);                             // to state B
+        CHECK(c.document().isDirty());                  // away from the saved state
+        CHECK(c.undo().ok);                             // back to state A
+        CHECK(!c.document().isDirty());                 // saved state again
+    }
+
     // -- (4) A new command after Undo discards the redo branch ----------------
     {
         EditorCoordinator c{makeDoc()};
