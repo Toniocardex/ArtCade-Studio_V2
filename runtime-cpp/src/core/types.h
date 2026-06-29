@@ -485,6 +485,29 @@ struct ImageAssetDef {
     std::vector<AnimationClipDef> clips;
 };
 
+// Short SFX load into memory (LoadSound); longer music plays via a stream
+// (LoadMusicStream). The mode is authoring data chosen at import, not deduced
+// rigidly from the extension.
+enum class AudioLoadMode { StaticSound, Stream };
+
+struct AudioAssetDef {
+    std::string   assetId;
+    std::string   sourcePath;
+    AudioLoadMode loadMode = AudioLoadMode::StaticSound;
+};
+
+// Which glyph ranges to rasterise when the font is consumed (a font cache, later).
+// European covers Italian/Latin text; CustomText would derive ranges from project
+// strings. Authoring data only — no rasterisation happens at import.
+enum class FontGlyphPreset { BasicLatin, European, CustomText };
+
+struct FontAssetDef {
+    std::string     assetId;
+    std::string     sourcePath;
+    int             defaultPixelSize = 32;
+    FontGlyphPreset glyphPreset = FontGlyphPreset::European;
+};
+
 enum class PhysicsMode {
     Auto,
     Off,
@@ -539,6 +562,8 @@ struct ProjectDoc {
     std::vector<TilePaletteEntry> tilePalette;   // Phase D2
     std::vector<TilesetAsset>     tilesets;      // Phase F3
     std::vector<ImageAssetDef>    imageAssets;   // editor assets + image points
+    std::vector<AudioAssetDef>    audioAssets;   // native editor import catalog
+    std::vector<FontAssetDef>     fontAssets;    // native editor import catalog
     WorldSettings                 world{};
     std::vector<GameVariableDefinition> globalVariables;
 };

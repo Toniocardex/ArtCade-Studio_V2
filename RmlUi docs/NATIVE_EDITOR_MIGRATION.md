@@ -147,7 +147,7 @@ paletto o sblocca la capability in corso.
 | Object type persistence | React project store | `ProjectSerializer` minimal subset + referential validation | Done | No |
 | Components inspector | React Inspector | Feature commands + read-only queries | In progress | No |
 | Asset references | React asset stores | `AssetId` -> `ProjectDoc.imageAssets.sourcePath`, validated | In progress | No |
-| Image import + Assets panel | React asset import/store | PNG picker -> copy into `<projectRoot>/assets/images` -> `AddImageAssetCommand` (relative path); Assets panel lists/uses/removes; textures resolve from the project root | Done (PNG only) | No |
+| Asset import (image/audio/font) | React asset import/store | One `importAsset(AssetKind,...)` pipeline: picker -> copy into `<projectRoot>/assets/{images,audio,fonts}` -> typed `Add{Image,Audio,Font}AssetCommand` (relative path); Assets panel lists/imports/removes per kind; images also assignable | Done (import); audio/font consumers pending | No |
 | Logic Board | React Logic Board state | Logic Board document + commands | Planned | No |
 
 ## Component resolution (sprite renderer)
@@ -475,24 +475,30 @@ Inspector ────┘ (future)
 require a saved project, validate the source, choose a portable unique
 destination, copy, run the per-kind command, roll the copy back on failure — then
 switches on `AssetKind` to a typed command. The single entry point is about the
-*operation*; the per-kind domain stays typed (`AddImageAssetCommand`, later
-`AddAudioAssetCommand` / `AddFontAssetCommand`). Only Image is implemented;
-Audio/Font return an explicit "not supported yet".
+*operation*; the per-kind domain stays typed:
 
 ```text
-importAsset(Image)
--> copy into <projectRoot>/assets/images/<unique>.<ext>   (no implicit overwrite)
--> AddImageAssetCommand{assetId, "assets/images/<unique>.<ext>"}
-   (file rolled back if the command fails)
+importAsset(Image) -> assets/images/<unique>.<ext> -> AddImageAssetCommand
+importAsset(Audio) -> assets/audio/<unique>.<ext>  -> AddAudioAssetCommand (load mode)
+importAsset(Font)  -> assets/fonts/<unique>.<ext>  -> AddFontAssetCommand  (pixel size, glyph preset)
+   (the copied file is rolled back if the command fails)
 ```
 
-The UI trigger (Assets panel "Import Image") only picks the file via
-`openImageFileDialog` and calls `importAsset`. `ProjectDocument` only gets
-`AssetId` + relative `sourcePath` (never absolute). One suffix keeps the file name
-and the `AssetId` unique together. Import and use are distinct operations:
-assignment reuses `set-sprite-asset` (`SetSpriteRendererAssetCommand`), removal is
-`RemoveImageAssetCommand` and **does not delete the file on disk** (orphan cleanup
-is separate). Undo/redo cover add and remove; save/reload preserve the catalog.
+Supported now: image `png/jpg/jpeg/webp`, audio `wav/ogg/mp3`, font `ttf/otf`.
+Audio load mode defaults by extension (wav -> StaticSound, else Stream) and can be
+overridden in the request. The UI trigger (Assets panel "Import Image/Audio/Font")
+only picks the file and calls `importAsset` with the kind. `ProjectDocument` only
+gets `AssetId` + relative `sourcePath` (never absolute); one suffix keeps the file
+name and `AssetId` unique together.
+
+Import, use and remove are distinct operations: image assignment reuses
+`set-sprite-asset` (`SetSpriteRendererAssetCommand`), removal is the typed
+`Remove{Image,Audio,Font}AssetCommand` and **does not delete the file on disk**
+(orphan cleanup is separate). Undo/redo and save/reload cover all three catalogs.
+Audio/font are catalog-only for now — their consumers (audio playback, font
+rasterisation/preview) are deferred to dedicated slices; the typed model carries
+the fields those consumers will read (`loadMode`, `defaultPixelSize`,
+`glyphPreset`).
 
 Textures resolve against the **project root** (`currentProjectPath.parent_path()`)
 for a loaded project, falling back to the executable resources for the in-code

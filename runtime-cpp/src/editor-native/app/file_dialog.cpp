@@ -26,8 +26,31 @@ constexpr wchar_t kFilter[] =
     L"All Files (*.*)\0*.*\0";
 
 constexpr wchar_t kImageFilter[] =
-    L"PNG Image (*.png)\0*.png\0"
+    L"Images (*.png;*.jpg;*.jpeg;*.webp)\0*.png;*.jpg;*.jpeg;*.webp\0"
     L"All Files (*.*)\0*.*\0";
+
+constexpr wchar_t kAudioFilter[] =
+    L"Audio (*.wav;*.ogg;*.mp3)\0*.wav;*.ogg;*.mp3\0"
+    L"All Files (*.*)\0*.*\0";
+
+constexpr wchar_t kFontFilter[] =
+    L"Fonts (*.ttf;*.otf)\0*.ttf;*.otf\0"
+    L"All Files (*.*)\0*.*\0";
+
+std::optional<std::filesystem::path> openImportDialog(const wchar_t* filter,
+                                                      const wchar_t* defExt) {
+    wchar_t buffer[MAX_PATH] = {0};
+    OPENFILENAMEW ofn{};
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner   = GetActiveWindow();
+    ofn.lpstrFilter = filter;
+    ofn.lpstrFile   = buffer;
+    ofn.nMaxFile    = MAX_PATH;
+    ofn.lpstrDefExt = defExt;
+    ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
+    if (!GetOpenFileNameW(&ofn)) return std::nullopt;
+    return std::filesystem::path(buffer);
+}
 
 OPENFILENAMEW makeOfn(wchar_t* buffer) {
     OPENFILENAMEW ofn{};
@@ -63,17 +86,13 @@ std::optional<std::filesystem::path> saveProjectFileDialog(
 }
 
 std::optional<std::filesystem::path> openImageFileDialog() {
-    wchar_t buffer[MAX_PATH] = {0};
-    OPENFILENAMEW ofn{};
-    ofn.lStructSize = sizeof(ofn);
-    ofn.hwndOwner   = GetActiveWindow();
-    ofn.lpstrFilter = kImageFilter;
-    ofn.lpstrFile   = buffer;
-    ofn.nMaxFile    = MAX_PATH;
-    ofn.lpstrDefExt = L"png";
-    ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
-    if (!GetOpenFileNameW(&ofn)) return std::nullopt;   // cancelled
-    return std::filesystem::path(buffer);
+    return openImportDialog(kImageFilter, L"png");
+}
+std::optional<std::filesystem::path> openAudioFileDialog() {
+    return openImportDialog(kAudioFilter, L"wav");
+}
+std::optional<std::filesystem::path> openFontFileDialog() {
+    return openImportDialog(kFontFilter, L"ttf");
 }
 
 #else  // non-Windows: the native editor is Windows-first; no picker yet.
@@ -82,6 +101,8 @@ std::optional<std::filesystem::path> openProjectFileDialog() { return std::nullo
 std::optional<std::filesystem::path> saveProjectFileDialog(
     const std::filesystem::path&) { return std::nullopt; }
 std::optional<std::filesystem::path> openImageFileDialog() { return std::nullopt; }
+std::optional<std::filesystem::path> openAudioFileDialog() { return std::nullopt; }
+std::optional<std::filesystem::path> openFontFileDialog() { return std::nullopt; }
 
 #endif
 

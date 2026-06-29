@@ -333,4 +333,62 @@ bool ProjectDocument::removeImageAsset(const AssetId& assetId) {
     return false;
 }
 
+bool ProjectDocument::hasAudioAsset(const AssetId& id) const {
+    return findAudioAsset(id) != nullptr;
+}
+
+const AudioAssetDef* ProjectDocument::findAudioAsset(const AssetId& id) const {
+    for (const AudioAssetDef& asset : doc_.audioAssets) {
+        if (asset.assetId == id) return &asset;
+    }
+    return nullptr;
+}
+
+bool ProjectDocument::addAudioAsset(AudioAssetDef asset) {
+    if (asset.assetId.empty() || hasAudioAsset(asset.assetId)) return false;
+    doc_.audioAssets.push_back(std::move(asset));
+    markDirty();
+    return true;
+}
+
+bool ProjectDocument::removeAudioAsset(const AssetId& assetId) {
+    for (auto it = doc_.audioAssets.begin(); it != doc_.audioAssets.end(); ++it) {
+        if (it->assetId == assetId) {
+            doc_.audioAssets.erase(it);
+            markDirty();
+            return true;
+        }
+    }
+    return false;
+}
+
+bool ProjectDocument::hasFontAsset(const AssetId& id) const {
+    return findFontAsset(id) != nullptr;
+}
+
+const FontAssetDef* ProjectDocument::findFontAsset(const AssetId& id) const {
+    for (const FontAssetDef& asset : doc_.fontAssets) {
+        if (asset.assetId == id) return &asset;
+    }
+    return nullptr;
+}
+
+bool ProjectDocument::addFontAsset(FontAssetDef asset) {
+    if (asset.assetId.empty() || hasFontAsset(asset.assetId)) return false;
+    doc_.fontAssets.push_back(std::move(asset));
+    markDirty();
+    return true;
+}
+
+bool ProjectDocument::removeFontAsset(const AssetId& assetId) {
+    for (auto it = doc_.fontAssets.begin(); it != doc_.fontAssets.end(); ++it) {
+        if (it->assetId == assetId) {
+            doc_.fontAssets.erase(it);
+            markDirty();
+            return true;
+        }
+    }
+    return false;
+}
+
 } // namespace ArtCade::EditorNative

@@ -15,6 +15,7 @@ namespace Rml { class ElementDocument; class EventListener; }
 namespace ArtCade::EditorNative {
 
 class EditorCoordinator;
+enum class AssetKind;   // defined in app/asset_import.h
 
 /** Escape &, <, > so authored names are safe inside generated RML. */
 std::string escapeRml(const std::string& text);
@@ -45,9 +46,11 @@ public:
     void setProjectFileHandlers(ProjectFileRequest open,
                                 ProjectFileRequest save,
                                 ProjectFileRequest saveAs);
-    // Import copies a file into the project and runs AddImageAssetCommand; it
-    // needs the filesystem and a saved project, so it lives in the application.
-    void setImageImportHandler(ProjectFileRequest importImage);
+    // Import copies a file into the project via the canonical importAsset
+    // pipeline; it needs the filesystem and a saved project, so it lives in the
+    // application. Every kind converges on this one handler.
+    using ImportAssetRequest = std::function<void(AssetKind)>;
+    void setImportHandler(ImportAssetRequest importAsset);
 
     // Called by the listener; routes one UI interaction to command/intent.
     void handleAction(const std::string& action, const std::string& arg,
@@ -71,7 +74,7 @@ private:
     ProjectFileRequest                  openProjectRequest_;
     ProjectFileRequest                  saveProjectRequest_;
     ProjectFileRequest                  saveProjectAsRequest_;
-    ProjectFileRequest                  importImageRequest_;
+    ImportAssetRequest                  importAssetRequest_;
 };
 
 } // namespace ArtCade::EditorNative

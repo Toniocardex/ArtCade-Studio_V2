@@ -3,9 +3,12 @@
 #include "editor-native/app/editor_coordinator.h"
 #include "editor-native/app/hierarchy_actions.h"
 #include "editor-native/app/inspector_actions.h"
+#include "editor-native/app/asset_import.h"
 #include "editor-native/app/inspector_commit.h"
 #include "editor-native/commands/entity_commands.h"
 #include "editor-native/commands/image_asset_commands.h"
+#include "editor-native/commands/audio_asset_commands.h"
+#include "editor-native/commands/font_asset_commands.h"
 
 #include <RmlUi/Core/Context.h>
 #include <RmlUi/Core/Element.h>
@@ -158,8 +161,8 @@ void EditorUi::setProjectFileHandlers(ProjectFileRequest open,
     saveProjectAsRequest_ = std::move(saveAs);
 }
 
-void EditorUi::setImageImportHandler(ProjectFileRequest importImage) {
-    importImageRequest_ = std::move(importImage);
+void EditorUi::setImportHandler(ImportAssetRequest importAsset) {
+    importAssetRequest_ = std::move(importAsset);
 }
 
 void EditorUi::refreshToolbar() {
@@ -315,9 +318,17 @@ void EditorUi::handleAction(const std::string& action, const std::string& arg,
     } else if (action == "stop") {
         coordinator_.stopPlaying();
     } else if (action == "import-image") {
-        if (importImageRequest_) importImageRequest_();
+        if (importAssetRequest_) importAssetRequest_(AssetKind::Image);
+    } else if (action == "import-audio") {
+        if (importAssetRequest_) importAssetRequest_(AssetKind::Audio);
+    } else if (action == "import-font") {
+        if (importAssetRequest_) importAssetRequest_(AssetKind::Font);
     } else if (action == "remove-image-asset") {
         if (!arg.empty()) coordinator_.execute(RemoveImageAssetCommand{arg});
+    } else if (action == "remove-audio-asset") {
+        if (!arg.empty()) coordinator_.execute(RemoveAudioAssetCommand{arg});
+    } else if (action == "remove-font-asset") {
+        if (!arg.empty()) coordinator_.execute(RemoveFontAssetCommand{arg});
     } else if (action == "open-project") {
         if (openProjectRequest_) openProjectRequest_();
     } else if (action == "save-project") {

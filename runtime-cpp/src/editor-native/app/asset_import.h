@@ -3,6 +3,7 @@
 #include "core/types.h"
 
 #include <filesystem>
+#include <optional>
 #include <string>
 
 namespace ArtCade::EditorNative {
@@ -20,6 +21,9 @@ enum class AssetKind { Image, Audio, Font };
 struct ImportAssetRequest {
     AssetKind             kind = AssetKind::Image;
     std::filesystem::path sourcePath;
+    // For audio: optional explicit load mode; when unset a sensible per-extension
+    // default is used (wav -> StaticSound, ogg/mp3 -> Stream).
+    std::optional<AudioLoadMode> audioMode;
 };
 
 struct ImportAssetResult {

@@ -29,6 +29,10 @@ class RemoveTopDownControllerCommand;
 class SetTopDownControllerSpeedCommand;
 class AddImageAssetCommand;
 class RemoveImageAssetCommand;
+class AddAudioAssetCommand;
+class RemoveAudioAssetCommand;
+class AddFontAssetCommand;
+class RemoveFontAssetCommand;
 class SetBoxColliderOffsetCommand;
 class SetBoxColliderSizeCommand;
 class SetBoxColliderTriggerCommand;
@@ -65,6 +69,10 @@ public:
     /** True if @p id is a known image asset (ProjectDoc.imageAssets). */
     bool                     hasImageAsset(const AssetId& id) const;
     const ImageAssetDef*     findImageAsset(const AssetId& id) const;
+    bool                     hasAudioAsset(const AssetId& id) const;
+    const AudioAssetDef*     findAudioAsset(const AssetId& id) const;
+    bool                     hasFontAsset(const AssetId& id) const;
+    const FontAssetDef*      findFontAsset(const AssetId& id) const;
 
     bool      isDirty()      const { return revision_ != savedRevision_; }
     uint64_t  revision()     const { return revision_; }
@@ -100,6 +108,10 @@ private:
     friend class SetTopDownControllerSpeedCommand;
     friend class AddImageAssetCommand;
     friend class RemoveImageAssetCommand;
+    friend class AddAudioAssetCommand;
+    friend class RemoveAudioAssetCommand;
+    friend class AddFontAssetCommand;
+    friend class RemoveFontAssetCommand;
     friend class SetSceneBackgroundCommand;
     friend class SetSpriteRendererAssetCommand;
     friend class SetSpriteRendererVisibleCommand;
@@ -151,6 +163,10 @@ private:
     // duplicate AssetId. Removal does not touch the file on disk.
     bool addImageAsset(ImageAssetDef asset);
     bool removeImageAsset(const AssetId& assetId);
+    bool addAudioAsset(AudioAssetDef asset);
+    bool removeAudioAsset(const AssetId& assetId);
+    bool addFontAsset(FontAssetDef asset);
+    bool removeFontAsset(const AssetId& assetId);
     void replaceClean(ProjectDocument replacement);
     void markSaved();
     // Set the current revision to a previously observed value (undo/redo). Unlike

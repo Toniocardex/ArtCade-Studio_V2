@@ -17,6 +17,8 @@
 #include "editor-native/commands/linear_mover_commands.h"
 #include "editor-native/commands/top_down_controller_commands.h"
 #include "editor-native/commands/image_asset_commands.h"
+#include "editor-native/commands/audio_asset_commands.h"
+#include "editor-native/commands/font_asset_commands.h"
 #include "editor-native/commands/entity_commands.h"
 #include "editor-native/commands/scene_commands.h"
 #include "editor-native/commands/sprite_commands.h"
@@ -1845,13 +1847,81 @@ int main() {
         CHECK(asset->sourcePath == "assets/images/x.png");
     }
 
+    // == Audio + Font catalogs (commands + persistence) =======================
+    {
+        EditorCoordinator c{makeDoc()};
+        c.consumeInvalidations();
+        const EditorOperationResult ra =
+            c.execute(AddAudioAssetCommand{"sfx", "assets/audio/sfx.wav",
+                                           AudioLoadMode::StaticSound});
+        CHECK(ra.ok);
+        CHECK(ra.invalidation == EditorInvalidation::Assets);
+        CHECK(c.document().findAudioAsset("sfx")->loadMode == AudioLoadMode::StaticSound);
+        CHECK(!c.execute(AddAudioAssetCommand{"sfx", "a/b.ogg", AudioLoadMode::Stream}).ok); // dup
+
+        const EditorOperationResult rf =
+            c.execute(AddFontAssetCommand{"ui", "assets/fonts/ui.ttf", 32,
+                                          FontGlyphPreset::European});
+        CHECK(rf.ok);
+        CHECK(c.document().findFontAsset("ui")->defaultPixelSize == 32);
+
+        // undo/redo across both catalogs
+        CHECK(c.undo().ok);  CHECK(!c.document().hasFontAsset("ui"));
+        CHECK(c.redo().ok);  CHECK(c.document().hasFontAsset("ui"));
+
+        const std::filesystem::path path = testTempDir() / "media.artcade-project";
+        CHECK(saveProjectToFile(c, path).ok);
+        EditorCoordinator reloaded{ProjectDoc{}};
+        CHECK(loadProjectFromFile(reloaded, path).ok);
+        CHECK(reloaded.document().findAudioAsset("sfx")->sourcePath == "assets/audio/sfx.wav");
+        CHECK(reloaded.document().findAudioAsset("sfx")->loadMode == AudioLoadMode::StaticSound);
+        CHECK(reloaded.document().findFontAsset("ui")->glyphPreset == FontGlyphPreset::European);
+    }
+
+    // -- import audio/font: copy, kind dir, defaults, override ----------------
+    {
+        const std::filesystem::path base = testTempDir();   // call once: it wipes on each call
+        const std::filesystem::path root = base / "import-media";
+        std::error_code ec;
+        std::filesystem::create_directories(root, ec);
+        const std::filesystem::path ogg = base / "theme.ogg";
+        { std::ofstream f(ogg, std::ios::binary); f << "OGG"; }
+        const std::filesystem::path ttf = base / "type.ttf";
+        { std::ofstream f(ttf, std::ios::binary); f << "TTF"; }
+
+        EditorCoordinator c{makeDoc()};
+        const ImportAssetResult a = importAsset(c, root, {AssetKind::Audio, ogg});
+        CHECK(a.ok);
+        CHECK(c.document().findAudioAsset("theme")->sourcePath == "assets/audio/theme.ogg");
+        CHECK(c.document().findAudioAsset("theme")->loadMode == AudioLoadMode::Stream); // ogg default
+        CHECK(std::filesystem::exists(root / "assets" / "audio" / "theme.ogg"));
+
+        const ImportAssetResult f = importAsset(c, root, {AssetKind::Font, ttf});
+        CHECK(f.ok);
+        CHECK(c.document().findFontAsset("type")->sourcePath == "assets/fonts/type.ttf");
+        CHECK(std::filesystem::exists(root / "assets" / "fonts" / "type.ttf"));
+
+        // explicit load-mode override wins over the extension default
+        const std::filesystem::path ogg2 = base / "blip.ogg";
+        { std::ofstream g(ogg2, std::ios::binary); g << "OGG"; }
+        ImportAssetRequest req;
+        req.kind = AssetKind::Audio;
+        req.sourcePath = ogg2;
+        req.audioMode = AudioLoadMode::StaticSound;
+        CHECK(importAsset(c, root, req).ok);
+        CHECK(c.document().findAudioAsset("blip")->loadMode == AudioLoadMode::StaticSound);
+
+        // wrong kind/format rejected
+        CHECK(!importAsset(c, root, {AssetKind::Audio, ttf}).ok);   // .ttf as audio
+    }
+
     // == Asset import pipeline (single canonical entry point) =================
     {
-        const std::filesystem::path root = testTempDir() / "import-basic";
+        const std::filesystem::path base = testTempDir();   // call once: it wipes on each call
+        const std::filesystem::path root = base / "import-basic";
         std::error_code ec;
-        std::filesystem::remove_all(root, ec);
         std::filesystem::create_directories(root, ec);
-        const std::filesystem::path src = testTempDir() / "src.png";
+        const std::filesystem::path src = base / "src.png";
         { std::ofstream f(src, std::ios::binary); f << "PNGDATA"; }
 
         EditorCoordinator c{makeDoc()};
@@ -1871,18 +1941,18 @@ int main() {
 
     // -- import rejects: unsaved project, unsupported kind/format, during Play -
     {
-        const std::filesystem::path src = testTempDir() / "reject.png";
+        const std::filesystem::path base = testTempDir();   // call once: it wipes on each call
+        const std::filesystem::path root = base / "import-reject";
+        std::error_code ec; std::filesystem::create_directories(root, ec);
+        const std::filesystem::path src = base / "reject.png";
         { std::ofstream f(src, std::ios::binary); f << "PNGDATA"; }
+        const std::filesystem::path gif = base / "x.gif";
+        { std::ofstream f(gif, std::ios::binary); f << "GIF"; }
+
         EditorCoordinator c{makeDoc()};
         CHECK(!importAsset(c, {}, {AssetKind::Image, src}).ok);          // unsaved
-        CHECK(!importAsset(c, testTempDir(), {AssetKind::Audio, src}).ok); // not supported yet
-        CHECK(c.document().data().imageAssets.empty());
-
-        const std::filesystem::path gif = testTempDir() / "x.gif";
-        { std::ofstream f(gif, std::ios::binary); f << "GIF"; }
-        const std::filesystem::path root = testTempDir() / "import-reject";
-        std::error_code ec; std::filesystem::create_directories(root, ec);
-        CHECK(!importAsset(c, root, {AssetKind::Image, gif}).ok);        // bad format
+        CHECK(!importAsset(c, root, {AssetKind::Audio, src}).ok);        // .png as audio
+        CHECK(!importAsset(c, root, {AssetKind::Image, gif}).ok);        // bad image format
         CHECK(c.document().data().imageAssets.empty());
 
         CHECK(c.playProject().ok);

@@ -296,14 +296,22 @@ int EditorApp::run(int argc, char** argv) {
         });
 
     // Import is one canonical pipeline (asset_import). This is only the trigger:
-    // pick a file, then converge on importAsset like any other UI source would.
-    ui.setImageImportHandler([&]() {
-        const std::optional<std::filesystem::path> picked = openImageFileDialog();
+    // pick the file for the kind, then converge on importAsset like any other UI
+    // source would.
+    ui.setImportHandler([&](AssetKind kind) {
+        std::optional<std::filesystem::path> picked;
+        switch (kind) {
+            case AssetKind::Image: picked = openImageFileDialog(); break;
+            case AssetKind::Audio: picked = openAudioFileDialog(); break;
+            case AssetKind::Font:  picked = openFontFileDialog();  break;
+        }
         if (!picked) return;  // cancelled
         const std::filesystem::path projectRoot =
             currentProjectPath.empty() ? std::filesystem::path{} : currentProjectPath.parent_path();
-        const ImportAssetResult result =
-            importAsset(coordinator, projectRoot, ImportAssetRequest{AssetKind::Image, *picked});
+        ImportAssetRequest request;
+        request.kind = kind;
+        request.sourcePath = *picked;
+        const ImportAssetResult result = importAsset(coordinator, projectRoot, request);
         if (!result.ok) coordinator.logError(result.error);
         else            coordinator.logInfo("Imported " + result.assetId);
     });

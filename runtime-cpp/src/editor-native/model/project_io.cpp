@@ -323,6 +323,37 @@ DeserializeResult ProjectSerializer::deserialize(std::string_view source) {
         }
     }
 
+    if (root.contains("audioAssets") && root["audioAssets"].is_array()) {
+        for (const auto& item : root["audioAssets"]) {
+            if (!item.is_object()) continue;
+            const std::string assetId = readString(item, "assetId", "asset_id");
+            if (assetId.empty()) continue;
+            AudioAssetDef asset;
+            asset.assetId = assetId;
+            asset.sourcePath = readString(item, "sourcePath", "source_path");
+            asset.loadMode = readString(item, "loadMode", nullptr) == "stream"
+                                 ? AudioLoadMode::Stream : AudioLoadMode::StaticSound;
+            doc.audioAssets.push_back(std::move(asset));
+        }
+    }
+
+    if (root.contains("fontAssets") && root["fontAssets"].is_array()) {
+        for (const auto& item : root["fontAssets"]) {
+            if (!item.is_object()) continue;
+            const std::string assetId = readString(item, "assetId", "asset_id");
+            if (assetId.empty()) continue;
+            FontAssetDef asset;
+            asset.assetId = assetId;
+            asset.sourcePath = readString(item, "sourcePath", "source_path");
+            asset.defaultPixelSize = item.value("defaultPixelSize", 32);
+            const std::string preset = readString(item, "glyphPreset", nullptr, "european");
+            asset.glyphPreset = preset == "basicLatin" ? FontGlyphPreset::BasicLatin
+                              : preset == "customText" ? FontGlyphPreset::CustomText
+                                                       : FontGlyphPreset::European;
+            doc.fontAssets.push_back(std::move(asset));
+        }
+    }
+
     return DeserializeResult::success(ProjectDocument{std::move(doc)});
 }
 
@@ -346,6 +377,28 @@ SerializeResult ProjectSerializer::serialize(const ProjectDocument& document) {
         });
     }
 
+    nlohmann::json audioAssets = nlohmann::json::array();
+    for (const AudioAssetDef& asset : doc.audioAssets) {
+        audioAssets.push_back(nlohmann::json{
+            {"assetId", asset.assetId},
+            {"sourcePath", asset.sourcePath},
+            {"loadMode", asset.loadMode == AudioLoadMode::Stream ? "stream" : "static"},
+        });
+    }
+
+    nlohmann::json fontAssets = nlohmann::json::array();
+    for (const FontAssetDef& asset : doc.fontAssets) {
+        const char* preset = asset.glyphPreset == FontGlyphPreset::BasicLatin ? "basicLatin"
+                           : asset.glyphPreset == FontGlyphPreset::CustomText ? "customText"
+                                                                              : "european";
+        fontAssets.push_back(nlohmann::json{
+            {"assetId", asset.assetId},
+            {"sourcePath", asset.sourcePath},
+            {"defaultPixelSize", asset.defaultPixelSize},
+            {"glyphPreset", preset},
+        });
+    }
+
     nlohmann::json root{
         {"schemaVersion", kCurrentSchemaVersion},
         {"formatVersion", kCurrentSchemaVersion},
@@ -357,6 +410,8 @@ SerializeResult ProjectSerializer::serialize(const ProjectDocument& document) {
         {"scenes", std::move(scenes)},
         {"objectTypes", std::move(objectTypes)},
         {"imageAssets", std::move(imageAssets)},
+        {"audioAssets", std::move(audioAssets)},
+        {"fontAssets", std::move(fontAssets)},
     };
     return SerializeResult::success(root.dump(2));
 }

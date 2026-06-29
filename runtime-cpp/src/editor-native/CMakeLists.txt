@@ -24,6 +24,8 @@ add_library(artcade-editor-core STATIC
     commands/linear_mover_commands.cpp
     commands/top_down_controller_commands.cpp
     commands/image_asset_commands.cpp
+    commands/audio_asset_commands.cpp
+    commands/font_asset_commands.cpp
     commands/entity_commands.cpp
     commands/scene_commands.cpp
     commands/sprite_commands.cpp
