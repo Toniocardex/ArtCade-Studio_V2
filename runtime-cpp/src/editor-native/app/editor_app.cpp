@@ -29,6 +29,7 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 
 // raylib (5.0) has no public way to cancel a requested window close, so we reset
 // GLFW's flag directly to keep the app open when the user picks Cancel in the
@@ -85,13 +86,33 @@ void routeViewportInput(EditorCoordinator& coordinator, const ViewportRect& rect
     const PlaySession* playSession = coordinator.playSession();
     const SceneId active = playSession ? playSession->sceneId()
                                        : coordinator.state().activeSceneId;
-    const float zoom = coordinator.sceneView(active).zoom;
+    const Vec2 worldSize = playSession
+        ? playSession->scene().worldSize
+        : (coordinator.document().findScene(active)
+               ? coordinator.document().findScene(active)->worldSize
+               : Vec2{});
 
+    // Zoom under the cursor: keep the world point beneath the mouse fixed (more
+    // precise than centre-zoom for level design). All workspace, single camera.
     const float wheel = GetMouseWheelMove();
-    if (wheel != 0.0f)
-        coordinator.apply(SetViewportZoomIntent{active, zoom * (1.0f + wheel * 0.1f)});
+    if (wheel != 0.0f) {
+        const Vec2 mouse{static_cast<float>(GetMouseX()), static_cast<float>(GetMouseY())};
+        const EditorSceneViewState before = coordinator.sceneView(active);
+        const Vec2 worldBefore =
+            screenToWorld(makeSceneViewCamera(rect, before, worldSize), mouse);
+        coordinator.apply(SetViewportZoomIntent{active, before.zoom * (1.0f + wheel * 0.1f)});
+        const EditorSceneViewState after = coordinator.sceneView(active);
+        const Vec2 worldAfter =
+            screenToWorld(makeSceneViewCamera(rect, after, worldSize), mouse);
+        coordinator.apply(PanViewportIntent{
+            active, {worldBefore.x - worldAfter.x, worldBefore.y - worldAfter.y}});
+    }
 
-    if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE) || IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
+    // Pan: middle-mouse, or Space + left-mouse. The right button is left free for
+    // the context menu / Create Here.
+    const bool spacePan = IsKeyDown(KEY_SPACE) && IsMouseButtonDown(MOUSE_BUTTON_LEFT);
+    if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE) || spacePan) {
+        const float zoom = coordinator.sceneView(active).zoom;
         const Vector2 d = GetMouseDelta();
         coordinator.apply(PanViewportIntent{active, {-d.x / zoom, -d.y / zoom}});
     }
@@ -142,7 +163,8 @@ void routeViewportPickDrag(EditorCoordinator& coordinator, const ViewportRect& r
         makeSceneViewCamera(rect, coordinator.sceneView(active), frame.worldSize);
     const Vec2 mouse{static_cast<float>(GetMouseX()), static_cast<float>(GetMouseY())};
 
-    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+    // Space + left-drag is a pan gesture, not a pick (handled by routeViewportInput).
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && !IsKeyDown(KEY_SPACE)) {
         const ViewportInputContext ctx{rect.contains(GetMouseX(), GetMouseY()),
                                        /*rmlConsumedEvent*/ contextMenuHit, rml.textFocus,
                                        /*rmlPopupOpen*/ false};
@@ -433,20 +455,30 @@ int EditorApp::run(int argc, char** argv) {
         else            coordinator.logInfo("Imported " + result.assetId);
     });
 
-    // Fit View to Bounds: frame the active scene in the viewport. Workspace-only
-    // (recenter pan + zoom-to-fit via intents); the rect is known only here.
-    ui.setFitViewHandler([&]() {
+    // Fit View / auto-fit: frame the active scene, centred, with a small padding.
+    // Workspace-only (recenter pan to 0 + zoom-to-fit via intents); the viewport
+    // rect is known only here. Shared by the Scene Inspector button and the
+    // first-open auto-fit below.
+    const auto fitActiveScene = [&]() {
         const SceneId active = coordinator.state().activeSceneId;
         const SceneDef* scene = coordinator.document().findScene(active);
         if (!scene || scene->worldSize.x <= 0.f || scene->worldSize.y <= 0.f) return;
         const ViewportRect rect = viewportRectFromDocument(host.document());
         if (rect.width <= 0 || rect.height <= 0) return;
-        const float fit = 0.9f * std::min(static_cast<float>(rect.width) / scene->worldSize.x,
-                                          static_cast<float>(rect.height) / scene->worldSize.y);
+        constexpr float kPad = 28.f;   // keep the scene off the panel edges
+        const float availW = std::max(1.f, static_cast<float>(rect.width) - kPad * 2.f);
+        const float availH = std::max(1.f, static_cast<float>(rect.height) - kPad * 2.f);
+        const float fit = std::min(availW / scene->worldSize.x, availH / scene->worldSize.y);
         const EditorSceneViewState view = coordinator.sceneView(active);
-        coordinator.apply(PanViewportIntent{active, {-view.pan.x, -view.pan.y}});  // recenter
-        coordinator.apply(SetViewportZoomIntent{active, fit});
-    });
+        coordinator.apply(PanViewportIntent{active, {-view.pan.x, -view.pan.y}});  // centre (pan 0)
+        coordinator.apply(SetViewportZoomIntent{active, fit});                     // intent clamps
+    };
+    ui.setFitViewHandler(fitActiveScene);
+
+    // Auto-fit a scene the first time it is seen active in Edit mode (workspace
+    // only). Tracked app-side so it never re-fits on selection, resize or return
+    // from Play; "lost the view" is recovered explicitly with Fit View.
+    std::unordered_set<SceneId> autoFitted;
 
     const auto viewportDefaultSpawn = [&]() -> std::optional<Vec2> {
         const SceneId& active = coordinator.state().activeSceneId;
@@ -558,6 +590,9 @@ int EditorApp::run(int argc, char** argv) {
             }
             coordinator.updateRuntime(input, dt);         // input-driven (TopDownController)
         } else {
+            // First time this scene is active in Edit mode: frame it once.
+            const SceneId& editScene = coordinator.state().activeSceneId;
+            if (!editScene.empty() && autoFitted.insert(editScene).second) fitActiveScene();
             routeViewportPickDrag(coordinator, rect, rml, drag, contextMenuHit);
             routeViewportContextMenu(coordinator, ui, rect, rml, contextClick,
                                      pendingContextSpawn, contextMenuHit);

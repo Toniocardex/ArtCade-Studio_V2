@@ -32,6 +32,7 @@
         <span class="tool-sep"></span>
         <button class="tool-btn" data-action="zoom-out"><span class="icon">&#xeb57;</span>Zoom -</button>
         <button class="tool-btn" data-action="zoom-in"><span class="icon">&#xeb56;</span>Zoom +</button>
+        <span id="toolbar-zoom" class="toolbar-zoom" data-action="reset-zoom">100%</span>
         <span id="toolbar-status" class="toolbar-status"></span>
     </div>
 

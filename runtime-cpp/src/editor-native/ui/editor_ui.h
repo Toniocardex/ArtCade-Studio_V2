@@ -84,6 +84,7 @@ private:
 
     void applyInvalidations(EditorInvalidation flags);
     void refreshToolbar();
+    void updateZoomReadout();   // toolbar zoom %, refreshed on Viewport invalidation
 
     EditorCoordinator&                  coordinator_;
     Rml::ElementDocument*               document_;

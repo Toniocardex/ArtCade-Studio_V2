@@ -109,6 +109,21 @@
     letter-spacing: 0.4dp;
 }
 
+/* Clickable zoom readout: shows the active scene zoom %, click resets to 100%. */
+.toolbar-zoom {
+    display: inline-block;
+    height: 24dp;
+    line-height: 24dp;
+    margin: 0 2dp;
+    padding: 0 8dp;
+    border-radius: 4dp;
+    color: #a1a1aa;
+    font-size: 12dp;
+    font-weight: 500;
+    transition: background-color 0.1s, color 0.1s;
+}
+.toolbar-zoom:hover { background-color: #222226; color: #d4d4d8; }
+
 /* Disabled toolbar buttons (state class wins). */
 .tool-btn.disabled,
 #btn-play-project.disabled,

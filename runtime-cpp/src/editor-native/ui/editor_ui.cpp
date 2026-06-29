@@ -134,6 +134,7 @@ void EditorUi::bind() {
     applyInvalidations(EditorInvalidation::Hierarchy | EditorInvalidation::Inspector
                        | EditorInvalidation::Console  | EditorInvalidation::Toolbar
                        | EditorInvalidation::Assets);
+    updateZoomReadout();   // initial paint (zoom % is Viewport-driven, not in the set)
 }
 
 void EditorUi::processFrame() {
@@ -152,6 +153,19 @@ void EditorUi::applyInvalidations(EditorInvalidation flags) {
         assets_.refresh(document_, coordinator_);
     if (has(flags, EditorInvalidation::Toolbar))
         refreshToolbar();
+    if (has(flags, EditorInvalidation::Viewport))
+        updateZoomReadout();
+}
+
+void EditorUi::updateZoomReadout() {
+    if (!document_) return;
+    Rml::Element* el = document_->GetElementById("toolbar-zoom");
+    if (!el) return;
+    const SceneId active = (coordinator_.isPlaying() && coordinator_.playSession())
+        ? coordinator_.playSession()->sceneId()
+        : coordinator_.state().activeSceneId;
+    const int pct = static_cast<int>(coordinator_.sceneView(active).zoom * 100.f + 0.5f);
+    el->SetInnerRML(std::to_string(pct) + "%");
 }
 
 bool EditorUi::isPlaying() const { return coordinator_.isPlaying(); }
@@ -421,6 +435,11 @@ void EditorUi::handleAction(const std::string& action, const std::string& arg,
         coordinator_.undo();
     } else if (action == "redo") {
         coordinator_.redo();
+    } else if (action == "reset-zoom") {
+        const SceneId active = (coordinator_.isPlaying() && coordinator_.playSession())
+            ? coordinator_.playSession()->sceneId()
+            : coordinator_.state().activeSceneId;
+        coordinator_.apply(SetViewportZoomIntent{active, 1.0f});   // target unchanged
     } else if (action == "zoom-in" || action == "zoom-out") {
         const SceneId active = coordinator_.state().activeSceneId;
         const float current = coordinator_.sceneView(active).zoom;

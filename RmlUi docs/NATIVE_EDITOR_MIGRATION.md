@@ -140,6 +140,7 @@ paletto o sblocca la capability in corso.
 | Project file I/O | React/Tauri file path | `readProjectTextFile` + `loadProjectFromText` + atomic save, wired to GUI Open/Save/Save As (native pickers; app clears texture cache on replace) | Done | No |
 | Runtime viewport | WASM/runtime preview | `SceneFrameSnapshot` + derived texture cache | In progress | No |
 | Viewport pick + drag | React canvas pointer handlers | `pickEntityAt` + `SelectEntityIntent`; drag preview local, one `SetEntityPositionCommand` on release | Done | No |
+| Scene view navigation | React canvas scroll/zoom | Per-scene `EditorSceneViewState{pan,zoom}` (workspace); MMB / Space+LMB pan; wheel zoom under cursor; Fit View; first-open auto-fit; toolbar zoom %/reset; one shared `makeSceneViewCamera` | Done | No |
 | Authored runtime motion | Logic Board / Lua runtime | `EntityDef.linearMover` -> `RuntimeEntity.velocity` -> `PlaySession::advance` via `advanceRuntime`; edited via `linear_mover_commands` + Inspector, persisted in the object-type subset | Done | No |
 | TopDownController (input) | Logic Board / Lua runtime | `EntityDef.topDownController` -> `RuntimeTopDownController` -> `PlaySession::update` via `updateRuntime` with `RuntimeInputSnapshot`; edited via `top_down_controller_commands` + Inspector, persisted | Done | No |
 | Runtime AABB collisions | Logic Board / Lua physics | `RuntimeBoxCollider` materialized from `EntityDef.boxCollider2D`; both movers route through `PlaySession::moveKinematicEntity` (per-axis swept clamp vs static solids); mover-vs-mover and triggers out of scope | Done | No |
@@ -666,6 +667,44 @@ left release
 The drag state is transient presentation owned by the application; it never
 enters `ProjectDocument`. Pick + drag is Edit-mode only; Play keeps its own input
 path. `pickEntityAt` and `screenToWorld` are unit-tested in `editor-core`.
+
+## Scene view navigation baseline
+
+The Scene View navigates like a level editor — pan and zoom, no scrollbars (which
+would create a second, parallel representation of the camera that fights zoom,
+negative coordinates and out-of-bounds entities). RmlUi owns only the viewport
+hole; ArtCade's `Camera2D` (via the one `makeSceneViewCamera`) navigates the
+world, and every flow — rendering, world↔screen, picking, drag, scene clipping,
+grid, collider overlay — shares it. No second scroll offset.
+
+Per-scene camera lives in workspace state, `EditorState.sceneViews[sceneId]`
+(`{pan, zoom}`): not persisted, never dirties, not in undo/redo, distinct per
+scene. Inputs:
+
+```text
+wheel              -> zoom under the cursor (the world point stays put), 10%–800%
+middle-drag        -> pan
+Space + left-drag  -> pan (right button stays free for context menu / Create Here)
+Fit View to Bounds -> centre + zoom-to-fit (Scene Inspector button)
+toolbar zoom %     -> click resets to 100% (target unchanged)
+```
+
+Zoom-under-cursor and Fit are orchestrated by the application (they need the
+viewport pixel rect) but only ever apply the existing `SetViewportZoomIntent` +
+`PanViewportIntent` — workspace intents, `Viewport` invalidation only, no command,
+no `DomainChange`, no dirty. Zoom-under-cursor reads the world point under the
+mouse before the zoom, applies the zoom, then pans by the difference so that point
+stays fixed. Pan only runs when the cursor is over the viewport, no text field is
+focused, and no entity drag is in progress; Space+left is a pan gesture, so the
+pick path ignores a left-press while Space is held.
+
+A scene is **auto-fit once**, the first time it is seen active in Edit mode
+(tracked app-side, not in the state, to keep `EditorSceneViewState` minimal). It
+never re-fits on selection, window resize, scene resize, or returning from Play —
+that would make the view jump; "lost the view" is recovered explicitly with Fit
+View. Pan is free (no hard clamp to bounds) so off-screen spawns and side margins
+stay visible; Fit View is the recovery. No scrollbars, minimap, navigator, pan
+inertia, animated zoom or `F`-to-frame (deprecated).
 
 ## Undo / Redo baseline
 
