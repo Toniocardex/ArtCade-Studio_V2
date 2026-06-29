@@ -243,6 +243,16 @@ int EditorApp::run(int argc, char** argv) {
     // clear when the document is replaced, and the platform file pickers. The UI
     // only requests these operations; it never touches files or the renderer.
     std::filesystem::path currentProjectPath;
+    // The window title reflects the current project: its file name, or "Untitled"
+    // before the first Save As. Kept truthful wherever the path changes (New,
+    // Open, Save), so "Untitled" means "no destination on disk yet", which is
+    // distinct from dirty (content differs from the last baseline).
+    const auto refreshWindowTitle = [&]() {
+        const std::string name = currentProjectPath.empty()
+            ? std::string("Untitled")
+            : currentProjectPath.stem().string();
+        SetWindowTitle(("ArtCade Studio - " + name).c_str());
+    };
     const auto saveTo = [&](const std::filesystem::path& path) -> bool {
         const ProjectSaveResult result = saveProjectToFile(coordinator, path);
         if (!result.ok) {
@@ -250,6 +260,7 @@ int EditorApp::run(int argc, char** argv) {
             return false;
         }
         currentProjectPath = path;
+        refreshWindowTitle();
         coordinator.logInfo("Saved " + path.filename().string());
         return true;
     };
@@ -269,6 +280,18 @@ int EditorApp::run(int argc, char** argv) {
         return resolveUnsavedGuard(true, choice, saveOk) == GuardOutcome::Proceed;
     };
     ui.setProjectFileHandlers(
+        [&]() {  // New
+            if (coordinator.isPlaying()) {
+                coordinator.logWarning("Stop Play before creating a new project");
+                return;  // no hidden auto-stop
+            }
+            if (!guardPasses()) return;     // dirty + Cancel / failed Save: abort
+            coordinator.replaceProject(ProjectDocument{ProjectDoc{}});  // empty valid project
+            textureCache.clear();           // explicit app path consuming ProjectReplaced
+            currentProjectPath.clear();     // a new project has no destination yet
+            refreshWindowTitle();           // -> "Untitled"
+            coordinator.logInfo("New project");
+        },
         [&]() {  // Open
             if (coordinator.isPlaying()) {
                 coordinator.logWarning("Stop Play before opening another project");
@@ -284,6 +307,7 @@ int EditorApp::run(int argc, char** argv) {
             }
             textureCache.clear();  // explicit app path consuming ProjectReplaced
             currentProjectPath = *picked;
+            refreshWindowTitle();
             coordinator.logInfo("Opened " + picked->filename().string());
         },
         [&]() {  // Save (Save As when no current path)
@@ -314,6 +338,8 @@ int EditorApp::run(int argc, char** argv) {
         if (!result.ok) coordinator.logError(result.error);
         else            coordinator.logInfo("Imported " + result.assetId);
     });
+
+    refreshWindowTitle();   // empty start project -> "Untitled"
 
     int   frame       = 0;
     int   lastRenderW = GetRenderWidth();
@@ -404,8 +430,8 @@ int EditorApp::run(int argc, char** argv) {
             for (SceneFrameSprite& s : snapshot.sprites)
                 if (s.entityId == drag.entity) { s.destination.x += d.x; s.destination.y += d.y; }
         }
-        // Sprite source paths are relative to the loaded project; the demo (no
-        // project path) falls back to the executable resources.
+        // Sprite source paths are relative to the loaded project; with no project
+        // open yet (a new/Untitled project) they fall back to the executable resources.
         const std::filesystem::path assetRoot =
             currentProjectPath.empty() ? resourceRoot : currentProjectPath.parent_path();
         const auto textureRequests = playSession

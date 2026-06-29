@@ -12,6 +12,7 @@
         <div class="menu-item has-menu">
             <span class="menu-label">File</span>
             <div class="menu-dropdown">
+                <div class="menu-entry" data-action="new-project"><span class="icon">&#xeb0b;</span>New</div>
                 <div class="menu-entry" data-action="open-project"><span class="icon">&#xeaad;</span>Open</div>
                 <div class="menu-entry" data-action="save-project"><span class="icon">&#xea7a;</span>Save</div>
                 <div class="menu-entry" data-action="save-project-as"><span class="icon">&#xeae0;</span>Save As</div>

@@ -140,7 +140,8 @@ paletto o sblocca la capability in corso.
 | Viewport pick + drag | React canvas pointer handlers | `pickEntityAt` + `SelectEntityIntent`; drag preview local, one `SetEntityPositionCommand` on release | Done | No |
 | Authored runtime motion | Logic Board / Lua runtime | `EntityDef.linearMover` -> `RuntimeEntity.velocity` -> `PlaySession::advance` via `advanceRuntime`; edited via `linear_mover_commands` + Inspector, persisted in the object-type subset | Done | No |
 | TopDownController (input) | Logic Board / Lua runtime | `EntityDef.topDownController` -> `RuntimeTopDownController` -> `PlaySession::update` via `updateRuntime` with `RuntimeInputSnapshot`; edited via `top_down_controller_commands` + Inspector, persisted | Done | No |
-| Unsaved-changes guard | React beforeunload / dialogs | `resolveUnsavedGuard` (pure) + native confirm; guards Open and Exit (Save/Discard/Cancel, Save-fail aborts); Open blocked during Play | Done (New pending) | No |
+| Unsaved-changes guard | React beforeunload / dialogs | `resolveUnsavedGuard` (pure) + native confirm; guards New, Open and Exit (Save/Discard/Cancel, Save-fail aborts); New/Open blocked during Play | Done | No |
+| New project | React/Tauri new-project path | App `newProject` (File > New): guard -> `replaceProject(ProjectDocument{ProjectDoc{}})` -> clear path -> "Untitled" title; empty/clean/history-less | Done | No |
 | Play materialization | WASM bridge / preview path | `PlaySession` from `ProjectDocument` once at Start Play | In progress | No |
 | Sprite Renderer component | React Inspector | `sprite_commands` + `inspector_actions` (instance-scoped) | Done | No |
 | BoxCollider2D component | React Inspector / physics form | `box_collider_commands` on `EntityDef.boxCollider2D` | Done | No |
@@ -510,8 +511,7 @@ keeps the same id.
 ## Unsaved-changes guard baseline
 
 Now that the editor makes real, persistable edits, a destructive action must not
-silently lose work. The guard wraps Open Project and Exit (and New Project when
-it is wired):
+silently lose work. The guard wraps New Project, Open Project and Exit:
 
 ```text
 destructive action requested
@@ -533,6 +533,44 @@ A failed Save keeps the project loaded and dirty and aborts the action. On Exit,
 Cancel clears the platform close flag and keeps the app running. Open/New are
 rejected outright during Play ("Stop Play before opening another project") with
 no hidden auto-stop; Exit may still run the guard and then terminate.
+
+## New project baseline
+
+New Project closes the native project lifecycle (`New -> Edit -> Save/Save As ->
+Open -> guard -> Exit`). There is one application entry point, the File > New
+handler, which reuses the existing pieces rather than adding a lifecycle system:
+
+```text
+New requested
+-> isPlaying()?  yes -> reject ("Stop Play before creating a new project"), no auto-stop
+-> resolveUnsavedGuard (same Save/Discard/Cancel as Open/Exit)
+   Abort -> nothing changes
+-> coordinator.replaceProject(ProjectDocument{ProjectDoc{}})   // empty, valid
+-> textureCache.clear()        // explicit app path consuming ProjectReplaced
+-> currentProjectPath.clear()  // no destination yet
+-> window title -> "Untitled"
+```
+
+The new document is genuinely empty: 0 scenes, 0 entities, 0 assets, empty
+`startSceneId`. No wizard, template, or auto-created scene — the first
+`CreateSceneCommand` applies the existing start-scene invariant. `replaceProject`
+already provides the rest of the contract (rejected during Play, clean via
+high-water `replaceClean`, normalized empty active scene, cleared selection,
+pruned per-scene view state, cleared undo/redo) while preserving `EditorUiState`
+(layout/filters). Two concepts stay distinct and are deliberately not merged:
+
+```text
+dirty           -> content differs from the last baseline
+hasProjectPath  -> a destination exists on disk
+```
+
+So a fresh project is **clean but path-less**: nothing to lose yet, but Save must
+route through Save As until the first save. The "which action was requested" stays
+implicit in the synchronous call site; no pending state is stored. The empty-state
+transition is unit-tested in `editor-core`; the guard combinations and the
+during-Play rejection are covered by the existing `resolveUnsavedGuard` and
+`replaceProject`-during-Play tests. Path clearing and the title are application
+state, verified by smoke.
 
 ## Feature Template
 

@@ -418,6 +418,50 @@ int main() {
         CHECK(!empty.document().isDirty());
     }
 
+    // -- New Project: replacing with an empty document yields the clean, blank
+    //    lifecycle start the application's New action produces. The guard
+    //    (Save/Discard/Cancel) and the Play rejection are exercised separately
+    //    (resolveUnsavedGuard tests; replaceProject-during-Play test); the path
+    //    clearing and "Untitled" title are application state. Here we pin the
+    //    domain transition: dirty edits + history + selection + view state in,
+    //    a truly empty, clean, history-less project out.
+    {
+        EditorCoordinator c{makeDoc()};
+        c.apply(SelectEntityIntent{kHero});
+        c.apply(SetViewportZoomIntent{kSceneA, 2.0f});   // populate per-scene view state
+        c.execute(SetEntityPositionCommand{kSceneA, kHero, {7.f, 8.f}});
+        c.execute(SetEntityPositionCommand{kSceneA, kHero, {9.f, 10.f}});
+        c.undo();                                   // leave a redo branch too
+        CHECK(c.canUndo());
+        CHECK(c.canRedo());
+        CHECK(c.document().isDirty());
+        CHECK(!c.state().sceneViews.empty());
+        c.consumeInvalidations();
+
+        const EditorUiState uiBefore = c.uiState();
+        const auto r = c.replaceProject(ProjectDocument{ProjectDoc{}});
+
+        CHECK(r.ok);
+        CHECK(r.change.kind == DomainChangeKind::ProjectReplaced);
+        CHECK(c.document().startSceneId().empty());           // 0 scenes -> empty start
+        CHECK(c.document().data().scenes.empty());
+        CHECK(c.document().data().entities.empty());
+        CHECK(c.document().data().imageAssets.empty());
+        CHECK(c.document().data().audioAssets.empty());
+        CHECK(c.document().data().fontAssets.empty());
+        CHECK(c.state().activeSceneId.empty());
+        CHECK(c.state().sceneViews.empty());                  // view state pruned
+        CHECK(c.selection().primaryEntity == INVALID_ENTITY); // selection cleared
+        CHECK(!c.canUndo());                                  // history cleared
+        CHECK(!c.canRedo());
+        CHECK(c.undoSize() == 0);
+        CHECK(c.redoSize() == 0);
+        CHECK(!c.document().isDirty());                       // clean (no destination yet)
+        CHECK(c.document().revision() == c.document().savedRevision());
+        CHECK(!c.isPlaying());                                // no session carried over
+        CHECK(c.uiState().leftPanelWidth == uiBefore.leftPanelWidth);  // UI prefs kept
+    }
+
     // -- Load from text mutates only after deserialize/migrate/validate --------
     {
         EditorCoordinator c{makeDoc()};

@@ -153,9 +153,11 @@ void EditorUi::applyInvalidations(EditorInvalidation flags) {
 
 bool EditorUi::isPlaying() const { return coordinator_.isPlaying(); }
 
-void EditorUi::setProjectFileHandlers(ProjectFileRequest open,
+void EditorUi::setProjectFileHandlers(ProjectFileRequest newProject,
+                                      ProjectFileRequest open,
                                       ProjectFileRequest save,
                                       ProjectFileRequest saveAs) {
+    newProjectRequest_    = std::move(newProject);
     openProjectRequest_   = std::move(open);
     saveProjectRequest_   = std::move(save);
     saveProjectAsRequest_ = std::move(saveAs);
@@ -329,6 +331,8 @@ void EditorUi::handleAction(const std::string& action, const std::string& arg,
         if (!arg.empty()) coordinator_.execute(RemoveAudioAssetCommand{arg});
     } else if (action == "remove-font-asset") {
         if (!arg.empty()) coordinator_.execute(RemoveFontAssetCommand{arg});
+    } else if (action == "new-project") {
+        if (newProjectRequest_) newProjectRequest_();
     } else if (action == "open-project") {
         if (openProjectRequest_) openProjectRequest_();
     } else if (action == "save-project") {

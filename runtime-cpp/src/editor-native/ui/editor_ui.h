@@ -43,7 +43,8 @@ public:
     // only triggers them; it never touches files or the renderer. Unset handlers
     // make the corresponding toolbar action a no-op.
     using ProjectFileRequest = std::function<void()>;
-    void setProjectFileHandlers(ProjectFileRequest open,
+    void setProjectFileHandlers(ProjectFileRequest newProject,
+                                ProjectFileRequest open,
                                 ProjectFileRequest save,
                                 ProjectFileRequest saveAs);
     // Import copies a file into the project via the canonical importAsset
@@ -71,6 +72,7 @@ private:
     ConsolePanel                        console_;
     AssetsPanel                         assets_;
     std::unique_ptr<Rml::EventListener> listener_;
+    ProjectFileRequest                  newProjectRequest_;
     ProjectFileRequest                  openProjectRequest_;
     ProjectFileRequest                  saveProjectRequest_;
     ProjectFileRequest                  saveProjectAsRequest_;
