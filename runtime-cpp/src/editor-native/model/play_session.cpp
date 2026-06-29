@@ -24,10 +24,6 @@ const Vec3* fillFor(const ProjectDocument& document, const std::string& typeId) 
     return it == types.end() ? nullptr : &it->second.sprite.fillColor;
 }
 
-bool finite(Vec2 value) {
-    return std::isfinite(value.x) && std::isfinite(value.y);
-}
-
 // Mirrors the canonical runtime (World::tickLinearMovers): velocity is the
 // normalized authored direction scaled by a non-negative speed.
 Vec2 normalizeOrZero(Vec2 v) {
@@ -109,27 +105,11 @@ std::optional<PlaySession> PlaySession::startActiveScene(const ProjectDocument& 
     return materialize(document, sceneId, error);
 }
 
-RuntimeEntity* PlaySession::findEntity(EntityId id) {
-    for (RuntimeEntity& entity : scene_.entities) {
-        if (entity.id == id) return &entity;
-    }
-    return nullptr;
-}
-
 const RuntimeEntity* PlaySession::findEntity(EntityId id) const {
     for (const RuntimeEntity& entity : scene_.entities) {
         if (entity.id == id) return &entity;
     }
     return nullptr;
-}
-
-bool PlaySession::translateEntity(EntityId id, Vec2 delta) {
-    if (!finite(delta)) return false;
-    RuntimeEntity* entity = findEntity(id);
-    if (!entity) return false;
-    entity->transform.position.x += delta.x;
-    entity->transform.position.y += delta.y;
-    return true;
 }
 
 void PlaySession::advance(float dt) {

@@ -178,6 +178,8 @@ void EditorUi::refreshToolbar() {
     setEnabled("btn-play-project", !playing && coordinator_.canPlayProject());
     setEnabled("btn-play-scene",   !playing && coordinator_.canPlayCurrentScene());
     setEnabled("btn-stop",         playing);
+    // Undo is a derived affordance: available only with history and outside Play.
+    setEnabled("btn-undo",         !playing && coordinator_.canUndo());
 }
 
 void EditorUi::handleAction(const std::string& action, const std::string& arg,

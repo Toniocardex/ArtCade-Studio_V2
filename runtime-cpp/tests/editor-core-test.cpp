@@ -723,7 +723,8 @@ int main() {
         CHECK(c.document().findInstanceInScene(kSceneA, kHero)->transform.position.x == 256.f);
         CHECK(c.document().findInstanceInScene(kSceneA, kHero)->transform.position.y == 20.f);
         const EditorInvalidation inv = c.consumeInvalidations();
-        CHECK(inv == (EditorInvalidation::Inspector | EditorInvalidation::Viewport));
+        CHECK(inv == (EditorInvalidation::Inspector | EditorInvalidation::Viewport
+                      | EditorInvalidation::Toolbar));
         // The change is undoable and the inverse is exact.
         CHECK(c.canUndo());
         c.undo();
@@ -756,7 +757,8 @@ int main() {
         CHECK(r.change.kind == DomainChangeKind::EntityAdded);
         CHECK(r.change.entityId == 100);
         CHECK(c.consumeInvalidations()
-              == (EditorInvalidation::Hierarchy | EditorInvalidation::Viewport));
+              == (EditorInvalidation::Hierarchy | EditorInvalidation::Viewport
+                  | EditorInvalidation::Toolbar));
         const SceneInstanceDef* added = c.document().findInstanceInScene(kSceneA, 100);
         CHECK(added != nullptr);
         CHECK(added->objectTypeId == "Enemy");
@@ -991,7 +993,8 @@ int main() {
         // CreateEntity declares Hierarchy|Viewport; selection unchanged and active
         // scene valid, so reconciliation adds nothing.
         CHECK(c.consumeInvalidations()
-              == (EditorInvalidation::Hierarchy | EditorInvalidation::Viewport));
+              == (EditorInvalidation::Hierarchy | EditorInvalidation::Viewport
+                  | EditorInvalidation::Toolbar));
     }
 
     // -- (4) Add Entity without an active scene mutates nothing -----------------
@@ -1361,100 +1364,6 @@ int main() {
         CHECK(editAfterStop.sprites.empty());
     }
 
-    // -- Runtime translation mutates PlaySession only and is discarded on Stop -
-    {
-        EditorCoordinator c{makeInheritedDoc()};
-        const uint64_t revisionBefore = c.document().revision();
-        const uint64_t savedBefore = c.document().savedRevision();
-        const bool dirtyBefore = c.document().isDirty();
-        const std::size_t undoBefore = c.undoSize();
-
-        CHECK(c.playProject().ok);
-        c.consumeInvalidations(); // Start Play Toolbar | Viewport | Console.
-        const std::size_t logBefore = c.consoleLog().size();
-        CHECK(c.translateRuntimeEntity(kHero, Vec2{5.f, 0.f}));
-
-        const SceneFrameSnapshot playFrame = collectSceneFrameSnapshot(*c.playSession());
-        CHECK(playFrame.sprites.size() == 1);
-        CHECK(playFrame.sprites[0].destination.x == -9.f); // x=15, width=48
-        CHECK(c.document().findInstanceInScene(kSceneA, kHero)->transform.position.x == 10.f);
-        CHECK(c.document().revision() == revisionBefore);
-        CHECK(c.document().savedRevision() == savedBefore);
-        CHECK(c.document().isDirty() == dirtyBefore);
-        CHECK(c.undoSize() == undoBefore);
-        CHECK(c.consoleLog().size() == logBefore);
-        CHECK(c.consumeInvalidations() == EditorInvalidation::None);
-
-        CHECK(c.stopPlaying().ok);
-        const SceneFrameSnapshot editFrame =
-            collectSceneFrameSnapshot(c.document(), kSceneA, INVALID_ENTITY);
-        CHECK(editFrame.sprites.size() == 1);
-        CHECK(editFrame.sprites[0].destination.x == -14.f); // back to authoring x=10
-    }
-
-    // -- Runtime translation rejects invalid targets and invalid deltas --------
-    {
-        EditorCoordinator c{makeInheritedDoc()};
-        CHECK(c.playProject().ok);
-        CHECK(!c.translateRuntimeEntity(9999, Vec2{1.f, 0.f}));
-        CHECK(!c.translateRuntimeEntity(kHero, Vec2{
-            std::numeric_limits<float>::infinity(), 0.f}));
-        CHECK(!c.translateRuntimeEntity(kHero, Vec2{
-            0.f, std::numeric_limits<float>::quiet_NaN()}));
-
-        const SceneFrameSnapshot playFrame = collectSceneFrameSnapshot(*c.playSession());
-        CHECK(playFrame.sprites.size() == 1);
-        CHECK(playFrame.sprites[0].destination.x == -14.f);
-    }
-
-    // -- Runtime translation affects only the target entity -------------------
-    {
-        EditorCoordinator c{makeInheritedDoc()};
-        CHECK(c.execute(CreateEntityCommand{kSceneA, 100, "Enemy", "Enemy", {40.f, 20.f}}).ok);
-        CHECK(c.playProject().ok);
-        CHECK(c.translateRuntimeEntity(100, Vec2{10.f, 0.f}));
-
-        const RuntimeEntity* hero = c.playSession()->findEntity(kHero);
-        const RuntimeEntity* enemy = c.playSession()->findEntity(100);
-        CHECK(hero != nullptr);
-        CHECK(enemy != nullptr);
-        CHECK(hero->transform.position.x == 10.f);
-        CHECK(enemy->transform.position.x == 50.f);
-        CHECK(c.document().findInstanceInScene(kSceneA, 100)->transform.position.x == 40.f);
-    }
-
-    // -- A new Play session starts from authoring, not the previous runtime ----
-    {
-        EditorCoordinator c{makeInheritedDoc()};
-        CHECK(c.playProject().ok);
-        CHECK(c.translateRuntimeEntity(kHero, Vec2{5.f, 0.f}));
-        CHECK(c.stopPlaying().ok);
-        CHECK(c.playProject().ok);
-        const RuntimeEntity* hero = c.playSession()->findEntity(kHero);
-        CHECK(hero != nullptr);
-        CHECK(hero->transform.position.x == 10.f);
-    }
-
-    // -- translateRuntimeEntity is inert without an active PlaySession ----------
-    {
-        EditorCoordinator c{makeInheritedDoc()};
-        const uint64_t revisionBefore = c.document().revision();
-        const bool dirtyBefore = c.document().isDirty();
-        const std::size_t undoBefore = c.undoSize();
-        const std::size_t logBefore = c.consoleLog().size();
-        c.consumeInvalidations();
-
-        CHECK(!c.isPlaying());
-        CHECK(!c.translateRuntimeEntity(kHero, Vec2{5.f, 0.f}));
-
-        CHECK(c.consumeInvalidations() == EditorInvalidation::None);
-        CHECK(c.consoleLog().size() == logBefore);            // no warning
-        CHECK(c.document().revision() == revisionBefore);     // no authoring effect
-        CHECK(c.document().isDirty() == dirtyBefore);
-        CHECK(c.undoSize() == undoBefore);
-        CHECK(c.document().findInstanceInScene(kSceneA, kHero)->transform.position.x == 10.f);
-    }
-
     // == Authored runtime motion (LinearMover) ================================
 
     // -- materialize resolves authored direction*speed (normalized) -----------
@@ -1506,6 +1415,60 @@ int main() {
         c.advanceRuntime(1.0f);
         CHECK(c.document().revision() == revisionBefore);
         CHECK(c.consumeInvalidations() == EditorInvalidation::None);
+    }
+
+    // == Undo availability + toolbar refresh ==================================
+
+    // -- A successful command enables Undo and refreshes the toolbar ----------
+    {
+        EditorCoordinator c{makeDoc()};
+        CHECK(!c.canUndo());
+        c.consumeInvalidations();
+        const EditorOperationResult moved =
+            c.execute(SetEntityPositionCommand{kSceneA, kHero, Vec2{99.f, 20.f}});
+        CHECK(moved.ok);
+        CHECK(c.canUndo());
+        // Toolbar is invalidated so the Undo button can re-derive its state.
+        CHECK(has(c.consumeInvalidations(), EditorInvalidation::Toolbar));
+    }
+
+    // -- Undo restores the document, refreshes toolbar, and re-disables -------
+    {
+        EditorCoordinator c{makeDoc()};
+        CHECK(c.execute(SetEntityPositionCommand{kSceneA, kHero, Vec2{99.f, 20.f}}).ok);
+        CHECK(c.document().findInstanceInScene(kSceneA, kHero)->transform.position.x == 99.f);
+        c.consumeInvalidations();
+
+        const EditorOperationResult undone = c.undo();
+        CHECK(undone.ok);
+        CHECK(c.document().findInstanceInScene(kSceneA, kHero)->transform.position.x == 10.f);
+        const EditorInvalidation inv = c.consumeInvalidations();
+        CHECK(has(inv, EditorInvalidation::Toolbar));
+        CHECK(has(inv, EditorInvalidation::Inspector));   // the edited field re-reads
+        CHECK(!c.canUndo());                              // back to empty history
+    }
+
+    // -- replaceProject clears the history (Undo disabled) -------------------
+    {
+        EditorCoordinator c{makeDoc()};
+        CHECK(c.execute(SetEntityPositionCommand{kSceneA, kHero, Vec2{99.f, 20.f}}).ok);
+        CHECK(c.canUndo());
+        CHECK(c.replaceProject(ProjectDocument{makeReplacementDoc()}).ok);
+        CHECK(!c.canUndo());
+    }
+
+    // -- Play disables Undo as affordance; Stop restores the existing history -
+    {
+        EditorCoordinator c{makeDoc()};
+        CHECK(c.execute(SetEntityPositionCommand{kSceneA, kHero, Vec2{99.f, 20.f}}).ok);
+        CHECK(c.canUndo());
+        CHECK(c.playProject().ok);
+        CHECK(c.isPlaying());
+        CHECK(!c.undo().ok);                 // coordinator guard rejects during Play
+        CHECK(c.canUndo());                  // history survives Play
+        CHECK(c.stopPlaying().ok);
+        CHECK(!c.isPlaying());
+        CHECK(c.canUndo());                  // derived state returns after Stop
     }
 
     // == Unsaved-changes guard (decision matrix) ==============================
@@ -1814,7 +1777,8 @@ int main() {
         c.consumeInvalidations();
         CHECK(c.execute(SetSpriteRendererAssetCommand{kSceneA, kHero, "img-hero"}).ok);
         CHECK(c.consumeInvalidations()
-              == (EditorInvalidation::Inspector | EditorInvalidation::Viewport));
+              == (EditorInvalidation::Inspector | EditorInvalidation::Viewport
+                  | EditorInvalidation::Toolbar));
     }
 
     // -- (8) Undo restores the previous asset ---------------------------------
@@ -2154,7 +2118,8 @@ int main() {
 
         CHECK(c.execute(SetBoxColliderOffsetCommand{"Hero", Vec2{4.f, -6.f}}).ok);
         CHECK(c.consumeInvalidations()
-              == (EditorInvalidation::Inspector | EditorInvalidation::Viewport));
+              == (EditorInvalidation::Inspector | EditorInvalidation::Viewport
+                  | EditorInvalidation::Toolbar));
         CHECK(c.document().data().objectTypes.at("Hero").boxCollider2D->offset.x == 4.f);
         CHECK(c.document().data().objectTypes.at("Hero").boxCollider2D->offset.y == -6.f);
 

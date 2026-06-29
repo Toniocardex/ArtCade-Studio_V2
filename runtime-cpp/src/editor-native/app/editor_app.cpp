@@ -325,6 +325,16 @@ int EditorApp::run(int argc, char** argv) {
         if (IsKeyPressed(KEY_F8)) host.toggleDebugger();
 
         const RmlInputResult rml = pumpRmlInput(host.context());
+
+        // Ctrl+Z shares the single undo entry point with the toolbar button;
+        // suppressed while a text field has focus, and guarded against Play by
+        // the coordinator. Invalidations from the undo refresh the views.
+        if (!rml.textFocus
+            && (IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL))
+            && IsKeyPressed(KEY_Z)) {
+            coordinator.undo();
+        }
+
         const ViewportRect rect = viewportRectFromDocument(host.document());
         routeViewportInput(coordinator, rect, rml);
         if (coordinator.isPlaying()) {

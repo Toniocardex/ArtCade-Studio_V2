@@ -88,6 +88,7 @@ EditorOperationResult EditorCoordinator::executeOwned(
 
     accumulate(result.invalidation);
     accumulate(reconcileWorkspace());   // keep EditorState valid in the same op
+    accumulate(EditorInvalidation::Toolbar);   // undo became available
     history_.push(std::move(command));
     return result;
 }
@@ -107,6 +108,7 @@ EditorOperationResult EditorCoordinator::undo() {
     if (result.ok) {
         accumulate(result.invalidation);
         accumulate(reconcileWorkspace());
+        accumulate(EditorInvalidation::Toolbar);   // undo availability changed
     } else {
         appendConsole(ConsoleMessage::Level::Error, result.error);
     }
@@ -233,14 +235,6 @@ EditorOperationResult EditorCoordinator::stopPlaying() {
     logInfo("Stopped - back to authoring document");
     accumulate(EditorInvalidation::Toolbar | EditorInvalidation::Viewport);
     return EditorOperationResult::success(EditorInvalidation::Toolbar | EditorInvalidation::Viewport);
-}
-
-bool EditorCoordinator::translateRuntimeEntity(EntityId id, Vec2 delta) {
-    // Runtime-only mutation; no authoring effect and no panel invalidation. The
-    // Play viewport renders every frame, so a moved entity is shown without a
-    // Viewport flag (that flag is for structural/UI-mode changes, not motion).
-    if (!playSession_) return false;
-    return playSession_->translateEntity(id, delta);
 }
 
 void EditorCoordinator::advanceRuntime(float dt) {

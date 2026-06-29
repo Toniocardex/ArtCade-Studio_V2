@@ -376,9 +376,9 @@ La `PlaySession` puo' mutare durante Play. Le mutazioni runtime non sono
 `EditorCommand` e passano per un solo entry point stretto del coordinator:
 
 ```text
-input piattaforma
--> EditorCoordinator::translateRuntimeEntity(id, delta)
--> PlaySession::translateEntity(id, delta)
+tick di gioco (authored motion)
+-> EditorCoordinator::advanceRuntime(dt)
+-> PlaySession::advance
 -> RuntimeEntity.transform.position
 -> collectSceneFrameSnapshot(PlaySession)
 -> viewport Play aggiornato

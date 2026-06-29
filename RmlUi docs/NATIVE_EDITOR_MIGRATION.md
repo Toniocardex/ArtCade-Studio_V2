@@ -131,7 +131,7 @@ paletto o sblocca la capability in corso.
 | Hierarchy add/delete wiring | React Hierarchy buttons | `hierarchy_actions` (UI-free) -> `EditorCoordinator` | Done | No |
 | Start scene | TS project/store path | `SetStartSceneCommand`; first scene auto-keeps invariant | Done | No |
 | Workspace reconciliation | React effects/listeners | `EditorCoordinator::reconcileWorkspace` (same op) | Done | No |
-| Undo | React/editor history path | `CommandStack` | Partial | No |
+| Undo | React/editor history path | `CommandStack` + toolbar button & Ctrl+Z (one `EditorCoordinator::undo` entry); enabled state derived from `canUndo() && !isPlaying()` | Done (no redo yet) | No |
 | Project replace/load boundary | React/Tauri file path | `EditorCoordinator::replaceProject(ProjectDocument)` | In progress | No |
 | Play Project | WASM bridge / preview path | `EditorCoordinator::playProject` (guarded by `canPlayProject`) | Done | No |
 | Play Current Scene | WASM bridge / preview path | `EditorCoordinator::playCurrentScene` (guarded by `canPlayCurrentScene`) | Done | No |
@@ -318,18 +318,17 @@ The toolbar should label the runtime target, for example `PLAYING - Scene A`.
 That label is derived from `PlaySession::scene()` and exists only to avoid UX
 ambiguity when the workspace active scene changes during Play.
 
-Runtime mutations flow through narrow coordinator entry points, never a mutable
-session handle. Two exist:
+Runtime mutations flow through a narrow coordinator entry point, never a mutable
+session handle:
 
 ```text
-EditorCoordinator::translateRuntimeEntity(id, delta)   // explicit single move
 EditorCoordinator::advanceRuntime(dt)                  // authored-motion tick
--> PlaySession::translateEntity / PlaySession::advance
+-> PlaySession::advance
 -> RuntimeEntity.transform.position
 -> Play SceneFrameSnapshot
 ```
 
-Neither is an `EditorCommand`; neither touches `ProjectDocument`, undo, revision,
+It is not an `EditorCommand`; it does not touch `ProjectDocument`, undo, revision,
 dirty state or JSON. The coordinator exposes the session read-only
 (`const PlaySession*`) and keeps the mutable surface private, so panels, toolbar
 and shortcuts cannot open parallel mutation paths. `Stop` destroys the session,
