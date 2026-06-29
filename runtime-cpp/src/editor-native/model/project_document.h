@@ -39,6 +39,8 @@ class RemoveFontAssetCommand;
 class SetBoxColliderOffsetCommand;
 class SetBoxColliderSizeCommand;
 class SetBoxColliderTriggerCommand;
+class RenameSceneCommand;
+class SetSceneSizeCommand;
 class SetSceneBackgroundCommand;
 class SetSpriteRendererAssetCommand;
 class SetSpriteRendererVisibleCommand;
@@ -122,6 +124,8 @@ private:
     friend class RemoveAudioAssetCommand;
     friend class AddFontAssetCommand;
     friend class RemoveFontAssetCommand;
+    friend class RenameSceneCommand;
+    friend class SetSceneSizeCommand;
     friend class SetSceneBackgroundCommand;
     friend class SetSpriteRendererAssetCommand;
     friend class SetSpriteRendererVisibleCommand;
@@ -130,6 +134,11 @@ private:
     // ---- Patch (authoring mutations; called by commands) --------------------
     bool setInstancePosition(const SceneId& sceneId, EntityId id, Vec2 position);
     bool setInstanceName(const SceneId& sceneId, EntityId id, std::string name);
+    bool setSceneName(const SceneId& sceneId, std::string name);
+    // The scene world size (Dimensions). Resizing never moves instances — an
+    // entity left outside the new bounds keeps its coordinates (Outside Scene UX
+    // flags it); only rendering/clipping/spawn-centre derive from this.
+    bool setSceneSize(const SceneId& sceneId, Vec2 size);
     bool setSceneBackground(const SceneId& sceneId, Vec4 color);
     // The persisted gameplay start scene. Empty is allowed only when there are
     // no scenes; a non-empty id must reference an existing scene.

@@ -67,6 +67,42 @@ private:
     bool     captured_ = false;
 };
 
+/** Rename one scene. Invalidates Hierarchy | Inspector | Viewport | Toolbar. */
+class RenameSceneCommand final : public EditorCommand {
+public:
+    RenameSceneCommand(SceneId sceneId, std::string name);
+
+    EditorOperationResult apply(ProjectDocument& document) override;
+    EditorOperationResult undo(ProjectDocument& document) override;
+    const char* name() const override { return "RenameScene"; }
+
+private:
+    SceneId     sceneId_;
+    std::string newName_;
+    std::string oldName_;
+    bool        captured_ = false;
+};
+
+/**
+ * Set one scene's world size (Dimensions). Width/height must be finite and > 0;
+ * the value is normalized to whole pixels at commit. Resizing never moves
+ * instances. Invalidates Inspector | Viewport.
+ */
+class SetSceneSizeCommand final : public EditorCommand {
+public:
+    SetSceneSizeCommand(SceneId sceneId, Vec2 size);
+
+    EditorOperationResult apply(ProjectDocument& document) override;
+    EditorOperationResult undo(ProjectDocument& document) override;
+    const char* name() const override { return "SetSceneSize"; }
+
+private:
+    SceneId sceneId_;
+    Vec2    newSize_;
+    Vec2    oldSize_{};
+    bool    captured_ = false;
+};
+
 /** Set one scene's background colour. Invalidates Viewport. */
 class SetSceneBackgroundCommand final : public EditorCommand {
 public:

@@ -6,6 +6,7 @@
 #include "editor-native/app/asset_import.h"
 #include "editor-native/app/inspector_commit.h"
 #include "editor-native/commands/entity_commands.h"
+#include "editor-native/commands/scene_commands.h"
 #include "editor-native/commands/image_asset_commands.h"
 #include "editor-native/commands/audio_asset_commands.h"
 #include "editor-native/commands/font_asset_commands.h"
@@ -397,6 +398,19 @@ void EditorUi::handleAction(const std::string& action, const std::string& arg,
         if (selected != INVALID_ENTITY && !value.empty())
             coordinator_.execute(
                 RenameEntityCommand{coordinator_.state().activeSceneId, selected, value});
+    } else if (action == "commit-scene-name") {
+        if (!value.empty())
+            coordinator_.execute(RenameSceneCommand{coordinator_.state().activeSceneId, value});
+    } else if (action == "commit-scene-width" || action == "commit-scene-height") {
+        const SceneDef* scene =
+            coordinator_.document().findScene(coordinator_.state().activeSceneId);
+        const std::optional<float> parsed = parseNumberField(value);
+        if (scene && parsed.has_value()) {
+            Vec2 size = scene->worldSize;
+            if (action == "commit-scene-width") size.x = *parsed;
+            else                                size.y = *parsed;
+            coordinator_.execute(SetSceneSizeCommand{coordinator_.state().activeSceneId, size});
+        }
     } else if (action == "undo") {
         coordinator_.undo();
     } else if (action == "redo") {

@@ -2,6 +2,7 @@
 
 #include "editor-native/model/project_document.h"
 
+#include <cmath>
 #include <utility>
 
 namespace ArtCade::EditorNative {
@@ -126,6 +127,86 @@ EditorOperationResult DeleteSceneCommand::undo(ProjectDocument& document) {
 // ----------------------------------------------------------------------------
 // SetSceneBackgroundCommand
 // ----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
+// RenameSceneCommand
+// ----------------------------------------------------------------------------
+RenameSceneCommand::RenameSceneCommand(SceneId sceneId, std::string name)
+    : sceneId_(std::move(sceneId)), newName_(std::move(name)) {}
+
+EditorOperationResult RenameSceneCommand::apply(ProjectDocument& document) {
+    const SceneDef* scene = document.findScene(sceneId_);
+    if (!scene) {
+        return EditorOperationResult::failure("No target scene");
+    }
+    if (newName_.empty()) {
+        return EditorOperationResult::failure("Scene name cannot be empty");
+    }
+    if (scene->name == newName_) {
+        return EditorOperationResult::success(EditorInvalidation::None);
+    }
+    if (!captured_) {
+        oldName_ = scene->name;
+        captured_ = true;
+    }
+    if (!document.setSceneName(sceneId_, newName_)) {
+        return EditorOperationResult::failure("Failed to rename scene");
+    }
+    return EditorOperationResult::success(
+        EditorInvalidation::Hierarchy | EditorInvalidation::Inspector
+        | EditorInvalidation::Viewport | EditorInvalidation::Toolbar,
+        DomainChange::sceneChanged(sceneId_));
+}
+
+EditorOperationResult RenameSceneCommand::undo(ProjectDocument& document) {
+    if (!captured_ || !document.setSceneName(sceneId_, oldName_)) {
+        return EditorOperationResult::failure("Cannot undo scene rename");
+    }
+    return EditorOperationResult::success(
+        EditorInvalidation::Hierarchy | EditorInvalidation::Inspector
+        | EditorInvalidation::Viewport | EditorInvalidation::Toolbar,
+        DomainChange::sceneChanged(sceneId_));
+}
+
+// ----------------------------------------------------------------------------
+// SetSceneSizeCommand
+// ----------------------------------------------------------------------------
+SetSceneSizeCommand::SetSceneSizeCommand(SceneId sceneId, Vec2 size)
+    : sceneId_(std::move(sceneId)), newSize_(size) {}
+
+EditorOperationResult SetSceneSizeCommand::apply(ProjectDocument& document) {
+    if (!std::isfinite(newSize_.x) || !std::isfinite(newSize_.y)
+        || newSize_.x <= 0.f || newSize_.y <= 0.f) {
+        return EditorOperationResult::failure("Scene size must be positive");
+    }
+    const Vec2 size{std::round(newSize_.x), std::round(newSize_.y)};  // whole pixels
+    const SceneDef* scene = document.findScene(sceneId_);
+    if (!scene) {
+        return EditorOperationResult::failure("No target scene");
+    }
+    if (scene->worldSize.x == size.x && scene->worldSize.y == size.y) {
+        return EditorOperationResult::success(EditorInvalidation::None);
+    }
+    if (!captured_) {
+        oldSize_ = scene->worldSize;
+        captured_ = true;
+    }
+    if (!document.setSceneSize(sceneId_, size)) {
+        return EditorOperationResult::failure("Failed to set scene size");
+    }
+    return EditorOperationResult::success(
+        EditorInvalidation::Inspector | EditorInvalidation::Viewport,
+        DomainChange::sceneChanged(sceneId_));
+}
+
+EditorOperationResult SetSceneSizeCommand::undo(ProjectDocument& document) {
+    if (!captured_ || !document.setSceneSize(sceneId_, oldSize_)) {
+        return EditorOperationResult::failure("Cannot undo scene size change");
+    }
+    return EditorOperationResult::success(
+        EditorInvalidation::Inspector | EditorInvalidation::Viewport,
+        DomainChange::sceneChanged(sceneId_));
+}
+
 SetSceneBackgroundCommand::SetSceneBackgroundCommand(SceneId sceneId, Vec4 color)
     : sceneId_(std::move(sceneId)), newColor_(color) {}
 

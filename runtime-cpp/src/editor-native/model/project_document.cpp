@@ -99,6 +99,22 @@ bool ProjectDocument::setInstanceName(const SceneId& sceneId, EntityId id, std::
     return true;
 }
 
+bool ProjectDocument::setSceneName(const SceneId& sceneId, std::string name) {
+    SceneDef* scene = mutableScene(sceneId);
+    if (!scene) return false;
+    scene->name = std::move(name);
+    markDirty();
+    return true;
+}
+
+bool ProjectDocument::setSceneSize(const SceneId& sceneId, Vec2 size) {
+    SceneDef* scene = mutableScene(sceneId);
+    if (!scene) return false;
+    scene->worldSize = size;   // instances are never moved (no clamp)
+    markDirty();
+    return true;
+}
+
 bool ProjectDocument::setSceneBackground(const SceneId& sceneId, Vec4 color) {
     SceneDef* scene = mutableScene(sceneId);
     if (!scene) return false;

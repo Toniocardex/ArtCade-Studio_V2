@@ -2848,6 +2848,62 @@ int main() {
         CHECK(!bad.has_value());
     }
 
+    // == Scene properties (Scene Inspector) ===================================
+
+    // -- Rename scene: applies, rejects empty, undo/redo ----------------------
+    {
+        EditorCoordinator c{makeDoc()};                  // kSceneA name "Scene A"
+        CHECK(c.execute(RenameSceneCommand{kSceneA, "Level 1"}).ok);
+        CHECK(c.document().findScene(kSceneA)->name == "Level 1");
+        CHECK(!c.execute(RenameSceneCommand{kSceneA, ""}).ok);   // empty rejected
+        CHECK(c.undo().ok);
+        CHECK(c.document().findScene(kSceneA)->name == "Scene A");
+        CHECK(c.redo().ok);
+        CHECK(c.document().findScene(kSceneA)->name == "Level 1");
+    }
+
+    // -- Set scene size: validation, integer normalize, never moves instances -
+    {
+        EditorCoordinator c{makeDoc()};
+        const Vec2 heroBefore = c.document().findInstanceInScene(kSceneA, kHero)->transform.position;
+
+        CHECK(c.execute(SetSceneSizeCommand{kSceneA, {320.f, 180.f}}).ok);
+        CHECK(c.document().findScene(kSceneA)->worldSize.x == 320.f);
+        CHECK(c.document().findScene(kSceneA)->worldSize.y == 180.f);
+        // Resizing must not move an instance (Outside Scene UX flags it instead).
+        const Vec2 heroAfter = c.document().findInstanceInScene(kSceneA, kHero)->transform.position;
+        CHECK(heroAfter.x == heroBefore.x && heroAfter.y == heroBefore.y);
+
+        // Non-positive / non-finite are rejected without mutation.
+        CHECK(!c.execute(SetSceneSizeCommand{kSceneA, {0.f, 100.f}}).ok);
+        CHECK(!c.execute(SetSceneSizeCommand{kSceneA, {100.f, -5.f}}).ok);
+        CHECK(c.document().findScene(kSceneA)->worldSize.x == 320.f);   // unchanged
+
+        // Committed values normalize to whole pixels.
+        CHECK(c.execute(SetSceneSizeCommand{kSceneA, {199.4f, 150.6f}}).ok);
+        CHECK(c.document().findScene(kSceneA)->worldSize.x == 199.f);
+        CHECK(c.document().findScene(kSceneA)->worldSize.y == 151.f);
+
+        CHECK(c.undo().ok);
+        CHECK(c.document().findScene(kSceneA)->worldSize.x == 320.f);
+        CHECK(c.redo().ok);
+        CHECK(c.document().findScene(kSceneA)->worldSize.x == 199.f);
+    }
+
+    // -- Scene name + size survive save/reload --------------------------------
+    {
+        EditorCoordinator c{makeDoc()};
+        CHECK(c.execute(RenameSceneCommand{kSceneA, "Arena"}).ok);
+        CHECK(c.execute(SetSceneSizeCommand{kSceneA, {640.f, 360.f}}).ok);
+        const std::filesystem::path path = testTempDir() / "scene-props.artcade-project";
+        CHECK(saveProjectToFile(c, path).ok);
+        EditorCoordinator reloaded{ProjectDoc{}};
+        CHECK(loadProjectFromFile(reloaded, path).ok);
+        CHECK(reloaded.document().findScene(kSceneA)->name == "Arena");
+        CHECK(reloaded.document().findScene(kSceneA)->worldSize.x == 640.f);
+        CHECK(reloaded.document().findScene(kSceneA)->worldSize.y == 360.f);
+    }
+
     // == Start-scene invariant: scenes exist => startSceneId is valid ==========
 
     // -- (1)(2)(3) First scene becomes the start scene; workspace untouched ----

@@ -124,6 +124,7 @@ paletto o sblocca la capability in corso.
 | Transform edit | TS project/store path | `SetEntityPositionCommand` -> `ProjectDocument` | In progress | No |
 | Entity rename | TS project/store path | `RenameEntityCommand` -> `ProjectDocument` | In progress | No |
 | Scene background edit | TS project/store path | `SetSceneBackgroundCommand` -> `ProjectDocument` | In progress | No |
+| Scene properties (Scene Inspector) | TS scene settings panel | No-selection Inspector shows the active scene: `RenameSceneCommand`, `SetSceneSizeCommand` (Dimensions; resize never moves instances), Set as Start, entity count | Done | No |
 | Scene create | TS project/store path | `CreateSceneCommand` -> `ProjectDocument` | Done | No |
 | Scene delete | TS project/store path | `DeleteSceneCommand` -> `ProjectDocument` (exact undo) | Done | No |
 | Entity create (+Entity) | TS project/store path | atomic `CreateEntityWithDefaultTypeCommand` -> always a NEW `ObjectTypeDef` + its instance (independent object); never reuses a type | Done | No |
@@ -864,6 +865,41 @@ remove, the Add menu) is disabled, consistent with the authoring freeze.
 Collapsible sections were deliberately deferred — removing the phantom sections
 already shortens the panel enough; folding can come if complex entities prove it
 necessary.
+
+## Scene Inspector baseline
+
+Now that the scene's size is a concrete property consumed by clipping, spawn
+centre, picking and the Outside-Scene UX, it needs an authoritative, editable
+home. Rather than a new panel or a new `selectedSceneId`, the **Inspector has two
+modes** keyed off the existing authority:
+
+```text
+entity selected            -> Entity Inspector
+no entity + active scene   -> Scene Inspector   (activeSceneId, no new state)
+no entity + no scene       -> "Select an entity"
+```
+
+Clicking a scene tab already clears the entity selection (`SelectSceneIntent`), so
+the Scene Inspector appears with no extra intent. MVP sections: **Scene** (Name
+editable, ID read-only), **Dimensions** (Width/Height), **Start Scene** (a "Set as
+Start" button, or a "Project start scene" marker when it already is), and
+**Statistics** (entity count, read-only).
+
+Edits go through commands like everything else: `RenameSceneCommand`
+(Hierarchy|Inspector|Viewport|Toolbar) and the new `SetSceneSizeCommand`
+(Inspector|Viewport); Set as Start reuses `SetStartSceneCommand`. `SetSceneSize`
+validates width/height finite and > 0 and normalizes to whole pixels at commit
+(same buffer→Enter/blur→validate→compare→command path as the numeric fields).
+**Resizing never moves instances** — an entity left outside the new bounds keeps
+its coordinates (the Outside-Scene UX flags it; no clamp, no hidden correction).
+`name` and `worldSize` already round-trip through the serializer, so persistence
+needed no change. Scene-tab selection stays workspace-only (no dirty/undo).
+
+Deferred to their own slices (not added here without a consumer): scene layers
+(persistent order + entity membership, with the editor-only hidden/locked flags
+living in `EditorState.sceneViews`), and global/runtime scene properties (gravity,
+camera, music, ambient, background) which arrive with the capability that uses
+them. Collapsible sections likewise wait until complexity demands them.
 
 ## Feature Template
 

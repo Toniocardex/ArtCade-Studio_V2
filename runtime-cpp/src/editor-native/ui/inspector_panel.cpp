@@ -104,10 +104,47 @@ void InspectorPanel::refresh(Rml::ElementDocument* document,
         coordinator.document().findInstanceInScene(coordinator.state().activeSceneId,
                                                    selected);
 
+    // No entity selected: show the Scene Inspector for the active scene (same
+    // panel, two modes — the authority is the existing activeSceneId, no new
+    // selectedSceneId). With no active scene at all, fall back to the empty hint.
     if (!inst) {
-        body->SetInnerRML("<p class=\"inspector-empty\">Select an entity</p>");
         lastEntity_ = INVALID_ENTITY;
         addMenuOpen_ = false;
+        const SceneId& activeScene = coordinator.state().activeSceneId;
+        const SceneDef* scene = coordinator.document().findScene(activeScene);
+        if (!scene) {
+            body->SetInnerRML("<p class=\"inspector-empty\">Select an entity</p>");
+            return;
+        }
+        const bool playing = coordinator.isPlaying();
+        const bool isStart = coordinator.document().startSceneId() == activeScene;
+        const std::string btn = playing ? "panel-btn disabled" : "panel-btn";
+
+        std::string html;
+        html += header("&#xeb34;", "Scene", "", "", "", playing);
+        html += field("Name", "commit-scene-name", scene->name, playing);
+        html += "<div class=\"prop-row\"><span class=\"prop-label\">ID</span>"
+                "<span class=\"prop-readonly\">" + escapeRml(scene->id) + "</span></div>";
+
+        html += header("&#xf22f;", "Dimensions", "", "", "", playing);
+        html += field("Width", "commit-scene-width", num(scene->worldSize.x), playing);
+        html += field("Height", "commit-scene-height", num(scene->worldSize.y), playing);
+
+        html += header("&#xeb2e;", "Start Scene", "", "", "", playing);
+        if (isStart) {
+            html += "<div class=\"prop-row\"><span class=\"prop-readonly\">"
+                    "<span class=\"icon\">&#xeb2e;</span> Project start scene</span></div>";
+        } else {
+            html += "<button class=\"" + btn + "\" data-action=\"set-start-scene\">"
+                    "<span class=\"icon\">&#xeb2e;</span>Set as Start</button>";
+        }
+
+        html += header("&#xebdc;", "Statistics", "", "", "", playing);
+        html += "<div class=\"prop-row\"><span class=\"prop-label\">Entities</span>"
+                "<span class=\"prop-readonly\">"
+              + std::to_string(scene->instances.size()) + "</span></div>";
+
+        body->SetInnerRML(html);
         return;
     }
 
