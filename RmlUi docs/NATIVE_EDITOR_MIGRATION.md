@@ -140,6 +140,7 @@ paletto o sblocca la capability in corso.
 | Viewport pick + drag | React canvas pointer handlers | `pickEntityAt` + `SelectEntityIntent`; drag preview local, one `SetEntityPositionCommand` on release | Done | No |
 | Authored runtime motion | Logic Board / Lua runtime | `EntityDef.linearMover` -> `RuntimeEntity.velocity` -> `PlaySession::advance` via `advanceRuntime`; edited via `linear_mover_commands` + Inspector, persisted in the object-type subset | Done | No |
 | TopDownController (input) | Logic Board / Lua runtime | `EntityDef.topDownController` -> `RuntimeTopDownController` -> `PlaySession::update` via `updateRuntime` with `RuntimeInputSnapshot`; edited via `top_down_controller_commands` + Inspector, persisted | Done | No |
+| Runtime AABB collisions | Logic Board / Lua physics | `RuntimeBoxCollider` materialized from `EntityDef.boxCollider2D`; both movers route through `PlaySession::moveKinematicEntity` (per-axis swept clamp vs static solids); mover-vs-mover and triggers out of scope | Done | No |
 | Unsaved-changes guard | React beforeunload / dialogs | `resolveUnsavedGuard` (pure) + native confirm; guards New, Open and Exit (Save/Discard/Cancel, Save-fail aborts); New/Open blocked during Play | Done | No |
 | New project | React/Tauri new-project path | App `newProject` (File > New): guard -> `replaceProject(ProjectDocument{ProjectDoc{}})` -> clear path -> "Untitled" title; empty/clean/history-less | Done | No |
 | Play materialization | WASM bridge / preview path | `PlaySession` from `ProjectDocument` once at Start Play | In progress | No |
@@ -453,6 +454,57 @@ normalized (never faster — a fixed behaviour, not a property), non-finite or
 non-positive `dt` is a no-op, and input is neutral while an RmlUi text field has
 focus. Edits use `top_down_controller_commands` (object-type scope, undo/redo,
 Inspector-only invalidation) and persist in the object-type subset.
+
+## Runtime collisions baseline
+
+The first runtime physics slice gives the gameplay loop solid ground: a moving
+entity is blocked by solid colliders instead of passing through. It is a
+kinematic-vs-static model, deliberately not a physics engine.
+
+```text
+kinematic mover  = entity moved by TopDownController or LinearMover
+static solid     = entity with an enabled, non-trigger BoxCollider2D and no mover
+
+mover vs static solid -> resolved
+mover vs mover        -> not resolved (out of scope)
+trigger / disabled    -> never blocks
+```
+
+Both movers share **one** internal entry point —
+`PlaySession::moveKinematicEntity(entity, desiredDelta)` — so `advance`
+(LinearMover velocity) and `update` (TopDownController input) cannot drift into
+two collision systems. There is no `PhysicsManager`, registry or event bus.
+
+Resolution is per-axis swept, against the static solids frozen at materialize:
+
+```text
+resolve X (clamp desiredDelta.x to the nearest solid the mover overlaps on Y)
+-> apply X
+resolve Y (re-evaluate overlap with the new X)
+-> apply Y
+```
+
+Resolving the axes independently produces natural sliding (a side wall stops X
+while Y continues; a floor stops Y while X continues) — slide is the canonical
+behaviour, not a configurable mode. The per-axis **clamp** (allowed gap to the
+nearest solid, never more than the requested move) is a 1-D sweep, so a fast
+mover stops exactly at contact and never tunnels through a thin wall even at large
+`dt`. Touching edges are not overlapping (strict inequality), so a mover sits
+flush against a wall and still slides; an already-penetrated pair is never
+auto-depenetrated (the mover can move out, no teleport).
+
+The authoritative collider AABB is one function,
+`runtimeColliderBounds(entity)` = `position + offset ± size/2`, mirroring the
+editor's collider draw convention (no sprite/texture/`ProjectDocument` lookup).
+The scene rectangle is **not** a collider: it clips rendering only; to confine an
+entity you place colliders at the edges. Triggers are materialized but inert
+(no block, no enter/exit events) — their consumer is a later slice.
+
+This stays pure runtime: `moveKinematicEntity` mutates only `RuntimeEntity`
+transforms; `ProjectDocument`, revision, dirty and history are untouched, `Stop`
+discards every runtime position and the next Play re-materializes from authoring.
+Next on this chain: PlatformerController (gravity + vertical velocity + grounded
+state + jump).
 
 ## RmlUi input commit baseline
 

@@ -1960,6 +1960,138 @@ int main() {
         CHECK(c.playSession()->findEntity(201)->transform.position.x == 130.f);
     }
 
+    // ===== Runtime AABB collisions ==========================================
+    // A "runner" at (0,0) with a 32x32 collider (AABB [-16,16]) moves +x toward a
+    // "wall" at (100,0) (AABB [84,116]). Contact is at runner.x = 68 (16+68 = 84).
+    {
+        // configureRunner sets the mover/collider on the runner's object type.
+        const auto makeWorld = [](auto&& configureRunner, bool wallEnabled = true,
+                                  bool wallTrigger = false, Vec2 wallOffset = {0.f, 0.f},
+                                  bool wallIsMover = false) {
+            ProjectDoc doc;
+            doc.projectName = "collide";
+            doc.activeSceneId = "s";
+            SceneDef s; s.id = "s"; s.name = "S"; s.worldSize = {4000.f, 4000.f};
+            SceneInstanceDef runner; runner.id = 1; runner.objectTypeId = "runner";
+            runner.instanceName = "Runner"; runner.transform.position = {0.f, 0.f};
+            SceneInstanceDef wall; wall.id = 2; wall.objectTypeId = "wall";
+            wall.instanceName = "Wall"; wall.transform.position = {100.f, 0.f};
+            s.instances = {runner, wall};
+            doc.scenes.emplace("s", s);
+
+            EntityDef runnerType; runnerType.className = "runner"; runnerType.name = "Runner";
+            configureRunner(runnerType);
+            doc.objectTypes.emplace("runner", runnerType);
+
+            EntityDef wallType; wallType.className = "wall"; wallType.name = "Wall";
+            wallType.boxCollider2D =
+                BoxCollider2DComponent{wallOffset, Vec2{32.f, 32.f}, wallEnabled, wallTrigger};
+            if (wallIsMover) {   // make the wall a kinematic mover -> not a static solid
+                LinearMoverComponent lm; lm.directionX = 0.f; lm.directionY = 0.f; lm.speed = 0.f;
+                wallType.linearMover = lm;
+            }
+            doc.objectTypes.emplace("wall", wallType);
+            return doc;
+        };
+        const auto linearRunner = [](EntityDef& t) {
+            LinearMoverComponent lm; lm.directionX = 1.f; lm.directionY = 0.f; lm.speed = 100.f;
+            t.linearMover = lm;
+            t.boxCollider2D = BoxCollider2DComponent{Vec2{0.f, 0.f}, Vec2{32.f, 32.f}, true, false};
+        };
+        const auto near68 = [](float v) { return std::abs(v - 68.f) < 0.01f; };
+
+        // (1) A LinearMover with a collider stops at contact with the static wall.
+        {
+            EditorCoordinator c{makeWorld(linearRunner)};
+            CHECK(c.playProject().ok);
+            c.advanceRuntime(10.f);                       // desired +1000, gap is 68
+            const RuntimeEntity* r = c.playSession()->findEntity(1);
+            CHECK(near68(r->transform.position.x));
+            CHECK(r->transform.position.y == 0.f);
+            // Authoring is untouched by the runtime resolution.
+            CHECK(c.document().findInstanceInScene("s", 1)->transform.position.x == 0.f);
+        }
+
+        // (2) High speed / large dt does not tunnel through the thin wall.
+        {
+            EditorCoordinator c{makeWorld(linearRunner)};
+            CHECK(c.playProject().ok);
+            c.advanceRuntime(1000.f);                     // desired +100000
+            CHECK(near68(c.playSession()->findEntity(1)->transform.position.x));
+        }
+
+        // (3) Per-axis resolution slides along the corner: X clamps, Y continues.
+        {
+            EditorCoordinator c{makeWorld([](EntityDef& t) {
+                LinearMoverComponent lm; lm.directionX = 1.f; lm.directionY = 1.f; lm.speed = 100.f;
+                t.linearMover = lm;
+                t.boxCollider2D = BoxCollider2DComponent{Vec2{0.f, 0.f}, Vec2{32.f, 32.f}, true, false};
+            })};
+            CHECK(c.playProject().ok);
+            c.advanceRuntime(10.f);                       // dir normalized (0.707,0.707)*100
+            const RuntimeEntity* r = c.playSession()->findEntity(1);
+            CHECK(near68(r->transform.position.x));        // X blocked at the wall
+            CHECK(r->transform.position.y > 700.f);        // Y unblocked (~707)
+        }
+
+        // (4) A disabled wall collider is not solid -> the runner passes through.
+        {
+            EditorCoordinator c{makeWorld(linearRunner, /*wallEnabled*/ false)};
+            CHECK(c.playProject().ok);
+            c.advanceRuntime(10.f);
+            CHECK(c.playSession()->findEntity(1)->transform.position.x > 900.f);
+        }
+
+        // (5) A trigger wall does not block.
+        {
+            EditorCoordinator c{makeWorld(linearRunner, true, /*wallTrigger*/ true)};
+            CHECK(c.playProject().ok);
+            c.advanceRuntime(10.f);
+            CHECK(c.playSession()->findEntity(1)->transform.position.x > 900.f);
+        }
+
+        // (6) A mover without a collider moves freely.
+        {
+            EditorCoordinator c{makeWorld([](EntityDef& t) {
+                LinearMoverComponent lm; lm.directionX = 1.f; lm.directionY = 0.f; lm.speed = 100.f;
+                t.linearMover = lm;                        // no boxCollider2D
+            })};
+            CHECK(c.playProject().ok);
+            c.advanceRuntime(10.f);
+            CHECK(c.playSession()->findEntity(1)->transform.position.x > 900.f);
+        }
+
+        // (7) Mover vs mover is out of scope: a moving "wall" is not a static solid.
+        {
+            EditorCoordinator c{makeWorld(linearRunner, true, false, {0.f, 0.f}, /*wallIsMover*/ true)};
+            CHECK(c.playProject().ok);
+            c.advanceRuntime(10.f);
+            CHECK(c.playSession()->findEntity(1)->transform.position.x > 900.f);
+        }
+
+        // (8) TopDownController routes through the same resolver and stops too.
+        {
+            EditorCoordinator c{makeWorld([](EntityDef& t) {
+                TopDownControllerComponent tdc; tdc.maxSpeed = 100.f;
+                t.topDownController = tdc;
+                t.boxCollider2D = BoxCollider2DComponent{Vec2{0.f, 0.f}, Vec2{32.f, 32.f}, true, false};
+            })};
+            CHECK(c.playProject().ok);
+            RuntimeInputSnapshot in; in.moveRight = true;
+            c.updateRuntime(in, 10.f);                    // desired +1000, gap 68
+            CHECK(near68(c.playSession()->findEntity(1)->transform.position.x));
+        }
+
+        // (9) The collider offset shifts the wall's AABB; contact moves with it.
+        //     Wall offset (-20,0) -> center 80 -> AABB [64,96]; contact at x = 48.
+        {
+            EditorCoordinator c{makeWorld(linearRunner, true, false, /*wallOffset*/ {-20.f, 0.f})};
+            CHECK(c.playProject().ok);
+            c.advanceRuntime(10.f);
+            CHECK(std::abs(c.playSession()->findEntity(1)->transform.position.x - 48.f) < 0.01f);
+        }
+    }
+
     // -- save/load preserves the component; Add/Remove/SetSpeed undo+redo -----
     {
         EditorCoordinator c{makeTopDownDoc(140.f)};
