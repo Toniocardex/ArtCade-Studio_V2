@@ -45,7 +45,16 @@ RmlInputResult pumpRmlInput(Rml::Context* context) {
 
     const int mod = currentModifiers();
 
-    const bool propagated = context->ProcessMouseMove(GetMouseX(), GetMouseY(), mod);
+    // RmlUi's context is sized in physical framebuffer pixels, but raylib reports
+    // the mouse in logical pixels (it applies SetMouseScale under HIGHDPI). Scale
+    // the cursor into physical space so hover/click/drag land on the right element
+    // on scaled displays. The factor is 1.0 at 100% scaling.
+    const int   sw = GetScreenWidth();
+    const int   sh = GetScreenHeight();
+    const float sx = sw > 0 ? static_cast<float>(GetRenderWidth())  / static_cast<float>(sw) : 1.f;
+    const float sy = sh > 0 ? static_cast<float>(GetRenderHeight()) / static_cast<float>(sh) : 1.f;
+    const bool propagated = context->ProcessMouseMove(
+        static_cast<int>(GetMouseX() * sx), static_cast<int>(GetMouseY() * sy), mod);
     result.mouseOverUi = !propagated;
 
     const int buttons[] = {MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT, MOUSE_BUTTON_MIDDLE};

@@ -1,4 +1,5 @@
-/* panels.rcss — panel surfaces, headers, console rows, inspector sections. */
+/* panels.rcss — panel surfaces, headers, console rows, inspector sections.
+   Lengths in `dp` (DPI-scaled); 1px borders stay physical hairlines. */
 
 .panel { background-color: #18181b; }
 
@@ -7,28 +8,28 @@
 
 .panel-header {
     display: block;
-    height: 32px;
-    line-height: 32px;
-    padding: 0 12px;
+    height: 32dp;
+    line-height: 32dp;
+    padding: 0 12dp;
     background-color: #18181b;
     border-bottom: 1px #27272a;
 }
 
 .assets-stub {
     display: block;
-    padding: 10px 12px;
+    padding: 10dp 12dp;
     color: #52525b;
-    font-size: 11px;
+    font-size: 11dp;
 }
 
 /* Console */
 .console {
     display: block;
     flex: 1;
-    padding: 8px 12px;
-    font-size: 11px;
+    padding: 8dp 12dp;
+    font-size: 11dp;
 }
-.log { display: block; padding: 2px 0; color: #a1a1aa; }
+.log { display: block; padding: 2dp 0; color: #a1a1aa; }
 .log-info    { color: #a1a1aa; }
 .log-warning { color: #d8b44a; }
 .log-error   { color: #e5706b; }
@@ -37,24 +38,24 @@
 .inspector {
     display: block;
     flex: 1;
-    padding: 0 14px 14px 14px;
+    padding: 0 14dp 14dp 14dp;
 }
 .inspector-empty {
     color: #52525b;
-    padding: 14px 0;
+    padding: 14dp 0;
 }
 
 /* Section eyebrow + bottom hairline (flat, no accent outline). */
 .prop-group-title {
     display: block;
-    height: 28px;
-    line-height: 28px;
-    margin-top: 14px;
-    margin-bottom: 6px;
+    height: 28dp;
+    line-height: 28dp;
+    margin-top: 14dp;
+    margin-bottom: 6dp;
     border-bottom: 1px #27272a;
-    font-size: 10px;
+    font-size: 10dp;
     font-weight: 700;
-    letter-spacing: 1.1px;
+    letter-spacing: 1.1dp;
     text-transform: uppercase;
     color: #8a8a93;
 }
@@ -63,16 +64,16 @@
     display: flex;
     flex-direction: row;
     align-items: center;
-    height: 28px;
-    margin-bottom: 5px;
+    height: 28dp;
+    margin-bottom: 5dp;
 }
 .prop-label {
-    width: 92px;
+    width: 92dp;
     color: #8a8a93;
-    font-size: 11px;
+    font-size: 11dp;
 }
 .prop-readonly {
     flex: 1;
     color: #d4d4d8;
-    font-size: 12px;
+    font-size: 12dp;
 }

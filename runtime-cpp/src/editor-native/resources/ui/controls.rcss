@@ -2,28 +2,29 @@
    Flat fills (no gradients), low radius, single-accent selection. State classes
    (.disabled/.active/.selected) come from C++ and must win, so they come last.
    NOTE: raw text must not sit inside a display:flex element in RmlUi (it won't
-   render) — text-bearing controls are block/inline-block, centred via line-height. */
+   render) — text-bearing controls are block/inline-block, centred via line-height.
+   Lengths in `dp` (DPI-scaled); 1px borders/separators stay physical hairlines. */
 
 /* -- Menu bar -------------------------------------------------------------- */
 .brand {
     display: inline-block;
-    line-height: 30px;
-    padding: 0 12px 0 6px;
+    line-height: 30dp;
+    padding: 0 12dp 0 6dp;
     color: #e4e4e7;
-    font-size: 12px;
+    font-size: 12dp;
     font-weight: 700;
-    letter-spacing: 0.4px;
+    letter-spacing: 0.4dp;
 }
 .menu-item {
     display: inline-block;
     position: relative;
-    height: 22px;
-    line-height: 22px;
-    padding: 0 10px;
-    margin: 0 1px;
-    border-radius: 3px;
+    height: 22dp;
+    line-height: 22dp;
+    padding: 0 10dp;
+    margin: 0 1dp;
+    border-radius: 3dp;
     color: #a1a1aa;
-    font-size: 12px;
+    font-size: 12dp;
     font-weight: 400;
     transition: background-color 0.1s, color 0.1s;
 }
@@ -33,24 +34,24 @@
 .menu-dropdown {
     display: none;
     position: absolute;
-    top: 25px;
+    top: 25dp;
     left: 0;
     z-index: 100;
-    min-width: 168px;
-    padding: 4px;
+    min-width: 168dp;
+    padding: 4dp;
     background-color: #1c1c1f;
     border: 1px #323236;
-    border-radius: 6px;
+    border-radius: 6dp;
 }
 .menu-item:hover .menu-dropdown { display: block; }
 .menu-entry {
     display: block;
-    height: 28px;
-    line-height: 28px;
-    padding: 0 10px;
-    border-radius: 4px;
+    height: 28dp;
+    line-height: 28dp;
+    padding: 0 10dp;
+    border-radius: 4dp;
     color: #a1a1aa;
-    font-size: 13px;
+    font-size: 13dp;
     font-weight: 500;
     white-space: nowrap;
     transition: background-color 0.1s, color 0.1s;
@@ -60,16 +61,16 @@
 /* -- Toolbar buttons — flat ------------------------------------------------ */
 .tool-btn {
     display: inline-block;
-    height: 28px;
-    line-height: 28px;
+    height: 28dp;
+    line-height: 28dp;
     text-align: center;
-    margin: 0 4px;
-    padding: 0 17px;
+    margin: 0 4dp;
+    padding: 0 17dp;
     background-color: #1c1c1f;
     border: 1px #27272a;
-    border-radius: 4px;
+    border-radius: 4dp;
     color: #a1a1aa;
-    font-size: 13px;
+    font-size: 13dp;
     font-weight: 500;
     transition: background-color 0.1s, border-color 0.1s, color 0.1s;
 }
@@ -92,20 +93,20 @@
 .tool-sep {
     display: block;
     width: 1px;
-    height: 18px;
-    margin: 0 7px;
+    height: 18dp;
+    margin: 0 7dp;
     background-color: #323236;
 }
 
 .toolbar-status {
     display: inline-block;
-    line-height: 44px;
+    line-height: 44dp;
     margin-left: auto;
-    padding: 0 4px 0 12px;
+    padding: 0 4dp 0 12dp;
     color: #52525b;
-    font-size: 11px;
+    font-size: 11dp;
     font-weight: 500;
-    letter-spacing: 0.4px;
+    letter-spacing: 0.4dp;
 }
 
 /* Disabled toolbar buttons (state class wins). */
@@ -123,20 +124,20 @@
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
-    padding: 8px 8px 4px 10px;
+    padding: 8dp 8dp 4dp 10dp;
 }
 .panel-btn {
     display: inline-block;
-    height: 24px;
-    line-height: 24px;
+    height: 24dp;
+    line-height: 24dp;
     text-align: center;
-    margin: 0 5px 5px 0;
-    padding: 0 9px;
+    margin: 0 5dp 5dp 0;
+    padding: 0 9dp;
     background-color: transparent;
     border: 1px #323236;
-    border-radius: 3px;
+    border-radius: 3dp;
     color: #a1a1aa;
-    font-size: 11px;
+    font-size: 11dp;
     font-weight: 500;
     white-space: nowrap;
     transition: background-color 0.1s, border-color 0.1s, color 0.1s;
@@ -157,16 +158,16 @@
 }
 
 /* -- Inspector asset picker ------------------------------------------------ */
-.asset-options { display: block; margin: 6px 0 8px 0; }
+.asset-options { display: block; margin: 6dp 0 8dp 0; }
 .asset-option {
     display: block;
-    padding: 5px 9px;
+    padding: 5dp 9dp;
     color: #a1a1aa;
     background-color: #1c1c1f;
     border: 1px #27272a;
-    border-radius: 3px;
-    margin-bottom: 3px;
-    font-size: 11px;
+    border-radius: 3dp;
+    margin-bottom: 3dp;
+    font-size: 11dp;
     transition: background-color 0.1s, border-color 0.1s, color 0.1s;
 }
 .asset-option:hover { background-color: #222226; border-color: #323236; color: #d4d4d8; }
@@ -181,21 +182,21 @@
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
-    padding: 8px 8px 4px 10px;
+    padding: 8dp 8dp 4dp 10dp;
     background-color: #18181b;
     border-bottom: 1px #27272a;
 }
 .tab {
     display: inline-block;
-    height: 26px;
-    line-height: 26px;
+    height: 26dp;
+    line-height: 26dp;
     text-align: center;
-    padding: 0 12px;
-    margin: 0 5px 5px 0;
-    border-radius: 3px;
+    padding: 0 12dp;
+    margin: 0 5dp 5dp 0;
+    border-radius: 3dp;
     color: #a1a1aa;
     background-color: transparent;
-    font-size: 11px;
+    font-size: 11dp;
     font-weight: 500;
     transition: background-color 0.1s, color 0.1s;
 }
@@ -206,50 +207,50 @@
 .tree {
     display: block;
     flex: 1;
-    padding: 4px 0;
+    padding: 4dp 0;
 }
 .tree-row {
     display: flex;
     flex-direction: row;
     align-items: center;
-    height: 26px;
-    padding: 0 10px;
-    border-left: 2px transparent;
+    height: 26dp;
+    padding: 0 10dp;
+    border-left: 2dp transparent;
     color: #a1a1aa;
     transition: background-color 0.1s, color 0.1s;
 }
 .tree-row:hover { background-color: #222226; color: #d4d4d8; }
 .tree-row.selected {
     background-color: #3b82f626;
-    border-left: 2px #3b82f6;
+    border-left: 2dp #3b82f6;
     color: #d4d4d8;
 }
-.row-name { flex: 1; font-size: 12px; }
+.row-name { flex: 1; font-size: 12dp; }
 .row-type {
     color: #52525b;
-    font-size: 9px;
+    font-size: 9dp;
     font-weight: 600;
-    letter-spacing: 0.6px;
+    letter-spacing: 0.6dp;
     text-transform: uppercase;
 }
 .tree-row.selected .row-type { color: #7aa2e8; }
 .tree-empty {
     display: block;
-    padding: 10px;
+    padding: 10dp;
     color: #52525b;
 }
 
 /* -- Text inputs — flat, accent border on focus (no glow) ------------------ */
 .prop-input {
     flex: 1;
-    height: 26px;
-    line-height: 26px;
-    padding: 0 8px;
+    height: 26dp;
+    line-height: 26dp;
+    padding: 0 8dp;
     background-color: #111113;
     border: 1px #27272a;
-    border-radius: 3px;
+    border-radius: 3dp;
     color: #d4d4d8;
-    font-size: 12px;
+    font-size: 12dp;
     transition: border-color 0.1s;
 }
 .prop-input:hover { border-color: #323236; }

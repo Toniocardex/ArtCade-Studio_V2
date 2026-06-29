@@ -30,15 +30,33 @@ namespace ArtCade::EditorNative {
 
 namespace {
 
+// HiDPI bridge: RmlUi runs in physical framebuffer pixels (GetRenderWidth),
+// while raylib's drawing and mouse stay in logical pixels (GetScreenWidth) —
+// raylib applies the DPI scale itself via screenScale / SetMouseScale. The
+// factor is 1.0 on a 100% display, so this is a no-op there.
+float uiPixelScaleX() {
+    const int sw = GetScreenWidth();
+    return sw > 0 ? static_cast<float>(GetRenderWidth()) / static_cast<float>(sw) : 1.f;
+}
+float uiPixelScaleY() {
+    const int sh = GetScreenHeight();
+    return sh > 0 ? static_cast<float>(GetRenderHeight()) / static_cast<float>(sh) : 1.f;
+}
+
+// The viewport element is laid out in RmlUi's physical-pixel space; the raylib
+// scene renderer and pick/drag hit-testing both work in logical pixels, so the
+// rect is converted physical -> logical here once at the boundary.
 ViewportRect viewportRectFromDocument(Rml::ElementDocument* document) {
     ViewportRect rect;
     if (!document) return rect;
+    const float sx = uiPixelScaleX();
+    const float sy = uiPixelScaleY();
     if (Rml::Element* vp = document->GetElementById("viewport")) {
         const Rml::Vector2f off = vp->GetAbsoluteOffset();
-        rect.x = static_cast<int>(off.x);
-        rect.y = static_cast<int>(off.y);
-        rect.width  = static_cast<int>(vp->GetClientWidth());
-        rect.height = static_cast<int>(vp->GetClientHeight());
+        rect.x = static_cast<int>(off.x / sx);
+        rect.y = static_cast<int>(off.y / sy);
+        rect.width  = static_cast<int>(vp->GetClientWidth()  / sx);
+        rect.height = static_cast<int>(vp->GetClientHeight() / sy);
     }
     return rect;
 }
@@ -180,7 +198,11 @@ int EditorApp::run(int argc, char** argv) {
 
     EditorCoordinator coordinator(makeDemoProject());
 
-    SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_MSAA_4X_HINT | FLAG_VSYNC_HINT);
+    // FLAG_WINDOW_HIGHDPI: create a framebuffer at the monitor's physical
+    // resolution so RmlUi rasterises and renders at real pixels (crisp text on
+    // scaled displays) instead of being upscaled from a logical-size buffer.
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_MSAA_4X_HINT | FLAG_VSYNC_HINT |
+                   FLAG_WINDOW_HIGHDPI);
     InitWindow(1340, 840, "ArtCade Studio");
     const std::filesystem::path resourceRoot = editorResourceRoot();
     applyWindowIcon(resourceRoot);
@@ -188,9 +210,11 @@ int EditorApp::run(int argc, char** argv) {
     SetExitKey(KEY_NULL);
     SetTargetFPS(60);
 
-    const float dpi = GetWindowScaleDPI().x;
+    // RmlUi context + viewport are sized in physical framebuffer pixels; the dp
+    // ratio scales `dp` lengths in the RCSS so the UI keeps its intended size.
+    float dpi = GetWindowScaleDPI().x;
     RmlHost host;
-    if (!host.initialize(GetScreenWidth(), GetScreenHeight(), dpi > 0.f ? dpi : 1.f,
+    if (!host.initialize(GetRenderWidth(), GetRenderHeight(), dpi > 0.f ? dpi : 1.f,
                          resourceRoot, "ui/editor_shell.rml")) {
         TraceLog(LOG_ERROR, "[editor] failed to load native editor resources from %s",
                  resourceRoot.string().c_str());
@@ -247,10 +271,23 @@ int EditorApp::run(int argc, char** argv) {
                 saveTo(*picked);
         });
 
-    int frame = 0;
+    int   frame       = 0;
+    int   lastRenderW = GetRenderWidth();
+    int   lastRenderH = GetRenderHeight();
+    float lastDpi     = dpi > 0.f ? dpi : 1.f;
     while (!WindowShouldClose()) {
-        if (IsWindowResized())
-            host.resize(GetScreenWidth(), GetScreenHeight(), GetWindowScaleDPI().x);
+        // Re-sync RmlUi on a resize *or* a DPI change (e.g. the window dragged
+        // onto a monitor with different scaling): both alter the physical
+        // framebuffer size and/or the dp ratio, and must stay in lockstep.
+        const int   renderW = GetRenderWidth();
+        const int   renderH = GetRenderHeight();
+        const float curDpi  = GetWindowScaleDPI().x > 0.f ? GetWindowScaleDPI().x : 1.f;
+        if (renderW != lastRenderW || renderH != lastRenderH || curDpi != lastDpi) {
+            host.resize(renderW, renderH, curDpi);
+            lastRenderW = renderW;
+            lastRenderH = renderH;
+            lastDpi     = curDpi;
+        }
         if (IsKeyPressed(KEY_F8)) host.toggleDebugger();
 
         const RmlInputResult rml = pumpRmlInput(host.context());

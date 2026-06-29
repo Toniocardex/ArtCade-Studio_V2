@@ -1,5 +1,6 @@
 /* layout.rcss — fixed split layout, three splitters, transparent viewport hole.
-   Flat surfaces; raylib draws the scene behind the transparent viewport. */
+   Flat surfaces; raylib draws the scene behind the transparent viewport.
+   Lengths in `dp` (DPI-scaled); 1px borders stay physical hairlines. */
 
 body {
     width: 100%;
@@ -10,21 +11,21 @@ body {
 }
 
 #menubar {
-    height: 30px;
+    height: 30dp;
     display: flex;
     flex-direction: row;
     align-items: center;
-    padding: 0 6px;
+    padding: 0 6dp;
     background-color: #18181b;
     border-bottom: 1px #27272a;
 }
 
 #toolbar {
-    height: 44px;
+    height: 44dp;
     display: flex;
     flex-direction: row;
     align-items: center;
-    padding: 0 10px;
+    padding: 0 10dp;
     background-color: #18181b;
     border-bottom: 1px #27272a;
 }
@@ -37,9 +38,9 @@ body {
 }
 
 #left-col {
-    width: 264px;
-    min-width: 200px;
-    max-width: 480px;
+    width: 264dp;
+    min-width: 200dp;
+    max-width: 480dp;
     display: flex;
     flex-direction: column;
 }
@@ -50,17 +51,17 @@ body {
 }
 
 #right-col {
-    width: 312px;
-    min-width: 240px;
-    max-width: 520px;
+    width: 312dp;
+    min-width: 240dp;
+    max-width: 520dp;
     display: flex;
     flex-direction: column;
 }
 
 #console {
-    height: 176px;
-    min-height: 80px;
-    max-height: 600px;
+    height: 176dp;
+    min-height: 80dp;
+    max-height: 600dp;
     display: flex;
     flex-direction: column;
     background-color: #161619;
@@ -69,7 +70,7 @@ body {
 
 /* Splitters — slim, light up to accent on hover/drag. */
 .vsplit {
-    width: 5px;
+    width: 5dp;
     background-color: #0e0e10;
     drag: drag;
     transition: background-color 0.1s;
@@ -78,7 +79,7 @@ body {
 .vsplit:active { background-color: #60a0ff; }
 
 .hsplit {
-    height: 5px;
+    height: 5dp;
     background-color: #0e0e10;
     drag: drag;
     transition: background-color 0.1s;
