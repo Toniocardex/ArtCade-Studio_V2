@@ -566,6 +566,9 @@ int EditorApp::run(int argc, char** argv) {
                 ui.copySelectedConsoleMessage();
             }
         }
+        if (!rml.textFocus && !coordinator.isPlaying() && IsKeyPressed(KEY_F2)) {
+            ui.beginActiveSceneLayerRename();
+        }
         const ViewportRect rect = viewportRectFromDocument(host.document());
         const bool contextMenuHit = ui.isViewportContextMenuHit(
             static_cast<int>(static_cast<float>(GetMouseX()) * uiPixelScaleX()),

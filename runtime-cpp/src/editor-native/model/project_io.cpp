@@ -127,7 +127,33 @@ SceneDef readScene(const nlohmann::json& value, const SceneId& fallbackId) {
     }
     scene.defaultLayerId = readString(value, "defaultLayerId", "default_layer_id");
 
-    // Migration: every scene must have a real Default layer; normalize the
+    // Legacy canonical default layer is now the first authored layer. Only the
+    // untouched old "Default" layer migrates; user-renamed default layers keep
+    // their authored name and id.
+    bool hasLayerOne = false;
+    for (const SceneLayerDef& layer : scene.layers) {
+        if (layer.id == "layer-1") {
+            hasLayerOne = true;
+            break;
+        }
+    }
+    if (!hasLayerOne) {
+        for (SceneLayerDef& layer : scene.layers) {
+            if (layer.id == "default" && layer.name == "Default") {
+                layer.id = "layer-1";
+                layer.name = "Layer 1";
+                if (scene.defaultLayerId.empty() || scene.defaultLayerId == "default") {
+                    scene.defaultLayerId = "layer-1";
+                }
+                for (SceneInstanceDef& inst : scene.instances) {
+                    if (inst.layerId == "default") inst.layerId = "layer-1";
+                }
+                break;
+            }
+        }
+    }
+
+    // Migration: every scene must have a real first layer; normalize the
     // default id and every instance to a real layer (legacy "" / dangling ->
     // default). No fictitious fallback survives past load.
     const auto layerExists = [&](const std::string& id) {
@@ -135,8 +161,8 @@ SceneDef readScene(const nlohmann::json& value, const SceneId& fallbackId) {
         return false;
     };
     if (scene.layers.empty()) {
-        scene.layers.push_back(SceneLayerDef{"default", "Default", false});
-        scene.defaultLayerId = "default";
+        scene.layers.push_back(SceneLayerDef{"layer-1", "Layer 1", false});
+        scene.defaultLayerId = "layer-1";
     }
     if (!layerExists(scene.defaultLayerId)) scene.defaultLayerId = scene.layers.front().id;
     for (SceneInstanceDef& inst : scene.instances) {

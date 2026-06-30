@@ -171,7 +171,7 @@ private:
     // Per-scene render layers. `layers` is the single order authority (index 0 =
     // background). addSceneLayer inserts at an index; moveSceneLayer reorders in
     // place; removeSceneLayer drops a layer (caller enforces the empty/non-default
-    // policy); setInstanceLayer reassigns one instance. The Default layer is
+    // policy); setInstanceLayer reassigns one instance. The default layer is
     // created by createScene and is never removed by these verbs.
     bool addSceneLayer(const SceneId& sceneId, const std::string& layerId,
                        const std::string& name, std::size_t index);

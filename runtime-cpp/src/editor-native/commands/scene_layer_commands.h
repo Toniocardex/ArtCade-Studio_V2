@@ -9,8 +9,8 @@
 namespace ArtCade::EditorNative {
 
 // Per-scene render layer commands. `scene.layers` is the single order authority;
-// every command targets an explicit SceneId + LayerId. The Default layer is
-// created with the scene and is never removed by these commands.
+// every command targets an explicit SceneId + LayerId. The default layer is
+// identified by SceneDef::defaultLayerId and is never removed by these commands.
 
 /** Add a layer at @p index. Invalidates Hierarchy | Inspector | Viewport. */
 class AddSceneLayerCommand final : public EditorCommand {
@@ -64,7 +64,7 @@ private:
 };
 
 /**
- * Remove a layer. Policy: the Default layer cannot be removed, and a layer that
+ * Remove a layer. Policy: the default layer cannot be removed, and a layer that
  * still has instances is rejected (no implicit move). Undo restores it at its
  * original index. Invalidates Hierarchy | Inspector | Viewport.
  */

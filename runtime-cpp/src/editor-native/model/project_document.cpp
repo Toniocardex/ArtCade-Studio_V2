@@ -136,9 +136,9 @@ bool ProjectDocument::createScene(const SceneId& id, const std::string& name) {
     SceneDef scene;
     scene.id = id;
     scene.name = name;
-    // Every scene always has a real Default layer (the persistent fallback).
-    scene.layers.push_back(SceneLayerDef{"default", "Default", false});
-    scene.defaultLayerId = "default";
+    // Every scene always has a real first layer (the persistent fallback).
+    scene.layers.push_back(SceneLayerDef{"layer-1", "Layer 1", false});
+    scene.defaultLayerId = "layer-1";
     doc_.scenes.emplace(id, std::move(scene));
     markDirty();
     return true;

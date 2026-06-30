@@ -282,6 +282,23 @@
 }
 .layer-row.hidden .layer-eye { color: #3f3f46; }
 .layer-name { flex: 1; font-size: 12dp; padding: 0 4dp; }
+.layer-rename-input {
+    flex: 1;
+    height: 22dp;
+    line-height: 22dp;
+    padding: 0 6dp;
+    background-color: #111113;
+    border: 1px #3b82f6;
+    border-radius: 3dp;
+    color: #d4d4d8;
+    font-size: 12dp;
+}
+.layer-rename-error {
+    display: block;
+    margin: 0 0 4dp 28dp;
+    color: #e5706b;
+    font-size: 10dp;
+}
 .layer-btn {
     display: inline-block;
     width: 20dp;

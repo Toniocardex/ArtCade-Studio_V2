@@ -2,18 +2,17 @@
 
 #include "core/types.h"
 
+#include <optional>
+#include <string>
+
 namespace Rml { class ElementDocument; }
 
 namespace ArtCade::EditorNative {
 
 class EditorCoordinator;
 
-// Renders the property rows of the selected entity. Each committed field routes
-// back through a command — the panel never writes the document directly.
-//
-// The only local UI state is whether the "Add Component" menu is open. It is
-// transient presentation (prompt §3: menu open/close), reset when the selected
-// entity changes or Play starts — no EditorUiState, no document state.
+// Renders the Scene Inspector or the selected entity properties. Local state is
+// transient presentation only: menus and inline text drafts, never document data.
 class InspectorPanel {
 public:
     void refresh(Rml::ElementDocument* document, const EditorCoordinator& coordinator);
@@ -22,9 +21,31 @@ public:
     void toggleAddMenu(Rml::ElementDocument* document, const EditorCoordinator& coordinator);
     void closeAddMenu() { addMenuOpen_ = false; }
 
+    void beginSceneLayerRename(Rml::ElementDocument* document,
+                               const EditorCoordinator& coordinator,
+                               const std::string& layerId);
+    void beginActiveSceneLayerRename(Rml::ElementDocument* document,
+                                     const EditorCoordinator& coordinator);
+    void commitSceneLayerRename(Rml::ElementDocument* document,
+                                EditorCoordinator& coordinator,
+                                const std::string& requestedName);
+    void cancelSceneLayerRename(Rml::ElementDocument* document,
+                                const EditorCoordinator& coordinator);
+
 private:
+    struct SceneLayerRenameUiState {
+        SceneId     sceneId;
+        std::string layerId;
+        std::string draftName;
+        std::string validationError;
+    };
+
+    bool reconcileSceneLayerRenameUiState(const EditorCoordinator& coordinator);
+    void focusSceneLayerRenameInput(Rml::ElementDocument* document);
+
     bool     addMenuOpen_ = false;
     EntityId lastEntity_ = INVALID_ENTITY;   // detect a selection change to reset the menu
+    std::optional<SceneLayerRenameUiState> layerRename_;
 };
 
 } // namespace ArtCade::EditorNative

@@ -22,7 +22,10 @@
 
 #include <raylib.h>   // SetClipboardText (Console copy)
 
+#include <algorithm>
+#include <cctype>
 #include <cstdlib>
+#include <chrono>
 #include <optional>
 #include <string>
 #include <utility>
@@ -65,6 +68,20 @@ void restoreFormValue(Rml::Element* element) {
         control->SetValue(attribute(element, "value"));
 }
 
+std::string lower(std::string s) {
+    std::transform(s.begin(), s.end(), s.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return s;
+}
+
+bool sceneLayerNameExists(const SceneDef& scene, const std::string& name) {
+    const std::string target = lower(name);
+    for (const SceneLayerDef& layer : scene.layers) {
+        if (lower(layer.name) == target) return true;
+    }
+    return false;
+}
+
 } // namespace
 
 class EditorUi::Listener final : public Rml::EventListener {
@@ -72,10 +89,12 @@ public:
     explicit Listener(EditorUi& ui) : ui_(ui) {}
 
     void ProcessEvent(Rml::Event& event) override {
+        const Rml::String type = event.GetType();
         std::string action, arg;
         Rml::Element* actionElement = nullptr;
         for (Rml::Element* e = event.GetTargetElement(); e; e = e->GetParentNode()) {
-            action = attribute(e, "data-action");
+            action = (type == "dblclick") ? attribute(e, "data-dbl-action")
+                                          : attribute(e, "data-action");
             if (!action.empty()) {
                 arg = attribute(e, "data-arg");
                 actionElement = e;
@@ -84,7 +103,6 @@ public:
         }
         if (action.empty()) return;
 
-        const Rml::String type = event.GetType();
         const bool isCommit = action.rfind("commit-", 0) == 0;
         const bool isResize = action.rfind("resize-", 0) == 0;
 
@@ -98,7 +116,11 @@ public:
         if (isCommit) {
             const int key = event.GetParameter<int>("key_identifier", 0);
             if (type == "keydown" && key == Rml::Input::KI_ESCAPE) {
-                restoreFormValue(actionElement);
+                if (action == "commit-layer-rename") {
+                    ui_.handleAction("cancel-layer-rename", arg, formValue(actionElement, event));
+                } else {
+                    restoreFormValue(actionElement);
+                }
                 event.StopPropagation();
                 return;
             }
@@ -106,14 +128,31 @@ public:
                 && (key == Rml::Input::KI_RETURN || key == Rml::Input::KI_NUMPADENTER);
             if (type != "blur" && !enter) return;
         }
-        if (!isCommit && type != "click") return;
+        if (!isCommit && type != "click" && type != "dblclick") return;
+
+        if (type == "click" && action == "select-layer" && isLayerDoubleClick(arg)) {
+            action = "begin-layer-rename";
+        }
 
         const std::string value = formValue(actionElement, event);
+        if (isCommit && value == attribute(actionElement, "value")) return;
         ui_.handleAction(action, arg, value);
     }
 
 private:
+    bool isLayerDoubleClick(const std::string& layerId) {
+        using Clock = std::chrono::steady_clock;
+        const auto now = Clock::now();
+        const bool repeated = layerId == lastLayerClickId_
+            && (now - lastLayerClickTime_) <= std::chrono::milliseconds(500);
+        lastLayerClickId_ = layerId;
+        lastLayerClickTime_ = now;
+        return repeated;
+    }
+
     EditorUi& ui_;
+    std::string lastLayerClickId_;
+    std::chrono::steady_clock::time_point lastLayerClickTime_{};
 };
 
 // ----------------------------------------------------------------------------
@@ -126,6 +165,7 @@ void EditorUi::bind() {
     if (!document_) return;
     listener_ = std::make_unique<Listener>(*this);
     document_->AddEventListener("click", listener_.get());
+    document_->AddEventListener("dblclick", listener_.get());
     document_->AddEventListener("blur", listener_.get(), true);
     document_->AddEventListener("keydown", listener_.get(), true);
     document_->AddEventListener("drag", listener_.get());
@@ -271,6 +311,10 @@ bool EditorUi::copySelectedConsoleMessage() {
     return true;
 }
 
+void EditorUi::beginActiveSceneLayerRename() {
+    inspector_.beginActiveSceneLayerRename(document_, coordinator_);
+}
+
 void EditorUi::handleAction(const std::string& action, const std::string& arg,
                             const std::string& value) {
     const EntityId selected = coordinator_.selection().primaryEntity;
@@ -309,16 +353,27 @@ void EditorUi::handleAction(const std::string& action, const std::string& arg,
     } else if (action == "toggle-layer-visible") {
         coordinator_.apply(
             ToggleLayerEditorVisibilityIntent{coordinator_.state().activeSceneId, arg});
+    } else if (action == "begin-layer-rename") {
+        inspector_.beginSceneLayerRename(document_, coordinator_, arg);
+    } else if (action == "commit-layer-rename") {
+        inspector_.commitSceneLayerRename(document_, coordinator_, value);
+    } else if (action == "cancel-layer-rename") {
+        inspector_.cancelSceneLayerRename(document_, coordinator_);
     } else if (action == "add-layer") {
         const SceneId active = coordinator_.state().activeSceneId;
         const SceneDef* scene = coordinator_.document().findScene(active);
         if (scene) {
             int n = 1;
             std::string id;
-            do { id = "layer-" + std::to_string(n++); }
-            while (coordinator_.document().hasLayer(active, id));
+            std::string name;
+            do {
+                id = "layer-" + std::to_string(n);
+                name = "Layer " + std::to_string(n);
+                ++n;
+            } while (coordinator_.document().hasLayer(active, id)
+                     || sceneLayerNameExists(*scene, name));
             coordinator_.execute(AddSceneLayerCommand{
-                active, id, "Layer " + std::to_string(n - 1), scene->layers.size()});
+                active, id, name, scene->layers.size()});
         }
     } else if (action == "move-layer-up" || action == "move-layer-down") {
         const SceneId active = coordinator_.state().activeSceneId;

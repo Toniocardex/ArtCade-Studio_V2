@@ -1,14 +1,17 @@
 #include "editor-native/ui/inspector_panel.h"
 
 #include "editor-native/app/editor_coordinator.h"
+#include "editor-native/commands/scene_layer_commands.h"
 #include "editor-native/model/scene_frame_snapshot.h"
 #include "editor-native/model/sprite_render_view.h"
 #include "editor-native/ui/editor_ui.h"
 
 #include <RmlUi/Core/Element.h>
 #include <RmlUi/Core/ElementDocument.h>
+#include <RmlUi/Core/Elements/ElementFormControlInput.h>
 
 #include <cstdio>
+#include <cmath>
 #include <optional>
 #include <string>
 
@@ -18,7 +21,7 @@ namespace {
 
 std::string num(float v) {
     char buf[32];
-    std::snprintf(buf, sizeof(buf), "%g", v);
+    std::snprintf(buf, sizeof(buf), "%.0f", std::trunc(v));
     return buf;
 }
 
@@ -100,12 +103,127 @@ std::string outsideSceneWarning(SceneContainment containment, bool playing) {
     return html;
 }
 
+const SceneLayerDef* findLayer(const SceneDef& scene, const std::string& layerId) {
+    for (const SceneLayerDef& layer : scene.layers) {
+        if (layer.id == layerId) return &layer;
+    }
+    return nullptr;
+}
+
 } // namespace
 
 void InspectorPanel::toggleAddMenu(Rml::ElementDocument* document,
                                    const EditorCoordinator& coordinator) {
     addMenuOpen_ = !addMenuOpen_;
     refresh(document, coordinator);
+}
+
+void InspectorPanel::beginSceneLayerRename(Rml::ElementDocument* document,
+                                           const EditorCoordinator& coordinator,
+                                           const std::string& layerId) {
+    if (coordinator.isPlaying() || coordinator.selection().primaryEntity != INVALID_ENTITY) {
+        layerRename_.reset();
+        refresh(document, coordinator);
+        return;
+    }
+
+    const SceneId& sceneId = coordinator.state().activeSceneId;
+    const SceneDef* scene = coordinator.document().findScene(sceneId);
+    if (!scene) return;
+    const SceneLayerDef* layer = findLayer(*scene, layerId);
+    if (!layer) return;
+
+    layerRename_ = SceneLayerRenameUiState{sceneId, layerId, layer->name, {}};
+    refresh(document, coordinator);
+}
+
+void InspectorPanel::beginActiveSceneLayerRename(Rml::ElementDocument* document,
+                                                 const EditorCoordinator& coordinator) {
+    if (coordinator.isPlaying() || coordinator.selection().primaryEntity != INVALID_ENTITY) {
+        return;
+    }
+    const SceneId& sceneId = coordinator.state().activeSceneId;
+    const SceneDef* scene = coordinator.document().findScene(sceneId);
+    if (!scene || scene->layers.empty()) return;
+
+    const EditorSceneViewState& view = coordinator.sceneView(sceneId);
+    std::string activeLayer = view.activeLayerId;
+    if (activeLayer.empty() || !coordinator.document().hasLayer(sceneId, activeLayer)) {
+        activeLayer = scene->defaultLayerId;
+    }
+    beginSceneLayerRename(document, coordinator, activeLayer);
+}
+
+void InspectorPanel::commitSceneLayerRename(Rml::ElementDocument* document,
+                                            EditorCoordinator& coordinator,
+                                            const std::string& requestedName) {
+    if (!layerRename_) return;
+
+    if (!reconcileSceneLayerRenameUiState(coordinator)) {
+        refresh(document, coordinator);
+        return;
+    }
+
+    const SceneDef* scene = coordinator.document().findScene(layerRename_->sceneId);
+    const SceneLayerDef* layer = scene ? findLayer(*scene, layerRename_->layerId) : nullptr;
+    if (!layer) {
+        layerRename_.reset();
+        refresh(document, coordinator);
+        return;
+    }
+
+    if (requestedName == layer->name) {
+        layerRename_.reset();
+        refresh(document, coordinator);
+        return;
+    }
+
+    const SceneId sceneId = layerRename_->sceneId;
+    const std::string layerId = layerRename_->layerId;
+    EditorOperationResult result =
+        coordinator.execute(RenameSceneLayerCommand{sceneId, layerId, requestedName});
+    if (result.ok) {
+        layerRename_.reset();
+        refresh(document, coordinator);
+        return;
+    }
+
+    layerRename_->draftName = requestedName;
+    layerRename_->validationError = result.error;
+    refresh(document, coordinator);
+    focusSceneLayerRenameInput(document);
+}
+
+void InspectorPanel::cancelSceneLayerRename(Rml::ElementDocument* document,
+                                            const EditorCoordinator& coordinator) {
+    layerRename_.reset();
+    refresh(document, coordinator);
+}
+
+bool InspectorPanel::reconcileSceneLayerRenameUiState(const EditorCoordinator& coordinator) {
+    if (!layerRename_) return true;
+    if (coordinator.isPlaying()
+        || coordinator.selection().primaryEntity != INVALID_ENTITY
+        || coordinator.state().activeSceneId != layerRename_->sceneId) {
+        layerRename_.reset();
+        return false;
+    }
+    const SceneDef* scene = coordinator.document().findScene(layerRename_->sceneId);
+    if (!scene || !findLayer(*scene, layerRename_->layerId)) {
+        layerRename_.reset();
+        return false;
+    }
+    return true;
+}
+
+void InspectorPanel::focusSceneLayerRenameInput(Rml::ElementDocument* document) {
+    if (!document) return;
+    Rml::Element* input = document->GetElementById("layer-rename-input");
+    if (!input) return;
+    input->Focus(true);
+    if (auto* control = rmlui_dynamic_cast<Rml::ElementFormControlInput*>(input)) {
+        control->Select();
+    }
 }
 
 void InspectorPanel::refresh(Rml::ElementDocument* document,
@@ -125,13 +243,16 @@ void InspectorPanel::refresh(Rml::ElementDocument* document,
     if (!inst) {
         lastEntity_ = INVALID_ENTITY;
         addMenuOpen_ = false;
+        reconcileSceneLayerRenameUiState(coordinator);
         const SceneId& activeScene = coordinator.state().activeSceneId;
         const SceneDef* scene = coordinator.document().findScene(activeScene);
         if (!scene) {
+            layerRename_.reset();
             body->SetInnerRML("<p class=\"inspector-empty\">No scene open</p>");
             return;
         }
         const bool playing = coordinator.isPlaying();
+        if (playing) layerRename_.reset();
         const bool isStart = coordinator.document().startSceneId() == activeScene;
         const std::string btn = playing ? "panel-btn disabled" : "panel-btn";
 
@@ -181,10 +302,21 @@ void InspectorPanel::refresh(Rml::ElementDocument* document,
             html += "\">";
             html += "<span class=\"layer-eye\" data-action=\"toggle-layer-visible\" data-arg=\""
                   + escapeRml(layer.id) + "\"><span class=\"icon\">&#xea9a;</span></span>";
-            html += "<span class=\"layer-name\" data-action=\"select-layer\" data-arg=\""
-                  + escapeRml(layer.id) + "\">";
-            if (isActive) html += "&#x25cf; ";   // active marker
-            html += escapeRml(layer.name) + "</span>";
+            const bool renaming = layerRename_
+                && layerRename_->sceneId == activeScene
+                && layerRename_->layerId == layer.id;
+            if (renaming) {
+                html += "<input id=\"layer-rename-input\" type=\"text\""
+                        " class=\"layer-rename-input\" data-action=\"commit-layer-rename\""
+                        " data-arg=\"" + escapeRml(layer.id) + "\" value=\""
+                      + escapeRml(layerRename_->draftName) + "\"/>";
+            } else {
+                html += "<span class=\"layer-name\" data-action=\"select-layer\""
+                        " data-dbl-action=\"begin-layer-rename\" data-arg=\""
+                      + escapeRml(layer.id) + "\">";
+                if (isActive) html += "&#x25cf; ";   // active marker
+                html += escapeRml(layer.name) + "</span>";
+            }
             if (!playing) {
                 html += "<span class=\"layer-btn\" data-action=\"move-layer-up\" data-arg=\""
                       + escapeRml(layer.id) + "\">&#x2191;</span>";
@@ -195,6 +327,10 @@ void InspectorPanel::refresh(Rml::ElementDocument* document,
                           + escapeRml(layer.id) + "\">&#xd7;</span>";
             }
             html += "</div>";
+            if (renaming && !layerRename_->validationError.empty()) {
+                html += "<div class=\"layer-rename-error\">"
+                      + escapeRml(layerRename_->validationError) + "</div>";
+            }
         }
         if (!playing)
             html += "<button class=\"" + btn + "\" data-action=\"add-layer\">"
@@ -216,10 +352,12 @@ void InspectorPanel::refresh(Rml::ElementDocument* document,
         html += "\">" + std::to_string(outside) + "</span></div>";
 
         body->SetInnerRML(html);
+        if (layerRename_) focusSceneLayerRenameInput(document);
         return;
     }
 
     const bool playing = coordinator.isPlaying();
+    layerRename_.reset();
     // The Add menu is transient: a new selection or entering Play closes it.
     if (selected != lastEntity_) { addMenuOpen_ = false; lastEntity_ = selected; }
     if (playing) addMenuOpen_ = false;

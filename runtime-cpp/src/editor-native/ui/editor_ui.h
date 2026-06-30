@@ -73,6 +73,10 @@ public:
     // and Ctrl+C. Returns false (no-op) when nothing is selected.
     bool copySelectedConsoleMessage();
 
+    // F2 affordance for Scene Layer inline rename. Delegates to the Inspector's
+    // single beginSceneLayerRename path; no document mutation happens here.
+    void beginActiveSceneLayerRename();
+
     // Called by the listener; routes one UI interaction to command/intent.
     void handleAction(const std::string& action, const std::string& arg,
                       const std::string& value);

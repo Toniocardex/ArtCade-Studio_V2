@@ -3001,20 +3001,21 @@ int main() {
 
     // == Scene layers =========================================================
 
-    // -- New scene has a Default layer; new entities get the active layer ------
+    // -- New scene has Layer 1 as the default layer; new entities use it -------
     {
         EditorCoordinator c{ProjectDoc{}};
         CHECK(c.execute(CreateSceneCommand{"s", "S"}).ok);
         const SceneDef* scene = c.document().findScene("s");
         CHECK(scene->layers.size() == 1);
-        CHECK(scene->defaultLayerId == "default");
-        CHECK(c.document().hasLayer("s", "default"));
+        CHECK(scene->defaultLayerId == "layer-1");
+        CHECK(scene->layers[0].name == "Layer 1");
+        CHECK(c.document().hasLayer("s", "layer-1"));
         CHECK(!c.document().hasLayer("s", "nope"));
 
         c.apply(SelectSceneIntent{"s"});
         CHECK(addEntity(c).ok);
         const EntityId id = nextAvailableEntityId(c.document(), "s") - 1;
-        CHECK(c.document().findInstanceInScene("s", id)->layerId == "default");
+        CHECK(c.document().findInstanceInScene("s", id)->layerId == "layer-1");
     }
 
     // -- Add / rename / move / remove; default + non-empty protected ----------
@@ -3027,7 +3028,7 @@ int main() {
             const SceneDef* s = c.document().findScene("s");
             CHECK(s->layers.size() == 3);
             CHECK(s->layers[0].id == "bg");
-            CHECK(s->layers[1].id == "default");
+            CHECK(s->layers[1].id == "layer-1");
             CHECK(s->layers[2].id == "fg");
         }
         CHECK(!c.execute(AddSceneLayerCommand{"s", "fg", "Dup", 0}).ok);       // dup id
@@ -3036,7 +3037,7 @@ int main() {
         CHECK(c.document().findScene("s")->layers[2].name == "Top");
         CHECK(c.execute(MoveSceneLayerCommand{"s", "bg", 2}).ok);              // bg -> top
         CHECK(c.document().findScene("s")->layers[2].id == "bg");
-        CHECK(!c.execute(RemoveSceneLayerCommand{"s", "default"}).ok);        // default protected
+        CHECK(!c.execute(RemoveSceneLayerCommand{"s", "layer-1"}).ok);        // default protected
         CHECK(c.execute(RemoveSceneLayerCommand{"s", "fg"}).ok);              // empty -> removed
         CHECK(c.document().findScene("s")->layers.size() == 2);
         // undo the remove restores it at its original index
@@ -3054,23 +3055,55 @@ int main() {
         CHECK(!c.execute(RemoveSceneLayerCommand{"s", "fg"}).ok);
     }
 
+    // -- Rename validates names and default identity is by id ------------------
+    {
+        EditorCoordinator c{ProjectDoc{}};
+        CHECK(c.execute(CreateSceneCommand{"s", "S"}).ok);
+        CHECK(c.execute(AddSceneLayerCommand{"s", "fg", "Foreground", 1}).ok);
+        CHECK(c.execute(AddSceneLayerCommand{"s", "bg", "Background", 0}).ok);
+
+        CHECK(!c.execute(RenameSceneLayerCommand{"s", "fg", ""}).ok);
+        CHECK(!c.execute(RenameSceneLayerCommand{"s", "fg", "background"}).ok);
+        CHECK(!c.execute(RenameSceneLayerCommand{"s", "missing", "Gameplay"}).ok);
+
+        const uint64_t beforeNoopRevision = c.document().revision();
+        const std::size_t beforeNoopUndo = c.undoSize();
+        CHECK(c.execute(RenameSceneLayerCommand{"s", "fg", "Foreground"}).ok);
+        CHECK(c.document().revision() == beforeNoopRevision);
+        CHECK(c.undoSize() == beforeNoopUndo);
+
+        CHECK(c.execute(RenameSceneLayerCommand{"s", "layer-1", "Gameplay"}).ok);
+        const SceneDef* scene = c.document().findScene("s");
+        CHECK(scene->defaultLayerId == "layer-1");
+        CHECK(scene->layers[1].id == "layer-1");
+        CHECK(scene->layers[1].name == "Gameplay");
+        CHECK(!c.execute(RemoveSceneLayerCommand{"s", "layer-1"}).ok);
+
+        CHECK(c.undo().ok);
+        CHECK(c.document().findScene("s")->defaultLayerId == "layer-1");
+        CHECK(c.document().findScene("s")->layers[1].name == "Layer 1");
+        CHECK(c.redo().ok);
+        CHECK(c.document().findScene("s")->defaultLayerId == "layer-1");
+        CHECK(c.document().findScene("s")->layers[1].name == "Gameplay");
+    }
+
     // -- SetEntityLayer: same type on different layers; undo/redo -------------
     {
         EditorCoordinator c{ProjectDoc{}};
         CHECK(c.execute(CreateSceneCommand{"s", "S"}).ok);
         CHECK(c.execute(AddSceneLayerCommand{"s", "fg", "Foreground", 1}).ok);
         CHECK(c.execute(CreateEntityWithDefaultTypeCommand{
-                  "s", 1, "obj-1", "Hero", "A", {}, "default"}).ok);
+                  "s", 1, "obj-1", "Hero", "A", {}, "layer-1"}).ok);
         CHECK(c.execute(CreateEntityCommand{"s", 2, "obj-1", "B", {}, "fg"}).ok);  // shares type
         CHECK(c.document().findInstanceInScene("s", 1)->objectTypeId
               == c.document().findInstanceInScene("s", 2)->objectTypeId);
-        CHECK(c.document().findInstanceInScene("s", 1)->layerId == "default");
+        CHECK(c.document().findInstanceInScene("s", 1)->layerId == "layer-1");
         CHECK(c.document().findInstanceInScene("s", 2)->layerId == "fg");
 
         CHECK(c.execute(SetEntityLayerCommand{"s", 1, "fg"}).ok);
         CHECK(c.document().findInstanceInScene("s", 1)->layerId == "fg");
         CHECK(c.undo().ok);
-        CHECK(c.document().findInstanceInScene("s", 1)->layerId == "default");
+        CHECK(c.document().findInstanceInScene("s", 1)->layerId == "layer-1");
         CHECK(c.redo().ok);
         CHECK(c.document().findInstanceInScene("s", 1)->layerId == "fg");
         CHECK(!c.execute(SetEntityLayerCommand{"s", 1, "nope"}).ok);   // dest must exist
@@ -3080,9 +3113,9 @@ int main() {
     {
         EditorCoordinator c{ProjectDoc{}};
         CHECK(c.execute(CreateSceneCommand{"s", "S"}).ok);
-        CHECK(c.execute(AddSceneLayerCommand{"s", "fg", "Foreground", 1}).ok);  // [default, fg]
+        CHECK(c.execute(AddSceneLayerCommand{"s", "fg", "Foreground", 1}).ok);  // [layer-1, fg]
         CHECK(c.execute(CreateEntityWithDefaultTypeCommand{
-                  "s", 1, "obj-1", "Bg", "Bg", {}, "default"}).ok);
+                  "s", 1, "obj-1", "Bg", "Bg", {}, "layer-1"}).ok);
         CHECK(c.execute(CreateEntityWithDefaultTypeCommand{
                   "s", 2, "obj-2", "Fg", "Fg", {}, "fg"}).ok);
 
@@ -3134,7 +3167,7 @@ int main() {
     {
         EditorCoordinator c{ProjectDoc{}};
         CHECK(c.execute(CreateSceneCommand{"s", "S"}).ok);
-        CHECK(c.execute(AddSceneLayerCommand{"s", "fg", "Foreground", 1}).ok);  // [default, fg]
+        CHECK(c.execute(AddSceneLayerCommand{"s", "fg", "Foreground", 1}).ok);  // [layer-1, fg]
         CHECK(c.execute(CreateEntityWithDefaultTypeCommand{
                   "s", 1, "obj-1", "Hero", "Hero", {}, "fg"}).ok);
         const std::filesystem::path path = testTempDir() / "layers.artcade-project";
@@ -3143,13 +3176,13 @@ int main() {
         CHECK(loadProjectFromFile(r, path).ok);
         const SceneDef* s = r.document().findScene("s");
         CHECK(s->layers.size() == 2);
-        CHECK(s->layers[0].id == "default");
+        CHECK(s->layers[0].id == "layer-1");
         CHECK(s->layers[1].id == "fg");
-        CHECK(s->defaultLayerId == "default");
+        CHECK(s->defaultLayerId == "layer-1");
         CHECK(r.document().findInstanceInScene("s", 1)->layerId == "fg");
     }
 
-    // -- A legacy file with no layers migrates to a Default layer --------------
+    // -- A legacy file with no layers migrates to Layer 1 ----------------------
     {
         EditorCoordinator c{ProjectDoc{}};
         const auto loaded = loadProjectFromText(c,
@@ -3159,8 +3192,28 @@ int main() {
         CHECK(loaded.ok);
         const SceneDef* s = c.document().findScene("s");
         CHECK(!s->layers.empty());
+        CHECK(s->layers.front().id == "layer-1");
+        CHECK(s->layers.front().name == "Layer 1");
         CHECK(s->defaultLayerId == s->layers.front().id);
         CHECK(c.document().findInstanceInScene("s", 1)->layerId == s->defaultLayerId);
+    }
+
+    // -- The old untouched Default layer migrates to Layer 1 -------------------
+    {
+        EditorCoordinator c{ProjectDoc{}};
+        const auto loaded = loadProjectFromText(c,
+            R"({"activeSceneId":"s","scenes":[{"id":"s",)"
+            R"("defaultLayerId":"default",)"
+            R"("layers":[{"id":"default","name":"Default"}],)"
+            R"("instances":[{"id":1,"objectTypeId":"T","instanceName":"T","layerId":"default"}]}],)"
+            R"("objectTypes":[{"id":"T"}]})");
+        CHECK(loaded.ok);
+        const SceneDef* s = c.document().findScene("s");
+        CHECK(s->layers.size() == 1);
+        CHECK(s->layers[0].id == "layer-1");
+        CHECK(s->layers[0].name == "Layer 1");
+        CHECK(s->defaultLayerId == "layer-1");
+        CHECK(c.document().findInstanceInScene("s", 1)->layerId == "layer-1");
     }
 
     // == Start-scene invariant: scenes exist => startSceneId is valid ==========
