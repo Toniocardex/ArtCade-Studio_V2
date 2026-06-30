@@ -1,5 +1,6 @@
 #include "editor-native/view/scene_view.h"
 
+#include "editor-native/view/scene_grid.h"
 #include "editor-native/view/texture_cache.h"
 
 #include <raylib.h>
@@ -45,8 +46,6 @@ Rectangle toRectangle(const SceneFrameRect& rect) {
     return Rectangle{rect.x, rect.y, rect.width, rect.height};
 }
 
-constexpr float kGridStep = 48.f;
-
 bool hasVisibleSprite(const SceneFrameSnapshot& frame, EntityId entityId) {
     for (const SceneFrameSprite& sprite : frame.sprites) {
         if (sprite.entityId == entityId && sprite.visible && !sprite.assetId.empty()) return true;
@@ -64,6 +63,29 @@ void drawMissingSprite(const SceneFrameSprite& sprite, float zoom) {
     DrawLineEx({bounds.x + bounds.width, bounds.y},
                {bounds.x, bounds.y + bounds.height},
                1.2f / zoom, Color{230, 90, 120, 230});
+}
+
+void drawDashedLine(Vector2 a, Vector2 b, float thickness, Color color) {
+    const float dx = b.x - a.x;
+    const float dy = b.y - a.y;
+    const float length = std::sqrt(dx * dx + dy * dy);
+    if (length <= 0.f) return;
+    constexpr float dash = 6.f;
+    constexpr float gap = 4.f;
+    const Vector2 dir{dx / length, dy / length};
+    for (float t = 0.f; t < length; t += dash + gap) {
+        const float end = std::min(t + dash, length);
+        DrawLineEx({a.x + dir.x * t, a.y + dir.y * t},
+                   {a.x + dir.x * end, a.y + dir.y * end},
+                   thickness, color);
+    }
+}
+
+void drawDashedRectangle(Rectangle r, float thickness, Color color) {
+    drawDashedLine({r.x, r.y}, {r.x + r.width, r.y}, thickness, color);
+    drawDashedLine({r.x + r.width, r.y}, {r.x + r.width, r.y + r.height}, thickness, color);
+    drawDashedLine({r.x + r.width, r.y + r.height}, {r.x, r.y + r.height}, thickness, color);
+    drawDashedLine({r.x, r.y + r.height}, {r.x, r.y}, thickness, color);
 }
 
 } // namespace
@@ -105,15 +127,34 @@ void SceneView::render(const SceneFrameSnapshot& frame,
     DrawRectangle(0, 0, static_cast<int>(world.x), static_cast<int>(world.y),
                   toColor(frame.backgroundColor));
 
-    // Zinc grid: faint minor lines, slightly stronger majors every 4 cells.
-    const Color gridMinor{120, 120, 130, 16};
-    const Color gridMajor{120, 120, 130, 30};
-    int ix = 0;
-    for (float gx = 0.f; gx <= world.x; gx += kGridStep, ++ix)
-        DrawLineV({gx, 0.f}, {gx, world.y}, (ix % 4 == 0) ? gridMajor : gridMinor);
-    int iy = 0;
-    for (float gy = 0.f; gy <= world.y; gy += kGridStep, ++iy)
-        DrawLineV({0.f, gy}, {world.x, gy}, (iy % 4 == 0) ? gridMajor : gridMinor);
+    if (view.gridVisible) {
+        // Zinc grid: keep snap on the logical cell while thinning visual lines
+        // at low zoom or very small cells.
+        const SceneGridDefinition grid = makeSceneGridDefinition(view);
+        const int visualStride = visualGridStrideForZoom(grid, cam.zoom);
+        const float visualStep = grid.cellSize * static_cast<float>(visualStride);
+        const Color gridMinor{120, 120, 130, 16};
+        const Color gridMajor{120, 120, 130, 30};
+        if (visualStep > 0.0f && std::isfinite(visualStep)) {
+            const auto firstLine = [](float origin, float step) {
+                return origin + std::ceil((0.0f - origin) / step) * step;
+            };
+            int ix = static_cast<int>(
+                std::round((firstLine(grid.origin.x, visualStep) - grid.origin.x)
+                           / grid.cellSize));
+            for (float gx = firstLine(grid.origin.x, visualStep); gx <= world.x;
+                 gx += visualStep, ix += visualStride) {
+                DrawLineV({gx, 0.f}, {gx, world.y}, (ix % 4 == 0) ? gridMajor : gridMinor);
+            }
+            int iy = static_cast<int>(
+                std::round((firstLine(grid.origin.y, visualStep) - grid.origin.y)
+                           / grid.cellSize));
+            for (float gy = firstLine(grid.origin.y, visualStep); gy <= world.y;
+                 gy += visualStep, iy += visualStride) {
+                DrawLineV({0.f, gy}, {world.x, gy}, (iy % 4 == 0) ? gridMajor : gridMinor);
+            }
+        }
+    }
 
     // Subtle neutral world frame, so the accent selection stands out against it.
     const float linePx = 1.5f / cam.zoom;
@@ -153,10 +194,24 @@ void SceneView::render(const SceneFrameSnapshot& frame,
                 collider.worldBounds.width,
                 collider.worldBounds.height,
             };
-            const Color color = collider.isTrigger
-                ? Color{86, 180, 235, 210}
-                : Color{88, 220, 140, 210};
-            DrawRectangleLinesEx(bounds, (collider.selected ? 2.2f : 1.5f) / cam.zoom, color);
+            Color color = Color{88, 220, 140, 210};
+            if (collider.mode == BoxColliderMode::Trigger) {
+                color = Color{86, 180, 235, 210};
+            } else if (collider.mode == BoxColliderMode::OneWayPlatform) {
+                color = Color{216, 180, 74, 220};
+            }
+            const float colliderLine = (collider.selected ? 2.2f : 1.5f) / cam.zoom;
+            if (collider.mode == BoxColliderMode::Trigger) {
+                drawDashedRectangle(bounds, colliderLine, color);
+            } else {
+                DrawRectangleLinesEx(bounds, colliderLine, color);
+                if (collider.mode == BoxColliderMode::OneWayPlatform) {
+                    DrawLineEx({bounds.x, bounds.y},
+                               {bounds.x + bounds.width, bounds.y},
+                               (collider.selected ? 3.0f : 2.2f) / cam.zoom,
+                               Color{250, 204, 80, 245});
+                }
+            }
             break;
         }
 

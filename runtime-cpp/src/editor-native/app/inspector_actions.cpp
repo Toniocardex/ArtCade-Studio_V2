@@ -133,12 +133,12 @@ EditorOperationResult setBoxColliderEnabled(EditorCoordinator& coordinator, bool
     return coordinator.execute(SetBoxColliderEnabledCommand{objectTypeId, enabled});
 }
 
-EditorOperationResult setBoxColliderTrigger(EditorCoordinator& coordinator, bool isTrigger) {
+EditorOperationResult setBoxColliderMode(EditorCoordinator& coordinator, BoxColliderMode mode) {
     std::string objectTypeId;
     if (!selectedObjectType(coordinator, objectTypeId)) {
         return EditorOperationResult::failure("No selected object type");
     }
-    return coordinator.execute(SetBoxColliderTriggerCommand{objectTypeId, isTrigger});
+    return coordinator.execute(SetBoxColliderModeCommand{objectTypeId, mode});
 }
 
 EditorOperationResult addLinearMover(EditorCoordinator& coordinator) {

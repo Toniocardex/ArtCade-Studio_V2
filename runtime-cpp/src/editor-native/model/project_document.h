@@ -43,7 +43,7 @@ class AddFontAssetCommand;
 class RemoveFontAssetCommand;
 class SetBoxColliderOffsetCommand;
 class SetBoxColliderSizeCommand;
-class SetBoxColliderTriggerCommand;
+class SetBoxColliderModeCommand;
 class RenameSceneCommand;
 class SetSceneSizeCommand;
 class SetSceneBackgroundCommand;
@@ -116,7 +116,7 @@ private:
     friend class SetBoxColliderEnabledCommand;
     friend class SetBoxColliderOffsetCommand;
     friend class SetBoxColliderSizeCommand;
-    friend class SetBoxColliderTriggerCommand;
+    friend class SetBoxColliderModeCommand;
     friend class SetLinearMoverDirectionCommand;
     friend class SetLinearMoverSpeedCommand;
     friend class AddTopDownControllerCommand;
@@ -194,7 +194,7 @@ private:
     bool setBoxColliderOffset(const std::string& objectTypeId, Vec2 offset);
     bool setBoxColliderSize(const std::string& objectTypeId, Vec2 size);
     bool setBoxColliderEnabled(const std::string& objectTypeId, bool enabled);
-    bool setBoxColliderTrigger(const std::string& objectTypeId, bool isTrigger);
+    bool setBoxColliderMode(const std::string& objectTypeId, BoxColliderMode mode);
     // LinearMover is authored on the object type only (canonical gameplay
     // component); instances never store it. Pause is a runtime flag, not edited.
     bool addLinearMover(const std::string& objectTypeId, LinearMoverComponent component);

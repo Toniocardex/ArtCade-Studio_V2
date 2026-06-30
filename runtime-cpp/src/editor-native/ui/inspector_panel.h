@@ -31,6 +31,10 @@ public:
                                 const std::string& requestedName);
     void cancelSceneLayerRename(Rml::ElementDocument* document,
                                 const EditorCoordinator& coordinator);
+    void showEntityPositionPreview(Rml::ElementDocument* document,
+                                   const EditorCoordinator& coordinator,
+                                   EntityId entity,
+                                   Vec2 position);
 
 private:
     struct SceneLayerRenameUiState {

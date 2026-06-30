@@ -35,7 +35,7 @@ EditorOperationResult removeBoxCollider(EditorCoordinator& coordinator);
 EditorOperationResult setBoxColliderOffset(EditorCoordinator& coordinator, Vec2 offset);
 EditorOperationResult setBoxColliderSize(EditorCoordinator& coordinator, Vec2 size);
 EditorOperationResult setBoxColliderEnabled(EditorCoordinator& coordinator, bool enabled);
-EditorOperationResult setBoxColliderTrigger(EditorCoordinator& coordinator, bool isTrigger);
+EditorOperationResult setBoxColliderMode(EditorCoordinator& coordinator, BoxColliderMode mode);
 
 EditorOperationResult addLinearMover(EditorCoordinator& coordinator);
 EditorOperationResult removeLinearMover(EditorCoordinator& coordinator);

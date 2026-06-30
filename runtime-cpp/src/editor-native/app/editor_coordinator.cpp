@@ -1,6 +1,7 @@
 #include "editor-native/app/editor_coordinator.h"
 
 #include <cassert>
+#include <cmath>
 #include <cstdint>
 #include <optional>
 #include <utility>
@@ -371,6 +372,34 @@ EditorOperationResult EditorCoordinator::apply(const PanViewportIntent& intent) 
     view.pan.y += intent.delta.y;
     accumulate(EditorInvalidation::Viewport);
     return EditorOperationResult::success(EditorInvalidation::Viewport);
+}
+
+EditorOperationResult EditorCoordinator::apply(const SetSceneGridVisibilityIntent& intent) {
+    state_.sceneViews[intent.sceneId].gridVisible = intent.visible;
+    const EditorInvalidation inv = EditorInvalidation::Viewport | EditorInvalidation::Toolbar;
+    accumulate(inv);
+    return EditorOperationResult::success(inv);
+}
+
+EditorOperationResult EditorCoordinator::apply(const SetSceneGridSnapEnabledIntent& intent) {
+    state_.sceneViews[intent.sceneId].gridSnapEnabled = intent.enabled;
+    const EditorInvalidation inv = EditorInvalidation::Viewport | EditorInvalidation::Toolbar;
+    accumulate(inv);
+    return EditorOperationResult::success(inv);
+}
+
+EditorOperationResult EditorCoordinator::apply(const SetSceneGridCellSizeIntent& intent) {
+    if (!std::isfinite(intent.cellSize) || intent.cellSize <= 0.0f) {
+        return EditorOperationResult::failure("Grid cell size must be a positive number");
+    }
+    EditorSceneViewState& view = state_.sceneViews[intent.sceneId];
+    if (view.gridCellSize == intent.cellSize) {
+        return EditorOperationResult::success(EditorInvalidation::None);
+    }
+    view.gridCellSize = intent.cellSize;
+    const EditorInvalidation inv = EditorInvalidation::Viewport | EditorInvalidation::Toolbar;
+    accumulate(inv);
+    return EditorOperationResult::success(inv);
 }
 
 EditorOperationResult EditorCoordinator::apply(const SetHierarchyFilterIntent& intent) {

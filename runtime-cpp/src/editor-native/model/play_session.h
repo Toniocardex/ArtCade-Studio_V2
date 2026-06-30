@@ -38,7 +38,7 @@ struct RuntimeBoxCollider {
     Vec2 offset{};
     Vec2 size{32.f, 32.f};
     bool enabled = true;
-    bool isTrigger = false;
+    BoxColliderMode mode = BoxColliderMode::Solid;
 };
 
 struct RuntimeEntity {
@@ -67,6 +67,11 @@ struct KinematicMoveResult {
     bool hitRight = false;
     bool hitCeiling = false;
     bool hitGround = false;
+};
+
+struct StaticRuntimeCollider {
+    Aabb bounds;
+    BoxColliderMode mode = BoxColliderMode::Solid;
 };
 
 // The single authoritative runtime collider AABB: center = position + offset,
@@ -153,9 +158,10 @@ private:
 
     RuntimeScene scene_;
     PlayAssetCatalogSnapshot assets_;
-    // Obstacle AABBs frozen at materialize: entities with an enabled, non-trigger
-    // collider that are NOT kinematic movers (mover-vs-mover is out of scope).
-    std::vector<Aabb> staticSolids_;
+    // Obstacle colliders frozen at materialize: enabled Solid / OneWayPlatform
+    // colliders on non-movers (mover-vs-mover is out of scope). Trigger is
+    // intentionally absent from resolution.
+    std::vector<StaticRuntimeCollider> staticColliders_;
 };
 
 } // namespace ArtCade::EditorNative

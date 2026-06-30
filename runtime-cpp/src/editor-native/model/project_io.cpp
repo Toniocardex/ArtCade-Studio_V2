@@ -3,6 +3,7 @@
 #include <nlohmann/json.hpp>
 
 #include <cmath>
+#include <optional>
 #include <unordered_set>
 #include <utility>
 
@@ -45,6 +46,26 @@ Vec2 readVec2(const nlohmann::json& value, Vec2 fallback = {}) {
         readFloat(value, "x", fallback.x),
         readFloat(value, "y", fallback.y),
     };
+}
+
+const char* BoxColliderModeToString(BoxColliderMode mode) {
+    switch (mode) {
+        case BoxColliderMode::Solid: return "solid";
+        case BoxColliderMode::Trigger: return "trigger";
+        case BoxColliderMode::OneWayPlatform: return "oneWayPlatform";
+    }
+    return "solid";
+}
+
+BoxColliderMode legacyTriggerMode(bool isTrigger) {
+    return isTrigger ? BoxColliderMode::Trigger : BoxColliderMode::Solid;
+}
+
+std::optional<BoxColliderMode> BoxColliderModeFromString(const std::string& value) {
+    if (value == "solid") return BoxColliderMode::Solid;
+    if (value == "trigger") return BoxColliderMode::Trigger;
+    if (value == "oneWayPlatform") return BoxColliderMode::OneWayPlatform;
+    return std::nullopt;
 }
 
 Vec4 readVec4(const nlohmann::json& value, Vec4 fallback = {}) {
@@ -247,7 +268,7 @@ nlohmann::json objectTypeToJson(const std::string& id, const EntityDef& def) {
             {"offset", vec2ToJson(def.boxCollider2D->offset)},
             {"size", vec2ToJson(def.boxCollider2D->size)},
             {"enabled", def.boxCollider2D->enabled},
-            {"isTrigger", def.boxCollider2D->isTrigger},
+            {"mode", BoxColliderModeToString(def.boxCollider2D->mode)},
         };
     }
     if (def.linearMover.has_value()) {
@@ -353,8 +374,22 @@ DeserializeResult ProjectSerializer::deserialize(std::string_view source) {
                 if (collider.contains("enabled") && collider["enabled"].is_boolean()) {
                     component.enabled = collider["enabled"].get<bool>();
                 }
-                if (collider.contains("isTrigger") && collider["isTrigger"].is_boolean()) {
-                    component.isTrigger = collider["isTrigger"].get<bool>();
+                if (collider.contains("mode")) {
+                    if (!collider["mode"].is_string()) {
+                        return DeserializeResult::failure("BoxCollider2D mode is invalid");
+                    }
+                    const auto parsed = BoxColliderModeFromString(collider["mode"].get<std::string>());
+                    if (!parsed.has_value()) {
+                        return DeserializeResult::failure("BoxCollider2D mode is unknown");
+                    }
+                    if (collider.contains("isTrigger") && collider["isTrigger"].is_boolean()
+                        && legacyTriggerMode(collider["isTrigger"].get<bool>()) != *parsed) {
+                        return DeserializeResult::failure(
+                            "BoxCollider2D mode conflicts with legacy isTrigger");
+                    }
+                    component.mode = *parsed;
+                } else if (collider.contains("isTrigger") && collider["isTrigger"].is_boolean()) {
+                    component.mode = legacyTriggerMode(collider["isTrigger"].get<bool>());
                 }
                 def.boxCollider2D = component;
             }
@@ -618,6 +653,12 @@ DeserializeResult ProjectValidator::validate(ProjectDocument document) {
         if (movementDrivers > 1) {
             return DeserializeResult::failure(
                 "Object type has multiple movement drivers (only one is allowed)");
+        }
+        if (movementDrivers > 0
+            && def.boxCollider2D.has_value()
+            && def.boxCollider2D->mode == BoxColliderMode::OneWayPlatform) {
+            return DeserializeResult::failure(
+                "OneWayPlatform does not support movement drivers");
         }
     }
 

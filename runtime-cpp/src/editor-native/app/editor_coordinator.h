@@ -108,6 +108,9 @@ public:
     EditorOperationResult apply(const SelectSceneIntent& intent);
     EditorOperationResult apply(const SetViewportZoomIntent& intent);
     EditorOperationResult apply(const PanViewportIntent& intent);
+    EditorOperationResult apply(const SetSceneGridVisibilityIntent& intent);
+    EditorOperationResult apply(const SetSceneGridSnapEnabledIntent& intent);
+    EditorOperationResult apply(const SetSceneGridCellSizeIntent& intent);
     EditorOperationResult apply(const SetHierarchyFilterIntent& intent);
     EditorOperationResult apply(const SetActiveLayerIntent& intent);
     EditorOperationResult apply(const ToggleLayerEditorVisibilityIntent& intent);

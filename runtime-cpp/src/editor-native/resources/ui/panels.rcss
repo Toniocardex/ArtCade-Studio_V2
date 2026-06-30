@@ -181,6 +181,23 @@
     color: #d4d4d8;
     font-size: 12dp;
 }
+.mode-block {
+    display: block;
+    margin: 2dp 0 8dp 0;
+}
+.mode-label {
+    display: block;
+    margin-bottom: 4dp;
+    color: #8a8a93;
+    font-size: 11dp;
+}
+.mode-options {
+    display: block;
+    height: 28dp;
+}
+.mode-option {
+    margin: 0 5dp 0 0;
+}
 /* A non-zero diagnostic count reads as a soft warning. */
 .prop-readonly.warn { color: #d8b44a; font-weight: 600; }
 /* Unit suffix after a numeric field (e.g. "wu"). */

@@ -365,10 +365,10 @@ bool ProjectDocument::setBoxColliderEnabled(const std::string& objectTypeId, boo
     return true;
 }
 
-bool ProjectDocument::setBoxColliderTrigger(const std::string& objectTypeId, bool isTrigger) {
+bool ProjectDocument::setBoxColliderMode(const std::string& objectTypeId, BoxColliderMode mode) {
     auto it = doc_.objectTypes.find(objectTypeId);
     if (it == doc_.objectTypes.end() || !it->second.boxCollider2D.has_value()) return false;
-    it->second.boxCollider2D->isTrigger = isTrigger;
+    it->second.boxCollider2D->mode = mode;
     markDirty();
     return true;
 }

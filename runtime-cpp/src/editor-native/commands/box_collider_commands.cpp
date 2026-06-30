@@ -167,27 +167,34 @@ EditorOperationResult SetBoxColliderEnabledCommand::undo(ProjectDocument& docume
     return EditorOperationResult::success(kBoxInvalidation, changed(objectTypeId_));
 }
 
-SetBoxColliderTriggerCommand::SetBoxColliderTriggerCommand(std::string objectTypeId,
-                                                           bool isTrigger)
-    : objectTypeId_(std::move(objectTypeId)), next_(isTrigger) {}
+SetBoxColliderModeCommand::SetBoxColliderModeCommand(std::string objectTypeId,
+                                                     BoxColliderMode mode)
+    : objectTypeId_(std::move(objectTypeId)), next_(mode) {}
 
-EditorOperationResult SetBoxColliderTriggerCommand::apply(ProjectDocument& document) {
+EditorOperationResult SetBoxColliderModeCommand::apply(ProjectDocument& document) {
+    const EntityDef* type = objectTypeOf(document, objectTypeId_);
     const BoxCollider2DComponent* current = colliderOf(document, objectTypeId_);
     if (!current) return EditorOperationResult::failure("Object type has no BoxCollider2D");
-    if (current->isTrigger == next_) return EditorOperationResult::success(EditorInvalidation::None);
+    if (current->mode == next_) return EditorOperationResult::success(EditorInvalidation::None);
+    if (next_ == BoxColliderMode::OneWayPlatform
+        && type
+        && (type->linearMover || type->topDownController || type->platformerController)) {
+        return EditorOperationResult::failure(
+            "OneWayPlatform does not support movement drivers");
+    }
     if (!captured_) {
-        previous_ = current->isTrigger;
+        previous_ = current->mode;
         captured_ = true;
     }
-    if (!document.setBoxColliderTrigger(objectTypeId_, next_)) {
-        return EditorOperationResult::failure("Failed to set BoxCollider2D trigger");
+    if (!document.setBoxColliderMode(objectTypeId_, next_)) {
+        return EditorOperationResult::failure("Failed to set BoxCollider2D mode");
     }
     return EditorOperationResult::success(kBoxInvalidation, changed(objectTypeId_));
 }
 
-EditorOperationResult SetBoxColliderTriggerCommand::undo(ProjectDocument& document) {
-    if (!captured_ || !document.setBoxColliderTrigger(objectTypeId_, previous_)) {
-        return EditorOperationResult::failure("Cannot undo BoxCollider2D trigger change");
+EditorOperationResult SetBoxColliderModeCommand::undo(ProjectDocument& document) {
+    if (!captured_ || !document.setBoxColliderMode(objectTypeId_, previous_)) {
+        return EditorOperationResult::failure("Cannot undo BoxCollider2D mode change");
     }
     return EditorOperationResult::success(kBoxInvalidation, changed(objectTypeId_));
 }

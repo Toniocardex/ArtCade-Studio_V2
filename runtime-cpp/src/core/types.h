@@ -272,11 +272,17 @@ struct GaugeComponent {
 };
 
 /** NPC / talkable — references dialogs/{dialogId}.json in project root. */
+enum class BoxColliderMode {
+    Solid,
+    Trigger,
+    OneWayPlatform,
+};
+
 struct BoxCollider2DComponent {
     Vec2 offset;
     Vec2 size{32.f, 32.f};
     bool enabled = true;
-    bool isTrigger = false;
+    BoxColliderMode mode = BoxColliderMode::Solid;
 };
 
 struct DialogComponent {

@@ -24,6 +24,11 @@ const TopDownControllerComponent* controllerOf(const ProjectDocument& document,
     return (type && type->topDownController) ? &*type->topDownController : nullptr;
 }
 
+bool hasOneWayCollider(const EntityDef& type) {
+    return type.boxCollider2D
+        && type.boxCollider2D->mode == BoxColliderMode::OneWayPlatform;
+}
+
 DomainChange added(const std::string& id) {
     return DomainChange::objectTypeComponentAdded(id, ComponentKind::TopDownController);
 }
@@ -45,6 +50,10 @@ EditorOperationResult AddTopDownControllerCommand::apply(ProjectDocument& docume
     if (type->linearMover || type->platformerController) {
         return EditorOperationResult::failure(
             "Object type already has a movement driver (remove it first)");
+    }
+    if (hasOneWayCollider(*type)) {
+        return EditorOperationResult::failure(
+            "OneWayPlatform does not support movement drivers");
     }
     if (type->topDownController.has_value()) {
         return EditorOperationResult::success(EditorInvalidation::None);

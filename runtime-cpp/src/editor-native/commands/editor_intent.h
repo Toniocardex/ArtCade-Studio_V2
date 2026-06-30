@@ -31,6 +31,21 @@ struct PanViewportIntent {
     Vec2    delta;
 };
 
+struct SetSceneGridVisibilityIntent {
+    SceneId sceneId;
+    bool    visible = true;
+};
+
+struct SetSceneGridSnapEnabledIntent {
+    SceneId sceneId;
+    bool    enabled = false;
+};
+
+struct SetSceneGridCellSizeIntent {
+    SceneId sceneId;
+    float   cellSize = SceneGridDefaults::kCellSize;
+};
+
 struct SetHierarchyFilterIntent {
     std::string filter;
 };

@@ -76,6 +76,11 @@
 }
 .tool-btn:hover  { background-color: #222226; border-color: #323236; color: #d4d4d8; }
 .tool-btn:active { background-color: #3b82f626; border-color: #3b82f6; color: #d4d4d8; }
+.tool-btn.active {
+    background-color: #3b82f626;
+    border-color: #3b82f6;
+    color: #d4d4d8;
+}
 
 /* Primary call-to-action: Play Project (accent). */
 #btn-play-project {
@@ -124,11 +129,83 @@
 }
 .toolbar-zoom:hover { background-color: #222226; color: #d4d4d8; }
 
+.grid-size-control {
+    display: inline-block;
+    position: relative;
+}
+.grid-size-trigger {
+    min-width: 58dp;
+    padding: 0 12dp;
+}
+.grid-size-popover {
+    display: none;
+    position: absolute;
+    top: 34dp;
+    left: 4dp;
+    z-index: 120;
+    width: 154dp;
+    padding: 8dp;
+    background-color: #1c1c1f;
+    border: 1px #323236;
+    border-radius: 6dp;
+}
+.grid-size-control:hover .grid-size-popover { display: block; }
+.grid-size-title {
+    display: block;
+    height: 16dp;
+    line-height: 16dp;
+    margin: 0 0 6dp 0;
+    color: #71717a;
+    font-size: 10dp;
+    font-weight: 700;
+    letter-spacing: 0.5dp;
+}
+.grid-size-input {
+    display: block;
+    width: 136dp;
+    height: 26dp;
+    line-height: 26dp;
+    margin: 0 0 7dp 0;
+    padding: 0 8dp;
+    background-color: #111113;
+    border: 1px #323236;
+    border-radius: 3dp;
+    color: #e4e4e7;
+    font-family: "JetBrains Mono";
+    font-size: 12dp;
+}
+.grid-size-input:focus { border-color: #3b82f6; }
+.grid-size-presets {
+    display: block;
+    height: 24dp;
+}
+.grid-size-preset {
+    display: inline-block;
+    height: 24dp;
+    line-height: 24dp;
+    min-width: 30dp;
+    margin: 0 4dp 0 0;
+    padding: 0 6dp;
+    background-color: transparent;
+    border: 1px #323236;
+    border-radius: 3dp;
+    color: #a1a1aa;
+    font-size: 11dp;
+}
+.grid-size-preset:hover {
+    border-color: #3b82f6;
+    color: #3b82f6;
+}
+.grid-size-control.disabled .grid-size-popover { display: none; }
+
 /* Disabled toolbar buttons (state class wins). */
 .tool-btn.disabled,
 #btn-play-project.disabled,
 #btn-play-scene.disabled,
-#btn-stop.disabled {
+#btn-stop.disabled,
+#btn-grid-visible.disabled,
+#btn-grid-snap.disabled,
+#btn-grid-size.disabled {
     background-color: #161618;
     border: 1px #242427;
     color: #3f3f46;
@@ -159,6 +236,11 @@
 }
 .panel-btn:hover  { border-color: #3b82f6; color: #3b82f6; }
 .panel-btn:active { background-color: #3b82f626; border-color: #3b82f6; color: #d4d4d8; }
+.panel-btn.active {
+    background-color: #3b82f626;
+    border-color: #3b82f6;
+    color: #d4d4d8;
+}
 
 /* Destructive remove buttons hint red on hover. */
 #btn-del-scene:hover,

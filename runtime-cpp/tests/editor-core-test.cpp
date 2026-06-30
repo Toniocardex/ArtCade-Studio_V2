@@ -27,8 +27,10 @@
 #include "editor-native/model/project_io.h"
 #include "editor-native/model/play_session.h"
 #include "editor-native/model/box_collider_view.h"
+#include "editor-native/model/box_collider_geometry.h"
 #include "editor-native/model/scene_frame_snapshot.h"
 #include "editor-native/model/sprite_render_view.h"
+#include "editor-native/view/scene_grid.h"
 #include "editor-native/view/scene_view_camera.h"
 
 #include <filesystem>
@@ -2226,7 +2228,11 @@ int main() {
 
             EntityDef wallType; wallType.className = "wall"; wallType.name = "Wall";
             wallType.boxCollider2D =
-                BoxCollider2DComponent{wallOffset, Vec2{32.f, 32.f}, wallEnabled, wallTrigger};
+                BoxCollider2DComponent{
+                    wallOffset,
+                    Vec2{32.f, 32.f},
+                    wallEnabled,
+                    wallTrigger ? BoxColliderMode::Trigger : BoxColliderMode::Solid};
             if (wallIsMover) {   // make the wall a kinematic mover -> not a static solid
                 LinearMoverComponent lm; lm.directionX = 0.f; lm.directionY = 0.f; lm.speed = 0.f;
                 wallType.linearMover = lm;
@@ -2237,7 +2243,8 @@ int main() {
         const auto linearRunner = [](EntityDef& t) {
             LinearMoverComponent lm; lm.directionX = 1.f; lm.directionY = 0.f; lm.speed = 100.f;
             t.linearMover = lm;
-            t.boxCollider2D = BoxCollider2DComponent{Vec2{0.f, 0.f}, Vec2{32.f, 32.f}, true, false};
+            t.boxCollider2D = BoxCollider2DComponent{
+                Vec2{0.f, 0.f}, Vec2{32.f, 32.f}, true, BoxColliderMode::Solid};
         };
         const auto near68 = [](float v) { return std::abs(v - 68.f) < 0.01f; };
 
@@ -2266,7 +2273,8 @@ int main() {
             EditorCoordinator c{makeWorld([](EntityDef& t) {
                 LinearMoverComponent lm; lm.directionX = 1.f; lm.directionY = 1.f; lm.speed = 100.f;
                 t.linearMover = lm;
-                t.boxCollider2D = BoxCollider2DComponent{Vec2{0.f, 0.f}, Vec2{32.f, 32.f}, true, false};
+                t.boxCollider2D = BoxCollider2DComponent{
+                    Vec2{0.f, 0.f}, Vec2{32.f, 32.f}, true, BoxColliderMode::Solid};
             })};
             CHECK(c.playProject().ok);
             c.advanceRuntime(10.f);                       // dir normalized (0.707,0.707)*100
@@ -2315,7 +2323,8 @@ int main() {
             EditorCoordinator c{makeWorld([](EntityDef& t) {
                 TopDownControllerComponent tdc; tdc.maxSpeed = 100.f;
                 t.topDownController = tdc;
-                t.boxCollider2D = BoxCollider2DComponent{Vec2{0.f, 0.f}, Vec2{32.f, 32.f}, true, false};
+                t.boxCollider2D = BoxCollider2DComponent{
+                    Vec2{0.f, 0.f}, Vec2{32.f, 32.f}, true, BoxColliderMode::Solid};
             })};
             CHECK(c.playProject().ok);
             RuntimeInputSnapshot in; in.moveRight = true;
@@ -2366,18 +2375,24 @@ int main() {
             pc.maxSpeed = 180.f; pc.jumpForce = 420.f; pc.customGravity = 1200.f;
             playerType.platformerController = pc;
             if (playerCollider)
-                playerType.boxCollider2D = BoxCollider2DComponent{{0.f, 0.f}, {32.f, 32.f}, true, false};
+                playerType.boxCollider2D = BoxCollider2DComponent{
+                    {0.f, 0.f}, {32.f, 32.f}, true, BoxColliderMode::Solid};
             doc.objectTypes.emplace("player", playerType);
 
             if (withFloor) {
                 EntityDef floorType; floorType.className = "floor"; floorType.name = "Floor";
                 floorType.boxCollider2D =
-                    BoxCollider2DComponent{{0.f, 0.f}, {200.f, 32.f}, floorEnabled, floorTrigger};
+                    BoxCollider2DComponent{
+                        {0.f, 0.f},
+                        {200.f, 32.f},
+                        floorEnabled,
+                        floorTrigger ? BoxColliderMode::Trigger : BoxColliderMode::Solid};
                 doc.objectTypes.emplace("floor", floorType);
             }
             if (withCeiling) {
                 EntityDef ceilType; ceilType.className = "ceil"; ceilType.name = "Ceiling";
-                ceilType.boxCollider2D = BoxCollider2DComponent{{0.f, 0.f}, {200.f, 32.f}, true, false};
+                ceilType.boxCollider2D = BoxCollider2DComponent{
+                    {0.f, 0.f}, {200.f, 32.f}, true, BoxColliderMode::Solid};
                 doc.objectTypes.emplace("ceil", ceilType);
             }
             return doc;
@@ -2484,6 +2499,166 @@ int main() {
             const RuntimeEntity* p = c.playSession()->findEntity(1);
             CHECK(!p->platformerController->grounded);
             CHECK(p->transform.position.y > 84.f);
+        }
+
+        const auto makeOneWayWorld = [](BoxColliderMode floorMode = BoxColliderMode::OneWayPlatform,
+                                        bool floorEnabled = true,
+                                        Vec2 playerStart = {0.f, 0.f},
+                                        Vec2 floorPosition = {0.f, 100.f},
+                                        Vec2 floorOffset = {0.f, 0.f},
+                                        Vec2 floorSize = {200.f, 32.f}) {
+            ProjectDoc doc;
+            doc.projectName = "one-way";
+            doc.activeSceneId = "s";
+            SceneDef s; s.id = "s"; s.name = "S"; s.worldSize = {4000.f, 4000.f};
+            SceneInstanceDef player; player.id = 1; player.objectTypeId = "player";
+            player.instanceName = "Player"; player.transform.position = playerStart;
+            SceneInstanceDef floor; floor.id = 2; floor.objectTypeId = "floor";
+            floor.instanceName = "Floor"; floor.transform.position = floorPosition;
+            s.instances = {player, floor};
+            doc.scenes.emplace("s", s);
+
+            EntityDef playerType; playerType.className = "player"; playerType.name = "Player";
+            PlatformerControllerComponent pc;
+            pc.maxSpeed = 180.f; pc.jumpForce = 420.f; pc.customGravity = 1200.f;
+            playerType.platformerController = pc;
+            playerType.boxCollider2D = BoxCollider2DComponent{
+                {0.f, 0.f}, {32.f, 32.f}, true, BoxColliderMode::Solid};
+            doc.objectTypes.emplace("player", playerType);
+
+            EntityDef floorType; floorType.className = "floor"; floorType.name = "Floor";
+            floorType.boxCollider2D = BoxCollider2DComponent{
+                floorOffset, floorSize, floorEnabled, floorMode};
+            doc.objectTypes.emplace("floor", floorType);
+            return doc;
+        };
+
+        // One-way platform: falling from above lands and grounds the platformer.
+        {
+            EditorCoordinator c{makeOneWayWorld()};
+            CHECK(c.playProject().ok);
+            CHECK(c.playSession()->findEntity(2)->collider->mode
+                  == BoxColliderMode::OneWayPlatform);
+            for (int i = 0; i < 300; ++i) c.updateRuntime(none, 0.05f);
+            const RuntimeEntity* p = c.playSession()->findEntity(1);
+            CHECK(p->platformerController->grounded);
+            CHECK(p->platformerController->verticalVelocity == 0.f);
+            CHECK(std::abs(p->transform.position.y - 68.f) < 0.01f);
+        }
+
+        // One-way platform still catches a fast fall; no tunneling through top.
+        {
+            EditorCoordinator c{makeOneWayWorld()};
+            CHECK(c.playProject().ok);
+            c.updateRuntime(none, 100.f);
+            const RuntimeEntity* p = c.playSession()->findEntity(1);
+            CHECK(p->platformerController->grounded);
+            CHECK(std::abs(p->transform.position.y - 68.f) < 0.01f);
+        }
+
+        // Disabled and Trigger modes do not block even with the same geometry.
+        {
+            EditorCoordinator disabled{makeOneWayWorld(BoxColliderMode::OneWayPlatform,
+                                                       /*floorEnabled*/ false)};
+            CHECK(disabled.playProject().ok);
+            disabled.updateRuntime(none, 100.f);
+            CHECK(!disabled.playSession()->findEntity(1)->platformerController->grounded);
+            CHECK(disabled.playSession()->findEntity(1)->transform.position.y > 84.f);
+
+            EditorCoordinator trigger{makeOneWayWorld(BoxColliderMode::Trigger)};
+            CHECK(trigger.playProject().ok);
+            trigger.updateRuntime(none, 100.f);
+            CHECK(!trigger.playSession()->findEntity(1)->platformerController->grounded);
+            CHECK(trigger.playSession()->findEntity(1)->transform.position.y > 84.f);
+        }
+
+        // Offset and size define the platform top; the one-way clamp uses that
+        // exact geometry, not the entity pivot.
+        {
+            EditorCoordinator c{makeOneWayWorld(BoxColliderMode::OneWayPlatform, true,
+                                                {0.f, 0.f}, {0.f, 100.f},
+                                                {0.f, -20.f}, {96.f, 16.f})};
+            CHECK(c.playProject().ok);
+            c.updateRuntime(none, 100.f);
+            const RuntimeEntity* p = c.playSession()->findEntity(1);
+            CHECK(p->platformerController->grounded);
+            CHECK(std::abs(p->transform.position.y - 56.f) < 0.01f);
+        }
+
+        // Starting already penetrated / below a one-way platform does not
+        // depenetrate or clamp; the mover can leave the shape.
+        {
+            EditorCoordinator c{makeOneWayWorld(BoxColliderMode::OneWayPlatform, true,
+                                                {0.f, 90.f})};
+            CHECK(c.playProject().ok);
+            c.updateRuntime(none, 0.5f);
+            const RuntimeEntity* p = c.playSession()->findEntity(1);
+            CHECK(!p->platformerController->grounded);
+            CHECK(p->transform.position.y > 90.f);
+        }
+
+        // Multiple valid one-way platforms choose the nearest contact along the
+        // downward sweep, independent of scene order.
+        {
+            ProjectDoc doc = makeOneWayWorld();
+            SceneInstanceDef upper; upper.id = 3; upper.objectTypeId = "upper";
+            upper.instanceName = "Upper"; upper.transform.position = {0.f, 60.f};
+            doc.scenes.at("s").instances.push_back(upper);
+            EntityDef upperType; upperType.className = "upper"; upperType.name = "Upper";
+            upperType.boxCollider2D = BoxCollider2DComponent{
+                {0.f, 0.f}, {200.f, 32.f}, true, BoxColliderMode::OneWayPlatform};
+            doc.objectTypes.emplace("upper", upperType);
+
+            EditorCoordinator c{doc};
+            CHECK(c.playProject().ok);
+            c.updateRuntime(none, 100.f);
+            const RuntimeEntity* p = c.playSession()->findEntity(1);
+            CHECK(p->platformerController->grounded);
+            CHECK(std::abs(p->transform.position.y - 28.f) < 0.01f);
+        }
+
+        const auto makeOneWayLinearWorld = [](Vec2 runnerStart, Vec2 direction) {
+            ProjectDoc doc;
+            doc.projectName = "one-way-linear";
+            doc.activeSceneId = "s";
+            SceneDef s; s.id = "s"; s.name = "S"; s.worldSize = {4000.f, 4000.f};
+            SceneInstanceDef runner; runner.id = 1; runner.objectTypeId = "runner";
+            runner.instanceName = "Runner"; runner.transform.position = runnerStart;
+            SceneInstanceDef platform; platform.id = 2; platform.objectTypeId = "platform";
+            platform.instanceName = "Platform"; platform.transform.position = {100.f, 100.f};
+            s.instances = {runner, platform};
+            doc.scenes.emplace("s", s);
+
+            EntityDef runnerType; runnerType.className = "runner"; runnerType.name = "Runner";
+            LinearMoverComponent lm; lm.directionX = direction.x; lm.directionY = direction.y;
+            lm.speed = 100.f;
+            runnerType.linearMover = lm;
+            runnerType.boxCollider2D = BoxCollider2DComponent{
+                {0.f, 0.f}, {32.f, 32.f}, true, BoxColliderMode::Solid};
+            doc.objectTypes.emplace("runner", runnerType);
+
+            EntityDef platformType; platformType.className = "platform";
+            platformType.name = "Platform";
+            platformType.boxCollider2D = BoxCollider2DComponent{
+                {0.f, 0.f}, {200.f, 32.f}, true, BoxColliderMode::OneWayPlatform};
+            doc.objectTypes.emplace("platform", platformType);
+            return doc;
+        };
+
+        // Moving upward from below crosses the platform; one-way is ignored on Y up.
+        {
+            EditorCoordinator c{makeOneWayLinearWorld({100.f, 150.f}, {0.f, -1.f})};
+            CHECK(c.playProject().ok);
+            c.advanceRuntime(10.f);
+            CHECK(c.playSession()->findEntity(1)->transform.position.y < -800.f);
+        }
+
+        // Moving laterally through a one-way platform is not blocked.
+        {
+            EditorCoordinator c{makeOneWayLinearWorld({0.f, 100.f}, {1.f, 0.f})};
+            CHECK(c.playProject().ok);
+            c.advanceRuntime(10.f);
+            CHECK(c.playSession()->findEntity(1)->transform.position.x > 900.f);
         }
 
         // Stop restores the authoring position; the next Play re-materializes with
@@ -2804,7 +2979,8 @@ int main() {
         f.entities.push_back(SceneFrameEntity{2, "Q", {}, SceneFrameRect{70, 70, 10, 10}, false});
         f.sprites.push_back(SceneFrameSprite{1, "img", SceneFrameRect{20, 0, 10, 10}, {}, true, false});
         f.sprites.push_back(SceneFrameSprite{1, "hidden", SceneFrameRect{-100, -100, 10, 10}, {}, false, false});
-        f.colliders.push_back(SceneFrameCollider{1, WorldRect{0, 20, 10, 10}, true, false, false});
+        f.colliders.push_back(SceneFrameCollider{
+            1, WorldRect{0, 20, 10, 10}, true, BoxColliderMode::Solid, false});
 
         const std::optional<WorldRect> bounds = editorBoundsForEntity(f, 1);
         CHECK(bounds.has_value());
@@ -2975,6 +3151,106 @@ int main() {
         CHECK(c.undoSize() == 0);
     }
 
+    // -- Scene grid/snap toggles are workspace-only and per-scene -------------
+    {
+        EditorCoordinator c{makeDoc()};
+        const uint64_t rev = c.document().revision();
+        CHECK(c.sceneView(kSceneA).gridVisible);
+        CHECK(!c.sceneView(kSceneA).gridSnapEnabled);
+        CHECK(c.sceneView(kSceneA).gridCellSize == 48.0f);
+
+        CHECK(c.apply(SetSceneGridVisibilityIntent{kSceneA, false}).ok);
+        CHECK(c.apply(SetSceneGridSnapEnabledIntent{kSceneA, true}).ok);
+        CHECK(c.apply(SetSceneGridCellSizeIntent{kSceneA, 32.0f}).ok);
+        CHECK(!c.sceneView(kSceneA).gridVisible);
+        CHECK(c.sceneView(kSceneA).gridSnapEnabled);
+        CHECK(c.sceneView(kSceneA).gridCellSize == 32.0f);
+        CHECK(c.sceneView(kSceneB).gridVisible);
+        CHECK(!c.sceneView(kSceneB).gridSnapEnabled);
+        CHECK(c.sceneView(kSceneB).gridCellSize == 48.0f);
+        CHECK(!c.document().isDirty());
+        CHECK(c.document().revision() == rev);
+        CHECK(c.undoSize() == 0);
+
+        CHECK(c.apply(SetSceneGridVisibilityIntent{kSceneB, false}).ok);
+        CHECK(c.apply(SetSceneGridCellSizeIntent{kSceneB, 64.0f}).ok);
+        CHECK(!c.sceneView(kSceneB).gridVisible);
+        CHECK(!c.sceneView(kSceneB).gridSnapEnabled);
+        CHECK(c.sceneView(kSceneB).gridCellSize == 64.0f);
+
+        const std::filesystem::path path = testTempDir() / "grid-snap-workspace.artcade-project";
+        CHECK(saveProjectToFile(c, path).ok);
+        EditorCoordinator loaded{ProjectDoc{}};
+        CHECK(loadProjectFromFile(loaded, path).ok);
+        CHECK(loaded.sceneView(kSceneA).gridVisible);
+        CHECK(!loaded.sceneView(kSceneA).gridSnapEnabled);
+        CHECK(loaded.sceneView(kSceneA).gridCellSize == 48.0f);
+
+        CHECK(c.replaceProject(ProjectDocument{makeReplacementDoc()}).ok);
+        CHECK(c.state().sceneViews.count(kSceneA) == 0);
+        CHECK(c.sceneView(kSceneA).gridVisible);
+        CHECK(!c.sceneView(kSceneA).gridSnapEnabled);
+        CHECK(c.sceneView(kSceneA).gridCellSize == 48.0f);
+    }
+
+    // -- Grid cell size rejects invalid values and no-op changes stay quiet ---
+    {
+        EditorCoordinator c{makeDoc()};
+        const uint64_t rev = c.document().revision();
+        c.consumeInvalidations();
+
+        CHECK(!c.apply(SetSceneGridCellSizeIntent{kSceneA, 0.0f}).ok);
+        CHECK(!c.apply(SetSceneGridCellSizeIntent{kSceneA, -4.0f}).ok);
+        CHECK(!c.apply(SetSceneGridCellSizeIntent{
+            kSceneA, std::numeric_limits<float>::quiet_NaN()}).ok);
+        CHECK(!c.apply(SetSceneGridCellSizeIntent{
+            kSceneA, std::numeric_limits<float>::infinity()}).ok);
+        CHECK(c.sceneView(kSceneA).gridCellSize == 48.0f);
+        CHECK(c.pendingInvalidations() == EditorInvalidation::None);
+
+        const EditorOperationResult same =
+            c.apply(SetSceneGridCellSizeIntent{kSceneA, 48.0f});
+        CHECK(same.ok);
+        CHECK(same.invalidation == EditorInvalidation::None);
+        CHECK(c.pendingInvalidations() == EditorInvalidation::None);
+        CHECK(!c.document().isDirty());
+        CHECK(c.document().revision() == rev);
+        CHECK(c.undoSize() == 0);
+    }
+
+    // -- Grid snap uses nearest world grid point, including negative values ---
+    {
+        const SceneGridDefinition grid = makeSceneGridDefinition();
+        CHECK(grid.cellSize == 48.0f);
+        CHECK(snapWorldPositionToGrid(Vec2{31.f, 73.f}, grid).x == 48.f);
+        CHECK(snapWorldPositionToGrid(Vec2{31.f, 73.f}, grid).y == 96.f);
+        CHECK(snapWorldPositionToGrid(Vec2{-15.f, -26.f}, grid).x == 0.f);
+        CHECK(snapWorldPositionToGrid(Vec2{-25.f, -26.f}, grid).x == -48.f);
+        CHECK(snapWorldPositionToGrid(Vec2{-25.f, -26.f}, grid).y == -48.f);
+        CHECK(snapWorldPositionToGrid(Vec2{96.f, 144.f}, grid).x == 96.f);
+        CHECK(snapWorldPositionToGrid(Vec2{24.f, -24.f}, grid).x == 48.f);
+        CHECK(snapWorldPositionToGrid(Vec2{24.f, -24.f}, grid).y == -48.f);
+
+        const SceneGridDefinition shifted{16.0f, Vec2{8.0f, 8.0f}};
+        const Vec2 snapped = snapWorldPositionToGrid(Vec2{15.f, -1.f}, shifted);
+        CHECK(snapped.x == 8.f);
+        CHECK(snapped.y == -8.f);
+
+        EditorSceneViewState view;
+        view.gridCellSize = 32.0f;
+        const SceneGridDefinition fromView = makeSceneGridDefinition(view);
+        CHECK(fromView.cellSize == 32.0f);
+        CHECK(fromView.origin.x == 0.0f);
+        CHECK(fromView.origin.y == 0.0f);
+        CHECK(snapWorldPositionToGrid(Vec2{47.f, -15.f}, fromView).x == 32.f);
+        CHECK(snapWorldPositionToGrid(Vec2{47.f, -15.f}, fromView).y == 0.f);
+        CHECK(snapWorldPositionToGrid(Vec2{47.f, -17.f}, fromView).y == -32.f);
+
+        const SceneGridDefinition tiny{1.0f, Vec2{0.0f, 0.0f}};
+        CHECK(visualGridStrideForZoom(tiny, 0.1f) > 1);
+        CHECK(snapWorldPositionToGrid(Vec2{2.4f, 0.0f}, tiny).x == 2.0f);
+    }
+
     // -- Auto-fit flag lives in the scene view state, cleared by replaceProject
     {
         EditorCoordinator c{makeDoc()};
@@ -2992,11 +3268,17 @@ int main() {
         EditorCoordinator c{makeDoc()};
         c.apply(SetViewportZoomIntent{kSceneA, 2.5f});
         c.apply(PanViewportIntent{kSceneA, {12.f, -8.f}});
+        c.apply(SetSceneGridVisibilityIntent{kSceneA, false});
+        c.apply(SetSceneGridSnapEnabledIntent{kSceneA, true});
+        c.apply(SetSceneGridCellSizeIntent{kSceneA, 8.0f});
         CHECK(c.playProject().ok);
         CHECK(c.stopPlaying().ok);
         CHECK(c.sceneView(kSceneA).zoom == 2.5f);
         CHECK(c.sceneView(kSceneA).pan.x == 12.f);
         CHECK(c.sceneView(kSceneA).pan.y == -8.f);
+        CHECK(!c.sceneView(kSceneA).gridVisible);
+        CHECK(c.sceneView(kSceneA).gridSnapEnabled);
+        CHECK(c.sceneView(kSceneA).gridCellSize == 8.0f);
     }
 
     // == Scene layers =========================================================
@@ -3801,6 +4083,9 @@ int main() {
         CHECK(c.execute(SetBoxColliderSizeCommand{"Hero", Vec2{32.f, 32.f}}).ok);
         CHECK(c.document().revision() == rev);
         CHECK(c.undoSize() == undo);
+        CHECK(c.execute(SetBoxColliderModeCommand{"Hero", BoxColliderMode::Solid}).ok);
+        CHECK(c.document().revision() == rev);
+        CHECK(c.undoSize() == undo);
     }
 
     // -- (4) Undo restores exact object-type component state ------------------
@@ -3808,7 +4093,7 @@ int main() {
         EditorCoordinator c{makeInheritedDoc()};
         CHECK(c.execute(AddBoxColliderCommand{"Hero"}).ok);
         CHECK(c.execute(SetBoxColliderSizeCommand{"Hero", Vec2{80.f, 30.f}}).ok);
-        CHECK(c.execute(SetBoxColliderTriggerCommand{"Hero", true}).ok);
+        CHECK(c.execute(SetBoxColliderModeCommand{"Hero", BoxColliderMode::Trigger}).ok);
         CHECK(c.execute(RemoveBoxColliderCommand{"Hero"}).ok);
         CHECK(!c.document().data().objectTypes.at("Hero").boxCollider2D.has_value());
         c.undo();
@@ -3816,7 +4101,7 @@ int main() {
             *c.document().data().objectTypes.at("Hero").boxCollider2D;
         CHECK(collider.size.x == 80.f);
         CHECK(collider.size.y == 30.f);
-        CHECK(collider.isTrigger);
+        CHECK(collider.mode == BoxColliderMode::Trigger);
     }
 
     // -- (5) Inspector action resolves selection -> objectTypeId --------------
@@ -3863,17 +4148,36 @@ int main() {
         CHECK(bounds[1].worldBounds.y == 193.f);
         CHECK(!bounds[1].selected);
 
-        CHECK(c.execute(SetBoxColliderTriggerCommand{"Hero", true}).ok);
+        CHECK(c.execute(SetBoxColliderModeCommand{"Hero", BoxColliderMode::Trigger}).ok);
         const std::vector<SceneFrameCollider> triggerBounds =
             collectBoxColliderBounds(c.document(), kSceneA, INVALID_ENTITY);
         CHECK(triggerBounds.size() == 2);
-        CHECK(triggerBounds[0].isTrigger);
+        CHECK(triggerBounds[0].mode == BoxColliderMode::Trigger);
 
         CHECK(c.execute(SetBoxColliderEnabledCommand{"Hero", false}).ok);
         CHECK(collectBoxColliderBounds(c.document(), kSceneA, INVALID_ENTITY).empty());
         CHECK(c.document().data().objectTypes.at("Hero").boxCollider2D.has_value());
         c.undo();
         CHECK(collectBoxColliderBounds(c.document(), kSceneA, INVALID_ENTITY).size() == 2);
+    }
+
+    // -- (6b) Editor overlay and runtime share the same world-bounds formula --
+    {
+        Transform transform;
+        transform.position = {25.f, 40.f};
+        const Vec2 offset{5.f, -10.f};
+        const Vec2 size{20.f, 12.f};
+        const WorldRect editorBounds = boxColliderWorldBounds(transform, offset, size);
+
+        RuntimeEntity entity;
+        entity.transform = transform;
+        entity.collider = RuntimeBoxCollider{offset, size, true, BoxColliderMode::Solid};
+        const Aabb runtimeBounds = runtimeColliderBounds(entity);
+
+        CHECK(runtimeBounds.minX == editorBounds.x);
+        CHECK(runtimeBounds.minY == editorBounds.y);
+        CHECK(runtimeBounds.maxX == editorBounds.x + editorBounds.width);
+        CHECK(runtimeBounds.maxY == editorBounds.y + editorBounds.height);
     }
 
     // -- (7) Save/reload persists object-type collider, never per instance ----
@@ -3883,11 +4187,14 @@ int main() {
         CHECK(c.execute(SetBoxColliderOffsetCommand{"Hero", Vec2{5.f, 6.f}}).ok);
         CHECK(c.execute(SetBoxColliderSizeCommand{"Hero", Vec2{70.f, 32.f}}).ok);
         CHECK(c.execute(SetBoxColliderEnabledCommand{"Hero", false}).ok);
-        CHECK(c.execute(SetBoxColliderTriggerCommand{"Hero", true}).ok);
+        CHECK(c.execute(SetBoxColliderModeCommand{"Hero", BoxColliderMode::OneWayPlatform}).ok);
 
         const auto ser = ProjectSerializer::serialize(c.document());
         CHECK(ser.ok);
         CHECK(ser.value.find("boxCollider2D") != std::string::npos);
+        CHECK(ser.value.find("\"mode\"") != std::string::npos);
+        CHECK(ser.value.find("oneWayPlatform") != std::string::npos);
+        CHECK(ser.value.find("isTrigger") == std::string::npos);
         CHECK(ser.value.find("spriteRenderer") == std::string::npos);
         const std::size_t instancePos = ser.value.find("\"instances\"");
         const std::size_t colliderPos = ser.value.find("boxCollider2D");
@@ -3906,16 +4213,71 @@ int main() {
         CHECK(type.boxCollider2D->size.x == 70.f);
         CHECK(type.boxCollider2D->size.y == 32.f);
         CHECK(!type.boxCollider2D->enabled);
-        CHECK(type.boxCollider2D->isTrigger);
+        CHECK(type.boxCollider2D->mode == BoxColliderMode::OneWayPlatform);
     }
 
-    // -- (8) Invalid persisted collider is rejected during validation ---------
+    // -- (8) Legacy isTrigger migrates to mode; unknown mode is rejected ------
+    {
+        const std::string legacySolid =
+            R"({"activeSceneId":"s","scenes":[{"id":"s","instances":[{"id":1,"objectTypeId":"Hero","instanceName":"Hero"}]}],"objectTypes":[{"id":"Hero","boxCollider2D":{"enabled":true,"isTrigger":false}}]})";
+        const auto loadedSolid = ProjectSerializer::deserialize(legacySolid);
+        CHECK(loadedSolid.ok);
+        CHECK(loadedSolid.value.data().objectTypes.at("Hero").boxCollider2D->mode
+              == BoxColliderMode::Solid);
+
+        const std::string legacyTrigger =
+            R"({"activeSceneId":"s","scenes":[{"id":"s","instances":[{"id":1,"objectTypeId":"Hero","instanceName":"Hero"}]}],"objectTypes":[{"id":"Hero","boxCollider2D":{"enabled":true,"isTrigger":true}}]})";
+        const auto loaded = ProjectSerializer::deserialize(legacyTrigger);
+        CHECK(loaded.ok);
+        const auto& type = loaded.value.data().objectTypes.at("Hero");
+        CHECK(type.boxCollider2D.has_value());
+        CHECK(type.boxCollider2D->mode == BoxColliderMode::Trigger);
+
+        const std::string badMode =
+            R"({"activeSceneId":"s","scenes":[{"id":"s","instances":[{"id":1,"objectTypeId":"Hero","instanceName":"Hero"}]}],"objectTypes":[{"id":"Hero","boxCollider2D":{"mode":"ghost"}}]})";
+        CHECK(!ProjectSerializer::deserialize(badMode).ok);
+
+        const std::string conflictingLegacy =
+            R"({"activeSceneId":"s","scenes":[{"id":"s","instances":[{"id":1,"objectTypeId":"Hero","instanceName":"Hero"}]}],"objectTypes":[{"id":"Hero","boxCollider2D":{"mode":"oneWayPlatform","isTrigger":true}}]})";
+        CHECK(!ProjectSerializer::deserialize(conflictingLegacy).ok);
+    }
+
+    // -- (9) Invalid persisted collider is rejected during validation ---------
     {
         const std::string bad =
             R"({"activeSceneId":"s","scenes":[{"id":"s","instances":[{"id":1,"objectTypeId":"Hero","instanceName":"Hero"}]}],"objectTypes":[{"id":"Hero","boxCollider2D":{"size":{"x":-1,"y":10}}}]})";
         const auto loaded = ProjectSerializer::deserialize(bad);
         CHECK(loaded.ok);
         CHECK(!ProjectValidator::validate(std::move(loaded.value)).ok);
+    }
+
+    // -- (10) OneWayPlatform + movement driver is explicitly unsupported ------
+    {
+        ProjectDoc doc = makeInheritedDoc();
+        EntityDef& hero = doc.objectTypes.at("Hero");
+        hero.boxCollider2D = BoxCollider2DComponent{
+            {0.f, 0.f}, {32.f, 32.f}, true, BoxColliderMode::OneWayPlatform};
+        LinearMoverComponent mover;
+        mover.speed = 10.f;
+        hero.linearMover = mover;
+        CHECK(!ProjectValidator::validate(ProjectDocument{std::move(doc)}).ok);
+    }
+
+    // -- (11) Authoring commands prevent OneWayPlatform + movement driver -----
+    {
+        EditorCoordinator withMover{makeInheritedDoc()};
+        CHECK(withMover.execute(AddBoxColliderCommand{"Hero"}).ok);
+        CHECK(withMover.execute(AddLinearMoverCommand{"Hero"}).ok);
+        CHECK(!withMover.execute(
+            SetBoxColliderModeCommand{"Hero", BoxColliderMode::OneWayPlatform}).ok);
+
+        EditorCoordinator oneWay{makeInheritedDoc()};
+        CHECK(oneWay.execute(AddBoxColliderCommand{"Hero"}).ok);
+        CHECK(oneWay.execute(
+            SetBoxColliderModeCommand{"Hero", BoxColliderMode::OneWayPlatform}).ok);
+        CHECK(!oneWay.execute(AddLinearMoverCommand{"Hero"}).ok);
+        CHECK(!oneWay.execute(AddTopDownControllerCommand{"Hero"}).ok);
+        CHECK(!oneWay.execute(AddPlatformerControllerCommand{"Hero"}).ok);
     }
 
     std::cout << "editor-core-test: " << g_passed << " passed, "

@@ -23,6 +23,11 @@ const LinearMoverComponent* moverOf(const ProjectDocument& document, const std::
     return (type && type->linearMover) ? &*type->linearMover : nullptr;
 }
 
+bool hasOneWayCollider(const EntityDef& type) {
+    return type.boxCollider2D
+        && type.boxCollider2D->mode == BoxColliderMode::OneWayPlatform;
+}
+
 DomainChange added(const std::string& id) {
     return DomainChange::objectTypeComponentAdded(id, ComponentKind::LinearMover);
 }
@@ -44,6 +49,10 @@ EditorOperationResult AddLinearMoverCommand::apply(ProjectDocument& document) {
     if (type->topDownController || type->platformerController) {
         return EditorOperationResult::failure(
             "Object type already has a movement driver (remove it first)");
+    }
+    if (hasOneWayCollider(*type)) {
+        return EditorOperationResult::failure(
+            "OneWayPlatform does not support movement drivers");
     }
     if (type->linearMover.has_value()) {
         return EditorOperationResult::success(EditorInvalidation::None);

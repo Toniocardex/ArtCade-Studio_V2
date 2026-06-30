@@ -16,9 +16,11 @@ add_library(artcade-editor-core STATIC
     model/project_document.cpp
     model/project_io.cpp
     model/play_session.cpp
+    model/box_collider_geometry.cpp
     model/box_collider_view.cpp
     model/scene_frame_snapshot.cpp
     model/sprite_render_view.cpp
+    view/scene_grid.cpp
     view/scene_view_camera.cpp
     commands/box_collider_commands.cpp
     commands/linear_mover_commands.cpp

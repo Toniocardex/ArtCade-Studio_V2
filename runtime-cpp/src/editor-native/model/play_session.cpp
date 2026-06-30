@@ -1,5 +1,6 @@
 #include "editor-native/model/play_session.h"
 
+#include "editor-native/model/box_collider_geometry.h"
 #include "editor-native/model/project_document.h"
 #include "editor-native/model/sprite_render_view.h"
 
@@ -10,6 +11,8 @@
 namespace ArtCade::EditorNative {
 
 namespace {
+
+constexpr float kOneWayContactEpsilon = 0.001f;
 
 const ImageAssetDef* findImageAsset(const ProjectDocument& document, const AssetId& id) {
     for (const ImageAssetDef& asset : document.data().imageAssets) {
@@ -64,10 +67,17 @@ const BoxCollider2DComponent* colliderFor(const ProjectDocument& document,
     return &*it->second.boxCollider2D;
 }
 
-// True when the mover's collider can be blocked / can block: present, enabled and
-// not a trigger. Disabled or trigger colliders never participate in resolution.
-bool isSolid(const std::optional<RuntimeBoxCollider>& collider) {
-    return collider && collider->enabled && !collider->isTrigger;
+// Movers are constrained only by a solid body collider. Trigger and one-way
+// colliders can be authored on an object type, but they do not make that mover
+// itself a blocking body.
+bool isSolidMover(const std::optional<RuntimeBoxCollider>& collider) {
+    return collider && collider->enabled && collider->mode == BoxColliderMode::Solid;
+}
+
+bool isStaticObstacle(const std::optional<RuntimeBoxCollider>& collider) {
+    return collider && collider->enabled
+        && (collider->mode == BoxColliderMode::Solid
+            || collider->mode == BoxColliderMode::OneWayPlatform);
 }
 
 // Largest fraction of `move` allowed along one axis before the mover box [lo,hi]
@@ -85,15 +95,19 @@ float clampAxis(float move, float lo, float hi, float sLo, float sHi) {
     return move;
 }
 
+float clampOneWayPlatform(float move, float moverBottom, float platformTop) {
+    if (move <= 0.f) return move;
+    if (moverBottom > platformTop + kOneWayContactEpsilon) return move;
+    const float gap = platformTop - moverBottom;
+    return (gap >= 0.f && gap <= move + kOneWayContactEpsilon) ? gap : move;
+}
+
 } // namespace
 
 Aabb runtimeColliderBounds(const RuntimeEntity& entity) {
     const RuntimeBoxCollider& c = *entity.collider;
-    const float cx = entity.transform.position.x + c.offset.x;
-    const float cy = entity.transform.position.y + c.offset.y;
-    const float hx = c.size.x * 0.5f;
-    const float hy = c.size.y * 0.5f;
-    return Aabb{cx - hx, cy - hy, cx + hx, cy + hy};
+    const WorldRect bounds = boxColliderWorldBounds(entity.transform, c.offset, c.size);
+    return Aabb{bounds.x, bounds.y, bounds.x + bounds.width, bounds.y + bounds.height};
 }
 
 std::optional<PlaySession> PlaySession::materialize(const ProjectDocument& document,
@@ -141,13 +155,14 @@ std::optional<PlaySession> PlaySession::materialize(const ProjectDocument& docum
             entity.velocity = Vec2{dir.x * speed, dir.y * speed};
         }
         if (const BoxCollider2DComponent* box = colliderFor(document, instance.objectTypeId)) {
-            entity.collider = RuntimeBoxCollider{box->offset, box->size, box->enabled, box->isTrigger};
+            entity.collider = RuntimeBoxCollider{box->offset, box->size, box->enabled, box->mode};
         }
         // A static solid is an obstacle: an active solid collider on an entity that
         // is not itself a kinematic mover (mover-vs-mover is out of scope).
         const bool isMover = (mover != nullptr) || (controller != nullptr) || (platformer != nullptr);
-        if (!isMover && isSolid(entity.collider)) {
-            session.staticSolids_.push_back(runtimeColliderBounds(entity));
+        if (!isMover && isStaticObstacle(entity.collider)) {
+            session.staticColliders_.push_back(
+                StaticRuntimeCollider{runtimeColliderBounds(entity), entity.collider->mode});
         }
 
         const SpriteRenderView sprite =
@@ -194,7 +209,7 @@ KinematicMoveResult PlaySession::moveKinematicEntity(RuntimeEntity& entity, Vec2
     KinematicMoveResult result;
 
     // A mover without an active solid collider is unconstrained.
-    if (!isSolid(entity.collider)) {
+    if (!isSolidMover(entity.collider)) {
         entity.transform.position.x += desiredDelta.x;
         entity.transform.position.y += desiredDelta.y;
         result.appliedDelta = desiredDelta;
@@ -205,9 +220,11 @@ KinematicMoveResult PlaySession::moveKinematicEntity(RuntimeEntity& entity, Vec2
     {
         const Aabb m = runtimeColliderBounds(entity);
         float dx = desiredDelta.x;
-        for (const Aabb& s : staticSolids_) {
-            if (m.minY < s.maxY && s.minY < m.maxY)        // strict: touching != overlapping
-                dx = clampAxis(dx, m.minX, m.maxX, s.minX, s.maxX);
+        for (const StaticRuntimeCollider& s : staticColliders_) {
+            if (s.mode != BoxColliderMode::Solid) continue;
+            if (m.minY < s.bounds.maxY && s.bounds.minY < m.maxY) {
+                dx = clampAxis(dx, m.minX, m.maxX, s.bounds.minX, s.bounds.maxX);
+            }
         }
         if (desiredDelta.x > 0.f && dx < desiredDelta.x) result.hitRight = true;
         if (desiredDelta.x < 0.f && dx > desiredDelta.x) result.hitLeft = true;
@@ -219,9 +236,13 @@ KinematicMoveResult PlaySession::moveKinematicEntity(RuntimeEntity& entity, Vec2
     {
         const Aabb m = runtimeColliderBounds(entity);
         float dy = desiredDelta.y;
-        for (const Aabb& s : staticSolids_) {
-            if (m.minX < s.maxX && s.minX < m.maxX)
-                dy = clampAxis(dy, m.minY, m.maxY, s.minY, s.maxY);
+        for (const StaticRuntimeCollider& s : staticColliders_) {
+            if (m.minX >= s.bounds.maxX || s.bounds.minX >= m.maxX) continue;
+            if (s.mode == BoxColliderMode::Solid) {
+                dy = clampAxis(dy, m.minY, m.maxY, s.bounds.minY, s.bounds.maxY);
+            } else if (s.mode == BoxColliderMode::OneWayPlatform) {
+                dy = clampOneWayPlatform(dy, m.maxY, s.bounds.minY);
+            }
         }
         // World +Y is down: a clamped downward move is ground, upward is ceiling.
         if (desiredDelta.y > 0.f && dy < desiredDelta.y) result.hitGround = true;

@@ -8,6 +8,7 @@
 
 #include <RmlUi/Core/Element.h>
 #include <RmlUi/Core/ElementDocument.h>
+#include <RmlUi/Core/Elements/ElementFormControl.h>
 #include <RmlUi/Core/Elements/ElementFormControlInput.h>
 
 #include <cstdio>
@@ -32,10 +33,16 @@ std::string icon(const char* cp) {
 
 // An editable property row. Disabled (read-only) while Play freezes the document.
 std::string field(const char* label, const char* action, const std::string& value,
-                  bool disabled) {
+                  bool disabled, const char* id = nullptr) {
     std::string row = "<div class=\"prop-row\"><span class=\"prop-label\">";
     row += label;
-    row += "</span><input type=\"text\" class=\"prop-input\" data-action=\"";
+    row += "</span><input type=\"text\" class=\"prop-input\"";
+    if (id && *id) {
+        row += " id=\"";
+        row += id;
+        row += "\"";
+    }
+    row += " data-action=\"";
     row += action;
     row += "\" value=\"" + escapeRml(value) + "\"";
     if (disabled) row += " disabled=\"disabled\"";
@@ -101,6 +108,15 @@ std::string outsideSceneWarning(SceneContainment containment, bool playing) {
     html += "\" data-action=\"bring-entity-into-scene\">"
             "<span class=\"icon\">&#xea5f;</span>Bring Into Scene</button>";
     return html;
+}
+
+std::string BoxColliderModeLabel(BoxColliderMode mode) {
+    switch (mode) {
+        case BoxColliderMode::Solid: return "Solid";
+        case BoxColliderMode::Trigger: return "Trigger";
+        case BoxColliderMode::OneWayPlatform: return "One Way Platform";
+    }
+    return "Solid";
 }
 
 const SceneLayerDef* findLayer(const SceneDef& scene, const std::string& layerId) {
@@ -198,6 +214,24 @@ void InspectorPanel::cancelSceneLayerRename(Rml::ElementDocument* document,
                                             const EditorCoordinator& coordinator) {
     layerRename_.reset();
     refresh(document, coordinator);
+}
+
+void InspectorPanel::showEntityPositionPreview(Rml::ElementDocument* document,
+                                               const EditorCoordinator& coordinator,
+                                               EntityId entity,
+                                               Vec2 position) {
+    if (!document || coordinator.selection().primaryEntity != entity) return;
+    if (!coordinator.document().findInstanceInScene(coordinator.state().activeSceneId, entity))
+        return;
+
+    const auto setValue = [&](const char* id, const std::string& value) {
+        Rml::Element* element = document->GetElementById(id);
+        if (auto* control = rmlui_dynamic_cast<Rml::ElementFormControl*>(element)) {
+            control->SetValue(value);
+        }
+    };
+    setValue("inspector-pos-x", num(position.x));
+    setValue("inspector-pos-y", num(position.y));
 }
 
 bool InspectorPanel::reconcileSceneLayerRenameUiState(const EditorCoordinator& coordinator) {
@@ -398,8 +432,10 @@ void InspectorPanel::refresh(Rml::ElementDocument* document,
 
     // -- Transform (instance-owned; structural, no remove) --------------------
     html += header("&#xf22f;", "Transform", "INSTANCE", "", "", playing);
-    html += field("Position X", "commit-pos-x", num(inst->transform.position.x), playing);
-    html += field("Position Y", "commit-pos-y", num(inst->transform.position.y), playing);
+    html += field("Position X", "commit-pos-x", num(inst->transform.position.x), playing,
+                  "inspector-pos-x");
+    html += field("Position Y", "commit-pos-y", num(inst->transform.position.y), playing,
+                  "inspector-pos-y");
     const SceneFrameSnapshot frame = collectSceneFrameSnapshot(
         coordinator.document(), coordinator.state().activeSceneId, selected);
     if (const std::optional<WorldRect> bounds = editorBoundsForEntity(frame, selected)) {
@@ -454,10 +490,22 @@ void InspectorPanel::refresh(Rml::ElementDocument* document,
                 "<button class=\"" + btn + "\" data-action=\"toggle-box-enabled\">";
         html += collider->enabled ? "On" : "Off";
         html += "</button></div>";
-        html += "<div class=\"prop-row\"><span class=\"prop-label\">Trigger</span>"
-                "<button class=\"" + btn + "\" data-action=\"toggle-box-trigger\">";
-        html += collider->isTrigger ? "On" : "Off";
-        html += "</button></div>";
+        html += "<div class=\"mode-block\"><span class=\"mode-label\">Mode</span>"
+                "<div class=\"mode-options\">";
+        const auto modeOption = [&](BoxColliderMode mode, const char* arg, const char* label) {
+            html += "<button class=\"panel-btn mode-option";
+            if (collider->mode == mode) html += " active";
+            if (playing) html += " disabled";
+            html += "\" data-action=\"set-box-mode\" data-arg=\"";
+            html += arg;
+            html += "\">";
+            html += label;
+            html += "</button>";
+        };
+        modeOption(BoxColliderMode::Solid, "solid", "Solid");
+        modeOption(BoxColliderMode::Trigger, "trigger", "Trigger");
+        modeOption(BoxColliderMode::OneWayPlatform, "oneWayPlatform", "One Way Platform");
+        html += "</div></div>";
         html += field("Offset X", "commit-box-offset-x", num(collider->offset.x), playing);
         html += field("Offset Y", "commit-box-offset-y", num(collider->offset.y), playing);
         html += field("Size W", "commit-box-size-x", num(collider->size.x), playing);

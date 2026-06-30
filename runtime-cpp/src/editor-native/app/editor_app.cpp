@@ -15,6 +15,7 @@
 #include "editor-native/model/play_session.h"
 #include "editor-native/model/scene_frame_snapshot.h"
 #include "editor-native/ui/editor_ui.h"
+#include "editor-native/view/scene_grid.h"
 #include "editor-native/view/scene_view.h"
 #include "editor-native/view/texture_cache.h"
 
@@ -149,6 +150,30 @@ bool sceneSurfaceContains(const ViewportRect& rect, const SceneViewCamera& camer
     return screen.x >= left && screen.x < right && screen.y >= top && screen.y < bottom;
 }
 
+Vec2 applySceneGridSnap(const EditorCoordinator& coordinator, const SceneId& sceneId,
+                        Vec2 worldPosition) {
+    if (!coordinator.sceneView(sceneId).gridSnapEnabled) return worldPosition;
+    return snapWorldPositionToGrid(
+        worldPosition, makeSceneGridDefinition(coordinator.sceneView(sceneId)));
+}
+
+std::optional<Vec2> dragPreviewPosition(const EditorCoordinator& coordinator,
+                                        const ViewportRect& rect,
+                                        const ViewportDrag& drag) {
+    if (!drag.active) return std::nullopt;
+    const SceneId active = coordinator.state().activeSceneId;
+    const SceneDef* scene = coordinator.document().findScene(active);
+    if (!scene) return std::nullopt;
+
+    const SceneViewCamera cam =
+        makeSceneViewCamera(rect, coordinator.sceneView(active), scene->worldSize);
+    const Vec2 cur = screenToWorld(cam, Vec2{static_cast<float>(GetMouseX()),
+                                             static_cast<float>(GetMouseY())});
+    const Vec2 d{cur.x - drag.startMouseWorld.x, cur.y - drag.startMouseWorld.y};
+    return applySceneGridSnap(
+        coordinator, active, Vec2{drag.startEntityPos.x + d.x, drag.startEntityPos.y + d.y});
+}
+
 // Edit-mode pick + drag: press hit-tests and selects; release commits one move.
 // Motion between press and release is shown as a local preview by the draw path,
 // not as a stream of commands.
@@ -183,12 +208,10 @@ void routeViewportPickDrag(EditorCoordinator& coordinator, const ViewportRect& r
     }
 
     if (drag.active && IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
-        const Vec2 world = screenToWorld(cam, mouse);
-        const Vec2 delta{world.x - drag.startMouseWorld.x, world.y - drag.startMouseWorld.y};
-        if (delta.x != 0.f || delta.y != 0.f) {
-            coordinator.execute(SetEntityPositionCommand{
-                active, drag.entity,
-                Vec2{drag.startEntityPos.x + delta.x, drag.startEntityPos.y + delta.y}});
+        if (const std::optional<Vec2> preview = dragPreviewPosition(coordinator, rect, drag)) {
+            if (preview->x != drag.startEntityPos.x || preview->y != drag.startEntityPos.y) {
+                coordinator.execute(SetEntityPositionCommand{active, drag.entity, *preview});
+            }
         }
         drag = ViewportDrag{};
     }
@@ -248,8 +271,9 @@ void routeViewportContextMenu(EditorCoordinator& coordinator, EditorUi& ui,
 
     SpawnPositionOptions options;
     options.edgeMargin = 0.0f;   // "Here" should mean the clicked world position.
-    pendingSpawnPosition =
-        normalizeSpawnPosition(screenToWorld(camera, mouse), scene->worldSize, options);
+    const Vec2 rawSpawn = screenToWorld(camera, mouse);
+    pendingSpawnPosition = normalizeSpawnPosition(
+        applySceneGridSnap(coordinator, active, rawSpawn), scene->worldSize, options);
     bool canCreateInstance = false;
     if (const SceneInstanceDef* selected = coordinator.document().findInstanceInScene(
             active, coordinator.selection().primaryEntity)) {
@@ -604,6 +628,11 @@ int EditorApp::run(int argc, char** argv) {
         }
 
         ui.processFrame();
+        if (!coordinator.isPlaying()) {
+            if (const std::optional<Vec2> preview = dragPreviewPosition(coordinator, rect, drag)) {
+                ui.showEntityPositionPreview(drag.entity, *preview);
+            }
+        }
         host.update();
 
         BeginDrawing();
@@ -619,11 +648,10 @@ int EditorApp::run(int argc, char** argv) {
         if (!playSession && drag.active) {
             // Local drag preview: offset the dragged entity by the live delta so
             // the move is visible before the single command lands on release.
-            const SceneViewCamera cam =
-                makeSceneViewCamera(rect, coordinator.sceneView(active), snapshot.worldSize);
-            const Vec2 cur = screenToWorld(cam, Vec2{static_cast<float>(GetMouseX()),
-                                                     static_cast<float>(GetMouseY())});
-            const Vec2 d{cur.x - drag.startMouseWorld.x, cur.y - drag.startMouseWorld.y};
+            const std::optional<Vec2> preview = dragPreviewPosition(coordinator, rect, drag);
+            const Vec2 d = preview
+                ? Vec2{preview->x - drag.startEntityPos.x, preview->y - drag.startEntityPos.y}
+                : Vec2{};
             for (SceneFrameEntity& e : snapshot.entities)
                 if (e.entityId == drag.entity) { e.bounds.x += d.x; e.bounds.y += d.y; }
             for (SceneFrameSprite& s : snapshot.sprites)
@@ -641,7 +669,9 @@ int EditorApp::run(int argc, char** argv) {
             ? textureRequestsFor(playSession->assets(), assetRoot)
             : textureRequestsFor(coordinator.document().data(), assetRoot);
         textureCache.prepare(snapshot.sprites, textureRequests);
-        sceneView.render(snapshot, coordinator.sceneView(active), rect, textureCache);
+        EditorSceneViewState renderView = coordinator.sceneView(active);
+        if (playSession) renderView.gridVisible = false;
+        sceneView.render(snapshot, renderView, rect, textureCache);
         host.render();
         EndDrawing();
 

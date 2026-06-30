@@ -24,6 +24,11 @@ const PlatformerControllerComponent* platformerOf(const ProjectDocument& documen
     return (type && type->platformerController) ? &*type->platformerController : nullptr;
 }
 
+bool hasOneWayCollider(const EntityDef& type) {
+    return type.boxCollider2D
+        && type.boxCollider2D->mode == BoxColliderMode::OneWayPlatform;
+}
+
 // The canonical field each editable value maps onto.
 float readField(const PlatformerControllerComponent& c, PlatformerField field) {
     switch (field) {
@@ -56,6 +61,10 @@ EditorOperationResult AddPlatformerControllerCommand::apply(ProjectDocument& doc
     if (type->topDownController || type->linearMover) {
         return EditorOperationResult::failure(
             "Object type already has a movement driver (remove it first)");
+    }
+    if (hasOneWayCollider(*type)) {
+        return EditorOperationResult::failure(
+            "OneWayPlatform does not support movement drivers");
     }
     if (type->platformerController.has_value()) {
         return EditorOperationResult::success(EditorInvalidation::None);

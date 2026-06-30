@@ -80,18 +80,18 @@ private:
     bool captured_ = false;
 };
 
-class SetBoxColliderTriggerCommand final : public EditorCommand {
+class SetBoxColliderModeCommand final : public EditorCommand {
 public:
-    SetBoxColliderTriggerCommand(std::string objectTypeId, bool isTrigger);
+    SetBoxColliderModeCommand(std::string objectTypeId, BoxColliderMode mode);
 
     EditorOperationResult apply(ProjectDocument& document) override;
     EditorOperationResult undo(ProjectDocument& document) override;
-    const char* name() const override { return "SetBoxColliderTrigger"; }
+    const char* name() const override { return "SetBoxColliderMode"; }
 
 private:
     std::string objectTypeId_;
-    bool next_ = false;
-    bool previous_ = false;
+    BoxColliderMode next_ = BoxColliderMode::Solid;
+    BoxColliderMode previous_ = BoxColliderMode::Solid;
     bool captured_ = false;
 };
 

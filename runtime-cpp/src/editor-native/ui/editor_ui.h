@@ -76,6 +76,9 @@ public:
     // F2 affordance for Scene Layer inline rename. Delegates to the Inspector's
     // single beginSceneLayerRename path; no document mutation happens here.
     void beginActiveSceneLayerRename();
+    // Viewport drag preview for the selected entity transform. Presentation only:
+    // the model still changes once, on mouse release, through SetEntityPositionCommand.
+    void showEntityPositionPreview(EntityId entity, Vec2 position);
 
     // Called by the listener; routes one UI interaction to command/intent.
     void handleAction(const std::string& action, const std::string& arg,
@@ -89,6 +92,7 @@ private:
     void applyInvalidations(EditorInvalidation flags);
     void refreshToolbar();
     void updateZoomReadout();   // toolbar zoom %, refreshed on Viewport invalidation
+    void commitGridCellSize(const std::string& text);
 
     EditorCoordinator&                  coordinator_;
     Rml::ElementDocument*               document_;

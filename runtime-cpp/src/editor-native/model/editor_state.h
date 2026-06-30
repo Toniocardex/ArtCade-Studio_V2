@@ -15,6 +15,10 @@ constexpr float kZoomMin = 0.1f;
 constexpr float kZoomMax = 8.0f;
 } // namespace SceneViewLimits
 
+namespace SceneGridDefaults {
+constexpr float kCellSize = 48.0f;
+} // namespace SceneGridDefaults
+
 /** Per-scene editor camera. Stored by SceneId, not the gameplay camera. */
 struct EditorSceneViewState {
     Vec2  pan{};
@@ -27,6 +31,11 @@ struct EditorSceneViewState {
     // entities go into, and the layers hidden in the Edit viewport only.
     std::string                     activeLayerId;
     std::unordered_set<std::string> hiddenLayerIds;
+    // Scene View workspace controls. Grid visibility and snap are intentionally
+    // independent: hiding the grid never disables snapping.
+    bool gridVisible = true;
+    bool gridSnapEnabled = false;
+    float gridCellSize = SceneGridDefaults::kCellSize;
 };
 
 enum class EditorTool {

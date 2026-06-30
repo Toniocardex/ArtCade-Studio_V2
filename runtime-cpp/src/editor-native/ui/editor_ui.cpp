@@ -24,6 +24,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstdlib>
 #include <chrono>
 #include <optional>
@@ -72,6 +73,25 @@ std::string lower(std::string s) {
     std::transform(s.begin(), s.end(), s.begin(),
                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     return s;
+}
+
+std::string compactNumber(float value) {
+    if (!std::isfinite(value)) return "";
+    const float rounded = std::round(value);
+    if (std::fabs(value - rounded) < 0.0005f) {
+        return std::to_string(static_cast<int>(rounded));
+    }
+    std::string s = std::to_string(value);
+    while (!s.empty() && s.back() == '0') s.pop_back();
+    if (!s.empty() && s.back() == '.') s.pop_back();
+    return s;
+}
+
+std::optional<BoxColliderMode> parseBoxColliderModeArg(const std::string& arg) {
+    if (arg == "solid") return BoxColliderMode::Solid;
+    if (arg == "trigger") return BoxColliderMode::Trigger;
+    if (arg == "oneWayPlatform") return BoxColliderMode::OneWayPlatform;
+    return std::nullopt;
 }
 
 bool sceneLayerNameExists(const SceneDef& scene, const std::string& name) {
@@ -135,7 +155,6 @@ public:
         }
 
         const std::string value = formValue(actionElement, event);
-        if (isCommit && value == attribute(actionElement, "value")) return;
         ui_.handleAction(action, arg, value);
     }
 
@@ -302,6 +321,28 @@ void EditorUi::refreshToolbar() {
     // Undo/Redo are derived affordances: available only with history and outside Play.
     setEnabled("btn-undo",         !playing && coordinator_.canUndo());
     setEnabled("btn-redo",         !playing && coordinator_.canRedo());
+    setEnabled("btn-grid-visible", !playing);
+    setEnabled("btn-grid-snap",    !playing);
+    setEnabled("btn-grid-size",    !playing);
+
+    const SceneId active = (playing && coordinator_.playSession())
+        ? coordinator_.playSession()->sceneId()
+        : coordinator_.state().activeSceneId;
+    const EditorSceneViewState& view = coordinator_.sceneView(active);
+    if (Rml::Element* el = document_->GetElementById("btn-grid-visible"))
+        el->SetClass("active", view.gridVisible && !playing);
+    if (Rml::Element* el = document_->GetElementById("btn-grid-snap"))
+        el->SetClass("active", view.gridSnapEnabled && !playing);
+    const std::string cellSize = compactNumber(view.gridCellSize);
+    if (Rml::Element* el = document_->GetElementById("btn-grid-size"))
+        el->SetInnerRML(escapeRml(cellSize) + " &#x25be;");
+    if (Rml::Element* el = document_->GetElementById("grid-size-control"))
+        el->SetClass("disabled", playing);
+    if (Rml::Element* el = document_->GetElementById("grid-cell-size-input")) {
+        el->SetAttribute("value", cellSize);
+        if (auto* control = rmlui_dynamic_cast<Rml::ElementFormControl*>(el))
+            control->SetValue(cellSize);
+    }
 }
 
 bool EditorUi::copySelectedConsoleMessage() {
@@ -313,6 +354,17 @@ bool EditorUi::copySelectedConsoleMessage() {
 
 void EditorUi::beginActiveSceneLayerRename() {
     inspector_.beginActiveSceneLayerRename(document_, coordinator_);
+}
+
+void EditorUi::showEntityPositionPreview(EntityId entity, Vec2 position) {
+    inspector_.showEntityPositionPreview(document_, coordinator_, entity, position);
+}
+
+void EditorUi::commitGridCellSize(const std::string& text) {
+    if (coordinator_.isPlaying()) return;
+    const std::optional<float> parsed = parseNumberField(text);
+    if (!parsed.has_value()) return;
+    coordinator_.apply(SetSceneGridCellSizeIntent{coordinator_.state().activeSceneId, *parsed});
 }
 
 void EditorUi::handleAction(const std::string& action, const std::string& arg,
@@ -423,7 +475,7 @@ void EditorUi::handleAction(const std::string& action, const std::string& arg,
         addBoxCollider(coordinator_);
     } else if (action == "remove-box-collider") {
         removeBoxCollider(coordinator_);
-    } else if (action == "toggle-box-enabled" || action == "toggle-box-trigger") {
+    } else if (action == "toggle-box-enabled") {
         const SceneInstanceDef* inst = coordinator_.document().findInstanceInScene(
             coordinator_.state().activeSceneId, coordinator_.selection().primaryEntity);
         if (inst) {
@@ -431,12 +483,13 @@ void EditorUi::handleAction(const std::string& action, const std::string& arg,
             const auto typeIt = types.find(inst->objectTypeId);
             if (typeIt != types.end() && typeIt->second.boxCollider2D) {
                 const BoxCollider2DComponent& collider = *typeIt->second.boxCollider2D;
-                if (action == "toggle-box-enabled")
-                    setBoxColliderEnabled(coordinator_, !collider.enabled);
-                else
-                    setBoxColliderTrigger(coordinator_, !collider.isTrigger);
+                setBoxColliderEnabled(coordinator_, !collider.enabled);
             }
         }
+    } else if (action == "set-box-mode") {
+        if (coordinator_.isPlaying()) return;
+        const std::optional<BoxColliderMode> mode = parseBoxColliderModeArg(arg);
+        if (mode.has_value()) setBoxColliderMode(coordinator_, *mode);
     } else if (action == "commit-box-offset-x" || action == "commit-box-offset-y"
                || action == "commit-box-size-x" || action == "commit-box-size-y") {
         const SceneInstanceDef* inst = coordinator_.document().findInstanceInScene(
@@ -533,6 +586,22 @@ void EditorUi::handleAction(const std::string& action, const std::string& arg,
             ? coordinator_.playSession()->sceneId()
             : coordinator_.state().activeSceneId;
         coordinator_.apply(SetViewportZoomIntent{active, 1.0f});   // target unchanged
+    } else if (action == "toggle-grid-visible") {
+        if (!coordinator_.isPlaying()) {
+            const SceneId active = coordinator_.state().activeSceneId;
+            coordinator_.apply(SetSceneGridVisibilityIntent{
+                active, !coordinator_.sceneView(active).gridVisible});
+        }
+    } else if (action == "toggle-grid-snap") {
+        if (!coordinator_.isPlaying()) {
+            const SceneId active = coordinator_.state().activeSceneId;
+            coordinator_.apply(SetSceneGridSnapEnabledIntent{
+                active, !coordinator_.sceneView(active).gridSnapEnabled});
+        }
+    } else if (action == "commit-grid-cell-size") {
+        commitGridCellSize(value);
+    } else if (action == "set-grid-cell-size") {
+        commitGridCellSize(arg);
     } else if (action == "zoom-in" || action == "zoom-out") {
         const SceneId active = coordinator_.state().activeSceneId;
         const float current = coordinator_.sceneView(active).zoom;

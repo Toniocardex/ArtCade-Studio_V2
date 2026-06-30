@@ -17,20 +17,11 @@ std::vector<SceneFrameCollider> collectBoxColliderBounds(const ProjectDocument& 
         if (typeIt == types.end() || !typeIt->second.boxCollider2D) continue;
         const BoxCollider2DComponent& collider = *typeIt->second.boxCollider2D;
         if (!collider.enabled) continue;
-        const Vec2 center{
-            instance.transform.position.x + collider.offset.x,
-            instance.transform.position.y + collider.offset.y,
-        };
         out.push_back(SceneFrameCollider{
             instance.id,
-            WorldRect{
-                center.x - collider.size.x * 0.5f,
-                center.y - collider.size.y * 0.5f,
-                collider.size.x,
-                collider.size.y,
-            },
+            boxColliderWorldBounds(instance.transform, collider),
             true,
-            collider.isTrigger,
+            collider.mode,
             instance.id == selectedEntity,
         });
     }
