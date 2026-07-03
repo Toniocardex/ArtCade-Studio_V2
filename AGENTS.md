@@ -34,6 +34,35 @@ exactly what users see in browser. No sync issues.
 ### 6. .artcade Format (ZIP-based)
 **Why**: Single-file distribution, fast web loading, asset encryption (future), version manifest.
 
+### 7. ProjectDocument as the Authoring Authority
+**Why**: ArtCade is an editor, not a loose collection of UI stores. Durable project data must have one owner so save/load, undo/redo, preview sync, migrations, and AI-generated edits cannot drift apart.
+
+- `ProjectDocument` / `ProjectDoc` is the only source of truth for persisted authoring data: scenes, objects, assets, prefab/object types, components, Logic Board data, dialogs, and project settings.
+- UI components display snapshots, dispatch commands/intents, and receive updated snapshots. They must not directly mutate durable entities, scenes, assets, prefab/object types, or rulesheets.
+- Every persistent authoring change must flow through the command/intent path that validates, updates revision/dirty state, and records undo/redo where appropriate.
+- Do not keep two equivalent mutable representations synchronized by hand. If two representations exist, one must be deterministically derived from the other.
+- Use stable IDs for objects, scenes, assets, prefab/object types, components, and rulesheets. Names are display labels only and must not be internal keys.
+- Duplicate names in the same authoring scope are not allowed for generated objects/prefabs. Block the operation or require an explicit unique name.
+
+### 8. Editor State vs Game State
+**Why**: Preview/play must never corrupt authoring data.
+
+- `ProjectDocument` / `ProjectDoc`: saved project data.
+- `EditorWorkspaceState`: temporary editor state such as selection, zoom, visible grid, open panels, focus mode, rulers, and tool palette state.
+- `PlaySession`: runtime state during play/test.
+- `PlaySession` must not write back into `ProjectDocument` unless the user performs an explicit authoring command.
+- UI-only toggles, zoom, selection, panel layout, and editor grid visibility must not mark the project dirty or create undo/redo entries.
+
+### 9. Validation, Versioning, and Assets
+**Why**: Every entry point into the project model must enforce the same contract.
+
+- Every document mutation must pass centralized schema/validator logic. UI code is not the validity authority.
+- Import, paste, AI generation, drag/drop, manual edit, and file load must use the same validation path.
+- Every saved `ProjectDocument` carries a `schemaVersion`; every breaking saved-format change requires an explicit migration.
+- Silent saved-format changes are forbidden.
+- Assets are referenced through registry-backed `AssetRef` / stable asset IDs, not scattered raw paths.
+- Import, move, rename, and delete must update the asset registry atomically. Deleting referenced assets requires dependency checks first.
+
 ---
 
 ## Code Organization
