@@ -1,6 +1,4 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { Dispatch } from 'react'
-import type { Action as EditorAction } from '../../store/editor-store'
 import { safeProjectFolderName } from '../../utils/project'
 import type { ProjectDoc } from '../../types'
 
@@ -19,7 +17,7 @@ export function flushProjectNameDraft(
 
 export function useProjectNameEditor(
   project: ProjectDoc | null,
-  dispatch: Dispatch<EditorAction>,
+  renameProject: (name: string) => void,
 ) {
   const [draft, setDraft] = useState(project?.projectName ?? 'Untitled')
 
@@ -32,19 +30,19 @@ export function useProjectNameEditor(
     const { project: nextProject, nextDraft, didRename } = flushProjectNameDraft(project, draft)
     setDraft(nextDraft)
     if (didRename) {
-      dispatch({ type: 'PROJECT_RENAME', name: nextProject.projectName })
+      renameProject(nextProject.projectName)
     }
-  }, [draft, dispatch, project])
+  }, [draft, project, renameProject])
 
   const flushBeforePersist = useCallback((): ProjectDoc | null => {
     if (!project) return null
     const { project: nextProject, nextDraft, didRename } = flushProjectNameDraft(project, draft)
     if (nextDraft !== draft) setDraft(nextDraft)
     if (didRename) {
-      dispatch({ type: 'PROJECT_RENAME', name: nextProject.projectName })
+      renameProject(nextProject.projectName)
     }
     return nextProject
-  }, [draft, dispatch, project])
+  }, [draft, project, renameProject])
 
   return { draft, setDraft, commitDraft, flushBeforePersist }
 }

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { openDialogEditorForId } from '../../panels/dialog/dialog-modal-api'
 import { useEditorDispatch, useEditorSelector, useEditorStore } from '../../store/editor-store'
+import { useAuthoringCommands } from '../../authoring/useAuthoringCommands'
 import { assetFolderItemCount, buildProjectExplorerData } from '../../utils/project-explorer-tree'
 import { useExplorerExpanded } from '../../hooks/useExplorerExpanded'
 import { useAssetExplorerActions } from '../../hooks/useAssetExplorerActions'
@@ -63,6 +64,7 @@ export type ProjectExplorerPanelProps = Readonly<{
 
 export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectExplorerPanelProps) {
   const dispatch = useEditorDispatch()
+  const { deleteAsset } = useAuthoringCommands()
   const store = useEditorStore()
   const openScripts = useEditorSelector((s) => s.openScripts)
   const projectPath = useEditorSelector((s) => s.projectPath)
@@ -504,8 +506,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                                       id: 'remove',
                                       label: 'Remove image',
                                       danger: true,
-                                      onSelect: () =>
-                                        dispatch({ type: 'ASSET_REMOVE', assetId: imgRow.id }),
+                                      onSelect: () => deleteAsset('image', imgRow.id),
                                     },
                                   ]
                                 : [],
@@ -536,8 +537,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                                   id: 'remove',
                                   label: 'Remove audio',
                                   danger: true,
-                                  onSelect: () =>
-                                    dispatch({ type: 'AUDIO_ASSET_REMOVE', assetId: row.id }),
+                                  onSelect: () => deleteAsset('audio', row.id),
                                 },
                               ],
                             }
@@ -565,8 +565,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                                   id: 'remove',
                                   label: 'Remove font',
                                   danger: true,
-                                  onSelect: () =>
-                                    dispatch({ type: 'FONT_ASSET_REMOVE', assetId: row.id }),
+                                  onSelect: () => deleteAsset('font', row.id),
                                 },
                               ],
                             }
@@ -609,11 +608,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                                 id: 'remove',
                                 label: 'Remove tileset',
                                 danger: true,
-                                onSelect: () =>
-                                  dispatch({
-                                    type: 'TILESET_ASSET_REMOVE',
-                                    assetId: row.assetId,
-                                  }),
+                                onSelect: () => deleteAsset('tileset', row.assetId),
                               },
                             ],
                           }
@@ -675,8 +670,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                                     id: 'remove',
                                     label: 'Remove image',
                                     danger: true,
-                                    onSelect: () =>
-                                      dispatch({ type: 'ASSET_REMOVE', assetId: img.id }),
+                                    onSelect: () => deleteAsset('image', img.id),
                                   },
                                 ],
                                 assetMulti.batchRefsInCategory('images'),
@@ -729,8 +723,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                                   id: 'remove',
                                   label: 'Remove audio',
                                   danger: true,
-                                  onSelect: () =>
-                                    dispatch({ type: 'AUDIO_ASSET_REMOVE', assetId: a.id }),
+                                  onSelect: () => deleteAsset('audio', a.id),
                                 },
                               ],
                               assetMulti.batchRefsInCategory('audio'),
@@ -774,8 +767,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                                   id: 'remove',
                                   label: 'Remove font',
                                   danger: true,
-                                  onSelect: () =>
-                                    dispatch({ type: 'FONT_ASSET_REMOVE', assetId: f.id }),
+                                  onSelect: () => deleteAsset('font', f.id),
                                 },
                               ],
                               assetMulti.batchRefsInCategory('fonts'),
@@ -857,11 +849,7 @@ export default function ProjectExplorerPanel({ explorerPane = 'all' }: ProjectEx
                                   id: 'remove',
                                   label: 'Remove tileset',
                                   danger: true,
-                                  onSelect: () =>
-                                    dispatch({
-                                      type: 'TILESET_ASSET_REMOVE',
-                                      assetId: t.assetId,
-                                    }),
+                                  onSelect: () => deleteAsset('tileset', t.assetId),
                                 },
                               ],
                               assetMulti.batchRefsInCategory('tilesets'),
