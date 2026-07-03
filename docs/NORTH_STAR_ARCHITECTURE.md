@@ -37,7 +37,8 @@
 
 | Layer | Must | Must not |
 |-------|------|----------|
-| **Editor** | Edit `ProjectDoc`, validate, sync preview via `RuntimeSyncService` | Run gameplay physics, call Raylib, own runtime truth |
+| **Editor UI** | Render snapshots, collect input, dispatch commands/intents | Mutate durable project data, validate as authority, run gameplay physics, call Raylib, own runtime truth |
+| **Authoring command layer** | Apply persistent commands to `ProjectDoc`, validate, produce undo/dirty/revision, sync preview via services | Depend on React components, keep duplicate project truth |
 | **Project model** | Be source of truth for save/export/play payload | Depend on React or Raylib |
 | **Runtime** | Step simulation, render, run Lua / compiled logic | Know Inspector UI details |
 | **Raylib backend** | Implement draw/input/audio | Contain game rules or Logic Board semantics |
@@ -50,12 +51,28 @@ See also: [`RAYLIB_PLATFORM_BOUNDARY.md`](RAYLIB_PLATFORM_BOUNDARY.md), [`ARCHIT
 
 Everything durable flows from **`ProjectDoc`** (`editor/src/types`):
 
-- Editor reducers + undo (`project-history.ts`) snapshot the doc.
+- Authoring commands are the only allowed persistent mutation path.
+- Editor UI renders snapshots and dispatches intents; it does not own saved truth.
+- Undo/redo (`project-history.ts`) snapshots the doc only for authoring commands.
 - Save/export writes `project.json` inside `.artcade` (ZIP).
 - Preview/play pushes a **runtime projection** (`runtime-fingerprint.ts`, `runtime-sync-service.ts`).
 - Validation runs **before** save and **before** play (`project-validator.ts`, `project-health.ts`).
 
 The runtime never parses Logic Board JSON at play time — boards are **compiled to Lua** in the editor (`logic-compile-service.ts`).
+
+### 3.1 Authoring command boundary
+
+ArtCade should have one obvious entry point for durable editor actions:
+
+```ts
+dispatchAuthoringCommand(command)
+```
+
+Each action is routed to one domain handler: assets, objects, scenes, dialogs, Logic Board, settings, or layers. The handler owns the business rule, calls centralized validation/schema logic, returns the updated `ProjectDoc`, and records undo/redo plus dirty/revision when the command changes saved authoring data.
+
+The UI must not directly mutate, normalize, repair, validate, persist, or synchronize `ProjectDoc`. UI-only state such as selection, zoom, visible grid, focus mode, panel state, and open tabs belongs to `EditorWorkspaceState` and must not dirty the project. Play/test state belongs to `PlaySession` and must not write back to `ProjectDoc` unless the user triggers an explicit authoring command.
+
+See also: [`AUTHORING_COMMAND_ARCHITECTURE.md`](AUTHORING_COMMAND_ARCHITECTURE.md).
 
 ---
 
@@ -96,7 +113,7 @@ The report at repo root describes a **greenfield C/C++ monolith** (`src/editor/`
 | `LogicRuntime` in C++ | **Compile boards → Lua** | One execution path; same API as hand-written scripts |
 | Multi-file project tree (`scenes/*.json`, …) | **`project.json` + `.artcade` ZIP** | Shipping format already in use |
 | OOP entities | **ECS (EnTT)** | Cache-friendly WASM performance |
-| Granular `Command` objects everywhere | **Project snapshot undo** (+ domain reducers) | Shipped; refine only if undo memory hurts |
+| Ad-hoc UI mutations | **Single authoring command entry point + project snapshot undo** | Keeps UI thin, undo reliable, and ProjectDoc authoritative |
 | Folder layout `src/{core,runtime,editor}` | **`editor/` + `runtime-cpp/`** | Same boundaries, different tree |
 
 **Do not** propose rewriting the editor in C++ to “match the report” unless there is a new product mandate — align on **principles**, not folder names.
@@ -193,11 +210,12 @@ Implemented report-alignment tranches (see [`ROADMAP_INTEGRATIVA.md`](../ROADMAP
 
 ## 12. Decision checklist (before a large PR)
 
-1. Does it mutate **`ProjectDoc`** (or a documented projection), not ad-hoc globals?
+1. Does any durable change enter through one **authoring command handler**?
 2. Does gameplay stay out of React and out of Raylib headers outside the platform layer?
 3. If it touches Logic Board, does **compile + validator** stay in sync?
 4. If it needs undo, does it go through existing **project history** or a justified new command type?
-5. Would the change still make sense for **WASM preview and native export** together?
+5. Does UI-only state stay out of dirty/revision/undo?
+6. Would the change still make sense for **WASM preview and native export** together?
 
 If any answer is “no”, stop and narrow the scope.
 
@@ -208,6 +226,8 @@ If any answer is “no”, stop and narrow the scope.
 | Doc | Topic |
 |-----|--------|
 | [`LOGIC_BOARD_SPEC.md`](LOGIC_BOARD_SPEC.md) | Board JSON, compiler, UI terms |
+| [`AUTHORING_COMMAND_ARCHITECTURE.md`](AUTHORING_COMMAND_ARCHITECTURE.md) | UI-only rule, single command entry point, simplification targets |
+| [`SIMPLIFICATION_REFACTOR_PLAN.md`](SIMPLIFICATION_REFACTOR_PLAN.md) | Delivery plan for removing unnecessary complexity by domain |
 | [`OBJECT_TYPES_ARCHITECTURE.md`](OBJECT_TYPES_ARCHITECTURE.md) | format v2, instances |
 | [`FIXED_STEP_CONTRACT.md`](FIXED_STEP_CONTRACT.md) | Physics timestep |
 | [`Report-Struttura-Artcade.md`](Report-Struttura-Artcade.md) | Original north-star prose (Italian) |
