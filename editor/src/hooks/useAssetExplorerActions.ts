@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { useEditorDispatch, useEditorSelector, useEditorStore } from '../store/editor-store'
+import { useAuthoringCommands } from '../authoring/useAuthoringCommands'
 import { DuplicateAssetImportError, importAssetFile } from '../utils/asset-file-api'
 import { importImageAssetFromFile } from '../utils/image-asset-import'
 import { dirName } from '../utils/project'
@@ -114,6 +115,7 @@ function fileReaderDataUrl(result: string | ArrayBuffer | null): string {
 
 export function useAssetExplorerActions() {
   const dispatch = useEditorDispatch()
+  const { deleteAsset } = useAuthoringCommands()
   const store = useEditorStore()
   const selection = useEditorSelector((s) => s.inspectorAsset)
   const project = useEditorSelector((s) => s.project)
@@ -381,25 +383,25 @@ export function useAssetExplorerActions() {
 
     switch (assetSelection.type) {
       case 'image':
-        dispatch({ type: 'ASSET_REMOVE', assetId: assetSelection.id })
+        deleteAsset('image', assetSelection.id)
         break
       case 'audio':
-        dispatch({ type: 'AUDIO_ASSET_REMOVE', assetId: assetSelection.id })
+        deleteAsset('audio', assetSelection.id)
         break
       case 'font':
-        dispatch({ type: 'FONT_ASSET_REMOVE', assetId: assetSelection.id })
+        deleteAsset('font', assetSelection.id)
         break
       case 'tileset': {
         const tileset = project.tilesets?.[assetSelection.id]
         if (tileset) releaseTilesetAsset(tileset)
-        dispatch({ type: 'TILESET_ASSET_REMOVE', assetId: assetSelection.id })
+        deleteAsset('tileset', assetSelection.id)
         break
       }
     }
     dispatch({ type: 'SELECT_INSPECTOR_ASSET', asset: null })
     showFlash('Asset removed')
     return true
-  }, [project, dispatch, showFlash])
+  }, [project, dispatch, deleteAsset, showFlash])
 
   const removeSelection = useCallback(() => {
     if (!selection) return

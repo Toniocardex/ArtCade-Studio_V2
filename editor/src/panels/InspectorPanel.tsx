@@ -4,6 +4,7 @@
 
 import { useCallback, useState } from 'react'
 import { shallowEqual, useEditorDispatch, useEditorSelector } from '../store/editor-store'
+import { useAuthoringCommands } from '../authoring/useAuthoringCommands'
 import { SceneSettingsSection } from './inspector/SceneSettingsSection'
 import { WorldSettingsSection, WorldDebugTimeSection } from './inspector/WorldSettingsSection'
 import { EntityHeaderBar } from './inspector/EntityHeaderBar'
@@ -67,6 +68,7 @@ function EntityInspector({ entity }: EntityInspectorProps) {
 }
 
 export default function InspectorPanel() {
+  const { deleteAsset } = useAuthoringCommands()
   const project = useEditorSelector((s) => s.project)
   const selection = useEditorSelector((s) => s.selection)
   const inspectorAsset = useEditorSelector((s) => s.inspectorAsset)
@@ -143,7 +145,7 @@ export default function InspectorPanel() {
                 }
               }
               releaseTilesetAsset(paintTileset)
-              dispatch({ type: 'TILESET_ASSET_REMOVE', assetId: paintTileset.assetId })
+              deleteAsset('tileset', paintTileset.assetId)
               dispatch({ type: 'TILESET_PAINT_END' })
             })()}
           />
