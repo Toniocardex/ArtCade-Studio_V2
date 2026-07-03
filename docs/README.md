@@ -17,6 +17,10 @@
 
 Riferimento unico allineato al report struttura ArtCade, con sezione **Come differisce V2** (React, ECS, compile-to-Lua, `.artcade`). Usalo prima di proporre refactor massicci.
 
+Documento operativo collegato: **`AUTHORING_COMMAND_ARCHITECTURE.md`** (~10 min) — UI solo UI, singolo entry point per i comandi authoring, domini piccoli, niente sincronizzazioni nascoste.
+
+Piano di delivery: **`SIMPLIFICATION_REFACTOR_PLAN.md`** (~15 min) — fasi ordinate per semplificare store, asset, dialoghi, oggetti, scene, layer, Logic Board, validazione e runtime projection.
+
 Prosa estesa del report greenfield (italiano, riferimento storico): **`Report-Struttura-Artcade.md`**.
 
 ### 1️⃣ **ARCHITECTURAL_RATIONALE.md** — Il PERCHÉ (20–30 min) ⭐ INIZIO QUI
@@ -105,6 +109,8 @@ Guida specializzata         (REACT_WASM_PATTERN.md o ECS_IMPLEMENTATION_GUIDE.md
 | **ARCHITECTURAL_RATIONALE.md** | Razionale decisioni | 20–30min | Everyone | ⭐⭐⭐ |
 | **TECHNICAL_OVERVIEW.md** (v2.2) | Architettura completa | 45–60min | Engineers | ⭐⭐⭐ |
 | **ARCHITECTURE_INTEGRATION.md** | End-to-end flows | 15–20min | Tech leads | ⭐⭐ |
+| **AUTHORING_COMMAND_ARCHITECTURE.md** | Refactor target: UI-only, single command entry point, domain ownership, simplification checklist | ~10min | Editor / Tech lead / AI agents | ⭐⭐⭐ |
+| **SIMPLIFICATION_REFACTOR_PLAN.md** | Piano operativo per eliminare complessita inutile e migrare a command boundary per domini | ~15min | Editor / Tech lead / AI agents | ⭐⭐⭐ |
 | **REACT_WASM_PATTERN.md** | Buffering implementazione | 15–20min | React dev | ⭐⭐ |
 | **CODEMIRROR_EDITOR.md** | Script Editor CodeMirror 6: My Script, Logic Board e Combined Preview | ~5min | React dev | ⭐ |
 | **ADAPTIVE_LAYOUT.md** | Layout adattivo workbench: scala UI, Focus, resize, tier full/compact/minimal, persistenza `WxH`, roadmap fasi 1–5 | ~20min | Editor / React | ⭐⭐⭐ |
