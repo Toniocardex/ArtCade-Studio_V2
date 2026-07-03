@@ -4,7 +4,7 @@ namespace ArtCade::ProjectDefaults {
 
 /**
  * Default scene world / viewport sizes for JSON fallbacks and struct init.
- * Keep in sync with editor/src/constants/editor-viewport.ts
+ * Must stay in sync with editor/src/constants/editor-viewport.ts
  * (DEFAULT_SCENE_SIZE, DEFAULT_VIEWPORT_SIZE).
  */
 inline constexpr float kSceneWorldWidth       = 512.f;
