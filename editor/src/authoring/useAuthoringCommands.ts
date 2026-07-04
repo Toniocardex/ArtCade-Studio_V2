@@ -5,8 +5,16 @@ import {
 } from './command-dispatcher'
 import type { AuthoringCommand } from './commands'
 import type { ObjectCreateAction } from '../utils/object-create'
-import type { AnimationClipDef, AudioAsset, FontAsset, ImageAsset } from '../types'
+import type {
+  AnimationClipDef,
+  AssetFolderCategory,
+  AudioAsset,
+  FontAsset,
+  ImageAsset,
+  ImageAssetUsage,
+} from '../types'
 import type { TilesetAsset } from '../types/tilemap'
+import type { AssetRefKind } from './commands/assets'
 
 export function useAuthoringCommands() {
   const dispatch = useEditorDispatch()
@@ -45,6 +53,21 @@ export function useAuthoringCommands() {
       clips: AnimationClipDef[],
       coalesceKey?: string,
     ) => run({ type: 'asset.image.setClips', assetId, clips, coalesceKey }),
+    createAssetFolder: (
+      category: AssetFolderCategory,
+      name: string,
+      usage?: ImageAssetUsage,
+    ) => run({ type: 'asset.folder.create', category, name, usage }),
+    renameAssetFolder: (folderId: string, name: string) =>
+      run({ type: 'asset.folder.rename', folderId, name }),
+    moveAssetToFolder: (folderId: string, assetType: AssetRefKind, assetId: string) =>
+      run({ type: 'asset.folder.moveAsset', folderId, assetType, assetId }),
+    unassignAssetFromFolders: (assetType: AssetRefKind, assetId: string) =>
+      run({ type: 'asset.folder.unassignAsset', assetType, assetId }),
+    deleteAssetFolder: (folderId: string) =>
+      run({ type: 'asset.folder.delete', folderId }),
+    setImageAssetUsage: (assetId: string, usage: ImageAssetUsage) =>
+      run({ type: 'asset.image.setUsage', assetId, usage }),
     addScene: (sourceSceneId?: string) =>
       run({ type: 'scene.addEmpty', sourceSceneId }),
     renameScene: (sceneId: string, name: string) =>

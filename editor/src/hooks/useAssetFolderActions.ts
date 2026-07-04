@@ -1,7 +1,8 @@
 import { useCallback } from 'react'
-import { useEditorDispatch, useEditorSelector } from '../store/editor-store'
+import { useEditorSelector } from '../store/editor-store'
 import { confirmDialog } from '../utils/native-dialog'
 import { useTextPrompt } from './useTextPrompt'
+import { useAuthoringCommands } from '../authoring/useAuthoringCommands'
 import {
   isVirtualFolderNameTaken,
   virtualFoldersForCategory,
@@ -19,7 +20,7 @@ import {
 export type { AssetMoveSource }
 
 export function useAssetFolderActions() {
-  const dispatch = useEditorDispatch()
+  const authoring = useAuthoringCommands()
   const promptText = useTextPrompt()
   const project = useEditorSelector((s) => s.project)
 
@@ -44,10 +45,10 @@ export function useAssetFolderActions() {
         defaultValue: 'New Folder',
       }).then((name) => {
         if (!name) return
-        dispatch({ type: 'ASSET_FOLDER_CREATE', category, name, usage })
+        authoring.createAssetFolder(category, name, usage)
       })
     },
-    [dispatch, project, promptText],
+    [authoring, project, promptText],
   )
 
   const renameVirtualFolder = useCallback(
@@ -71,13 +72,13 @@ export function useAssetFolderActions() {
             )
             return
           }
-          dispatch({ type: 'ASSET_FOLDER_RENAME', folderId, name: trimmed })
+          authoring.renameAssetFolder(folderId, trimmed)
         })
       }
 
       promptRename(`Folder name (${folder.category}):`, folder.name)
     },
-    [dispatch, project, promptText],
+    [authoring, project, promptText],
   )
 
   const moveRefsToFolder = useCallback(
@@ -90,10 +91,10 @@ export function useAssetFolderActions() {
       const validation = validateVirtualAssetMoveToFolder(project, folderId, refs)
       if (!validation.ok) return
       for (const ref of refs) {
-        dispatch({ type: 'ASSET_MOVE_TO_FOLDER', folderId, assetType: ref.type, assetId: ref.id })
+        authoring.moveAssetToFolder(folderId, ref.type, ref.id)
       }
     },
-    [dispatch, project],
+    [authoring, project],
   )
 
   const moveRefsToImageUsage = useCallback(
@@ -105,10 +106,10 @@ export function useAssetFolderActions() {
       if (!project) return
       for (const ref of refs) {
         if (ref.type !== 'image' || !project.assets?.[ref.id]) continue
-        dispatch({ type: 'IMAGE_ASSET_SET_USAGE', assetId: ref.id, usage })
+        authoring.setImageAssetUsage(ref.id, usage)
       }
     },
-    [dispatch, project],
+    [authoring, project],
   )
 
   const moveAssetToFolder = useCallback(
@@ -128,10 +129,10 @@ export function useAssetFolderActions() {
       const validation = validateVirtualAssetUnassign(project, category, refs)
       if (!validation.ok) return
       for (const ref of refs) {
-        dispatch({ type: 'ASSET_UNASSIGN_FROM_FOLDERS', assetType: ref.type, assetId: ref.id })
+        authoring.unassignAssetFromFolders(ref.type, ref.id)
       }
     },
-    [dispatch, project],
+    [authoring, project],
   )
 
   const unassignAssetFromFolders = useCallback(
@@ -151,10 +152,10 @@ export function useAssetFolderActions() {
         { title: 'Delete folder', kind: 'warning' },
       ).then((ok) => {
         if (!ok) return
-        dispatch({ type: 'ASSET_FOLDER_DELETE', folderId })
+        authoring.deleteAssetFolder(folderId)
       })
     },
-    [dispatch, project],
+    [authoring, project],
   )
 
   return {

@@ -69,6 +69,41 @@ describe('materializeAuthoringCommand', () => {
     })
   })
 
+  it('materializes asset folder commands behind the command boundary', () => {
+    expect(materializeAuthoringCommand({
+      type: 'asset.folder.create',
+      category: 'audio',
+      name: 'SFX',
+    })).toEqual({
+      status: 'applied',
+      actions: [{ type: 'ASSET_FOLDER_CREATE', category: 'audio', name: 'SFX', usage: undefined }],
+    })
+
+    expect(materializeAuthoringCommand({
+      type: 'asset.folder.moveAsset',
+      folderId: 'folder1',
+      assetType: 'font',
+      assetId: 'font1',
+    })).toEqual({
+      status: 'applied',
+      actions: [{
+        type: 'ASSET_MOVE_TO_FOLDER',
+        folderId: 'folder1',
+        assetType: 'font',
+        assetId: 'font1',
+      }],
+    })
+
+    expect(materializeAuthoringCommand({
+      type: 'asset.image.setUsage',
+      assetId: 'hero',
+      usage: 'ui',
+    })).toEqual({
+      status: 'applied',
+      actions: [{ type: 'IMAGE_ASSET_SET_USAGE', assetId: 'hero', usage: 'ui' }],
+    })
+  })
+
   it('uses the ProjectDocument snapshot to materialize image patches', () => {
     const project = {
       assets: {

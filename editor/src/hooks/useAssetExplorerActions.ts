@@ -45,8 +45,6 @@ export type AssetImportFolderTarget = Readonly<{
   folderId?: string
 }>
 
-type FolderImportAssetType = 'audio' | 'font' | 'tileset'
-
 function assetDeleteTarget(
   project: ProjectDoc | null,
   selection: AssetExplorerSelection,
@@ -82,20 +80,6 @@ function assetDeleteTarget(
 
 function isDuplicateImportError(err: unknown): boolean {
   return err instanceof DuplicateAssetImportError
-}
-
-export function moveImportedAssetToFolderAction(
-  target: AssetImportFolderTarget,
-  assetType: FolderImportAssetType,
-  assetId: string,
-) {
-  if (!target.folderId) return null
-  return {
-    type: 'ASSET_MOVE_TO_FOLDER' as const,
-    folderId: target.folderId,
-    assetType,
-    assetId,
-  }
 }
 
 export function shouldOpenSpritesheetStudioOnExplorerEnter(
@@ -166,12 +150,7 @@ export function useAssetExplorerActions() {
       })
       authoring.upsertImageAsset(asset)
       if (target.folderId) {
-        dispatch({
-          type: 'ASSET_MOVE_TO_FOLDER',
-          folderId: target.folderId,
-          assetType: 'image',
-          assetId: asset.id,
-        })
+        authoring.moveAssetToFolder(target.folderId, 'image', asset.id)
       }
       return { asset, imported }
     },
@@ -284,8 +263,7 @@ export function useAssetExplorerActions() {
             category: 'sfx',
           }
           authoring.upsertAudioAsset(asset)
-          const moveAction = moveImportedAssetToFolderAction(target, 'audio', asset.id)
-          if (moveAction) dispatch(moveAction)
+          if (target.folderId) authoring.moveAssetToFolder(target.folderId, 'audio', asset.id)
           showFlash(imported.persisted
             ? `Imported ${file.name}`
             : `${file.name} (save to persist)`)
@@ -327,8 +305,7 @@ export function useAssetExplorerActions() {
             defaultSize: 32,
           }
           authoring.upsertFontAsset(asset)
-          const moveAction = moveImportedAssetToFolderAction(target, 'font', asset.id)
-          if (moveAction) dispatch(moveAction)
+          if (target.folderId) authoring.moveAssetToFolder(target.folderId, 'font', asset.id)
           showFlash(imported.persisted
             ? `Imported ${file.name}`
             : `${file.name} (save to persist)`)
@@ -467,12 +444,9 @@ export function useAssetExplorerActions() {
               rejectContentHashes: contentHashesForAssetKind(project, 'tileset'),
             })
             authoring.upsertTilesetAsset(tileset)
-            const moveAction = moveImportedAssetToFolderAction(
-              target,
-              'tileset',
-              tileset.assetId,
-            )
-            if (moveAction) dispatch(moveAction)
+            if (target.folderId) {
+              authoring.moveAssetToFolder(target.folderId, 'tileset', tileset.assetId)
+            }
             dispatch({ type: 'TILESET_PAINT_BEGIN', tilesetId: tileset.assetId })
             await assetOrchestrator.ensureTilesetImageRegistered(project, tileset, root ?? '')
             showFlash(imported.persisted

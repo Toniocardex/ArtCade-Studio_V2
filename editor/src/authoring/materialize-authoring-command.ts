@@ -68,6 +68,36 @@ export function materializeAuthoringCommand(
         clips: command.clips,
         coalesceKey: command.coalesceKey,
       })
+    case 'asset.folder.create':
+      return actionsApplied({
+        type: 'ASSET_FOLDER_CREATE',
+        category: command.category,
+        name: command.name,
+        usage: command.usage,
+      })
+    case 'asset.folder.rename':
+      return actionsApplied({ type: 'ASSET_FOLDER_RENAME', folderId: command.folderId, name: command.name })
+    case 'asset.folder.moveAsset':
+      return actionsApplied({
+        type: 'ASSET_MOVE_TO_FOLDER',
+        folderId: command.folderId,
+        assetType: command.assetType,
+        assetId: command.assetId,
+      })
+    case 'asset.folder.unassignAsset':
+      return actionsApplied({
+        type: 'ASSET_UNASSIGN_FROM_FOLDERS',
+        assetType: command.assetType,
+        assetId: command.assetId,
+      })
+    case 'asset.folder.delete':
+      return actionsApplied({ type: 'ASSET_FOLDER_DELETE', folderId: command.folderId })
+    case 'asset.image.setUsage':
+      return actionsApplied({
+        type: 'IMAGE_ASSET_SET_USAGE',
+        assetId: command.assetId,
+        usage: command.usage,
+      })
     case 'scene.addEmpty':
       return actionsApplied({ type: 'SCENE_ADD_EMPTY', sourceSceneId: command.sourceSceneId })
     case 'scene.rename':

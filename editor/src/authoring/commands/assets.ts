@@ -1,7 +1,15 @@
-import type { AnimationClipDef, AudioAsset, FontAsset, ImageAsset } from '../../types'
+import type {
+  AnimationClipDef,
+  AssetFolderCategory,
+  AudioAsset,
+  FontAsset,
+  ImageAsset,
+  ImageAssetUsage,
+} from '../../types'
 import type { TilesetAsset } from '../../types/tilemap'
 
 export type AssetDeleteKind = 'image' | 'audio' | 'font' | 'tileset'
+export type AssetRefKind = AssetDeleteKind
 
 export type DeleteAssetCommand = Readonly<{
   type: 'asset.delete'
@@ -49,6 +57,43 @@ export type SetImageAssetClipsCommand = Readonly<{
   coalesceKey?: string
 }>
 
+export type CreateAssetFolderCommand = Readonly<{
+  type: 'asset.folder.create'
+  category: AssetFolderCategory
+  name: string
+  usage?: ImageAssetUsage
+}>
+
+export type RenameAssetFolderCommand = Readonly<{
+  type: 'asset.folder.rename'
+  folderId: string
+  name: string
+}>
+
+export type MoveAssetToFolderCommand = Readonly<{
+  type: 'asset.folder.moveAsset'
+  folderId: string
+  assetType: AssetRefKind
+  assetId: string
+}>
+
+export type UnassignAssetFromFoldersCommand = Readonly<{
+  type: 'asset.folder.unassignAsset'
+  assetType: AssetRefKind
+  assetId: string
+}>
+
+export type DeleteAssetFolderCommand = Readonly<{
+  type: 'asset.folder.delete'
+  folderId: string
+}>
+
+export type SetImageAssetUsageCommand = Readonly<{
+  type: 'asset.image.setUsage'
+  assetId: string
+  usage: ImageAssetUsage
+}>
+
 export type AssetAuthoringCommand =
   | DeleteAssetCommand
   | UpsertImageAssetCommand
@@ -58,4 +103,10 @@ export type AssetAuthoringCommand =
   | RenameAssetCommand
   | PatchImageAssetCommand
   | SetImageAssetClipsCommand
+  | CreateAssetFolderCommand
+  | RenameAssetFolderCommand
+  | MoveAssetToFolderCommand
+  | UnassignAssetFromFoldersCommand
+  | DeleteAssetFolderCommand
+  | SetImageAssetUsageCommand
 
