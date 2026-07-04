@@ -16,6 +16,7 @@ import {
 import { SpritesheetStudioLayout, type SpritesheetStudioMode } from './SpritesheetStudioLayout'
 import { useSpritesheetStudioSession } from './useSpritesheetStudioSession'
 import { useSpritesheetWasmSync } from './useSpritesheetWasmSync'
+import { useAuthoringCommands } from '../../authoring/useAuthoringCommands'
 
 type SpritesheetStudioBodyProps = Readonly<{
   asset: ImageAsset
@@ -35,6 +36,7 @@ function SpritesheetStudioBody({
   onNewAnimation,
 }: SpritesheetStudioBodyProps) {
   const dispatch = useEditorDispatch()
+  const authoring = useAuthoringCommands()
   const project = useEditorSelector((s) => s.project)
   const projectPath = useEditorSelector((s) => s.projectPath)
   const [mode, setMode] = useState<SpritesheetStudioMode>(initialMode)
@@ -44,11 +46,11 @@ function SpritesheetStudioBody({
     asset,
     projectPath,
     (clips: AnimationClipDef[], coalesceKey?: string) => {
-      dispatch({ type: 'IMAGE_ASSET_SET_CLIPS', assetId: imageAssetId, clips, coalesceKey })
+      authoring.setImageAssetClips(imageAssetId, clips, coalesceKey)
     },
   )
   const patchAsset = (patch: Partial<ImageAsset>) => {
-    dispatch({ type: 'ASSET_ADD', asset: { ...asset, id: imageAssetId, ...patch } })
+    authoring.patchImageAsset(imageAssetId, patch)
   }
 
   const profile = project

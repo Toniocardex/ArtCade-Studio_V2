@@ -14,6 +14,7 @@ import { ImagePointsEditor } from './ImagePointsEditor'
 import type { AssetExplorerSelection } from '../../hooks/useAssetExplorerActions'
 import { EditorSelect } from '../ui/EditorSelect'
 import { Field } from '../../panels/inspector/inspector-fields'
+import { useAuthoringCommands } from '../../authoring/useAuthoringCommands'
 
 export type AssetDetailStripProps = Readonly<{
   selection: AssetExplorerSelection
@@ -21,6 +22,7 @@ export type AssetDetailStripProps = Readonly<{
 
 export function AssetDetailStrip({ selection }: AssetDetailStripProps) {
   const dispatch = useEditorDispatch()
+  const authoring = useAuthoringCommands()
   const project = useEditorSelector((s) => s.project)
   const projectPath = useEditorSelector((s) => s.projectPath)
   const [open, setOpen] = useState(true)
@@ -32,7 +34,7 @@ export function AssetDetailStrip({ selection }: AssetDetailStripProps) {
   const openStudio = () => openSpritesheetStudio(dispatch, project, selection.id)
 
   function patchImage(patch: Partial<ImageAsset>) {
-    dispatch({ type: 'ASSET_ADD', asset: { ...asset!, ...patch } })
+    authoring.patchImageAsset(selection.id, patch)
   }
 
   return (
@@ -59,7 +61,7 @@ export function AssetDetailStrip({ selection }: AssetDetailStripProps) {
             label="Display Name"
             value={asset.name}
             onCommit={(name) =>
-              dispatch({ type: 'IMAGE_ASSET_RENAME', assetId: asset.id, name })
+              authoring.renameAsset('image', asset.id, name)
             }
           />
           <ImageAssetPreview

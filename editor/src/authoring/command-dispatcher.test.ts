@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { dispatchAuthoringCommand } from './command-dispatcher'
+import type { ProjectDoc } from '../types'
 
 describe('dispatchAuthoringCommand', () => {
   it('routes project.rename through the single authoring boundary', () => {
@@ -26,6 +27,78 @@ describe('dispatchAuthoringCommand', () => {
       expect(dispatchAuthoringCommand(command, { dispatch })).toEqual({ status: 'applied' })
       expect(dispatch).toHaveBeenCalledWith(action)
     }
+  })
+
+  it('routes asset rename commands behind the boundary', () => {
+    const cases = [
+      [{ type: 'asset.rename', kind: 'image', assetId: 'img_a', name: 'Hero' }, { type: 'IMAGE_ASSET_RENAME', assetId: 'img_a', name: 'Hero' }],
+      [{ type: 'asset.rename', kind: 'audio', assetId: 'sfx_a', name: 'Jump' }, { type: 'AUDIO_ASSET_RENAME', assetId: 'sfx_a', name: 'Jump' }],
+      [{ type: 'asset.rename', kind: 'font', assetId: 'font_a', name: 'Body' }, { type: 'FONT_ASSET_RENAME', assetId: 'font_a', name: 'Body' }],
+      [{ type: 'asset.rename', kind: 'tileset', assetId: 'tileset_a', name: 'Dungeon' }, { type: 'TILESET_ASSET_RENAME', assetId: 'tileset_a', name: 'Dungeon' }],
+    ] as const
+
+    for (const [command, action] of cases) {
+      const dispatch = vi.fn()
+      expect(dispatchAuthoringCommand(command, { dispatch })).toEqual({ status: 'applied' })
+      expect(dispatch).toHaveBeenCalledWith(action)
+    }
+  })
+
+  it('patches image assets from the project document snapshot', () => {
+    const dispatch = vi.fn()
+    const project = {
+      assets: {
+        img_a: {
+          id: 'img_a',
+          name: 'Hero',
+          path: 'assets/hero.png',
+          usage: 'sprite',
+        },
+      },
+    } as unknown as ProjectDoc
+
+    const result = dispatchAuthoringCommand(
+      { type: 'asset.image.patch', assetId: 'img_a', patch: { usage: 'ui' } },
+      { dispatch, project },
+    )
+
+    expect(result).toEqual({ status: 'applied' })
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'ASSET_ADD',
+      asset: {
+        id: 'img_a',
+        name: 'Hero',
+        path: 'assets/hero.png',
+        usage: 'ui',
+      },
+    })
+  })
+
+  it('rejects image asset patches without a document asset', () => {
+    const dispatch = vi.fn()
+    const result = dispatchAuthoringCommand(
+      { type: 'asset.image.patch', assetId: 'missing', patch: { usage: 'ui' } },
+      { dispatch, project: { assets: {} } as unknown as ProjectDoc },
+    )
+
+    expect(result).toEqual({ status: 'validation-error', reason: 'image-asset-not-found' })
+    expect(dispatch).not.toHaveBeenCalled()
+  })
+
+  it('routes image clip updates behind the boundary', () => {
+    const dispatch = vi.fn()
+    const clips = [{ name: 'idle', frames: [], fps: 8, loop: true }]
+
+    expect(dispatchAuthoringCommand(
+      { type: 'asset.image.setClips', assetId: 'img_a', clips, coalesceKey: 'clips:img_a' },
+      { dispatch },
+    )).toEqual({ status: 'applied' })
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'IMAGE_ASSET_SET_CLIPS',
+      assetId: 'img_a',
+      clips,
+      coalesceKey: 'clips:img_a',
+    })
   })
 
   it('routes scene and instance commands behind the boundary', () => {

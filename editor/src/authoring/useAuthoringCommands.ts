@@ -1,18 +1,20 @@
 import { useCallback, useMemo } from 'react'
-import { useEditorDispatch } from '../store/editor-store'
+import { useEditorDispatch, useEditorSelector } from '../store/editor-store'
 import {
   dispatchAuthoringCommand,
   type AuthoringCommand,
 } from './command-dispatcher'
 import type { ObjectCreateAction } from '../utils/object-create'
+import type { AnimationClipDef, ImageAsset } from '../types'
 
 export function useAuthoringCommands() {
   const dispatch = useEditorDispatch()
+  const project = useEditorSelector((s) => s.project)
 
   const run = useCallback(
     (command: AuthoringCommand) =>
-      dispatchAuthoringCommand(command, { dispatch }),
-    [dispatch],
+      dispatchAuthoringCommand(command, { dispatch, project }),
+    [dispatch, project],
   )
 
   return useMemo(() => ({
@@ -22,6 +24,18 @@ export function useAuthoringCommands() {
       kind: 'image' | 'audio' | 'font' | 'tileset',
       assetId: string,
     ) => run({ type: 'asset.delete', kind, assetId }),
+    renameAsset: (
+      kind: 'image' | 'audio' | 'font' | 'tileset',
+      assetId: string,
+      name: string,
+    ) => run({ type: 'asset.rename', kind, assetId, name }),
+    patchImageAsset: (assetId: string, patch: Partial<ImageAsset>) =>
+      run({ type: 'asset.image.patch', assetId, patch }),
+    setImageAssetClips: (
+      assetId: string,
+      clips: AnimationClipDef[],
+      coalesceKey?: string,
+    ) => run({ type: 'asset.image.setClips', assetId, clips, coalesceKey }),
     addScene: (sourceSceneId?: string) =>
       run({ type: 'scene.addEmpty', sourceSceneId }),
     renameScene: (sceneId: string, name: string) =>

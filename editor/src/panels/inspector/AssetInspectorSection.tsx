@@ -4,6 +4,7 @@ import { AssetMediaDetailStrip } from '../../components/asset-explorer/AssetMedi
 import { useEditorDispatch, useEditorSelector } from '../../store/editor-store'
 import { EditorButton } from '../../components/ui/EditorButton'
 import { Field } from './inspector-fields'
+import { useAuthoringCommands } from '../../authoring/useAuthoringCommands'
 
 export type AssetInspectorSectionProps = Readonly<{
   selection: AssetExplorerSelection
@@ -11,6 +12,7 @@ export type AssetInspectorSectionProps = Readonly<{
 
 export function AssetInspectorSection({ selection }: AssetInspectorSectionProps) {
   const dispatch = useEditorDispatch()
+  const authoring = useAuthoringCommands()
   const project = useEditorSelector((s) => s.project)
 
   if (!project) {
@@ -28,7 +30,7 @@ export function AssetInspectorSection({ selection }: AssetInspectorSectionProps)
             label="Display Name"
             value={tileset.name}
             onCommit={(name) =>
-              dispatch({ type: 'TILESET_ASSET_RENAME', assetId: tileset.assetId, name })
+              authoring.renameAsset('tileset', tileset.assetId, name)
             }
           />
         ) : (

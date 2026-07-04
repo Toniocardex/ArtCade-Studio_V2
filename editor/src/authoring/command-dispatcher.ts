@@ -1,5 +1,6 @@
 import type { Dispatch } from 'react'
 import type { Action } from '../store/editor-store'
+import type { ProjectDoc } from '../types'
 import { commandApplied, type CommandResult } from './command-result'
 import type { ProjectAuthoringCommand } from './commands/project'
 import type { AssetAuthoringCommand } from './commands/assets'
@@ -12,6 +13,7 @@ export type AuthoringCommand =
 
 export type AuthoringCommandContext = Readonly<{
   dispatch: Dispatch<Action>
+  project?: ProjectDoc | null
 }>
 
 export function dispatchAuthoringCommand(
@@ -37,6 +39,35 @@ export function dispatchAuthoringCommand(
           context.dispatch({ type: 'TILESET_ASSET_REMOVE', assetId: command.assetId })
           return commandApplied()
       }
+    case 'asset.rename':
+      switch (command.kind) {
+        case 'image':
+          context.dispatch({ type: 'IMAGE_ASSET_RENAME', assetId: command.assetId, name: command.name })
+          return commandApplied()
+        case 'audio':
+          context.dispatch({ type: 'AUDIO_ASSET_RENAME', assetId: command.assetId, name: command.name })
+          return commandApplied()
+        case 'font':
+          context.dispatch({ type: 'FONT_ASSET_RENAME', assetId: command.assetId, name: command.name })
+          return commandApplied()
+        case 'tileset':
+          context.dispatch({ type: 'TILESET_ASSET_RENAME', assetId: command.assetId, name: command.name })
+          return commandApplied()
+      }
+    case 'asset.image.patch': {
+      const asset = context.project?.assets?.[command.assetId]
+      if (!asset) return { status: 'validation-error', reason: 'image-asset-not-found' }
+      context.dispatch({ type: 'ASSET_ADD', asset: { ...asset, ...command.patch, id: command.assetId } })
+      return commandApplied()
+    }
+    case 'asset.image.setClips':
+      context.dispatch({
+        type: 'IMAGE_ASSET_SET_CLIPS',
+        assetId: command.assetId,
+        clips: command.clips,
+        coalesceKey: command.coalesceKey,
+      })
+      return commandApplied()
     case 'scene.addEmpty':
       context.dispatch({ type: 'SCENE_ADD_EMPTY', sourceSceneId: command.sourceSceneId })
       return commandApplied()
