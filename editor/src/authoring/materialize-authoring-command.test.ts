@@ -17,6 +17,20 @@ describe('materializeAuthoringCommand', () => {
       status: 'applied',
       actions: [{ type: 'ENTITY_SET_NAME', entityId: 7, name: 'Hero Instance' }],
     })
+
+    expect(materializeAuthoringCommand(
+      { type: 'scene.instance.delete', entityId: 7 },
+    )).toEqual({
+      status: 'applied',
+      actions: [{ type: 'ENTITY_DELETE', entityId: 7 }],
+    })
+
+    expect(materializeAuthoringCommand(
+      { type: 'objectType.delete', objectTypeId: 'coin' },
+    )).toEqual({
+      status: 'applied',
+      actions: [{ type: 'OBJECT_TYPE_DELETE', objectTypeId: 'coin' }],
+    })
   })
 
   it('materializes asset upserts behind the command boundary', () => {

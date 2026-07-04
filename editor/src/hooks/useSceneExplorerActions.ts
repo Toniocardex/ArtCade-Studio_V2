@@ -242,9 +242,14 @@ export function useSceneExplorerActions() {
 
   const requestDeleteObjectTarget = useCallback(
     (target: DeleteObjectTarget) => {
-      void requestDeleteObject({ dispatch, project: project ?? null, target })
+      void requestDeleteObject({
+        project: project ?? null,
+        target,
+        deleteInstance: authoring.deleteInstance,
+        deleteObjectType: authoring.deleteObjectType,
+      })
     },
-    [dispatch, project],
+    [authoring, project],
   )
 
   const renameObjectType = useCallback(

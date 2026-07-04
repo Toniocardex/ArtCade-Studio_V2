@@ -43,6 +43,11 @@ export type DuplicateInstanceCommand = Readonly<{
   instanceId: number
 }>
 
+export type DeleteInstanceCommand = Readonly<{
+  type: 'scene.instance.delete'
+  entityId: number
+}>
+
 export type SetInstanceVisibleCommand = Readonly<{
   type: 'scene.instance.setVisible'
   entityId: number
@@ -61,6 +66,11 @@ export type RenameObjectTypeCommand = Readonly<{
   displayName: string
 }>
 
+export type DeleteObjectTypeCommand = Readonly<{
+  type: 'objectType.delete'
+  objectTypeId: string
+}>
+
 export type SceneAuthoringCommand =
   | AddSceneCommand
   | RenameSceneCommand
@@ -70,6 +80,8 @@ export type SceneAuthoringCommand =
   | CreateObjectCommand
   | AddInstanceFromTypeCommand
   | DuplicateInstanceCommand
+  | DeleteInstanceCommand
   | SetInstanceVisibleCommand
   | RenameInstanceCommand
   | RenameObjectTypeCommand
+  | DeleteObjectTypeCommand

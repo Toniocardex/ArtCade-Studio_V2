@@ -2,8 +2,6 @@
 // object-delete-request — UI orchestration for instance vs object-type delete
 // ---------------------------------------------------------------------------
 
-import type { Dispatch } from 'react'
-import type { Action } from '../store/editor-store-state'
 import type { ProjectDoc } from '../types'
 import { confirmDialog } from './native-dialog'
 import {
@@ -46,11 +44,12 @@ function objectTypeDeleteMessage(
  * Instance delete keeps the object type; object delete cascades through all scenes.
  */
 export async function requestDeleteObject(options: {
-  dispatch: Dispatch<Action>
   project: ProjectDoc | null
   target: DeleteObjectTarget
+  deleteInstance: (entityId: number) => void
+  deleteObjectType: (objectTypeId: string) => void
 }): Promise<void> {
-  const { dispatch, project, target } = options
+  const { deleteInstance, deleteObjectType, project, target } = options
   if (!project) return
 
   if (target.kind === 'instance') {
@@ -63,7 +62,7 @@ export async function requestDeleteObject(options: {
     )
     if (!confirmed) return
 
-    dispatch({ type: 'ENTITY_DELETE', entityId: target.entityId })
+    deleteInstance(target.entityId)
     return
   }
 
@@ -82,5 +81,5 @@ export async function requestDeleteObject(options: {
   )
   if (!confirmed) return
 
-  dispatch({ type: 'OBJECT_TYPE_DELETE', objectTypeId: target.objectTypeId })
+  deleteObjectType(target.objectTypeId)
 }

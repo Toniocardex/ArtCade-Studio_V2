@@ -84,11 +84,15 @@ export function useAuthoringCommands() {
       run({ type: 'scene.instance.addFromType', sceneId, objectTypeId }),
     duplicateInstance: (sceneId: string, instanceId: number) =>
       run({ type: 'scene.instance.duplicate', sceneId, instanceId }),
+    deleteInstance: (entityId: number) =>
+      run({ type: 'scene.instance.delete', entityId }),
     setInstanceVisible: (entityId: number, visible: boolean) =>
       run({ type: 'scene.instance.setVisible', entityId, visible }),
     renameInstance: (entityId: number, name: string) =>
       run({ type: 'scene.instance.rename', entityId, name }),
     renameObjectType: (objectTypeId: string, displayName: string) =>
       run({ type: 'objectType.rename', objectTypeId, displayName }),
+    deleteObjectType: (objectTypeId: string) =>
+      run({ type: 'objectType.delete', objectTypeId }),
   }), [run])
 }

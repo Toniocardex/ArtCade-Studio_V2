@@ -1,6 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import type { ProjectDoc } from '../types'
-import type { Action } from '../store/editor-store-state'
 
 const confirmDialogMock = vi.fn(async () => true)
 
@@ -46,82 +45,83 @@ describe('requestDeleteObject', () => {
   })
 
   it('dispatches ENTITY_DELETE when instance delete is confirmed', async () => {
-    const dispatch = vi.fn<(action: Action) => void>()
+    const deleteInstance = vi.fn()
+    const deleteObjectType = vi.fn()
     const project = sampleProject()
 
     await requestDeleteObject({
-      dispatch,
       project,
       target: { kind: 'instance', entityId: 1 },
+      deleteInstance,
+      deleteObjectType,
     })
 
     expect(confirmDialogMock).toHaveBeenCalledOnce()
-    expect(dispatch).toHaveBeenCalledWith({ type: 'ENTITY_DELETE', entityId: 1 })
+    expect(deleteInstance).toHaveBeenCalledWith(1)
+    expect(deleteObjectType).not.toHaveBeenCalled()
   })
 
   it('does not dispatch when instance delete is cancelled', async () => {
     confirmDialogMock.mockResolvedValue(false)
-    const dispatch = vi.fn<(action: Action) => void>()
+    const deleteInstance = vi.fn()
 
     await requestDeleteObject({
-      dispatch,
       project: sampleProject(),
       target: { kind: 'instance', entityId: 1 },
+      deleteInstance,
+      deleteObjectType: vi.fn(),
     })
 
-    expect(dispatch).not.toHaveBeenCalled()
+    expect(deleteInstance).not.toHaveBeenCalled()
   })
 
   it('shows destructive confirm and dispatches OBJECT_TYPE_DELETE when instances exist', async () => {
-    const dispatch = vi.fn<(action: Action) => void>()
+    const deleteObjectType = vi.fn()
 
     await requestDeleteObject({
-      dispatch,
       project: sampleProject(),
       target: { kind: 'object-type', objectTypeId: 'coin' },
+      deleteInstance: vi.fn(),
+      deleteObjectType,
     })
 
     expect(confirmDialogMock).toHaveBeenCalledOnce()
     expect(confirmDialogMock.mock.calls[0]?.[0]).toContain('all 1 instance')
-    expect(dispatch).toHaveBeenCalledWith({
-      type: 'OBJECT_TYPE_DELETE',
-      objectTypeId: 'coin',
-    })
+    expect(deleteObjectType).toHaveBeenCalledWith('coin')
   })
 
   it('dispatches OBJECT_TYPE_DELETE when unused type delete is confirmed', async () => {
-    const dispatch = vi.fn<(action: Action) => void>()
+    const deleteObjectType = vi.fn()
     const project = sampleProject()
     project.scenes.main.instances = []
     project.scenes.main.entityIds = []
     delete project.entities[1]
 
     await requestDeleteObject({
-      dispatch,
       project,
       target: { kind: 'object-type', objectTypeId: 'coin' },
+      deleteInstance: vi.fn(),
+      deleteObjectType,
     })
 
     expect(confirmDialogMock).toHaveBeenCalledOnce()
-    expect(dispatch).toHaveBeenCalledWith({
-      type: 'OBJECT_TYPE_DELETE',
-      objectTypeId: 'coin',
-    })
+    expect(deleteObjectType).toHaveBeenCalledWith('coin')
   })
 
   it('does not dispatch when object type delete is cancelled', async () => {
     confirmDialogMock.mockResolvedValue(false)
-    const dispatch = vi.fn<(action: Action) => void>()
+    const deleteObjectType = vi.fn()
     const project = sampleProject()
     project.scenes.main.instances = []
     project.scenes.main.entityIds = []
 
     await requestDeleteObject({
-      dispatch,
       project,
       target: { kind: 'object-type', objectTypeId: 'coin' },
+      deleteInstance: vi.fn(),
+      deleteObjectType,
     })
 
-    expect(dispatch).not.toHaveBeenCalled()
+    expect(deleteObjectType).not.toHaveBeenCalled()
   })
 })

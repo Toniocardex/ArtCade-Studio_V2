@@ -122,6 +122,8 @@ export function materializeAuthoringCommand(
         instanceId: command.instanceId,
         sceneId: command.sceneId,
       })
+    case 'scene.instance.delete':
+      return actionsApplied({ type: 'ENTITY_DELETE', entityId: command.entityId })
     case 'scene.instance.setVisible':
       return actionsApplied({
         type: 'ENTITY_SET_VISIBLE',
@@ -136,5 +138,7 @@ export function materializeAuthoringCommand(
         objectTypeId: command.objectTypeId,
         displayName: command.displayName,
       })
+    case 'objectType.delete':
+      return actionsApplied({ type: 'OBJECT_TYPE_DELETE', objectTypeId: command.objectTypeId })
   }
 }
