@@ -27,6 +27,7 @@ import { InspectorSection, NumberField } from './inspector-fields'
 import { InspectorClipPreview } from './InspectorClipPreview'
 import { SpriteFillColorField } from './SpriteFillColorField'
 import { EditorSelect } from '../../components/ui/EditorSelect'
+import { useAuthoringCommands } from '../../authoring/useAuthoringCommands'
 
 export type SpriteSectionProps = Readonly<{
   entity: EntityDef
@@ -34,6 +35,7 @@ export type SpriteSectionProps = Readonly<{
 
 export function SpriteSection({ entity }: SpriteSectionProps) {
   const dispatch = useEditorDispatch()
+  const authoring = useAuthoringCommands()
   const project = useEditorSelector((s) => s.project)
   const projectPath = useEditorSelector((s) => s.projectPath)
   const images = Object.values(project?.assets ?? {}).filter((asset) => asset.usage === 'sprite')
@@ -89,7 +91,7 @@ export function SpriteSection({ entity }: SpriteSectionProps) {
         projectRoot: projectPath,
         displayName: typeName,
       })
-      dispatch({ type: 'ASSET_ADD', asset: promoted })
+      authoring.upsertImageAsset(promoted)
       if (oldPath !== promoted.path) {
         editorInvalidateAsset(oldPath, 'image')
       }
@@ -97,7 +99,7 @@ export function SpriteSection({ entity }: SpriteSectionProps) {
       const message = err instanceof Error ? err.message : 'Promote failed.'
       await alertDialog(message, { title: 'Promote prototype sprite', kind: 'error' })
     }
-  }, [dispatch, isPrototype, linkedAsset, project, projectPath, typeName])
+  }, [authoring, isPrototype, linkedAsset, project, projectPath, typeName])
 
   const onResetPrototype = useCallback(async () => {
     if (!linkedAsset || !isPrototype || !project) return

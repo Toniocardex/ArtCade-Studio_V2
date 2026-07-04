@@ -8,6 +8,7 @@ import {
 } from '../../utils/sprite-fill-color'
 import { patchPrototypeSpriteColor } from '../../utils/prototype-sprite'
 import { resolvePrototypeSpriteForInstance } from '../../utils/prototype-sprite-resolve'
+import { useAuthoringCommands } from '../../authoring/useAuthoringCommands'
 
 export type SpriteFillColorFieldProps = Readonly<{
   entity: EntityDef
@@ -25,6 +26,7 @@ export function SpriteFillColorField({
   isPrototype,
 }: SpriteFillColorFieldProps) {
   const dispatch = useEditorDispatch()
+  const authoring = useAuthoringCommands()
   const project = useEditorSelector((s) => s.project)
   const spriteRef = entity.sprite.spriteAssetId
   const disabled = hasSpriteImageAsset(spriteRef) && !isPrototype
@@ -59,10 +61,7 @@ export function SpriteFillColorField({
 
       if (!asset) return
 
-      dispatch({
-        type: 'ASSET_ADD',
-        asset: patchPrototypeSpriteColor(asset, fillColor),
-      })
+      authoring.upsertImageAsset(patchPrototypeSpriteColor(asset, fillColor))
       return
     }
 

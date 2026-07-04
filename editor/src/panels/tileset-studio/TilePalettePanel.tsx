@@ -8,6 +8,7 @@ import {
   revokeImagePreviewSrc,
 } from '../../utils/image-preview-src'
 import type { TilesetAsset } from '../../types'
+import { useAuthoringCommands } from '../../authoring/useAuthoringCommands'
 
 type GridInputProps = Readonly<{
   label: string
@@ -69,6 +70,7 @@ type Props = Readonly<{
 
 export function TilePalettePanel({ tileset, onRemove }: Props) {
   const dispatch     = useEditorDispatch()
+  const authoring    = useAuthoringCommands()
   const project      = useEditorSelector((s) => s.project)
   const projectPath  = useEditorSelector((s) => s.projectPath)
   const selectedCell = useEditorSelector((s) => s.selectedTileCell)
@@ -194,7 +196,7 @@ export function TilePalettePanel({ tileset, onRemove }: Props) {
     setMargin(nextMargin)
     if (!imgWH) return
     const { cols, rows } = deriveGrid(imgWH.w, imgWH.h, nextTile, nextMargin)
-    dispatch({ type: 'TILESET_ASSET_ADD', asset: { ...tileset, tileSize: nextTile, margin: nextMargin, cols, rows } })
+    authoring.upsertTilesetAsset({ ...tileset, tileSize: nextTile, margin: nextMargin, cols, rows })
     const layer = sceneId ? project?.scenes?.[sceneId]?.tilemapLayers?.[activeLayerId] : undefined
     const usedOnLayer = layer ? sourcesUsedOnLayer(layer) : []
     if (

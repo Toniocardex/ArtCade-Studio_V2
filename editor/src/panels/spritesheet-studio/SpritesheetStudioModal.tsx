@@ -139,6 +139,7 @@ function SpritesheetStudioBody({
 
 export function SpritesheetStudioModal() {
   const dispatch = useEditorDispatch()
+  const authoring = useAuthoringCommands()
   const open = useEditorSelector((s) => s.spritesheetStudio.open)
   const imageAssetId = useEditorSelector((s) => s.spritesheetStudio.imageAssetId)
   const initialMode = useEditorSelector((s) => s.spritesheetStudio.initialMode)
@@ -201,7 +202,7 @@ export function SpritesheetStudioModal() {
           projectRoot: projectPath ? dirName(projectPath) : null,
           rejectContentHashes: contentHashesForAssetKind(project, 'image'),
         })
-        dispatch({ type: 'ASSET_ADD', asset: importedAsset })
+        authoring.upsertImageAsset(importedAsset)
         dispatch({
           type: 'SELECT_INSPECTOR_ASSET',
           asset: { type: 'image', id: importedAsset.id },

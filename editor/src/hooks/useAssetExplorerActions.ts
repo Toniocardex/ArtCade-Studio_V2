@@ -115,7 +115,7 @@ function fileReaderDataUrl(result: string | ArrayBuffer | null): string {
 
 export function useAssetExplorerActions() {
   const dispatch = useEditorDispatch()
-  const { deleteAsset } = useAuthoringCommands()
+  const authoring = useAuthoringCommands()
   const store = useEditorStore()
   const selection = useEditorSelector((s) => s.inspectorAsset)
   const project = useEditorSelector((s) => s.project)
@@ -164,7 +164,7 @@ export function useAssetExplorerActions() {
         projectRoot: projectPath ? dirName(projectPath) : null,
         rejectContentHashes: rejectContentHashes ?? contentHashesForAssetKind(project, 'image'),
       })
-      dispatch({ type: 'ASSET_ADD', asset })
+      authoring.upsertImageAsset(asset)
       if (target.folderId) {
         dispatch({
           type: 'ASSET_MOVE_TO_FOLDER',
@@ -175,7 +175,7 @@ export function useAssetExplorerActions() {
       }
       return { asset, imported }
     },
-    [project, store, dispatch],
+    [project, store, dispatch, authoring],
   )
 
   const onPickImage = useCallback(
@@ -283,7 +283,7 @@ export function useAssetExplorerActions() {
             contentHash: imported.contentHash,
             category: 'sfx',
           }
-          dispatch({ type: 'AUDIO_ASSET_ADD', asset })
+          authoring.upsertAudioAsset(asset)
           const moveAction = moveImportedAssetToFolderAction(target, 'audio', asset.id)
           if (moveAction) dispatch(moveAction)
           showFlash(imported.persisted
@@ -301,7 +301,7 @@ export function useAssetExplorerActions() {
       e.target.value = ''
       audioImportTargetRef.current = {}
     },
-    [project, store, dispatch, showFlash],
+    [project, store, dispatch, authoring, showFlash],
   )
 
   const onPickFont = useCallback(
@@ -326,7 +326,7 @@ export function useAssetExplorerActions() {
             contentHash: imported.contentHash,
             defaultSize: 32,
           }
-          dispatch({ type: 'FONT_ASSET_ADD', asset })
+          authoring.upsertFontAsset(asset)
           const moveAction = moveImportedAssetToFolderAction(target, 'font', asset.id)
           if (moveAction) dispatch(moveAction)
           showFlash(imported.persisted
@@ -344,7 +344,7 @@ export function useAssetExplorerActions() {
       e.target.value = ''
       fontImportTargetRef.current = {}
     },
-    [project, store, dispatch, showFlash],
+    [project, store, dispatch, authoring, showFlash],
   )
 
   const assignSprite = useCallback(
@@ -383,25 +383,25 @@ export function useAssetExplorerActions() {
 
     switch (assetSelection.type) {
       case 'image':
-        deleteAsset('image', assetSelection.id)
+        authoring.deleteAsset('image', assetSelection.id)
         break
       case 'audio':
-        deleteAsset('audio', assetSelection.id)
+        authoring.deleteAsset('audio', assetSelection.id)
         break
       case 'font':
-        deleteAsset('font', assetSelection.id)
+        authoring.deleteAsset('font', assetSelection.id)
         break
       case 'tileset': {
         const tileset = project.tilesets?.[assetSelection.id]
         if (tileset) releaseTilesetAsset(tileset)
-        deleteAsset('tileset', assetSelection.id)
+        authoring.deleteAsset('tileset', assetSelection.id)
         break
       }
     }
     dispatch({ type: 'SELECT_INSPECTOR_ASSET', asset: null })
     showFlash('Asset removed')
     return true
-  }, [project, dispatch, deleteAsset, showFlash])
+  }, [project, dispatch, authoring, showFlash])
 
   const removeSelection = useCallback(() => {
     if (!selection) return
@@ -466,7 +466,7 @@ export function useAssetExplorerActions() {
               projectRoot: root,
               rejectContentHashes: contentHashesForAssetKind(project, 'tileset'),
             })
-            dispatch({ type: 'TILESET_ASSET_ADD', asset: tileset })
+            authoring.upsertTilesetAsset(tileset)
             const moveAction = moveImportedAssetToFolderAction(
               target,
               'tileset',
@@ -493,7 +493,7 @@ export function useAssetExplorerActions() {
       e.target.value = ''
       tilesetImportTargetRef.current = {}
     },
-    [project, store, dispatch, showFlash],
+    [project, store, dispatch, authoring, showFlash],
   )
 
   const triggerImportImage = useCallback((target?: ImageImportTarget) => {

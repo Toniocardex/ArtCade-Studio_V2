@@ -2,10 +2,11 @@ import { useCallback, useMemo } from 'react'
 import { useEditorDispatch, useEditorSelector } from '../store/editor-store'
 import {
   dispatchAuthoringCommand,
-  type AuthoringCommand,
 } from './command-dispatcher'
+import type { AuthoringCommand } from './commands'
 import type { ObjectCreateAction } from '../utils/object-create'
-import type { AnimationClipDef, ImageAsset } from '../types'
+import type { AnimationClipDef, AudioAsset, FontAsset, ImageAsset } from '../types'
+import type { TilesetAsset } from '../types/tilemap'
 
 export function useAuthoringCommands() {
   const dispatch = useEditorDispatch()
@@ -24,6 +25,14 @@ export function useAuthoringCommands() {
       kind: 'image' | 'audio' | 'font' | 'tileset',
       assetId: string,
     ) => run({ type: 'asset.delete', kind, assetId }),
+    upsertImageAsset: (asset: ImageAsset) =>
+      run({ type: 'asset.image.upsert', asset }),
+    upsertAudioAsset: (asset: AudioAsset) =>
+      run({ type: 'asset.audio.upsert', asset }),
+    upsertFontAsset: (asset: FontAsset) =>
+      run({ type: 'asset.font.upsert', asset }),
+    upsertTilesetAsset: (asset: TilesetAsset) =>
+      run({ type: 'asset.tileset.upsert', asset }),
     renameAsset: (
       kind: 'image' | 'audio' | 'font' | 'tileset',
       assetId: string,
