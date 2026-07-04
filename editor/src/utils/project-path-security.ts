@@ -1,5 +1,4 @@
 import type { ProjectDoc } from '../types'
-import { imageAssetForRef } from './resolve-image-load-key'
 import { isPathLikeAssetRef, isStableImageAssetRef } from './asset-ref-contract'
 
 const ABSOLUTE_PATH_RE = /^(?:[a-zA-Z]:[/\\]|[/\\]|\\\\)/

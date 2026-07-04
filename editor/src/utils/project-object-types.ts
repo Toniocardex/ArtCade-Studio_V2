@@ -14,7 +14,6 @@ import { COMPONENT_KEYS } from '../types/components'
 import { createEntityDef } from './project-builders'
 import { normalizeAssetRefs } from './normalize-asset-refs'
 import { resolveEntitiesForRuntime } from './sprite-pivot-resolve'
-import { normalizeAssetRefs } from './normalize-asset-refs'
 import { PROJECT_FORMAT_V4 } from './project-format'
 import { migrateProjectDocToVersion } from './project-migrations'
 

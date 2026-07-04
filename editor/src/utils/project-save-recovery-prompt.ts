@@ -13,7 +13,7 @@ let pending: ProjectSaveRecoveryPrompt | null = null
 const listeners = new Set<() => void>()
 
 function notify(): void {
-  for (const listener of listeners) listeners()
+  for (const listener of listeners) listener()
 }
 
 export function subscribeProjectSaveRecoveryPrompt(listener: () => void): () => void {

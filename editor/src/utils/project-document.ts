@@ -17,7 +17,6 @@ import {
 } from './project-codec'
 import {
   CURRENT_PROJECT_FORMAT_VERSION,
-  EDITOR_ENGINE_VERSION,
 } from './project-format'
 import {
   migrateProjectJsonRoot,

@@ -43,7 +43,7 @@ function stampFormatVersion(
   raw: Record<string, unknown>,
   version: number,
 ): Record<string, unknown> {
-  const next = { ...raw, formatVersion: version }
+  const next: Record<string, unknown> = { ...raw, formatVersion: version }
   if (version >= PROJECT_FORMAT_V4) {
     next.projectFormatVersion = version
   }

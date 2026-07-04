@@ -5,9 +5,7 @@ import { readTextFile, readFile, writeFile, mkdir, readDir, exists } from '@taur
 import type { ProjectDoc } from '../types'
 import {
   dirName,
-  parseProjectDoc,
   safeProjectFolderName,
-  serializeProjectDoc,
 } from './project'
 import {
   loadProjectDocument,

@@ -4,7 +4,7 @@
 
 import type { ProjectDoc } from '../types'
 import { serializeProjectDoc } from './project-codec'
-import { validateProjectBeforeSave, collectSaveValidationErrors } from './logic-board/validate-project'
+import { validateProjectBeforeSave } from './logic-board/validate-project'
 import { loadProjectDocument, validateSerializedProjectDocument } from './project-document'
 
 /** Non-throwing save/play gate used by health checks and UI. */

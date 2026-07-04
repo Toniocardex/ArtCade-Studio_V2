@@ -26,9 +26,6 @@ import {
   entityToObjectType,
 } from './project-object-types'
 import {
-  migrateProjectDocToVersion,
-} from './project-migrations'
-import {
   CURRENT_PROJECT_FORMAT_VERSION,
   EDITOR_ENGINE_VERSION,
 } from './project-format'
