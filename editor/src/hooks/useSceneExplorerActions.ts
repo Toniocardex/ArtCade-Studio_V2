@@ -22,6 +22,7 @@ import {
   openLogicBoardForEntity,
   openLogicBoardForObjectType,
 } from '../panels/inspector/logic-board-navigation'
+import { useAuthoringCommands } from '../authoring/useAuthoringCommands'
 
 let _explorerLogId = 900
 
@@ -37,6 +38,7 @@ function explorerLog(message: string, level: ConsoleEntry['level']): ConsoleEntr
 
 export function useSceneExplorerActions() {
   const dispatch = useEditorDispatch()
+  const authoring = useAuthoringCommands()
   const promptText = useTextPrompt()
   const project = useEditorSelector((s) => s.project)
   const selection = useEditorSelector((s) => s.selection)
@@ -53,8 +55,8 @@ export function useSceneExplorerActions() {
 
   const addScene = useCallback(() => {
     if (!project) return
-    dispatch({ type: 'SCENE_ADD_EMPTY', sourceSceneId: sceneId })
-  }, [dispatch, project, sceneId])
+    authoring.addScene(sceneId)
+  }, [authoring, project, sceneId])
 
   const selectScene = useCallback(
     (id: string) => {
@@ -65,15 +67,15 @@ export function useSceneExplorerActions() {
 
   const setStartScene = useCallback(() => {
     if (!scene || isStartScene) return
-    dispatch({ type: 'SCENE_SET_START', sceneId: scene.id })
-  }, [dispatch, scene, isStartScene])
+    authoring.setStartScene(scene.id)
+  }, [authoring, scene, isStartScene])
 
   const setStartSceneById = useCallback(
     (targetSceneId: string) => {
       if (!project || targetSceneId === project.activeSceneId) return
-      dispatch({ type: 'SCENE_SET_START', sceneId: targetSceneId })
+      authoring.setStartScene(targetSceneId)
     },
-    [dispatch, project],
+    [authoring, project],
   )
 
   const deleteScene = useCallback(() => {
@@ -82,9 +84,9 @@ export function useSceneExplorerActions() {
       title: 'Delete scene',
       kind: 'warning',
     }).then((ok) => {
-      if (ok) dispatch({ type: 'SCENE_DELETE', sceneId: scene.id })
+      if (ok) authoring.deleteScene(scene.id)
     })
-  }, [canDeleteScene, dispatch, scene])
+  }, [authoring, canDeleteScene, scene])
 
   const deleteSceneById = useCallback(
     (targetSceneId: string) => {
@@ -97,10 +99,10 @@ export function useSceneExplorerActions() {
         title: 'Delete scene',
         kind: 'warning',
       }).then((ok) => {
-        if (ok) dispatch({ type: 'SCENE_DELETE', sceneId: targetSceneId })
+        if (ok) authoring.deleteScene(targetSceneId)
       })
     },
-    [dispatch, project, sceneCount],
+    [authoring, project, sceneCount],
   )
 
   const renameScene = useCallback(() => {
@@ -111,9 +113,9 @@ export function useSceneExplorerActions() {
       defaultValue: scene.name,
     }).then((name) => {
       if (!name || name === scene.name) return
-      dispatch({ type: 'SCENE_RENAME', sceneId: scene.id, name })
+      authoring.renameScene(scene.id, name)
     })
-  }, [dispatch, scene, promptText])
+  }, [authoring, scene, promptText])
 
   const renameSceneById = useCallback(
     (targetSceneId: string) => {
@@ -125,10 +127,10 @@ export function useSceneExplorerActions() {
         defaultValue: target.name,
       }).then((name) => {
         if (!name || name === target.name) return
-        dispatch({ type: 'SCENE_RENAME', sceneId: targetSceneId, name })
+        authoring.renameScene(targetSceneId, name)
       })
     },
-    [dispatch, project, promptText],
+    [authoring, project, promptText],
   )
 
   // Single entry point for adding objects: prompts for a name, creates a new
@@ -162,11 +164,7 @@ export function useSceneExplorerActions() {
             { title: 'Object type already exists', kind: 'info' },
           ).then((ok) => {
             if (ok) {
-              dispatch({
-                type: 'INSTANCE_ADD_FROM_TYPE',
-                sceneId,
-                objectTypeId: existingType.id,
-              })
+              authoring.addInstanceFromType(sceneId, existingType.id)
             }
           })
           return
@@ -179,22 +177,22 @@ export function useSceneExplorerActions() {
         })
         return
       }
-      dispatch(result.action)
+      authoring.createObject(result.action)
       dispatch({
         type: 'LOG',
         entry: explorerLog(`Inserted ${name} (type ${result.action.objectType.id})`, 'info'),
       })
     })
-  }, [scene, sceneId, project, dispatch, promptText, editorGridSize, snapToGrid])
+  }, [scene, sceneId, project, authoring, dispatch, promptText, editorGridSize, snapToGrid])
 
   // Places a new instance of an existing object type in the active scene
   // (group-level "Add instance" in the explorer).
   const addInstanceOfType = useCallback(
     (objectTypeId: string) => {
       if (!project?.objectTypes?.[objectTypeId] || !scene) return
-      dispatch({ type: 'INSTANCE_ADD_FROM_TYPE', sceneId, objectTypeId })
+      authoring.addInstanceFromType(sceneId, objectTypeId)
     },
-    [dispatch, project, scene, sceneId],
+    [authoring, project, scene, sceneId],
   )
 
   const selectEntity = useCallback(
@@ -210,16 +208,16 @@ export function useSceneExplorerActions() {
 
   const toggleEntityVisible = useCallback(
     (entityId: number, currentlyVisible: boolean) => {
-      dispatch({ type: 'ENTITY_SET_VISIBLE', entityId, visible: !currentlyVisible })
+      authoring.setInstanceVisible(entityId, !currentlyVisible)
     },
-    [dispatch],
+    [authoring],
   )
 
   const duplicateEntity = useCallback(
     (entityId: number) => {
-      dispatch({ type: 'INSTANCE_DUPLICATE', instanceId: entityId, sceneId })
+      authoring.duplicateInstance(sceneId, entityId)
     },
-    [dispatch, sceneId],
+    [authoring, sceneId],
   )
 
   const copyEntity = useCallback(
@@ -259,10 +257,10 @@ export function useSceneExplorerActions() {
         defaultValue: type.displayName,
       }).then((displayName) => {
         if (!displayName || displayName === type.displayName) return
-        dispatch({ type: 'OBJECT_TYPE_RENAME', objectTypeId, displayName })
+        authoring.renameObjectType(objectTypeId, displayName)
       })
     },
-    [dispatch, project, promptText],
+    [authoring, project, promptText],
   )
 
   const openObjectTypeLogic = useCallback(
@@ -297,18 +295,18 @@ export function useSceneExplorerActions() {
           )
           return
         }
-        dispatch({ type: 'ENTITY_SET_NAME', entityId, name })
+        authoring.renameInstance(entityId, name)
       })
     },
-    [dispatch, project, promptText, sceneId],
+    [authoring, project, promptText, sceneId],
   )
 
   const duplicateSceneById = useCallback(
     (targetSceneId: string) => {
       if (!project?.scenes?.[targetSceneId]) return
-      dispatch({ type: 'SCENE_DUPLICATE', sceneId: targetSceneId })
+      authoring.duplicateScene(targetSceneId)
     },
-    [dispatch, project],
+    [authoring, project],
   )
 
   useEffect(() => {
