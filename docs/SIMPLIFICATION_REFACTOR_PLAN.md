@@ -4,6 +4,8 @@
 > Goal: remove unnecessary complexity while preserving the product, the current ProjectDocument contract, and the runtime/editor boundaries.
 > Canonical guardrails: `AGENTS.md`, `.cursor/rules/cursorrules-artcade.mdc`, `NORTH_STAR_ARCHITECTURE.md`, `AUTHORING_COMMAND_ARCHITECTURE.md`.
 
+> Update 2026-07-04: Phase 1 and the first authoring-boundary tranches are on `main`. The editor now has a pure `materializeAuthoringCommand()` core plus a temporary legacy reducer adapter. Project utility lint debt has been removed and `npm run lint` is green.
+
 ---
 
 ## 1. Objective
@@ -44,9 +46,11 @@ This is a simplification refactor, not a rewrite. Each tranche must delete or pr
 editor/src/authoring/
   command-dispatcher.ts
   command-result.ts
+  materialize-authoring-command.ts
   document-transaction.ts
   project-document-store.ts
   commands/
+    index.ts
     assets.ts
     dialogs.ts
     logic-board.ts
@@ -79,11 +83,23 @@ UI
   -> useRuntimeActions()          for play/preview bridge
 
 Authoring dispatcher
-  -> exactly one domain handler
+  -> materializeAuthoringCommand()
+  -> exactly one domain handler/materializer
   -> centralized validation
   -> history/dirty/revision
   -> read-only snapshot for UI/runtime projection
 ```
+
+Current bridge:
+
+```txt
+AuthoringCommand
+  -> materializeAuthoringCommand(command, { project })
+  -> legacy reducer action(s)
+  -> existing project-history / dirty / revision behavior
+```
+
+This bridge is temporary. New work should move business rules from reducer/UI helpers into command handlers or pure domain services, then leave reducers as private adapters until document transactions replace them.
 
 ---
 
@@ -105,6 +121,8 @@ Exit gate:
 
 ### Phase 1 - Classify Existing Actions
 
+Status: Done on `main`.
+
 Split the current action list conceptually before moving code.
 
 Deliverables:
@@ -125,8 +143,11 @@ Exit gate:
 
 - No behavior change.
 - Dirty/history behavior is tested against the family classification.
+- Implemented: `editor/src/store/action-families.ts` and `action-families.test.ts`.
 
 ### Phase 2 - Introduce The Authoring Boundary
+
+Status: Partially done on `main`.
 
 Add the new entry point while keeping the old store alive behind an adapter.
 
@@ -147,8 +168,13 @@ Exit gate:
 
 - At least one low-risk command goes through the new boundary.
 - Existing reducers can still be called internally, but UI must call the new hook for migrated commands.
+- Implemented: `command-result.ts`, `commands/index.ts`, `commands/project.ts`, `commands/assets.ts`, `commands/scenes.ts`, `useAuthoringCommands.ts`, `command-dispatcher.ts`, and `materialize-authoring-command.ts`.
+- Current adapter: `dispatchAuthoringCommand()` dispatches actions materialized by the pure authoring core.
+- Still open: replace legacy reducer action materialization with document transactions for migrated domains.
 
 ### Phase 3 - Assets First
+
+Status: Partially done on `main`.
 
 Assets are the first domain because they already show correctness risk and cross-domain leakage.
 
@@ -179,6 +205,9 @@ Exit gate:
 - No UI component dispatches `ASSET_REMOVE`, `AUDIO_ASSET_REMOVE`, `FONT_ASSET_REMOVE`, or `TILESET_ASSET_REMOVE`.
 - Referenced asset deletion is blocked or explicitly resolved.
 - Tests cover normalized refs, dependency blocking, and explicit detach behavior.
+- Implemented: asset delete, rename, image patch, image clips, image/audio/font/tileset upsert, virtual folder create/rename/move/unassign/delete, and image usage route through authoring commands.
+- Implemented: `moveImportedAssetToFolderAction()` removed; imports call `asset.folder.moveAsset` through the authoring boundary when a folder target exists.
+- Still open: move dependency blocking from UI orchestration into the command handler; make detach/remove a typed command option instead of reducer-side implicit behavior.
 
 ### Phase 4 - Dialogs Into Normal Authoring
 
@@ -206,6 +235,8 @@ Exit gate:
 - Dialog selection/modal changes do not dirty the project.
 
 ### Phase 5 - Objects And Scenes
+
+Status: Partially done on `main`.
 
 Collapse object/entity duality toward the already documented model: object types + scene instances are authoring; entities are a derived runtime/editor view.
 
@@ -237,6 +268,9 @@ Exit gate:
 - Scene membership is `instances[]`.
 - `entities` is derived for Inspector/runtime compatibility only, not the source of authoring truth.
 - Duplicate names in one scope are blocked or explicitly resolved.
+- Implemented: scene/object explorer create, rename, start-scene, duplicate, instance visibility, instance rename, object type rename, and object delete paths route through authoring commands.
+- Implemented: `object-delete-request.ts` only handles confirm text and callbacks; it no longer imports reducer actions.
+- Still open: move duplicate-name and object creation validation into the command layer; reduce edit-time reliance on `project.entities`.
 
 ### Phase 6 - Layers With Stable Identity
 

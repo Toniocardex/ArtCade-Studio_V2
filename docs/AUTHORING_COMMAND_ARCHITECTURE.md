@@ -1,6 +1,6 @@
 # ArtCade Authoring Command Architecture
 
-> Status: refactor target, July 2026.
+> Status: active incremental refactor, July 2026.
 > Purpose: remove accidental complexity from the editor by making every durable authoring change enter through one explicit command boundary.
 
 ---
@@ -17,7 +17,18 @@ Every persistent authoring change must enter through a single command entry poin
 dispatchAuthoringCommand(command)
 ```
 
-That entry point is responsible for routing to one domain handler, running validation, producing undo/redo history, updating dirty/revision state, and emitting the next read-only snapshot.
+The current implementation is an adapter around a pure materialization step:
+
+```txt
+useAuthoringCommands()
+  -> dispatchAuthoringCommand(command, { project, dispatch })
+  -> materializeAuthoringCommand(command, { project })
+  -> legacy reducer action(s), temporarily
+```
+
+`materializeAuthoringCommand()` is the authoring-core entry point added during the July 2026 refactor. It must stay free of React, UI state, dialogs, prompts, DOM access, and direct dispatch. Until reducers are replaced by document transactions, it may materialize legacy reducer actions as an adapter layer.
+
+The final command path is responsible for routing to one domain handler, running validation, producing undo/redo history, updating dirty/revision state, and emitting the next read-only snapshot.
 
 ---
 
@@ -41,8 +52,10 @@ Target shape:
 editor/src/authoring/
   command-dispatcher.ts
   command-result.ts
+  materialize-authoring-command.ts
   project-document-store.ts
   commands/
+    index.ts
     assets.ts
     dialogs.ts
     logic-board.ts
@@ -56,10 +69,12 @@ Each domain gets one handler file. A user action should have one obvious path:
 
 ```txt
 UI event
+  -> useAuthoringCommands()
   -> dispatchAuthoringCommand(command)
-  -> domain handler
+  -> materializeAuthoringCommand(command)
+  -> domain handler / materializer
   -> schema/validator
-  -> ProjectDocument update
+  -> ProjectDocument update or temporary legacy reducer action
   -> history/dirty/revision
   -> read-only snapshot
   -> UI render
@@ -115,13 +130,27 @@ If a handler needs another domain, it should call a small domain service with a 
 
 Prioritize refactors that remove paths, not ones that add abstractions.
 
-1. Asset deletion must go through one authoring command with dependency checks.
-2. Dialog edits must become normal authoring commands with undo/redo and dirty behavior.
-3. Layers must stop using display names as internal keys; use stable IDs.
-4. Object/scene creation must reject or explicitly resolve duplicate names in the same scope.
-5. Legacy entity/object dual paths must collapse toward one object model.
-6. Project validation, import, paste, AI generation, drag/drop, and manual edits must share the same validation path.
-7. UI components that call project repair, normalization, or persistence helpers directly should be reduced to command dispatchers.
+### Done In The July 2026 Refactor
+
+- Project rename uses `useAuthoringCommands()`.
+- Scene/object explorer create, rename, start-scene, duplicate, instance visibility, instance rename, object type rename, and object deletion now route through authoring commands.
+- Asset delete, rename, image patch, image clip update, image/audio/font/tileset upsert, virtual folder create/rename/move/unassign/delete, and image usage changes now route through authoring commands.
+- `object-delete-request.ts` only handles confirmation and messaging; it no longer imports or dispatches reducer action names.
+- `useAssetFolderActions()` no longer dispatches raw persistent mutations.
+- `moveImportedAssetToFolderAction()` was removed; folder moves now use `asset.folder.moveAsset`.
+- `materializeAuthoringCommand()` has direct unit coverage and is the pure boundary for migrated commands.
+- Project utility lint debt was removed and `project-save-recovery-prompt.ts` listener notification was fixed.
+
+### Still Open
+
+1. Dialog edits must become normal authoring commands with undo/redo and dirty behavior.
+2. Logic Board edits must route through authoring commands; preview-applied/runtime markers stay runtime/workspace actions.
+3. Inspector property edits still contain raw persistent dispatches and should move behind command helpers.
+4. Layers must stop using display names as internal keys; use stable IDs.
+5. Object/scene creation must reject or explicitly resolve duplicate names in the same scope in the command layer.
+6. Legacy entity/object dual paths must collapse toward one object model.
+7. Project validation, import, paste, AI generation, drag/drop, and manual edits must share the same validation path.
+8. UI components that call project repair, normalization, or persistence helpers directly should be reduced to command dispatchers.
 
 ---
 
