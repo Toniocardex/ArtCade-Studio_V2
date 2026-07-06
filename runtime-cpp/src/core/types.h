@@ -346,10 +346,17 @@ struct EntityDef {
 
 // Tilemap (Scene Editor Phase D2) — field names mirror editor TS.
 // Grid dimension limits: see tilemap_grid.h (sync with editor/src/types/tilemap-grid.ts).
+//
+// legacy — no authoring path in artcade-editor; see ADR-0001. Do not add new
+// usages. Still compiled/consumed by the separate runtime-cpp repo
+// (World::activeTilemap_ / tilemap-renderer.cpp / scene-json.cpp) via the
+// vendor/artcade-runtime symlink — do not remove without confirming that
+// repo no longer needs it.
 struct TilesetSourceRef {
     std::string tilesetAssetId;
 };
 
+// legacy, see comment above TilesetSourceRef
 struct TilemapData {
     float            tileSize = 32.f;
     int              cols     = 0;   // 0 = no tilemap
@@ -428,6 +435,61 @@ struct TilesetAsset {
     std::vector<TileDefinition> tiles;   // empty until sliced
 };
 
+using TileId = std::string;
+
+// Per-cell transform, shaped for the spec's already-planned flip/rotate
+// (Slice 10 — Funzioni avanzate) so that feature is additive to this format
+// later rather than a JSON migration. Unused (always None) until then.
+enum class TileTransformFlags : std::uint8_t {
+    None  = 0,
+    FlipX = 1 << 0,
+    FlipY = 1 << 1,
+    Rot90 = 1 << 2,
+};
+
+struct TilemapCellValue {
+    TileId              tileId;
+    TileTransformFlags  flags = TileTransformFlags::None;
+
+    bool operator==(const TilemapCellValue& other) const {
+        return tileId == other.tileId && flags == other.flags;
+    }
+};
+
+// nullopt = empty cell. No sentinel/invented tile id (mirrors
+// TilesetEditorState::selectedTileId's own optional<string> shape). `tileId`,
+// when set, names a TileDefinition::id within the owning TilemapComponent's
+// tilesetAssetId.
+using TilemapCell = std::optional<TilemapCellValue>;
+
+// A fixed-size block of cells, addressed by chunk coordinates. Chunks are
+// created lazily by a future paint slice; Tileset/Tilemap Editor Slice 4
+// never creates one, so `chunks` is always empty in every real component —
+// the shape exists now so painting only appends to it later, never changes
+// it. See tilemap_chunk_math.h for the cell <-> chunk coordinate math.
+struct TilemapChunk {
+    int                       chunkX = 0;
+    int                       chunkY = 0;
+    std::vector<TilemapCell>  cells;   // size chunkSize*chunkSize, row-major
+};
+
+// Entity-owned persistent tile grid (Tileset/Tilemap Editor, Slice 4). One
+// per placed SceneInstanceDef (ADR-0001: entity-owned, not scene/layer-keyed
+// like the legacy TilemapData above). World origin of cell (0,0) is the
+// owning instance's existing Transform.position — this component
+// intentionally has no origin/position field of its own (ADR-0001: no
+// hidden synchronization, no two ownership paths for one fact).
+struct TilemapComponent {
+    AssetId                   tilesetAssetId;          // references ProjectDoc.tilesets
+    Vec2                      cellSize  = {32.f, 32.f}; // local, unscaled cell size
+    // Chosen at creation, immutable for the component's lifetime in this
+    // MVP (no setter command exists). Changing it once chunks are populated
+    // means re-bucketing every cell, an unsolved problem left to whichever
+    // future slice needs it.
+    int                       chunkSize = 16;
+    std::vector<TilemapChunk> chunks;                  // always [] in Slice 4
+};
+
 /**
  * Per-instance sprite rendering override authored by the native editor. The
  * AssetId references the project's image catalog (ProjectDoc.imageAssets);
@@ -457,6 +519,7 @@ struct SceneInstanceDef {
     std::string layerId;      // render layer id ("" = default layer)
     std::optional<SpriteRendererComponent> spriteRenderer;
     std::optional<SpriteAnimatorComponent> spriteAnimator;
+    std::optional<TilemapComponent>        tilemap;
     std::unordered_map<std::string, GameVariableValue> localVariableOverrides;
 };
 
@@ -483,8 +546,10 @@ struct SceneDef {
     std::string               defaultLayerId;
     std::vector<SceneInstanceDef> instances;
     /** Merged grid for physics / legacy single-layer projects. */
+    // legacy, see comment above TilesetSourceRef
     TilemapData         tilemap;     // cols==0 → absent
     /** Per-layer paint grids keyed by layer id (editor tilemapLayers). */
+    // legacy, see comment above TilesetSourceRef
     std::unordered_map<std::string, TilemapData> tilemapLayers;
     /** Per-scene visual overrides keyed by layer id (visible/opacity/parallax/bg). */
     std::unordered_map<std::string, SceneLayerSettings> layerSettings;
