@@ -395,14 +395,37 @@ struct SceneLayerSettings {
     LayerBackground background;
 };
 
-// Phase F3: spritesheet tileset. Cell id is 1-based, laid out L→R, T→B.
+// Pixel-size-first slicing config for a TilesetAsset's source image: tile
+// width/height are authored directly, columns/rows are derived (see
+// tileset_slicing.h) rather than stored, since they're a function of the
+// image's own pixel dimensions.
+struct TilesetSlicing {
+    int tileWidth  = 32;
+    int tileHeight = 32;
+    int marginX    = 0;
+    int marginY    = 0;
+    int spacingX   = 0;
+    int spacingY   = 0;
+};
+
+// One sliced cell of a TilesetAsset. The id is stable within its parent
+// tileset (survives reordering/save/reload); it is not a re-slicing identity
+// guarantee across a changed TilesetSlicing (see tileset_slicing.h).
+struct TileDefinition {
+    std::string id;
+    int x = 0;
+    int y = 0;
+    int width = 0;
+    int height = 0;
+};
+
+// Spritesheet tileset asset.
 struct TilesetAsset {
-    std::string assetId;
-    std::string spriteImagePath;
-    float       tileSize = 32.f;
-    int         margin   = 0;
-    int         cols     = 1;
-    int         rows     = 1;
+    AssetId        assetId;
+    std::string    name;
+    AssetId        imageAssetId;   // references ProjectDoc.imageAssets; never a raw path
+    TilesetSlicing slicing;
+    std::vector<TileDefinition> tiles;   // empty until sliced
 };
 
 /**
@@ -411,8 +434,17 @@ struct TilesetAsset {
  * empty means "no image". Optional on the instance so absence is explicit.
  */
 struct SpriteRendererComponent {
-    AssetId imageAssetId;     // "" = no image
+    AssetId imageAssetId;     // "" = no static image
+    AssetId animationAssetId; // "" = no animation source (mutually exclusive with imageAssetId)
     bool    visible = true;
+};
+
+/** Per-instance sprite animation playback, driving a SpriteRendererComponent
+ *  whose animationAssetId names the SpriteAnimationAssetDef to play. */
+struct SpriteAnimatorComponent {
+    std::string initialClipId;
+    bool        autoPlay = true;
+    float       playbackSpeed = 1.f;
 };
 
 /** Scene placement of an object type (project format v2). */
@@ -424,6 +456,7 @@ struct SceneInstanceDef {
     bool        visible      = true;
     std::string layerId;      // render layer id ("" = default layer)
     std::optional<SpriteRendererComponent> spriteRenderer;
+    std::optional<SpriteAnimatorComponent> spriteAnimator;
     std::unordered_map<std::string, GameVariableValue> localVariableOverrides;
 };
 
@@ -491,6 +524,7 @@ struct AnimationClipDef {
 
 struct ImageAssetDef {
     std::string assetId;
+    std::string name;
     std::string sourcePath; // authoring/import path resolved by derived rendering resources.
     Vec2 defaultPivot = {0.5f, 0.5f};
     std::vector<ImagePointDef> imagePoints;
@@ -504,6 +538,7 @@ enum class AudioLoadMode { StaticSound, Stream };
 
 struct AudioAssetDef {
     std::string   assetId;
+    std::string   name;
     std::string   sourcePath;
     AudioLoadMode loadMode = AudioLoadMode::StaticSound;
 };
@@ -515,9 +550,40 @@ enum class FontGlyphPreset { BasicLatin, European, CustomText };
 
 struct FontAssetDef {
     std::string     assetId;
+    std::string     name;
     std::string     sourcePath;
     int             defaultPixelSize = 32;
     FontGlyphPreset glyphPreset = FontGlyphPreset::European;
+};
+
+enum class AnimationPlaybackMode { Loop, Once };
+
+struct SpriteAnimationFrameDef {
+    int x = 0;
+    int y = 0;
+    int width = 0;
+    int height = 0;
+
+    bool operator==(const SpriteAnimationFrameDef& other) const {
+        return x == other.x && y == other.y && width == other.width && height == other.height;
+    }
+};
+
+// v2 schema: each clip owns its sheet via imageId (moved off the asset level).
+struct SpriteAnimationClipDef {
+    std::string id;
+    std::string name;
+    std::string imageId;
+    float framesPerSecond = 8.f;
+    AnimationPlaybackMode playbackMode = AnimationPlaybackMode::Loop;
+    std::vector<SpriteAnimationFrameDef> frames;
+};
+
+struct SpriteAnimationAssetDef {
+    std::string id;
+    std::string name;
+    std::string defaultClipId;
+    std::vector<SpriteAnimationClipDef> clips;
 };
 
 enum class PhysicsMode {
@@ -574,6 +640,7 @@ struct ProjectDoc {
     std::vector<TilePaletteEntry> tilePalette;   // Phase D2
     std::vector<TilesetAsset>     tilesets;      // Phase F3
     std::vector<ImageAssetDef>    imageAssets;   // editor assets + image points
+    std::vector<SpriteAnimationAssetDef> spriteAnimationAssets;
     std::vector<AudioAssetDef>    audioAssets;   // native editor import catalog
     std::vector<FontAssetDef>     fontAssets;    // native editor import catalog
     WorldSettings                 world{};
