@@ -1,5 +1,6 @@
 #include "../include/editor_viewport_service.h"
 
+#include "../include/editor_viewport_navigation.h"
 #include "../include/presentation_bindings.h"
 #include "../include/presentation_input_builder.h"
 
@@ -17,6 +18,11 @@ void EditorViewportService::set_editor_camera(double positionX,
     const double safeZoom = zoom > 0. ? zoom : 1.;
     host_.editorCamera = { positionX, positionY, safeZoom, 0. };
     host_.enter_scene_edit();
+    EditorViewState view{};
+    view.positionX = positionX;
+    view.positionY = positionY;
+    view.zoom = safeZoom;
+    controller_.set_editor_view(view);
 }
 
 SurfaceMetrics EditorViewportService::surface_metrics(uint32_t framebufferWidth,

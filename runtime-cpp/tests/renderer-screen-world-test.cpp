@@ -238,6 +238,24 @@ int main() {
     expect(near(renderer.worldScreenClipRect().width, 512.f),
            "invalid frame geometry falls back to project defaults");
 
+    renderer.setGameViewCompositorEnabled(false);
+    renderer.setWindowSize(1272, 860, "centered-editor-clip");
+    viewport.set_presentation_mode(ArtCade::Presentation::PresentationMode::SceneEdit);
+    viewport.set_editor_camera(-380., -270., 1.);
+    const ArtCade::Vec2 centeredWorld{ 512.f, 320.f };
+    commit_test_geometry(renderer, viewport, centeredWorld, centeredWorld);
+    const ScreenClipRect centeredClip = renderer.worldScreenClipRect();
+    const auto& pick = viewport.committed_snapshot().pickingCamera;
+    std::fprintf(stderr,
+        "centered-clip: xy=%f,%f wh=%fx%f pick=%f,%f\n",
+        centeredClip.x, centeredClip.y,
+        centeredClip.width, centeredClip.height,
+        pick.targetX, pick.targetY);
+    expect(near(centeredClip.x, 380.f) && near(centeredClip.y, 270.f),
+           "centered editor camera scissor origin");
+    expect(near(centeredClip.width, 512.f) && near(centeredClip.height, 320.f),
+           "centered editor camera scissor spans full scene");
+
     std::puts("renderer_screen_world_test: all passed");
     return 0;
 }

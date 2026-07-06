@@ -12,6 +12,7 @@ const { loadWasmRuntime, wasmReady } = vi.hoisted(() => ({
 
 vi.mock('../../utils/wasm-bridge', () => ({
   isReady: () => wasmReady.value,
+  isEditorEngineWired: () => false,
   loadWasmRuntime: (...args: unknown[]) => loadWasmRuntime(...args),
   warmWasmBinary: vi.fn(),
   editorRegisterImage: vi.fn(),

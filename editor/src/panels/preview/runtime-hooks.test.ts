@@ -1,10 +1,12 @@
 import { describe, it, expect, vi } from 'vitest'
+import { isReady, isEditorEngineWired } from '../../utils/wasm-bridge'
 
 ;(globalThis as unknown as { window: Record<string, unknown> }).window =
   (globalThis as unknown as { window?: Record<string, unknown> }).window ?? {}
 
 vi.mock('../../utils/wasm-bridge', () => ({
   isReady: vi.fn(() => false),
+  isEditorEngineWired: vi.fn(() => false),
   loadWasmRuntime: vi.fn(),
   editorRegisterImage: vi.fn(),
 }))
@@ -25,6 +27,7 @@ vi.mock('../../utils/runtime-sync-service', () => ({
     syncEditorChrome: vi.fn(),
     notifyReadyChanged,
     notifyEngineReady,
+    syncPresentationSnapshotNow: vi.fn(),
   },
 }))
 
@@ -149,9 +152,11 @@ describe('performRuntimeProjectSync', () => {
 })
 
 describe('buildRuntimeCallbacks', () => {
-  it('signals WASM readiness on onReady, not engine readiness', () => {
+  it('completes boot handshake on onReady when WASM is live', () => {
     notifyReadyChanged.mockClear()
     notifyEngineReady.mockClear()
+    vi.mocked(isReady).mockReturnValue(true)
+    vi.mocked(isEditorEngineWired).mockReturnValue(true)
     const dispatch = vi.fn()
     const callbacks = buildRuntimeCallbacks({
       cancelled: () => false,
@@ -165,11 +170,8 @@ describe('buildRuntimeCallbacks', () => {
 
     callbacks.onReady?.()
     expect(notifyReadyChanged).toHaveBeenCalledTimes(1)
-    // Engine readiness is NOT flagged on onReady — the bridge ccalls are still
-    // NotWired there. It is driven solely by the authoritative bridge-init
-    // console signal (see the onConsoleLine test below). Flagging it here caused
-    // a premature project re-sync (NotWired flood → render loop).
-    expect(notifyEngineReady).not.toHaveBeenCalled()
+    // Boot handshake completes on onReady once WASM ccalls are live.
+    expect(notifyEngineReady).toHaveBeenCalledTimes(1)
     expect(dispatch).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'LOG', entry: expect.objectContaining({ level: 'info' }) }),
     )
@@ -235,8 +237,10 @@ describe('buildRuntimeCallbacks', () => {
     })
   })
 
-  it('marks engine ready when EditorAPI bridge initialises', () => {
+  it('marks engine ready when EditorAPI bridge initialises and WASM is live', () => {
     notifyEngineReady.mockClear()
+    vi.mocked(isReady).mockReturnValue(true)
+    vi.mocked(isEditorEngineWired).mockReturnValue(true)
     const dispatch = vi.fn()
     const callbacks = buildRuntimeCallbacks({
       cancelled: () => false,
@@ -253,5 +257,22 @@ describe('buildRuntimeCallbacks', () => {
     expect(dispatch).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'LOG' }),
     )
+  })
+
+  it('does not mark engine ready on Mode: EDIT alone', () => {
+    notifyEngineReady.mockClear()
+    const dispatch = vi.fn()
+    const callbacks = buildRuntimeCallbacks({
+      cancelled: () => false,
+      dispatch,
+      handleRuntimeTransform: vi.fn(),
+      sceneIdRef: { current: 'a' },
+      syncRuntimeUiFlags: vi.fn(),
+      makeLogEntry: (message, level) => ({ id: 1, time: '', message, level }),
+      bootSyncRef: emptyBootSyncRef,
+    })
+
+    callbacks.onConsoleLine?.('[EditorAPI] Mode: EDIT', 'info')
+    expect(notifyEngineReady).not.toHaveBeenCalled()
   })
 })

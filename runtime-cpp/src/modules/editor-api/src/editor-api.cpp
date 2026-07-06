@@ -198,6 +198,13 @@ AuthoringSyncBatchHandler      EditorAPI::s_onAuthoringSyncBatchEnd{};
 SceneMutationBatchOpenPredicate EditorAPI::s_isSceneMutationBatchOpen{};
 std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
 
+namespace {
+std::string g_wasm_boot_failure_owned;
+const char* g_wasm_boot_failure_step = nullptr;
+/** -2 until Application::run records 0 (ok) or 1 (init failed). */
+int g_wasm_main_exit_code = -2;
+} // namespace
+
 Presentation::PresentationMode s_playPresentationMode =
     Presentation::PresentationMode::PlayEmbedded;
 
@@ -342,7 +349,8 @@ void EditorAPI::setSceneMutationBatchOpenPredicate(
 // ── Init / Shutdown ───────────────────────────────────────────────────────────
 void EditorAPI::init(const char* canvasSelector) {
     EditorInputController::initCanvas(canvasSelector);
-    notifyConsoleLine("[EditorAPI] Bridge initialised -- native input active.", "info");
+    // Queue — onConsoleLine may not be wired yet during C++ main(); flushed on first frame.
+    queueConsoleLine("[EditorAPI] Bridge initialised -- native input active.", "info");
 }
 
 void EditorAPI::shutdown() {
@@ -428,6 +436,42 @@ void EditorAPI::flushConsoleLines() {
     for (const auto& [message, level] : s_consoleQueue)
         notifyConsoleLine(message.c_str(), level.c_str());
     s_consoleQueue.clear();
+}
+
+void EditorAPI::clearEngineWiring() {
+    s_entityGateway = nullptr;
+    s_luaHost = nullptr;
+    s_renderer = nullptr;
+    s_viewport = nullptr;
+    s_dialogManager = nullptr;
+    s_spriteAnimator = nullptr;
+    s_audio = nullptr;
+    s_variables = nullptr;
+}
+
+bool EditorAPI::isEngineWired() {
+    return s_entityGateway != nullptr;
+}
+
+void EditorAPI::recordBootFailure(const char* step) {
+    if (!step || !*step) step = "unknown";
+    g_wasm_boot_failure_owned = step;
+    g_wasm_boot_failure_step = g_wasm_boot_failure_owned.c_str();
+    char buf[160];
+    std::snprintf(buf, sizeof(buf), "[App] init failed: %s", step);
+    queueConsoleLine(buf, "error");
+}
+
+const char* EditorAPI::bootFailureStep() {
+    return g_wasm_boot_failure_step ? g_wasm_boot_failure_step : "";
+}
+
+void EditorAPI::recordWasmMainExitCode(int code) {
+    g_wasm_main_exit_code = code;
+}
+
+int EditorAPI::wasmMainExitCode() {
+    return g_wasm_main_exit_code;
 }
 
 } // namespace ArtCade
@@ -633,6 +677,18 @@ EMSCRIPTEN_KEEPALIVE void editor_set_play_presentation(int mode) {
         return;
     if (auto* vp = ArtCade::EditorAPI::s_viewport)
         vp->set_presentation_mode(ArtCade::s_playPresentationMode);
+}
+
+EMSCRIPTEN_KEEPALIVE int editor_is_engine_wired(void) {
+    return ArtCade::EditorAPI::isEngineWired() ? 1 : 0;
+}
+
+EMSCRIPTEN_KEEPALIVE const char* editor_get_boot_failure(void) {
+    return ArtCade::EditorAPI::bootFailureStep();
+}
+
+EMSCRIPTEN_KEEPALIVE int editor_get_main_exit_code(void) {
+    return ArtCade::EditorAPI::wasmMainExitCode();
 }
 
 EMSCRIPTEN_KEEPALIVE void editor_set_mode(int mode) {
@@ -864,6 +920,9 @@ EMSCRIPTEN_KEEPALIVE void editor_resize_surface(
         fbW,
         fbH);
     editor_sync_viewport_pending();
+    // Commit presentation immediately so picking/overlays match the new FB size
+    // without waiting for the next render-frame begin_frame().
+    vp->begin_frame();
 }
 
 EMSCRIPTEN_KEEPALIVE void editor_begin_pan(float cssX, float cssY) {
@@ -971,6 +1030,10 @@ EMSCRIPTEN_KEEPALIVE void editor_set_editor_view(
         static_cast<double>(targetX),
         static_cast<double>(targetY),
         static_cast<double>(zoomDevicePx));
+    if (auto* r = ArtCade::EditorAPI::s_renderer) {
+        vp->navigation_prepare(r->windowWidth(), r->windowHeight());
+        vp->navigation_commit();
+    }
     editor_sync_viewport_pending();
 }
 

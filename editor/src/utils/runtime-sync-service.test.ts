@@ -8,6 +8,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 vi.mock('./wasm-bridge', () => {
   return {
     isReady: vi.fn(() => true),
+    isEditorEngineWired: vi.fn(() => true),
     editorLoadProject:        vi.fn(() => 0),
     editorLoadDialogs:        vi.fn(),
     editorRestoreFromProject: vi.fn(),
@@ -105,6 +106,8 @@ describe('RuntimeSyncService', () => {
     vi.mocked(bridge.editorSyncTilemapLayers).mockReturnValue(true)
     vi.mocked(bridge.editorReadPresentationSnapshot).mockReset()
     vi.mocked(bridge.editorReadPresentationSnapshot).mockReturnValue(null)
+    vi.mocked(bridge.isEditorEngineWired).mockReset()
+    vi.mocked(bridge.isEditorEngineWired).mockReturnValue(true)
     resetPresentationStoreForTests()
     runtimeSync.notifyEngineReady()
   })

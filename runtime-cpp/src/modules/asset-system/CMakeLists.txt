@@ -24,7 +24,7 @@ endif()
 # and link raylib so sinflate() (compiled in rcore.c) is available at link time.
 if(TARGET raylib)
     target_include_directories(artcade-asset-system PRIVATE
-        ${CMAKE_SOURCE_DIR}/libs/raylib/src      # → #include "external/sinfl.h"
+        ${ARTCADE_RUNTIME_ROOT}/libs/raylib/src      # → #include "external/sinfl.h"
     )
     target_link_libraries(artcade-asset-system PRIVATE raylib)
 endif()

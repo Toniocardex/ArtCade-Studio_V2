@@ -128,6 +128,7 @@ export function runtimeCanvasEditStyle(params: Readonly<{
     transformOrigin: '0 0',
     background,
     imageRendering: 'auto',
+    zIndex: '0',
     ...(pointerEvents ? { pointerEvents } : {}),
   }
 }

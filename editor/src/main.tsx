@@ -13,6 +13,8 @@ import RuntimePreviewApp from './runtime-preview/RuntimePreviewApp'
 import { BootErrorBoundary } from './components/BootErrorBoundary'
 import { initTheme } from './utils/theme'
 import { applyTauriWindowSurfaceIfNeeded } from './utils/boot-chrome'
+import { ensureRuntimeCanvasForWasmBoot } from './utils/runtime-canvas'
+import { installBootDiagnosticsTap } from './utils/boot-diagnostics'
 import { installEditorKeyboardGuards } from './utils/keyboard'
 import { isRuntimePreviewRoute } from './utils/runtime-preview-window'
 import { installSpritesheetPreviewCallback } from './utils/spritesheet-preview-bridge'
@@ -24,6 +26,10 @@ if (!runtimePreviewRoute) {
   installSpritesheetPreviewCallback()
 }
 applyTauriWindowSurfaceIfNeeded(bootTheme)
+if (!runtimePreviewRoute) {
+  installBootDiagnosticsTap()
+  ensureRuntimeCanvasForWasmBoot()
+}
 
 const rootEl = document.getElementById('root')
 if (!rootEl) throw new Error('#root not found')

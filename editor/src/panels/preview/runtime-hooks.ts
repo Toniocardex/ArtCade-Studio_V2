@@ -12,11 +12,11 @@
 // here.
 
 import {
-  useCallback, useEffect, useRef,
+  useCallback, useEffect, useLayoutEffect, useRef,
   type Dispatch, type MutableRefObject, type RefObject,
 } from 'react'
 import {
-  loadWasmRuntime, isReady,
+  loadWasmRuntime, isReady, isEditorEngineWired,
   editorSetActiveTileLayer,
   type WasmCallbacks,
 } from '../../utils/wasm-bridge'
@@ -31,12 +31,31 @@ import {
   scheduleWasmUiUpdate,
   scheduleWasmUiUpdateWhen,
 } from '../../utils/wasm-ui-scheduler'
+import { debugSceneLog } from '../../utils/debug-scene-log'
+import { captureBootLine } from '../../utils/boot-diagnostics'
+import { ensureRuntimeCanvasForWasmBoot } from '../../utils/runtime-canvas'
+import { useEditorSelector } from '../../store/editor-store'
 import { setRuntimeProfileSample } from '../../utils/runtime-profile-buffer'
 import { queueTransformPreview } from '../../utils/transform-preview-store'
 import type { ConsoleEntry, ProjectDoc, ScriptFile } from '../../types'
 import type { Action as EditorAction } from '../../store/editor-store'
 
 export interface MakeLogEntry { (message: string, level: string): ConsoleEntry }
+
+/** Shared console row shape for runtime boot + preview panels. */
+export function makeRuntimeLogEntry(message: string, level: string): ConsoleEntry {
+  const validLevels = ['info', 'warn', 'error', 'lua'] as const
+  return {
+    id: Date.now() + Math.random(),
+    time: new Date().toLocaleTimeString('en-US', {
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+    }),
+    message,
+    level: validLevels.includes(level as never)
+      ? (level as ConsoleEntry['level'])
+      : 'info',
+  }
+}
 
 // ---------------------------------------------------------------------------
 // buildRuntimeCallbacks — single source of truth for the C++→React contract
@@ -64,6 +83,67 @@ export interface RuntimeCallbackDeps {
   }>
 }
 
+function tryCompleteBootHandshake(
+  deps: Pick<RuntimeCallbackDeps, 'bootSyncRef' | 'dispatch' | 'makeLogEntry'>,
+  source: 'bridge' | 'wasm_ready' | 'project_ready',
+): void {
+  const wasmLive = isReady()
+  const cppWired = isEditorEngineWired()
+  // #region agent log
+  debugSceneLog('runtime-hooks.ts:tryCompleteBootHandshake', 'boot_handshake', {
+    source,
+    wasmLive,
+    cppWired,
+    engineReady: runtimeSync.isEngineReady(),
+    hasProject: deps.bootSyncRef.current.project != null,
+    bootSynced: runtimeSync.isBootProjectSynced(),
+  }, 'H1')
+  // #endregion
+  if (!wasmLive || !cppWired) return
+  runtimeSync.notifyEngineReady()
+  scheduleBootProjectSync(deps)
+}
+
+/** Engine-ready latch + deferred boot project sync (never inside Module.print). */
+function handleEditorEngineReadySignal(
+  message: string,
+  deps: Pick<RuntimeCallbackDeps, 'bootSyncRef' | 'dispatch' | 'makeLogEntry'>,
+): void {
+  const isBridge = message.includes('[EditorAPI] Bridge initialised')
+  if (!isBridge) return
+
+  const wasReady = runtimeSync.isEngineReady()
+  // #region agent log
+  debugSceneLog('runtime-hooks.ts:handleEditorEngineReadySignal', 'engine_ready_signal', {
+    isBridge,
+    wasReady,
+    wasmReady: isReady(),
+  }, 'H1')
+  // #endregion
+  tryCompleteBootHandshake(deps, 'bridge')
+}
+
+function scheduleBootProjectSync(
+  deps: Pick<RuntimeCallbackDeps, 'bootSyncRef' | 'dispatch' | 'makeLogEntry'>,
+): void {
+  const boot = deps.bootSyncRef.current
+  if (boot.project == null) return
+  scheduleWasmUiUpdate(() => {
+    void performRuntimeProjectSync({
+      project: boot.project,
+      projectPath: boot.projectPath,
+      openScripts: boot.openScripts,
+      dialogs: boot.dialogs,
+      selectionSceneId: boot.selectionSceneId,
+      isPlaying: boot.isPlaying,
+      wasmReady: isReady(),
+      engineReady: runtimeSync.isEngineReady(),
+      dispatch: deps.dispatch,
+      makeLogEntry: deps.makeLogEntry,
+    })
+  }, { urgent: true })
+}
+
 export function buildRuntimeCallbacks(deps: RuntimeCallbackDeps): WasmCallbacks {
   const {
     cancelled, dispatch,
@@ -77,24 +157,13 @@ export function buildRuntimeCallbacks(deps: RuntimeCallbackDeps): WasmCallbacks 
       // "runtime still loading" state without waiting for a re-render of
       // the preview panel.
       runtimeSync.notifyReadyChanged()
-      // Engine (Editor API) readiness is NOT signalled here: at
-      // onRuntimeInitialized the bridge ccalls still return NotWired. EditorAPI::init
-      // emits "[EditorAPI] Bridge initialised" once the ccalls are live, and
-      // onConsoleLine turns that into notifyEngineReady() — the one authoritative
-      // signal. Flagging engine-ready here triggered a project re-sync that called
-      // editorReloadScript before it was wired (NotWired flood → render loop).
-      const boot = bootSyncRef.current
-      if (boot.project != null) {
-        scheduleWasmUiUpdateWhen(cancelled, () => {
-          performRuntimeProjectSync({
-            ...boot,
-            wasmReady: isReady(),
-            engineReady: runtimeSync.isEngineReady(),
-            dispatch,
-            makeLogEntry,
-          })
-        }, { urgent: true })
-      }
+      // Boot handshake must not use cancelled() — StrictMode teardown drops it otherwise.
+      scheduleWasmUiUpdate(() => {
+        tryCompleteBootHandshake(
+          { bootSyncRef, dispatch, makeLogEntry },
+          'wasm_ready',
+        )
+      }, { urgent: true })
       scheduleWasmUiUpdateWhen(cancelled, () => {
         dispatch({
           type: 'LOG',
@@ -134,32 +203,11 @@ export function buildRuntimeCallbacks(deps: RuntimeCallbackDeps): WasmCallbacks 
       })
     },
     onConsoleLine: (message: string, level: string) => {
+      captureBootLine(message, level)
       // Authoritative engine-ready signal — register it BEFORE the cancelled()
       // guard so a stale/cancelled callbacks instance (StrictMode / dispatch
       // identity churn) can never drop boot's transition to engine-ready.
-      // notifyEngineReady is edge-triggered, so a repeat is a harmless no-op.
-      if (message.includes('[EditorAPI] Bridge initialised')) {
-        runtimeSync.notifyEngineReady()
-        // Boot sync must not run inside Module.print — reentrant editor_load_project
-        // during the print callback caused Maximum update depth (React #185).
-        const boot = bootSyncRef.current
-        if (boot.project != null) {
-          scheduleWasmUiUpdate(() => {
-            performRuntimeProjectSync({
-              project: boot.project,
-              projectPath: boot.projectPath,
-              openScripts: boot.openScripts,
-              dialogs: boot.dialogs,
-              selectionSceneId: boot.selectionSceneId,
-              isPlaying: boot.isPlaying,
-              wasmReady: isReady(),
-              engineReady: runtimeSync.isEngineReady(),
-              dispatch,
-              makeLogEntry,
-            })
-          }, { urgent: true })
-        }
-      }
+      handleEditorEngineReadySignal(message, { bootSyncRef, dispatch, makeLogEntry })
       // EditorAPI errors must reach the console even if an older lifecycle
       // hook marked itself cancelled (e.g. StrictMode / dispatch identity churn).
       const forceLog =
@@ -218,40 +266,33 @@ export function useWasmRuntimeLifecycle(opts: LifecycleOptions): void {
     sceneIdRef, syncRuntimeUiFlags, handleRuntimeTransform, makeLogEntry, bootSyncRef,
   } = opts
 
-  // ── Mount (once per dispatch identity) ────────────────────────────────────
+  // ── Rebind canvas when WASM boot completes (initial load is BootRuntimeLoader) ─
   useEffect(() => {
     if (!canvasReady) return
     const canvas = canvasRef.current
     if (!canvas) return
 
-    let cancelled = false
     const callbacks = buildRuntimeCallbacks({
-      cancelled: () => cancelled,
+      cancelled: () => false,
       dispatch,
       handleRuntimeTransform, sceneIdRef, syncRuntimeUiFlags,
       makeLogEntry, bootSyncRef,
     })
 
-    if (isReady()) {
-      callbacks.onReady()
-      void loadWasmRuntime(canvas, WASM_RUNTIME_SRC, callbacks)
-      return () => { cancelled = true }
+    const attach = (): void => {
+      void loadWasmRuntime(canvas, WASM_RUNTIME_SRC, callbacks).catch((err) => {
+        console.error('[PreviewPanel] WASM rebind failed:', err)
+      })
     }
 
-    void loadWasmRuntime(canvas, WASM_RUNTIME_SRC, callbacks).catch((err) => {
-      if (!cancelled) {
-        console.error('[PreviewPanel] WASM init failed:', err)
-        dispatch({
-          type: 'LOG',
-          entry: makeLogEntry(`[WASM] Init failed: ${String(err)}`, 'error'),
-        })
-      }
-    })
+    if (isReady()) {
+      attach()
+      return undefined
+    }
 
-    return () => { cancelled = true }
-    // Intentionally keyed on `dispatch` only: remount WASM when EditorProvider
-    // resets (boot session). Canvas/mode/callbacks are stable refs — re-running
-    // on them would double-init the runtime (see docs/TECHNICAL_DEBT_REVIEW.md P1/P2).
+    return runtimeSync.onReadyChange((ready) => {
+      if (ready) attach()
+    })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch, canvasReady])
 
@@ -271,6 +312,149 @@ export function useWasmRuntimeLifecycle(opts: LifecycleOptions): void {
     }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, dispatch])
+}
+
+// ---------------------------------------------------------------------------
+// useBootSceneSync — latch scene sync when project arrives after WASM boot
+// ---------------------------------------------------------------------------
+
+interface BootSceneSyncOptions {
+  project: ProjectDoc | null
+  dispatch: Dispatch<EditorAction>
+  makeLogEntry: MakeLogEntry
+  bootSyncRef: RuntimeCallbackDeps['bootSyncRef']
+}
+
+/** Re-run boot handshake when LOAD_PROJECT fires after WASM/engine are live. */
+export function useBootSceneSync(opts: BootSceneSyncOptions): void {
+  const { project, dispatch, makeLogEntry, bootSyncRef } = opts
+
+  const attempt = useCallback(() => {
+    if (project == null) return
+    if (runtimeSync.isBootProjectSynced()) return
+    tryCompleteBootHandshake(
+      { bootSyncRef, dispatch, makeLogEntry },
+      'project_ready',
+    )
+  }, [project, dispatch, makeLogEntry, bootSyncRef])
+
+  useEffect(() => {
+    attempt()
+  }, [attempt])
+
+  // Project may arrive before WASM/main() finishes; retry when the module flips ready.
+  useEffect(() => {
+    const unsub = runtimeSync.onReadyChange((ready) => {
+      if (ready) attempt()
+    })
+    return unsub
+  }, [attempt])
+}
+
+// ---------------------------------------------------------------------------
+// useBootHandshakeRetry — poll until engine API latches (survives StrictMode)
+// ---------------------------------------------------------------------------
+
+/** Retry boot handshake every frame while WASM is live but engine API is not. */
+export function useBootHandshakeRetry(opts: BootSceneSyncOptions): void {
+  const { project, dispatch, makeLogEntry, bootSyncRef } = opts
+
+  useEffect(() => {
+    let frame = 0
+    const maxFrames = 60 * 25
+    let raf = 0
+
+    const tick = () => {
+      frame++
+      if (runtimeSync.isBootProjectSynced() || runtimeSync.isEngineReady()) return
+      if (frame >= maxFrames) return
+      if (isReady()) {
+        tryCompleteBootHandshake(
+          { bootSyncRef, dispatch, makeLogEntry },
+          'project_ready',
+        )
+      }
+      raf = requestAnimationFrame(tick)
+    }
+
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [project, dispatch, makeLogEntry, bootSyncRef])
+}
+
+// ---------------------------------------------------------------------------
+// useBootSyncRef — shared project payload for boot handshake
+// ---------------------------------------------------------------------------
+
+export function useBootSyncRef(): RuntimeCallbackDeps['bootSyncRef'] {
+  const project = useEditorSelector((s) => s.project)
+  const projectPath = useEditorSelector((s) => s.projectPath)
+  const openScripts = useEditorSelector((s) => s.openScripts)
+  const dialogs = useEditorSelector((s) => s.dialogs)
+  const selection = useEditorSelector((s) => s.selection)
+  const isPlaying = useEditorSelector((s) => s.isPlaying)
+
+  const bootSyncRef = useRef<RuntimeCallbackDeps['bootSyncRef']['current']>({
+    project: null,
+    projectPath: null,
+    openScripts: [],
+    dialogs: {},
+    selectionSceneId: null,
+    isPlaying: false,
+  })
+
+  bootSyncRef.current = {
+    project,
+    projectPath,
+    openScripts,
+    dialogs,
+    selectionSceneId: selection.sceneId,
+    isPlaying,
+  }
+
+  return bootSyncRef
+}
+
+// ---------------------------------------------------------------------------
+// useEditorWasmBoot — load game.js once with a body-mounted canvas (boot gate)
+// ---------------------------------------------------------------------------
+
+export interface EditorWasmBootOptions {
+  dispatch: Dispatch<EditorAction>
+  makeLogEntry: MakeLogEntry
+  bootSyncRef: RuntimeCallbackDeps['bootSyncRef']
+  syncRuntimeUiFlags: () => void
+}
+
+/** Start WASM before PreviewPanel layout; canvas stays on document.body until rebind. */
+export function useEditorWasmBoot(opts: EditorWasmBootOptions): void {
+  const { dispatch, makeLogEntry, bootSyncRef, syncRuntimeUiFlags } = opts
+  const sceneIdRef = useRef('')
+
+  useLayoutEffect(() => {
+    if (isReady()) return undefined
+
+    const canvas = ensureRuntimeCanvasForWasmBoot()
+    const callbacks = buildRuntimeCallbacks({
+      cancelled: () => false,
+      dispatch,
+      handleRuntimeTransform: () => {},
+      sceneIdRef,
+      syncRuntimeUiFlags,
+      makeLogEntry,
+      bootSyncRef,
+    })
+
+    void loadWasmRuntime(canvas, WASM_RUNTIME_SRC, callbacks).catch((err) => {
+      const msg = `[WASM] Init failed: ${String(err)}`
+      captureBootLine(msg, 'error')
+      dispatch({
+        type: 'LOG',
+        entry: makeLogEntry(msg, 'error'),
+      })
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dispatch])
 }
 
 // ---------------------------------------------------------------------------
@@ -319,7 +503,17 @@ export async function performRuntimeProjectSync(opts: ProjectSyncOptions): Promi
     projectPath,
   })
   logLogicBoardCompileFailure(dispatch, compileError, makeLogEntry)
-  await runtimeSync.syncProject(project!, runtimeSceneId, projectPath, { mainLua, dialogs })
+  const syncOk = await runtimeSync.syncProject(project!, runtimeSceneId, projectPath, { mainLua, dialogs })
+  // #region agent log
+  debugSceneLog('runtime-hooks.ts:performRuntimeProjectSync', 'project_sync_result', {
+    syncOk,
+    engineReady,
+    wasmReady,
+    runtimeSceneId,
+    bootSynced: runtimeSync.isBootProjectSynced(),
+  }, 'H1')
+  // #endregion
+  runtimeSync.syncPresentationSnapshotNow()
 }
 
 export function useRuntimeProjectSync(opts: ProjectSyncOptions): void {

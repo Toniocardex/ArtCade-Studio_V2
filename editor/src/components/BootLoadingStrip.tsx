@@ -1,9 +1,11 @@
 /** Status line + indeterminate bar shown during editor boot. */
 export function BootLoadingStrip({
   statusLine,
+  diagnosticHints = [],
   visible,
 }: Readonly<{
   statusLine: string
+  diagnosticHints?: string[]
   visible: boolean
 }>) {
   if (!visible) return null
@@ -16,6 +18,18 @@ export function BootLoadingStrip({
       <p className="text-[10px] text-[var(--muted)] font-mono text-center max-w-md leading-snug">
         {statusLine}
       </p>
+      {diagnosticHints.length > 0 && (
+        <div className="flex flex-col gap-1 max-w-lg w-full">
+          {diagnosticHints.map((hint) => (
+            <p
+              key={hint}
+              className="text-[9px] text-[var(--danger)] font-mono text-center leading-snug break-words"
+            >
+              {hint}
+            </p>
+          ))}
+        </div>
+      )}
       <div
         className="w-full max-w-xs h-1 rounded-sm bg-[var(--border)] overflow-hidden"
         role="progressbar"

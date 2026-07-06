@@ -6,7 +6,24 @@
 
 #include <algorithm>
 
+#ifdef __EMSCRIPTEN__
+extern "C" {
+#include "rlgl.h"
+}
+#endif
+
 namespace ArtCade::Modules {
+
+namespace {
+
+#ifdef __EMSCRIPTEN__
+/** Flush Raylib's shape batch while scissor + Mode2D are still active (ES2). */
+void flush_active_shape_batch() {
+    rlDrawRenderBatchActive();
+}
+#endif
+
+} // namespace
 
 Vec2 Renderer::Impl::scene_world_bounds() const {
     if (committedGeometryActive_) return committedWorldSize_;
@@ -33,12 +50,20 @@ using ArtCade::Presentation::ViewCamera2D;
 
 Camera2D raylib_camera_from_view(const ViewCamera2D& view) {
     const double zoom = view.zoom > 0. ? view.zoom : 1.;
-    return {
-        { static_cast<float>(view.targetX), static_cast<float>(view.targetY) },
-        { static_cast<float>(view.offsetX), static_cast<float>(view.offsetY) },
-        static_cast<float>(zoom),
-        0.f,
+    Camera2D camera{};
+    // Raylib 5 Camera2D field order is offset, target, rotation, zoom — never
+    // use positional braced init here (target/offset would be swapped).
+    camera.offset = {
+        static_cast<float>(view.offsetX),
+        static_cast<float>(view.offsetY),
     };
+    camera.target = {
+        static_cast<float>(view.targetX),
+        static_cast<float>(view.targetY),
+    };
+    camera.rotation = 0.f;
+    camera.zoom = static_cast<float>(zoom);
+    return camera;
 }
 
 Camera2D surface_camera_from_snapshot(
@@ -102,12 +127,8 @@ Camera2D Renderer::Impl::frame_camera_with_shake() const {
 }
 
 void Renderer::Impl::begin_world_scissor(const Camera2D& frameCamera) {
-    const uint32_t fbW = inGameViewTexturePass
-        ? resources.game_view_width()
-        : surface.width();
-    const uint32_t fbH = inGameViewTexturePass
-        ? resources.game_view_height()
-        : surface.height();
+    const uint32_t fbW = framebuffer_width();
+    const uint32_t fbH = framebuffer_height();
     const Vec2& bounds = scene_world_bounds();
     const ScreenClipRect clip = renderer_compute_world_clip(
         frameCamera, bounds, fbW, fbH);
@@ -262,6 +283,9 @@ void Renderer::endWorldPass() {
             break;
         }
     }
+#ifdef __EMSCRIPTEN__
+    flush_active_shape_batch();
+#endif
     impl_->drawQueue.clear();
     impl_->end_world_scissor();
     EndMode2D();

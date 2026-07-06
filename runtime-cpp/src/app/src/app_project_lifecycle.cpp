@@ -43,12 +43,16 @@ void Application::applyRuntimeSettings(const ProjectRuntimeSettings& settings,
     if (!scene) return;
 
     if (policy == ViewportPolicy::EditorPreview) {
+#ifndef ARTCADE_WASM
+        // Native edit window tracks world size 1:1; WASM framebuffer is owned by
+        // editor_resize_surface (Phase 6) and must not be reset here.
         if (scene->worldSize.x > 0.f && scene->worldSize.y > 0.f) {
             mod_->renderer->setWindowSize(
                 static_cast<uint32_t>(scene->worldSize.x),
                 static_cast<uint32_t>(scene->worldSize.y),
                 "ArtCade V2");
         }
+#endif
         mod_->editorViewport->set_presentation_mode(
             ArtCade::Presentation::PresentationMode::SceneEdit);
         mod_->renderer->setGameViewCompositorEnabled(false);

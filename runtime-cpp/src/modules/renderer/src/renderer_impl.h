@@ -152,6 +152,26 @@ struct Renderer::Impl {
     Camera2D frame_camera_with_shake() const;
     Vec2 scene_world_bounds() const;
     Vec2 scene_logical_viewport() const;
+
+    uint32_t framebuffer_width() const {
+        if (inGameViewTexturePass) return resources.game_view_width();
+#ifdef __EMSCRIPTEN__
+        const int liveW = GetScreenWidth();
+        return liveW > 0 ? static_cast<uint32_t>(liveW) : surface.width();
+#else
+        return surface.width();
+#endif
+    }
+
+    uint32_t framebuffer_height() const {
+        if (inGameViewTexturePass) return resources.game_view_height();
+#ifdef __EMSCRIPTEN__
+        const int liveH = GetScreenHeight();
+        return liveH > 0 ? static_cast<uint32_t>(liveH) : surface.height();
+#else
+        return surface.height();
+#endif
+    }
 };
 
 } // namespace ArtCade::Modules

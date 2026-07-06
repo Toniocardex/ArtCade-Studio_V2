@@ -44,6 +44,7 @@ import {
   editorUpdateEntity,
   editorReadPresentationSnapshot,
   isReady as isWasmReady,
+  isEditorEngineWired,
 } from './wasm-bridge'
 import {
   clearPresentationSnapshot,
@@ -58,6 +59,7 @@ import {
   type RuntimeProjection,
 } from './runtime-fingerprint'
 import { planProjectSync, type ProjectSyncPlan } from './runtime-sync-diff'
+import { debugSceneLog } from './debug-scene-log'
 import { entitiesForRuntimeSync } from './project-object-types'
 import type { ProjectDoc } from '../types'
 import type { DialogScript } from './dialog/dialog-script'
@@ -323,6 +325,7 @@ class RuntimeSyncServiceImpl {
    * repeated "bridge initialised" signals can't re-drive project sync. */
   notifyEngineReady(): void {
     if (this.engineReady) return
+    if (!isEditorEngineWired()) return
     this.engineReady = true
     // Editor API just wired — force chrome channels (grid/guides) to resync.
     this.lastGuides = null
@@ -669,7 +672,28 @@ class RuntimeSyncServiceImpl {
     options?: SyncProjectOptions,
   ): Promise<boolean> {
     if (!isWasmReady() || !this.engineReady) return Promise.resolve(false)
+    if (!this.reconcileEngineWiring()) return Promise.resolve(false)
     return this.syncProjectInner(project, activeSceneId, projectPath, options)
+  }
+
+  /**
+   * Drop a stale engine-ready latch when C++ modules were torn down (WASM boot race).
+   * @return false when the gateway is not wired
+   */
+  private reconcileEngineWiring(): boolean {
+    const wired = isEditorEngineWired()
+    // #region agent log
+    debugSceneLog('runtime-sync-service.ts:reconcileEngineWiring', 'engine_wiring_check', {
+      wired,
+      engineReady: this.engineReady,
+    }, 'H1')
+    // #endregion
+    if (wired) return true
+    if (!this.engineReady) return false
+    this.engineReady = false
+    this.stopPresentationPolling()
+    for (const cb of this.engineReadyListeners) cb(false)
+    return false
   }
 
   private async syncProjectInner(
@@ -730,6 +754,13 @@ class RuntimeSyncServiceImpl {
       const code = editorLoadProject(
         projectJsonForRuntime(project, activeSceneId),
       )
+      // #region agent log
+      debugSceneLog('runtime-sync-service.ts:syncProjectInner', 'editor_load_project', {
+        code,
+        planKind: plan.kind,
+        loadKeyChanged: this.lastLoadKey !== loadKey,
+      }, 'H1')
+      // #endregion
       if (code === EDITOR_API_CCALL_FAILED || code !== EditorApiResult.Ok) {
         console.warn(
           '[runtime-sync] Project load rejected:',

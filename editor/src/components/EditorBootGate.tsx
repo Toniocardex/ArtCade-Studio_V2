@@ -12,6 +12,7 @@ import {
 import { useEditorBootReady } from '../hooks/useEditorBootReady'
 import { revealTauriWindowForSplash } from '../utils/boot-chrome'
 import { warmWasmBinary } from '../utils/wasm-bridge'
+import BootRuntimeLoader from './BootRuntimeLoader'
 
 export interface EditorBootGateProps {
   children: ReactNode
@@ -24,7 +25,7 @@ export interface EditorBootGateProps {
  * minimum splash time and intro completion (including the skip hold beat).
  */
 export default function EditorBootGate({ children }: EditorBootGateProps) {
-  const { ready, timedOut, statusLine, retry } = useEditorBootReady()
+  const { ready, timedOut, statusLine, diagnosticHints, retry } = useEditorBootReady()
   const splashStartedAtRef = useRef(Date.now())
   const [introSkipped, setIntroSkipped] = useState(false)
   const [introComplete, setIntroComplete] = useState(false)
@@ -88,10 +89,11 @@ export default function EditorBootGate({ children }: EditorBootGateProps) {
 
   return (
     <div className="relative h-full w-full min-h-0 flex flex-col overflow-hidden bg-[var(--bg)]">
+      <BootRuntimeLoader />
+      {/* Keep the editor shell fully opaque during boot so WebGL/Raylib can create a
+          context behind the splash overlay (opacity-0 ancestors break WASM init). */}
       <div
-        className={`flex flex-1 min-h-0 flex-col overflow-hidden transition-opacity duration-300 ease-out ${
-          bootComplete ? 'opacity-100' : 'opacity-0 pointer-events-none'
-        }`}
+        className="flex flex-1 min-h-0 flex-col overflow-hidden"
         aria-hidden={!bootComplete}
       >
         {children}
@@ -124,13 +126,22 @@ export default function EditorBootGate({ children }: EditorBootGateProps) {
           >
             Skip intro
           </button>
-          <BootLoadingStrip statusLine={statusLine} visible={showLoadingStatus} />
+          <BootLoadingStrip
+            statusLine={statusLine}
+            diagnosticHints={diagnosticHints}
+            visible={showLoadingStatus}
+          />
           {timedOut && (
             <div className="fixed bottom-6 left-6 right-24 z-[110] flex flex-col gap-2 pointer-events-auto max-w-md">
               <p className="text-[11px] text-[var(--danger)] font-mono leading-snug">
                 Startup timed out. Check the console for runtime errors, then retry.
               </p>
               <p className="text-[10px] text-[var(--muted)] font-mono">{statusLine}</p>
+              {diagnosticHints.map((hint) => (
+                <p key={hint} className="text-[9px] text-[var(--danger)] font-mono break-words">
+                  {hint}
+                </p>
+              ))}
               <button
                 type="button"
                 onClick={retry}

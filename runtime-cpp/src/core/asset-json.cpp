@@ -14,6 +14,7 @@ void read_image_asset(const nlohmann::json& assetJson,
     const std::string libId   = assetJson.value("id", mapKey);
     const std::string libPath = assetJson.value("path", std::string{});
     out.assetId = libPath.empty() ? libId : libPath;
+    out.name = assetJson.value("name", libId);
 
     if (assetJson.contains("imagePoints") && assetJson["imagePoints"].is_array()) {
         for (const auto& pt : assetJson["imagePoints"]) {

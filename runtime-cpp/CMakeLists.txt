@@ -17,6 +17,10 @@ endif()
 
 project(ArtCade-Runtime CXX C)
 
+# Root of this runtime tree — use instead of CMAKE_SOURCE_DIR in submodules when
+# the runtime is add_subdirectory'd from another project (e.g. artcade-editor).
+set(ARTCADE_RUNTIME_ROOT "${CMAKE_CURRENT_SOURCE_DIR}" CACHE INTERNAL "")
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -191,17 +195,7 @@ endif()
 # ============================================================================
 add_subdirectory(src/modules/editor-api)
 
-# ============================================================================
-# Native editor spike (RmlUi evaluation).
-#   artcade-editor-core   — authoring logic only (no Raylib/Lua/RmlUi); always
-#                           built and unit-tested.
-#   artcade-editor-native — RmlUi host + window + viewport; built only when
-#                           -DARTCADE_BUILD_NATIVE_EDITOR=ON (needs Raylib +
-#                           a fetched RmlUi). Default OFF so the normal runtime
-#                           and the web editor build is never affected.
-# Added after the Raylib block so the editor target can see the `raylib` target.
-# ============================================================================
-add_subdirectory(src/editor-native)
+# Native RmlUi editor moved to the artcade-editor repository (separate product).
 
 # ============================================================================
 # Smoke Tests — validate the full React ↔ WASM bridge architecture.

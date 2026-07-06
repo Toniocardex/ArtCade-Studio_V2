@@ -4,6 +4,35 @@
 
 #include <algorithm>
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+
+namespace {
+
+/**
+ * Keeps Module.canvas, its backing store, and the Emscripten offscreen FBO in
+ * sync after Raylib SetWindowSize. Without this, -sOFFSCREEN_FRAMEBUFFER=1
+ * composites only the initial 1280x720 clear while world draws hit a stale FBO.
+ */
+EM_JS(void, wasm_sync_offscreen_framebuffer, (int width, int height), {
+  var canvas = (typeof Module !== 'undefined' && Module['canvas'])
+    ? Module['canvas']
+    : null;
+  if (!canvas) return;
+  if (width > 0 && height > 0) {
+    canvas.width = width;
+    canvas.height = height;
+  }
+  try {
+    if (typeof GL !== 'undefined' && GL.resizeOffscreenFramebuffer) {
+      GL.resizeOffscreenFramebuffer(canvas);
+    }
+  } catch (e) {}
+});
+
+} // namespace
+#endif
+
 namespace ArtCade::Modules {
 
 bool RaylibSurface::open(uint32_t width,
@@ -39,6 +68,10 @@ bool RaylibSurface::open(uint32_t width,
     }
     SetTargetFPS(60);
     sync_size_from_raylib();
+#ifdef __EMSCRIPTEN__
+    wasm_sync_offscreen_framebuffer(static_cast<int>(width_),
+                                    static_cast<int>(height_));
+#endif
     return true;
 }
 
@@ -56,6 +89,10 @@ void RaylibSurface::set_size(uint32_t width, uint32_t height, const std::string&
     SetWindowSize(static_cast<int>(width_), static_cast<int>(height_));
     SetWindowTitle(title_.c_str());
     sync_size_from_raylib();
+#ifdef __EMSCRIPTEN__
+    wasm_sync_offscreen_framebuffer(static_cast<int>(width_),
+                                    static_cast<int>(height_));
+#endif
 }
 
 void RaylibSurface::set_size_for_logical_viewport(uint32_t logicalWidth,

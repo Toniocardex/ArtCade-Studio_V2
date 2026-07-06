@@ -1,4 +1,6 @@
 import { runtimeAssetPath, WASM_BINARY_URL } from './runtime-path'
+import { wakeRuntimeCanvasGl, ensureRuntimeCanvasForWasmBoot } from './runtime-canvas'
+import { captureBootLine } from './boot-diagnostics'
 import {
   parsePresentationSnapshotWasm,
   PRESENTATION_MODE_ABI,
@@ -27,6 +29,7 @@ import {
 
 export interface ArtCadeModule {
   onRuntimeInitialized?: () => void
+  postRun?: Array<() => void> | (() => void)
   calledRun: boolean
   canvas: HTMLCanvasElement
 
@@ -86,12 +89,19 @@ function emscriptenGlobal(): Window {
 // ---------------------------------------------------------------------------
 
 const WASM_SCRIPT_ID = 'artcade-raylib-wasm-script'
+const WASM_BOOT_TIMEOUT_MS = 60_000
 
 let _module: ArtCadeModule | null = null
 let _ready  = false
+/** True after Emscripten `postRun` (i.e. `main()` has returned). */
+let _postRunComplete = false
 let wasmInitPromise: Promise<ArtCadeModule> | null = null
 let wasmWarmPromise: Promise<void> | null = null
 let _lastBridgeError: string | null = null
+/** Resolves the active loadWasmRuntime() promise once post-main boot completes. */
+let _wasmBootNotify: ((module: ArtCadeModule) => void) | null = null
+let _wasmBootReject: ((err: Error) => void) | null = null
+let _wasmBootRejected = false
 /** Fired after any C++ call that invokes evictCachedAssets() (project load / play / stop). */
 let _onTextureCacheEvicted: (() => void) | null = null
 
@@ -135,19 +145,52 @@ export const EditorApiResult = {
 /** `ccall` transport failure (distinct from C++ return codes). */
 export const EDITOR_API_CCALL_FAILED = -1
 
+/** C++ main() has not recorded an exit code yet (see editor_get_main_exit_code). */
+export const WASM_MAIN_EXIT_PENDING = -2
+
 /**
  * True only after Emscripten finished startup (onRuntimeInitialized + main).
  * `ccall` exists earlier — calling exports before `calledRun` throws "func is not a function".
  */
 function isWasmModuleReady(): boolean {
   const mod = emscriptenGlobal().Module
-  return typeof mod?.ccall === 'function' && mod.calledRun === true
+  return typeof mod?.ccall === 'function'
+    && mod.calledRun === true
+    && _postRunComplete
+}
+
+/**
+ * Boot-time ccall before the readiness latch fires.
+ * Emscripten sets `calledRun` when main() starts, not when init finishes.
+ */
+function rawBootCcallNumber(name: string): number | null {
+  const mod = emscriptenGlobal().Module
+  if (typeof mod?.ccall !== 'function' || !mod.calledRun) return null
+  try {
+    return mod.ccall(name, 'number', [], []) as number
+  } catch {
+    return null
+  }
+}
+
+/** True once C++ Application::run finished init (success or failure). */
+function isCppMainFinished(): boolean {
+  const wired = rawBootCcallNumber('editor_is_engine_wired')
+  if (wired === 1) return true
+  const exitCode = rawBootCcallNumber('editor_get_main_exit_code')
+  if (exitCode === null) return false
+  if (exitCode === WASM_MAIN_EXIT_PENDING) return false
+  // Legacy WASM builds used -1 before Application::run recorded 0/1.
+  if (exitCode === EDITOR_API_CCALL_FAILED && wired !== 1) return false
+  return true
 }
 
 /** After Vite HMR replaces this module, re-link to an already-running Emscripten instance. */
 function rehydrateFromWindow(): void {
-  if (isWasmModuleReady()) {
-    _module = emscriptenGlobal().Module as ArtCadeModule
+  const mod = emscriptenGlobal().Module
+  if (typeof mod?.ccall === 'function' && mod.calledRun === true && isCppMainFinished()) {
+    _module = mod as ArtCadeModule
+    _postRunComplete = true
     _ready  = true
   }
 }
@@ -162,6 +205,99 @@ if (import.meta.hot) {
 
 export function getModule(): ArtCadeModule | null { return _module }
 export function isReady():   boolean              { return _ready  }
+
+/** True when C++ RuntimeEntityGateway is wired (editor_load_project callable). */
+export function isEditorEngineWired(): boolean {
+  return probeEditorEngineWired().wired
+}
+
+/** Diagnostic probe for boot splash when editor API never latches. */
+export function probeEditorEngineWired(): { wired: boolean; reason: string } {
+  const mod = emscriptenGlobal().Module
+  if (!_module?.ccall && typeof mod?.ccall !== 'function') {
+    return { wired: false, reason: 'WASM module not loaded' }
+  }
+  if (!mod?.calledRun) return { wired: false, reason: 'WASM main() not finished' }
+  if (!_postRunComplete) {
+    return { wired: false, reason: 'WASM main() still starting…' }
+  }
+  const code = safeCcallNumber('editor_is_engine_wired', [], [])
+  if (code === EDITOR_API_CCALL_FAILED) {
+    return {
+      wired: false,
+      reason: peekWasmBridgeLastError() ?? 'editor_is_engine_wired ccall failed',
+    }
+  }
+  if (code === 1) return { wired: true, reason: 'ok' }
+  const exitProbe = rawBootCcallNumber('editor_get_main_exit_code')
+  const bootFailure = readBootFailureStep()
+  if (bootFailure) {
+    return { wired: false, reason: `[App] init failed: ${bootFailure}` }
+  }
+  if (exitProbe === WASM_MAIN_EXIT_PENDING
+    || (exitProbe === EDITOR_API_CCALL_FAILED && code === 0)) {
+    return { wired: false, reason: 'WASM main() still initializing…' }
+  }
+  if (exitProbe === null) {
+    return {
+      wired: false,
+      reason: peekWasmBridgeLastError() ?? 'editor_get_main_exit_code unavailable',
+    }
+  }
+  if (exitProbe === 1) {
+    return { wired: false, reason: '[App] main() failed during init (no step recorded)' }
+  }
+  if (exitProbe === 0 && code === 0) {
+    return { wired: false, reason: 'C++ gateway cleared after init (module shutdown)' }
+  }
+  if (!hasWasmExport('editor_get_boot_failure')) {
+    return {
+      wired: false,
+      reason: 'Stale WASM — rebuild runtime-cpp (missing editor_get_boot_failure)',
+    }
+  }
+  return {
+    wired: false,
+    reason: `C++ gateway not wired (main exit=${exitProbe})`,
+  }
+}
+
+function hasWasmExport(name: string): boolean {
+  if (!_module?.ccall || !_module.calledRun || !_postRunComplete) return false
+  try {
+    _module.ccall(name, 'string', [], [])
+    return true
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err)
+    return !detail.includes('is not a function') && !detail.includes('was not exported')
+  }
+}
+
+function readBootFailureStep(): string {
+  if (!_module?.ccall || !_module.calledRun || !_postRunComplete) return ''
+  try {
+    const ptr = _module.ccall('editor_get_boot_failure', 'number', [], []) as number
+    if (ptr) return _module.UTF8ToString(ptr).trim()
+  } catch {
+    // Fall through to string return type.
+  }
+  const raw = safeCcallString('editor_get_boot_failure', [], [])
+  return raw?.trim() ?? ''
+}
+
+function wireModulePrintHandlers(
+  module: ArtCadeModule,
+  onConsoleLine: (message: string, level: string) => void,
+): void {
+  module.print = (text) => {
+    captureBootLine(text, 'info')
+    onConsoleLine(text, 'info')
+  }
+  module.printErr = (text) => {
+    captureBootLine(text, 'error')
+    onConsoleLine(text, 'error')
+  }
+}
 
 function wasmScriptInDom(): boolean {
   return document.getElementById(WASM_SCRIPT_ID) != null
@@ -199,66 +335,171 @@ export function bindWindowCallbacks(cbs: Partial<WasmCallbacks>): void {
   // that channel.
 }
 
-function attachModuleHooks(
+function rejectWasmBoot(err: unknown): void {
+  if (_wasmBootRejected || !_wasmBootReject) return
+  _wasmBootRejected = true
+  const message = err instanceof Error ? err.message : String(err)
+  captureBootLine(`[WASM] ${message}`, 'error')
+  _wasmBootReject(new Error(message))
+  wasmInitPromise = null
+  _wasmBootNotify = null
+  _wasmBootReject = null
+}
+
+function appendModulePostRun(mod: Partial<ArtCadeModule>, fn: () => void): void {
+  const prev = mod.postRun
+  if (!prev) {
+    mod.postRun = [fn]
+    return
+  }
+  if (Array.isArray(prev)) {
+    mod.postRun = [...prev, fn]
+    return
+  }
+  mod.postRun = [prev, fn]
+}
+
+function notifyWasmBootComplete(module: ArtCadeModule): void {
+  const notify = _wasmBootNotify
+  if (!notify) return
+  _wasmBootNotify = null
+  _wasmBootReject = null
+  notify(module)
+}
+
+function resolveWasmBootTimeoutDetail(): string {
+  const mod = emscriptenGlobal().Module
+  if (!mod?.calledRun) {
+    return 'game.js ran but WASM never reached main() — check game.wasm fetch / console'
+  }
+  if (_postRunComplete) return 'boot latch internal error (already complete)'
+  if (isCppMainFinished()) return 'init finished but boot latch missed'
+  return 'main() blocked in C++ init (WebGL/canvas) — check DevTools console'
+}
+
+function handleWasmBootTimeout(
   canvas: HTMLCanvasElement,
   cbs: WasmCallbacks,
-  onInitialized?: (module: ArtCadeModule) => void,
+  cancelPoll: () => void,
 ): void {
-  const cacheBust = cacheQuery()
-  const g = emscriptenGlobal()
-  const existing = g.Module ?? {}
-  const prevOnRuntimeInitialized = existing.onRuntimeInitialized
-
-  g.Module = {
-    ...existing,
-    canvas,
-    locateFile: (path: string, _prefix: string) => `${runtimeAssetPath(path)}${cacheBust}`,
-
-    onRuntimeInitialized() {
-      if (typeof prevOnRuntimeInitialized === 'function') {
-        prevOnRuntimeInitialized.call(g.Module)
-      }
-      _module = g.Module as ArtCadeModule
-      _ready  = true
-
-      _module.print    = (t) => cbs.onConsoleLine(t, 'info')
-      _module.printErr = (t) => cbs.onConsoleLine(t, 'error')
-
-      safeCall('editor_set_mode', null, ['number'], [0])
-      cbs.onReady()
-      onInitialized?.(_module)
-    },
+  cancelPoll()
+  if (!_postRunComplete && isCppMainFinished()) {
+    markRuntimeBootComplete(canvas, cbs)
+    return
   }
+  rejectWasmBoot(new Error(
+    `[wasm-bridge] Module not ready after loading game.js — ${resolveWasmBootTimeoutDetail()}`,
+  ))
+}
 
-  // Runtime may already be up (HMR / StrictMode remount / script tag left in DOM).
-  if (isWasmModuleReady()) {
-    _module = emscriptenGlobal().Module as ArtCadeModule
-    _ready  = true
-    _module.canvas = canvas
-    _module.print    = (t) => cbs.onConsoleLine(t, 'info')
-    _module.printErr = (t) => cbs.onConsoleLine(t, 'error')
-    safeCall('editor_set_mode', null, ['number'], [0])
+function scheduleBootLatchPoll(
+  canvas: HTMLCanvasElement,
+  cbs: WasmCallbacks,
+): () => void {
+  let frame = 0
+  let raf = 0
+  const maxFrames = 60 * 35
+  const tick = (): void => {
+    if (_postRunComplete || _wasmBootRejected) return
+    frame++
+    if (isCppMainFinished()) {
+      markRuntimeBootComplete(canvas, cbs)
+      return
+    }
+    if (frame < maxFrames) raf = requestAnimationFrame(tick)
+  }
+  raf = requestAnimationFrame(tick)
+  return () => cancelAnimationFrame(raf)
+}
+
+function markRuntimeBootComplete(
+  canvas: HTMLCanvasElement,
+  cbs: WasmCallbacks,
+): void {
+  if (_postRunComplete && _ready && _module) {
     queueMicrotask(() => {
       cbs.onReady()
-      onInitialized?.(_module as ArtCadeModule)
+      notifyWasmBootComplete(_module as ArtCadeModule)
     })
+    return
+  }
+  _postRunComplete = true
+  _module = emscriptenGlobal().Module as ArtCadeModule
+  _ready = true
+  _module.canvas = canvas
+  wakeRuntimeCanvasGl(canvas)
+  wireModulePrintHandlers(_module, cbs.onConsoleLine)
+  safeCall('editor_set_mode', null, ['number'], [0])
+  queueMicrotask(() => {
+    cbs.onReady()
+    notifyWasmBootComplete(_module as ArtCadeModule)
+  })
+}
+
+function ensureModuleHooks(
+  canvas: HTMLCanvasElement,
+  cbs: WasmCallbacks,
+): void {
+  const g = emscriptenGlobal()
+  type ModuleWithAbort = Partial<ArtCadeModule> & { onAbort?: (reason: unknown) => void }
+  const mod: ModuleWithAbort = g.Module ?? {}
+  g.Module = mod
+
+  mod.canvas = canvas
+  const cacheBust = cacheQuery()
+  mod.locateFile = (path: string) => `${runtimeAssetPath(path)}${cacheBust}`
+
+  const prevOnRuntimeInitialized = mod.onRuntimeInitialized
+  mod.onRuntimeInitialized = function onRuntimeInitialized(this: ArtCadeModule) {
+    if (typeof prevOnRuntimeInitialized === 'function') {
+      prevOnRuntimeInitialized.call(this)
+    }
+    _module = g.Module as ArtCadeModule
+    wireModulePrintHandlers(_module, cbs.onConsoleLine)
+    // doRun() continues with callMain() + postRun() after this callback returns.
+    queueMicrotask(() => {
+      if (isCppMainFinished() && !_postRunComplete) {
+        markRuntimeBootComplete(canvas, cbs)
+      }
+    })
+  }
+
+  appendModulePostRun(mod, () => {
+    markRuntimeBootComplete(canvas, cbs)
+  })
+
+  const prevOnAbort = mod.onAbort
+  mod.onAbort = (reason: unknown) => {
+    prevOnAbort?.(reason)
+    rejectWasmBoot(reason ?? new Error('Emscripten aborted WASM startup'))
+  }
+
+  if (typeof mod.ccall === 'function' && mod.calledRun === true && isCppMainFinished()) {
+    markRuntimeBootComplete(canvas, cbs)
   }
 }
 
 function waitForRuntimeInitialization(
   canvas: HTMLCanvasElement,
   cbs: WasmCallbacks,
-  timeoutMessage: string,
+  _timeoutMessage: string,
 ): Promise<ArtCadeModule> {
   return new Promise((resolve, reject) => {
-    const timeoutId = globalThis.setTimeout(() => {
-      wasmInitPromise = null
-      reject(new Error(timeoutMessage))
-    }, 30_000)
-    attachModuleHooks(canvas, cbs, (module) => {
+    _wasmBootRejected = false
+    _wasmBootNotify = (module) => {
       globalThis.clearTimeout(timeoutId)
+      cancelPoll()
+      wasmInitPromise = null
       resolve(module)
-    })
+    }
+    _wasmBootReject = reject
+
+    const cancelPoll = scheduleBootLatchPoll(canvas, cbs)
+    const timeoutId = globalThis.setTimeout(() => {
+      handleWasmBootTimeout(canvas, cbs, cancelPoll)
+    }, WASM_BOOT_TIMEOUT_MS)
+
+    ensureModuleHooks(canvas, cbs)
   })
 }
 
@@ -267,13 +508,7 @@ function adoptExistingRuntime(
   cbs: WasmCallbacks,
 ): ArtCadeModule {
   const mod = emscriptenGlobal().Module as ArtCadeModule
-  _module = mod
-  _ready  = true
-  mod.canvas = canvas
-  mod.print    = (t) => cbs.onConsoleLine(t, 'info')
-  mod.printErr = (t) => cbs.onConsoleLine(t, 'error')
-  safeCall('editor_set_mode', null, ['number'], [0])
-  queueMicrotask(() => cbs.onReady())
+  markRuntimeBootComplete(canvas, cbs)
   return mod
 }
 
@@ -334,9 +569,17 @@ export function loadWasmRuntime(
   cbs:     WasmCallbacks,
 ): Promise<ArtCadeModule> {
   bindWindowCallbacks(cbs)
+  ensureRuntimeCanvasForWasmBoot(canvas)
 
-  if (_ready && _module) {
+  if (!wasmScriptInDom() && !isWasmModuleReady()) {
+    _ready = false
+    _postRunComplete = false
+    _module = null
+  }
+
+  if (_ready && _module && _postRunComplete) {
     _module.canvas = canvas
+    wakeRuntimeCanvasGl(canvas)
     queueMicrotask(() => cbs.onReady())
     return Promise.resolve(_module)
   }
@@ -354,6 +597,7 @@ export function loadWasmRuntime(
     if (wasmInitPromise) {
       return wasmInitPromise.then((mod) => {
         mod.canvas = canvas
+        wakeRuntimeCanvasGl(canvas)
         queueMicrotask(() => cbs.onReady())
         return mod
       })
@@ -369,6 +613,7 @@ export function loadWasmRuntime(
   if (wasmInitPromise) {
     return wasmInitPromise.then((mod) => {
       mod.canvas = canvas
+      wakeRuntimeCanvasGl(canvas)
       bindWindowCallbacks(cbs)
       queueMicrotask(() => cbs.onReady())
       return mod
@@ -376,25 +621,48 @@ export function loadWasmRuntime(
   }
 
   wasmInitPromise = new Promise<ArtCadeModule>((resolve, reject) => {
+    _wasmBootRejected = false
+    _wasmBootNotify = (module) => {
+      globalThis.clearTimeout(timeoutId)
+      cancelPoll()
+      wasmInitPromise = null
+      resolve(module)
+    }
+    _wasmBootReject = reject
+
+    const cancelPoll = scheduleBootLatchPoll(canvas, cbs)
+    const timeoutId = globalThis.setTimeout(() => {
+      handleWasmBootTimeout(canvas, cbs, cancelPoll)
+    }, WASM_BOOT_TIMEOUT_MS)
+
+    ensureModuleHooks(canvas, cbs)
+
     const script   = document.createElement('script')
     script.id      = WASM_SCRIPT_ID
     script.src     = `${gameSrc}${cacheQuery()}`
     script.async   = true
 
-    const timeoutId = globalThis.setTimeout(() => {
-      wasmInitPromise = null
-      reject(new Error('[wasm-bridge] Module not ready after loading game.js'))
-    }, 30_000)
-    attachModuleHooks(canvas, cbs, (module) => {
-      globalThis.clearTimeout(timeoutId)
-      resolve(module)
-    })
-
-    script.onload = () => console.log('[wasm-bridge] game.js loaded.')
+    script.onload = () => {
+      console.log('[wasm-bridge] game.js loaded.')
+      const mod = emscriptenGlobal().Module as ArtCadeModule & {
+        addOnPostRun?: (fn: () => void) => void
+      }
+      if (typeof mod?.addOnPostRun === 'function') {
+        mod.addOnPostRun(() => {
+          if (!_postRunComplete) markRuntimeBootComplete(canvas, cbs)
+        })
+      }
+      if (isCppMainFinished() && !_postRunComplete) {
+        markRuntimeBootComplete(canvas, cbs)
+      }
+    }
 
     script.onerror = () => {
       globalThis.clearTimeout(timeoutId)
+      cancelPoll()
       wasmInitPromise = null
+      _wasmBootNotify = null
+      _wasmBootReject = null
       script.remove()
       const message = `[wasm-bridge] Failed to load WASM runtime from "${gameSrc}"`
       console.error(message)
@@ -417,7 +685,7 @@ function safeCall(
   argTypes:   string[],
   args:       unknown[],
 ): boolean {
-  if (!_module?.ccall || !_module.calledRun) {
+  if (!_module?.ccall || !_module.calledRun || !_postRunComplete) {
     _lastBridgeError = 'WASM runtime is not initialized (ccall unavailable).'
     return false
   }
@@ -438,7 +706,7 @@ function safeCcallNumber(
   argTypes: string[],
   args:     unknown[],
 ): number {
-  if (!_module?.ccall || !_module.calledRun) {
+  if (!_module?.ccall || !_module.calledRun || !_postRunComplete) {
     _lastBridgeError = 'WASM runtime is not initialized (ccall unavailable).'
     return EDITOR_API_CCALL_FAILED
   }
@@ -455,7 +723,7 @@ function safeCcallNumber(
 }
 
 function safeCcallString(name: string, argTypes: string[], args: unknown[]): string | null {
-  if (!_module?.ccall || !_module.calledRun) return null
+  if (!_module?.ccall || !_module.calledRun || !_postRunComplete) return null
   try {
     return _module.ccall(name, 'string', argTypes, args) as string
   } catch (err) {

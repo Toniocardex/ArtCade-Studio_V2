@@ -254,6 +254,18 @@ public:
                                      uint32_t physicsBodies);
     static void queueConsoleLine(const char* message, const char* level = "info");
     static void flushConsoleLines();
+    /** Null EditorAPI module pointers after Application::shutdownModules(). */
+    static void clearEngineWiring();
+    /** @return true when RuntimeEntityGateway is wired for editor_load_project. */
+    static bool isEngineWired();
+    /** Records which WASM boot step failed (shown on the editor splash). */
+    static void recordBootFailure(const char* step);
+    /** @return empty when boot succeeded; otherwise the failed init step name. */
+    static const char* bootFailureStep();
+    /** Stores main() return code for the editor splash (-1 = not run yet). */
+    static void recordWasmMainExitCode(int code);
+    /** @return last WASM main() exit code recorded by Application::run(). */
+    static int wasmMainExitCode();
 
     /** Editor viewport: mouse world position for the status bar (editor mode only). */
     static void notifyCursorWorld(float x, float y);
@@ -338,6 +350,13 @@ extern "C" {
 
 /** 0 = editor mode (gizmos, grid)  |  1 = play / game mode */
 EMSCRIPTEN_KEEPALIVE void editor_set_mode(int mode);
+
+/** @return 1 when RuntimeEntityGateway is wired (editor_load_project is callable). */
+EMSCRIPTEN_KEEPALIVE int editor_is_engine_wired(void);
+/** @return UTF-8 init failure step, or "" when boot succeeded. */
+EMSCRIPTEN_KEEPALIVE const char* editor_get_boot_failure(void);
+/** @return main() exit code (-1 before run, 0 ok, non-zero init failure). */
+EMSCRIPTEN_KEEPALIVE int editor_get_main_exit_code(void);
 
 /** Programmatically select an entity from the Hierarchy panel. */
 EMSCRIPTEN_KEEPALIVE void editor_select_entity(uint32_t entityId);
@@ -610,6 +629,12 @@ struct EditorAPI {
     static void notifyRuntimeProfile(float, float, float, float, uint32_t, uint32_t) {}
     static void queueConsoleLine(const char*, const char* = nullptr) {}
     static void flushConsoleLines() {}
+    static void clearEngineWiring() {}
+    static bool isEngineWired() { return false; }
+    static void recordBootFailure(const char*) {}
+    static const char* bootFailureStep() { return ""; }
+    static void recordWasmMainExitCode(int) {}
+    static int wasmMainExitCode() { return -1; }
     static void notifyCursorWorld(float, float) {}
     static void queueSpritesheetPreview(const char*, const char*, float, int, int) {}
     static void resetSpritesheetPreview() {}

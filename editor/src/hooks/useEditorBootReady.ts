@@ -3,12 +3,18 @@ import { useEditorSelector } from '../store/editor-store'
 import { runtimeSync } from '../utils/runtime-sync-service'
 import { scheduleBootIdleTask } from '../utils/boot-idle'
 import { useRuntimeReadiness } from './useRuntimeReadiness'
-const BOOT_TIMEOUT_MS = 20_000
+import {
+  getBootDiagnosticHints,
+  subscribeBootDiagnostics,
+} from '../utils/boot-diagnostics'
+import { isReady, probeEditorEngineWired } from '../utils/wasm-bridge'
+const BOOT_TIMEOUT_MS = 65_000
 
 export interface EditorBootReadyState {
   ready: boolean
   timedOut: boolean
   statusLine: string
+  diagnosticHints: string[]
   retry: () => void
 }
 
@@ -38,6 +44,9 @@ export function useEditorBootReady(): EditorBootReadyState {
   const [fontsReady, setFontsReady] = useState(false)
   const [idleReady, setIdleReady] = useState(false)
   const [timedOut, setTimedOut] = useState(false)
+  const [diagTick, setDiagTick] = useState(0)
+
+  useEffect(() => subscribeBootDiagnostics(() => setDiagTick((n) => n + 1)), [])
 
   useEffect(() => {
     return runtimeSync.onBootProjectSyncedChange(setSynced)
@@ -57,6 +66,12 @@ export function useEditorBootReady(): EditorBootReadyState {
 
   const ready =
     projectReady && wasmReady && engineReady && synced && fontsReady && idleReady
+
+  useEffect(() => {
+    if (ready) return undefined
+    const id = globalThis.setInterval(() => setDiagTick((n) => n + 1), 500)
+    return () => globalThis.clearInterval(id)
+  }, [ready])
 
   const statusLine = useMemo(
     () => buildStatusLine({
@@ -80,10 +95,23 @@ export function useEditorBootReady(): EditorBootReadyState {
     return () => globalThis.clearTimeout(t)
   }, [ready])
 
+  const diagnosticHints = useMemo(() => {
+    void diagTick
+    const hints = [...getBootDiagnosticHints()]
+    if (!engineReady && wasmReady) {
+      const probe = probeEditorEngineWired()
+      if (!probe.wired) hints.push(probe.reason)
+    }
+    if (!wasmReady && isReady()) {
+      hints.push('WASM module loaded but readiness latch pending')
+    }
+    return [...new Set(hints)].slice(-4)
+  }, [diagTick, engineReady, wasmReady])
+
   const retry = useCallback(() => {
     setTimedOut(false)
     globalThis.location.reload()
   }, [])
 
-  return { ready, timedOut, statusLine, retry }
+  return { ready, timedOut, statusLine, diagnosticHints, retry }
 }

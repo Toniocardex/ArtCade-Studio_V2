@@ -17,6 +17,10 @@ vi.mock('../utils/wasm-bridge', () => ({
   warmWasmBinary: (...args: unknown[]) => warmWasmBinary(...args),
 }))
 
+vi.mock('./BootRuntimeLoader', () => ({
+  default: () => null,
+}))
+
 const useEditorBootReadyMock = vi.fn()
 
 vi.mock('../hooks/useEditorBootReady', () => ({
@@ -32,6 +36,7 @@ function mockBootReady(overrides: Partial<{
     ready: false,
     timedOut: false,
     statusLine: 'Loading runtime…',
+    diagnosticHints: [],
     retry: vi.fn(),
     ...overrides,
   })

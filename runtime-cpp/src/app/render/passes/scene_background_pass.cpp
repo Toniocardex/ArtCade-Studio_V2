@@ -18,8 +18,12 @@ void execute_scene_background_pass(SceneFrameContext& ctx) {
 
     const SceneFrameSnapshot& frame = *ctx.frameSnapshot;
 
-    EditorOverlayRenderer::drawBackdrop(
-        *ctx.renderer, frame.backgroundColor, frame.overlay);
+    // Edit mode: world fill at (0,0) below. drawBackdrop uses gameplay camera
+    // and can paint a moving rect over the workspace clear on WASM.
+    if (!frame.overlay.inEditMode) {
+        EditorOverlayRenderer::drawBackdrop(
+            *ctx.renderer, frame.backgroundColor, frame.overlay);
+    }
     ctx.renderer->drawRectImmediate(
         0.f, 0.f,
         std::max(1.f, frame.worldSize.x),

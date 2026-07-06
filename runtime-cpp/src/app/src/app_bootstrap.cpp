@@ -12,6 +12,16 @@
 
 namespace ArtCade {
 
+namespace {
+
+bool boot_step(const char* step, bool ok) {
+    if (ok) return true;
+    EditorAPI::recordBootFailure(step);
+    return false;
+}
+
+} // namespace
+
 bool Application::initModules(const std::string& projectPath) {
     return initUtilities() && initSubsystems() && loadProject(projectPath);
 }
@@ -26,12 +36,14 @@ bool Application::initUtilities() {
     mod_->cameraManager = std::make_unique<ArtCade::Modules::CameraManager>();
     mod_->saveLoadManager = std::make_unique<ArtCade::Modules::SaveLoadManager>();
 
-    if (!mod_->eventBus->init() || !mod_->timeManager->init()
-        || !mod_->variableManager->init() || !mod_->tweenManager->init()
-        || !mod_->spriteAnimator->init() || !mod_->layerManager->init()
-        || !mod_->cameraManager->init() || !mod_->saveLoadManager->init()) {
-        return false;
-    }
+    if (!boot_step("event_bus", mod_->eventBus->init())) return false;
+    if (!boot_step("time_manager", mod_->timeManager->init())) return false;
+    if (!boot_step("variable_manager", mod_->variableManager->init())) return false;
+    if (!boot_step("tween_manager", mod_->tweenManager->init())) return false;
+    if (!boot_step("sprite_animator", mod_->spriteAnimator->init())) return false;
+    if (!boot_step("layer_manager", mod_->layerManager->init())) return false;
+    if (!boot_step("camera_manager", mod_->cameraManager->init())) return false;
+    if (!boot_step("save_load_manager", mod_->saveLoadManager->init())) return false;
 
     ctx_.eventBus = mod_->eventBus.get();
     ctx_.timeManager = mod_->timeManager.get();
@@ -45,7 +57,7 @@ bool Application::initUtilities() {
 
     mod_->gameStateManager = std::make_unique<ArtCade::Modules::GameStateManager>();
     mod_->gameStateManager->setEventBus(mod_->eventBus.get());
-    if (!mod_->gameStateManager->init()) return false;
+    if (!boot_step("game_state_manager", mod_->gameStateManager->init())) return false;
     ctx_.gameStateManager = mod_->gameStateManager.get();
 
     return true;
@@ -62,24 +74,25 @@ bool Application::initSubsystems() {
 
     mod_->renderer->setWindowSize(1280, 720, "ArtCade V2");
 
-    if (!mod_->renderer->init() || !mod_->physics->init() || !mod_->input->init()
-        || !mod_->audio->init() || !mod_->assetLoader->init()) {
-        return false;
-    }
+    if (!boot_step("renderer", mod_->renderer->init())) return false;
+    if (!boot_step("physics", mod_->physics->init())) return false;
+    if (!boot_step("input", mod_->input->init())) return false;
+    if (!boot_step("audio", mod_->audio->init())) return false;
+    if (!boot_step("asset_loader", mod_->assetLoader->init())) return false;
 
     mod_->textureManager = std::make_unique<ArtCade::Modules::TextureManager>();
-    if (!mod_->textureManager->init()) return false;
+    if (!boot_step("texture_manager", mod_->textureManager->init())) return false;
     ctx_.textureManager = mod_->textureManager.get();
 
     mod_->sceneManager = std::make_unique<ArtCade::Modules::SceneManager>();
-    if (!mod_->sceneManager->init()) return false;
+    if (!boot_step("scene_manager", mod_->sceneManager->init())) return false;
 
     mod_->sceneMutation = std::make_unique<ArtCade::Modules::SceneMutationService>(
         *mod_->sceneManager);
 
     mod_->entityGateway = std::make_unique<ArtCade::Modules::RuntimeEntityGateway>(
         *mod_->sceneManager);
-    if (!mod_->entityGateway->init()) return false;
+    if (!boot_step("entity_gateway", mod_->entityGateway->init())) return false;
 
     mod_->sceneLifecycle = std::make_unique<ArtCade::Modules::SceneLifecycleService>(
         *mod_->sceneManager,
@@ -129,19 +142,19 @@ bool Application::initSubsystems() {
         });
 
     mod_->dialogManager = std::make_unique<ArtCade::Modules::DialogManager>();
-    if (!mod_->dialogManager->init()) return false;
+    if (!boot_step("dialog_manager", mod_->dialogManager->init())) return false;
     mod_->dialogManager->setContext(&ctx_);
     ctx_.dialogManager = mod_->dialogManager.get();
 
     mod_->gameAPI = std::make_unique<ArtCade::Modules::GameAPI>(ctx_);
-    if (!mod_->gameAPI->init()) return false;
+    if (!boot_step("game_api", mod_->gameAPI->init())) return false;
     ctx_.gameAPI = mod_->gameAPI.get();
 
     mod_->luaHost = std::make_unique<ArtCade::Modules::LuaHost>();
     mod_->luaHost->registerBindings([&](sol::state& lua) {
         mod_->gameAPI->registerAll(lua);
     });
-    if (!mod_->luaHost->init()) return false;
+    if (!boot_step("lua_host", mod_->luaHost->init())) return false;
     ctx_.luaHost = mod_->luaHost.get();
 
     EditorAPI::wireEngine(mod_->entityGateway.get());
@@ -211,6 +224,10 @@ bool Application::initSubsystems() {
 
 void Application::shutdownModules() {
     if (!mod_) return;
+
+#ifdef ARTCADE_WASM
+    EditorAPI::clearEngineWiring();
+#endif
 
     if (mod_->luaHost) { mod_->luaHost->shutdown(); mod_->luaHost.reset(); }
     if (mod_->gameAPI) { mod_->gameAPI->shutdown(); mod_->gameAPI.reset(); }

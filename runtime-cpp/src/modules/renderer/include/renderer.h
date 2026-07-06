@@ -11,6 +11,7 @@
 #include <functional>
 #include <string>
 #include <memory>
+#include <cstddef>
 
 namespace ArtCade::Modules {
 

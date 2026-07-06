@@ -69,6 +69,9 @@ if(EMSCRIPTEN)
     # EXPORTED_FUNCTIONS: main + all editor-api commands callable from ccall()
     set(GAME_EXPORTED_FUNCTIONS
         "_main"
+        "_editor_is_engine_wired"
+        "_editor_get_boot_failure"
+        "_editor_get_main_exit_code"
         "_editor_set_mode"
         "_editor_select_entity"
         "_editor_deselect"
@@ -126,9 +129,16 @@ if(EMSCRIPTEN)
         -fexceptions
         -sWASM=1
         -sUSE_GLFW=3
+        # Render to an offscreen FBO and blit to the canvas each swap. Required so
+        # WebView2 (Chromium/ANGLE) composites the re-parented singleton canvas —
+        # without it the WebGL backbuffer never reaches the screen (black viewport)
+        # and GL.resizeOffscreenFramebuffer (used by the editor's wakeRuntimeCanvasGl)
+        # does not exist. See editor runtime-canvas.ts.
+        -sOFFSCREEN_FRAMEBUFFER=1
         -sALLOW_MEMORY_GROWTH=1
+        -sEXIT_RUNTIME=0
         -sFORCE_FILESYSTEM=1
-        "-sEXPORTED_RUNTIME_METHODS=[\"ccall\",\"cwrap\",\"UTF8ToString\",\"lengthBytesUTF8\",\"stringToUTF8\",\"HEAPU8\",\"HEAPF32\"]"
+        "-sEXPORTED_RUNTIME_METHODS=[\"ccall\",\"cwrap\",\"UTF8ToString\",\"lengthBytesUTF8\",\"stringToUTF8\",\"HEAPU8\",\"HEAPF32\",\"GL\"]"
         "-sEXPORTED_FUNCTIONS=[${_FUNS_STR}]"
         -sASYNCIFY=0
         -O2

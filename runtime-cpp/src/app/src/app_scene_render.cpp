@@ -21,6 +21,10 @@
 
 #include <vector>
 
+#ifdef ARTCADE_WASM
+#include <emscripten.h>
+#endif
+
 #ifndef NDEBUG
 #include <cassert>
 #endif
@@ -74,7 +78,15 @@ void Application::renderActiveScene() {
     applyPendingSceneInvalidations();
 
     const SceneDef* activeScene = mod_->sceneManager->activeScene();
-    const Vec4 clearColor = {0.015f, 0.018f, 0.025f, 1.f};
+#ifdef ARTCADE_WASM
+    const bool inEditOverlay = EditorAPI::s_mode == 0;
+#else
+    const bool inEditOverlay = false;
+#endif
+    // Edit margins stay darker than the scene background so the framed world reads.
+    const Vec4 clearColor = inEditOverlay
+        ? Vec4{0.028f, 0.032f, 0.042f, 1.f}
+        : Vec4{0.015f, 0.018f, 0.025f, 1.f};
 
     mod_->renderer->setGameCameraModifiers({
         static_cast<double>(mod_->cameraManager->shakeOffset().x),

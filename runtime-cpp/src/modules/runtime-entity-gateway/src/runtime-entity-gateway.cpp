@@ -1063,7 +1063,8 @@ void RuntimeEntityGateway::setTilesets(std::vector<TilesetAsset> tilesets) {
 float RuntimeEntityGateway::tilesetTileSize(const std::string& assetId) const {
     if (assetId.empty()) return 0.f;
     for (const auto& ts : sceneManager_.tilesets()) {
-        if (ts.assetId == assetId) return ts.tileSize;
+        if (ts.assetId == assetId)
+            return static_cast<float>(ts.slicing.tileWidth);
     }
     return 0.f;
 }

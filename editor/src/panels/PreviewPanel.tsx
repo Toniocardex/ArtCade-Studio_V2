@@ -11,9 +11,11 @@ import {
 } from '../constants/editor-viewport'
 import {
   useWasmRuntimeLifecycle,
+  useBootSyncRef,
   useRuntimeProjectSync,
   useRuntimeAssetUpload,
   useRuntimeEditorSync,
+  makeRuntimeLogEntry,
 } from './preview/runtime-hooks'
 import { buildEditorRulerMetrics } from '../utils/editor-ruler-metrics'
 import { frameSelectionRegistry } from '../utils/frame-selection-registry'
@@ -38,7 +40,8 @@ import { useEditorCameraView } from '../hooks/useEditorCameraView'
 import { useEditorFitZoom } from '../hooks/useEditorFitZoom'
 import { useEditorCanvasViewport } from '../hooks/useEditorCanvasViewport'
 import { setEditorVisibleWorldCenter } from '../utils/editor-viewport-center'
-import { getRuntimeCanvas } from '../utils/runtime-canvas'
+import { getRuntimeCanvas, wakeRuntimeCanvasGl } from '../utils/runtime-canvas'
+import { debugSceneLog } from '../utils/debug-scene-log'
 import {
   commitEntityTransform,
   consumeRuntimeTransformEcho,
@@ -113,14 +116,7 @@ export default function PreviewPanel({
   const gridSizeRef         = useRef(32)
   const ignoredTransformEchoRef = useRef<EntityTransformSnapshot | null>(null)
   const sceneViewportCenterKeyRef = useRef<string | null>(null)
-  const bootSyncRef = useRef({
-    project: null as typeof project,
-    projectPath: null as typeof projectPath,
-    openScripts: [] as typeof openScripts,
-    dialogs: {} as typeof dialogs,
-    selectionSceneId: null as string | null,
-    isPlaying: false,
-  })
+  const bootSyncRef = useBootSyncRef()
   const useDockedRuntimePreview = isPlaying && !isTauri()
 
   sceneIdRef.current    = selection.sceneId ?? project?.activeSceneId ?? ''
@@ -136,6 +132,8 @@ export default function PreviewPanel({
     selectionSceneId: selection.sceneId,
     isPlaying: useDockedRuntimePreview,
   }
+
+  const makeLogEntry = makeRuntimeLogEntry
 
   const tier = useLayoutTier()
   const showInspectorToggle = tier !== 'full'
@@ -176,6 +174,7 @@ export default function PreviewPanel({
     const canvas = getRuntimeCanvas()
     canvasRef.current = canvas
     canvasHostRef.current?.appendChild(canvas)
+    wakeRuntimeCanvasGl(canvas)
     setRuntimeCanvasReady(true)
     return () => {
       canvas.remove()
@@ -336,9 +335,7 @@ export default function PreviewPanel({
     selectedEntityIds: selection.entityIds,
     tool: activeTool,
     activeTileLayer: editorActiveLayerId,
-    // The runtime draws the alignment grid under the sprites (its native,
-    // correct z-order). The camera-viewport outline is the editor's dashed DOM
-    // overlay (CameraFrameOverlay) — the runtime no longer draws it.
+    // Guides/grid are drawn by the runtime grid pass (native + WASM).
     guides: editorGuidesVisible,
     gridSize: editorGridSize,
     snapToGrid,
@@ -529,38 +526,86 @@ export default function PreviewPanel({
     editorSyncPlaySurface(playHostSize.x, playHostSize.y, dpr)
   }, [useDockedRuntimePreview, playHostSize.x, playHostSize.y])
 
-  const syncEditorSurface = useCallback(() => {
+  const syncEditorSurface = useCallback((opts?: { center?: boolean }) => {
     const el = viewportRef.current
-    if (!el || useDockedRuntimePreview || !engineReady) return
+    const apiReady = runtimeSync.isEngineReady()
+    if (!el || useDockedRuntimePreview || !apiReady) {
+      // #region agent log
+      debugSceneLog('PreviewPanel.tsx:syncEditorSurface', 'surface_sync_skipped', {
+        hasEl: !!el,
+        useDockedRuntimePreview,
+        apiReady,
+      }, 'H3')
+      // #endregion
+      return
+    }
     const dpr = window.devicePixelRatio || 1
     const pad = rulerMetrics.paddingPx
     const cssW = Math.max(1, el.clientWidth - pad * 2)
     const cssH = Math.max(1, el.clientHeight - pad * 2)
+    const fbW = Math.round(cssW * dpr)
+    const fbH = Math.round(cssH * dpr)
     editorResizeSurface(cssW, cssH, dpr)
+    const canvas = getRuntimeCanvas()
+    wakeRuntimeCanvasGl(canvas)
+    // #region agent log
+    debugSceneLog('PreviewPanel.tsx:syncEditorSurface', 'surface_sync_applied', {
+      cssW,
+      cssH,
+      fbW,
+      fbH,
+      canvasW: canvas.width,
+      canvasH: canvas.height,
+      clientW: canvas.clientWidth,
+      clientH: canvas.clientHeight,
+      connected: canvas.isConnected,
+      parentTag: canvas.parentElement?.tagName ?? null,
+    }, 'H2')
+    // #endregion
     applyCanvasPresentation()
+    if (
+      opts?.center
+      && selectedSceneId
+      && selection.entityId == null
+    ) {
+      const centerKey = `${projectLoadEpoch}:${selectedSceneId}`
+      if (sceneViewportCenterKeyRef.current !== centerKey) {
+        sceneViewportCenterKeyRef.current = centerKey
+        editorCenterSceneViewport(vp, cssW, cssH, zoom, dpr)
+      }
+    }
   }, [
     useDockedRuntimePreview,
     engineReady,
+    wasmReady,
     rulerMetrics.paddingPx,
     applyCanvasPresentation,
+    selectedSceneId,
+    selection.entityId,
+    projectLoadEpoch,
+    vp.x,
+    vp.y,
+    zoom,
   ])
 
   useEffect(() => {
-    const el = viewportRef.current
-    if (!el || useDockedRuntimePreview || !engineReady || !selectedSceneId) return
+    return runtimeSync.onEngineReadyChange((ready) => {
+      if (!ready || useDockedRuntimePreview) return
+      syncEditorSurface({ center: true })
+    })
+  }, [useDockedRuntimePreview, syncEditorSurface])
+
+  useEffect(() => {
+    if (useDockedRuntimePreview || !runtimeSync.isEngineReady() || !selectedSceneId) return
     if (selection.entityId != null) return
-
-    const centerKey = `${projectLoadEpoch}:${selectedSceneId}`
-    if (sceneViewportCenterKeyRef.current === centerKey) return
-    sceneViewportCenterKeyRef.current = centerKey
-
-    const dpr = window.devicePixelRatio || 1
-    editorCenterSceneViewport(vp, el.clientWidth, el.clientHeight, zoom, dpr)
+    syncEditorSurface({ center: true })
   }, [
     useDockedRuntimePreview,
     engineReady,
     selectedSceneId,
     projectLoadEpoch,
+    selection.entityId,
+    syncEditorSurface,
   ])
 
   useEffect(() => {
@@ -590,12 +635,15 @@ export default function PreviewPanel({
 
   useEffect(() => {
     const el = viewportRef.current
-    if (!el || useDockedRuntimePreview || !engineReady) return
-    syncEditorSurface()
-    const ro = new ResizeObserver(() => syncEditorSurface())
+    if (!el || useDockedRuntimePreview) return
+    const syncIfReady = () => {
+      if (runtimeSync.isEngineReady()) syncEditorSurface()
+    }
+    syncIfReady()
+    const ro = new ResizeObserver(() => syncIfReady())
     ro.observe(el)
     return () => ro.disconnect()
-  }, [useDockedRuntimePreview, engineReady, syncEditorSurface, res.x, res.y, vp.x, vp.y, selectedSceneId])
+  }, [useDockedRuntimePreview, syncEditorSurface, res.x, res.y, vp.x, vp.y, selectedSceneId])
 
   const frameSelection = useCallback(() => {
     const el = viewportRef.current
@@ -666,7 +714,7 @@ export default function PreviewPanel({
               height: `${playHostSize.y}px`,
             }}
           >
-            <div ref={canvasHostRef} style={{ display: 'contents' }} />
+            <div ref={canvasHostRef} className="absolute inset-0 w-full h-full overflow-hidden" />
           </div>
         </div>
       ) : (
@@ -681,8 +729,8 @@ export default function PreviewPanel({
         onPointerCancel={onCanvasAreaPointerUp}
         style={{ cursor: panCursor }}
       >
-        <div className="absolute inset-0" style={{ top: rulerMetrics.paddingPx, left: rulerMetrics.paddingPx, right: rulerMetrics.paddingPx, bottom: rulerMetrics.paddingPx }}>
-          <div ref={canvasHostRef} className="absolute inset-0" style={{ display: 'contents' }} />
+        <div className="absolute inset-0 overflow-hidden">
+          <div ref={canvasHostRef} className="absolute inset-0 w-full h-full overflow-hidden" />
           {activePaintTilesetId && !useDockedRuntimePreview && (
             <TilePaintOverlay
               tilemap={paintTilemap}
@@ -709,18 +757,4 @@ export default function PreviewPanel({
       )}
     </div>
   )
-}
-
-function makeLogEntry(message: string, level: string): ConsoleEntry {
-  const validLevels = ['info', 'warn', 'error', 'lua'] as const
-  return {
-    id:      Date.now() + Math.random(),
-    time:    new Date().toLocaleTimeString('it-IT', {
-               hour: '2-digit', minute: '2-digit', second: '2-digit',
-             }),
-    message,
-    level:   validLevels.includes(level as never)
-               ? (level as ConsoleEntry['level'])
-               : 'info',
-  }
 }

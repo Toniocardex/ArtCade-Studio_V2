@@ -69,14 +69,33 @@ void drawLayer(Modules::Renderer& renderer,
                 tm, cellSourceIndex(tm, idx), liveTilesets, startupCache);
 
             bool drawn = false;
-            if (ts && ts->cols > 0) {
-                const int   sCol = (id - 1) % ts->cols;
-                const int   sRow = (id - 1) / ts->cols;
-                const float step = ts->tileSize + ts->margin;
-                drawn = renderer.drawSpriteRegion(
-                    ts->spriteImagePath,
-                    sCol * step, sRow * step, ts->tileSize, ts->tileSize,
-                    dx, dy, tm.tileSize, tm.tileSize, opacity);
+            if (ts && !ts->imageAssetId.empty()) {
+                const TileDefinition* def = nullptr;
+                if (id > 0 && id <= static_cast<int>(ts->tiles.size()))
+                    def = &ts->tiles[static_cast<size_t>(id - 1)];
+                if (def && def->width > 0 && def->height > 0) {
+                    drawn = renderer.drawSpriteRegion(
+                        ts->imageAssetId,
+                        static_cast<float>(def->x),
+                        static_cast<float>(def->y),
+                        static_cast<float>(def->width),
+                        static_cast<float>(def->height),
+                        dx, dy, tm.tileSize, tm.tileSize, opacity);
+                } else if (ts->slicing.tileWidth > 0) {
+                    const float tileW =
+                        static_cast<float>(ts->slicing.tileWidth);
+                    const float tileH =
+                        static_cast<float>(ts->slicing.tileHeight);
+                    const float stepX = tileW
+                        + static_cast<float>(ts->slicing.spacingX);
+                    const int sCol = id - 1;
+                    drawn = renderer.drawSpriteRegion(
+                        ts->imageAssetId,
+                        static_cast<float>(ts->slicing.marginX) + sCol * stepX,
+                        static_cast<float>(ts->slicing.marginY),
+                        tileW, tileH,
+                        dx, dy, tm.tileSize, tm.tileSize, opacity);
+                }
             }
             if (!drawn) {
                 auto it = palette.find(id);

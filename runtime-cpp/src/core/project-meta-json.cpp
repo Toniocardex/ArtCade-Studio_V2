@@ -132,11 +132,21 @@ void read_tileset_asset(const nlohmann::json& tilesetJson,
     out.assetId = tilesetJson.value("assetId", tilesetJson.value("asset_id", mapKey));
     if (out.assetId.empty())
         out.assetId = mapKey;
-    out.spriteImagePath = read_string_any(tilesetJson, "spriteImagePath", "sprite_image_path");
-    out.tileSize        = read_float_any(tilesetJson, "tileSize", "tile_size", 32.f);
-    out.margin          = tilesetJson.value("margin", 0);
-    out.cols            = tilesetJson.value("cols", 1);
-    out.rows            = tilesetJson.value("rows", 1);
+    out.name = tilesetJson.value("name", mapKey);
+    out.imageAssetId = read_string_any(
+        tilesetJson, "imageAssetId", "image_asset_id", "");
+    if (out.imageAssetId.empty()) {
+        out.imageAssetId = read_string_any(
+            tilesetJson, "spriteImagePath", "sprite_image_path", "");
+    }
+    const float tileW = read_float_any(tilesetJson, "tileSize", "tile_size", 32.f);
+    const float tileH = read_float_any(
+        tilesetJson, "tileHeight", "tile_height", tileW);
+    out.slicing.tileWidth = static_cast<int>(tileW > 0.f ? tileW : 32.f);
+    out.slicing.tileHeight = static_cast<int>(tileH > 0.f ? tileH : tileW);
+    const int legacyMargin = tilesetJson.value("margin", 0);
+    out.slicing.marginX = legacyMargin;
+    out.slicing.marginY = legacyMargin;
 }
 
 void read_tilesets(const nlohmann::json& doc, std::vector<TilesetAsset>& out) {
