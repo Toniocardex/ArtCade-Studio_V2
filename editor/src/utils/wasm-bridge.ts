@@ -569,19 +569,22 @@ export function loadWasmRuntime(
   cbs:     WasmCallbacks,
 ): Promise<ArtCadeModule> {
   bindWindowCallbacks(cbs)
-  ensureRuntimeCanvasForWasmBoot(canvas)
 
-  if (!wasmScriptInDom() && !isWasmModuleReady()) {
-    _ready = false
-    _postRunComplete = false
-    _module = null
-  }
-
+  // PreviewPanel rebinds the singleton canvas after boot. Resetting boot
+  // dimensions here desyncs Raylib's framebuffer from the viewport host and
+  // leaves OFFSCREEN_FRAMEBUFFER compositing only the clear color (black view).
   if (_ready && _module && _postRunComplete) {
     _module.canvas = canvas
     wakeRuntimeCanvasGl(canvas)
     queueMicrotask(() => cbs.onReady())
     return Promise.resolve(_module)
+  }
+
+  if (!wasmScriptInDom() && !isWasmModuleReady()) {
+    ensureRuntimeCanvasForWasmBoot(canvas)
+    _ready = false
+    _postRunComplete = false
+    _module = null
   }
 
   if (isWasmModuleReady()) {

@@ -192,6 +192,10 @@ class RuntimeSyncServiceImpl {
   private readonly engineReadyListeners = new Set<(ready: boolean) => void>()
   private readonly bootSyncedListeners = new Set<(synced: boolean) => void>()
   private readonly projectReloadListeners = new Set<() => void>()
+  /** Bumped on each full project load so late PreviewPanel subscribers still resize. */
+  private projectReloadEpoch = 0
+  private readonly surfaceSyncListeners = new Set<() => void>()
+  private surfaceSyncEpoch = 0
   private transitionDepth = 0
   private lastScriptReloadMessage: string | null = null
   /** Last wasm-ready value broadcast to listeners — gates edge-triggered notify. */
@@ -238,6 +242,8 @@ class RuntimeSyncServiceImpl {
     this.clearSyncCache()
     this.bootProjectSynced = false
     for (const cb of this.bootSyncedListeners) cb(false)
+    this.projectReloadEpoch = 0
+    this.surfaceSyncEpoch = 0
     if (preserveEngine) {
       this.startPresentationPolling()
       this.pollPresentationSnapshot()
@@ -332,6 +338,7 @@ class RuntimeSyncServiceImpl {
     this.lastGridSize = null
     this.lastSnapToGrid = null
     this.startPresentationPolling()
+    this.requestEditorSurfaceSync()
     for (const cb of this.engineReadyListeners) cb(true)
   }
 
@@ -385,7 +392,26 @@ class RuntimeSyncServiceImpl {
   }
 
   private notifyProjectReloadApplied(): void {
+    this.projectReloadEpoch += 1
+    this.requestEditorSurfaceSync()
     for (const cb of this.projectReloadListeners) cb()
+  }
+
+  /**
+   * PreviewPanel must call `editor_resize_surface` after boot re-parents the
+   * singleton canvas from `document.body` into the viewport host.
+   */
+  requestEditorSurfaceSync(): void {
+    this.surfaceSyncEpoch += 1
+    for (const cb of this.surfaceSyncListeners) cb()
+  }
+
+  onEditorSurfaceSyncRequested(cb: () => void): () => void {
+    this.surfaceSyncListeners.add(cb)
+    if (this.surfaceSyncEpoch > 0) {
+      queueMicrotask(() => cb())
+    }
+    return () => { this.surfaceSyncListeners.delete(cb) }
   }
 
   onEngineReadyChange(cb: (ready: boolean) => void): () => void {
@@ -402,6 +428,9 @@ class RuntimeSyncServiceImpl {
 
   onProjectReloadApplied(cb: () => void): () => void {
     this.projectReloadListeners.add(cb)
+    if (this.projectReloadEpoch > 0) {
+      queueMicrotask(() => cb())
+    }
     return () => { this.projectReloadListeners.delete(cb) }
   }
 

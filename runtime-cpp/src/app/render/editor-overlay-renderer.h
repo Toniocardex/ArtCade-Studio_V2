@@ -10,7 +10,7 @@
 //                         camera shows the scene colour, not raylib's clear
 //                         clearColor, when the world is smaller than the
 //                         viewport).
-//   • drawGrid          — editor alignment grid (native; WASM preview uses DOM).
+//   • drawGrid          — editor alignment grid (edit mode; WASM + native).
 //   • drawSelection     — selection box, corner resize handles, and optional
 //                         sensor preview for the picked entity.
 //

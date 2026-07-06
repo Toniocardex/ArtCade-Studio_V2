@@ -184,6 +184,27 @@ describe('RuntimeSyncService', () => {
     expect(listener).toHaveBeenCalledTimes(2)
   })
 
+  it('replays project reload and surface sync to late subscribers', async () => {
+    const p = makeProject()
+    expect(await runtimeSync.syncProject(p as never, 'a', '/tmp/x')).toBe(true)
+
+    const reloadListener = vi.fn()
+    const surfaceListener = vi.fn()
+    runtimeSync.onProjectReloadApplied(reloadListener)
+    runtimeSync.onEditorSurfaceSyncRequested(surfaceListener)
+
+    await Promise.resolve()
+    expect(reloadListener).toHaveBeenCalledTimes(1)
+    expect(surfaceListener).toHaveBeenCalledTimes(1)
+  })
+
+  it('requestEditorSurfaceSync notifies surface listeners', () => {
+    const listener = vi.fn()
+    runtimeSync.onEditorSurfaceSyncRequested(listener)
+    runtimeSync.requestEditorSurfaceSync()
+    expect(listener).toHaveBeenCalledTimes(1)
+  })
+
   it('syncProject re-loads when the fingerprint changes', async () => {
     const p: Project = makeProject()
     await runtimeSync.syncProject(p as never, 'a', '/tmp/x')

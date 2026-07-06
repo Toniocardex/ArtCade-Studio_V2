@@ -10,6 +10,7 @@
     "core:event:allow-listen",
     "core:window:allow-destroy",
     "core:window:allow-show",
+    "core:window:allow-set-background-color",
     "dialog:allow-open",
     "dialog:allow-save",
     "dialog:allow-confirm",

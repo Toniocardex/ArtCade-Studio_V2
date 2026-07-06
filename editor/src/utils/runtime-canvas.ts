@@ -62,7 +62,6 @@ export function wakeRuntimeCanvasGl(canvas: HTMLCanvasElement = getRuntimeCanvas
   }, 'H2')
   // #endregion
 
-  // Keep backing store aligned with Raylib's logical size when already set.
   if (canvas.width > 0 && canvas.height > 0 && hasResize) {
     try {
       glModule!.resizeOffscreenFramebuffer!(canvas)
@@ -70,6 +69,29 @@ export function wakeRuntimeCanvasGl(canvas: HTMLCanvasElement = getRuntimeCanvas
       // Non-fatal when GL is not exported yet (stale game.js).
     }
   }
+}
+
+/** Minimum CSS viewport edge before we resize the WASM surface (avoids 1×1 boot races). */
+export const RUNTIME_SURFACE_MIN_CSS_PX = 32
+
+/**
+ * Aligns the singleton canvas backing store with the editor viewport, then
+ * rebinds Emscripten's offscreen FBO. Call after `editor_resize_surface` or
+ * when the canvas is re-parented into PreviewPanel.
+ */
+export function alignRuntimeCanvasFramebuffer(
+  cssW: number,
+  cssH: number,
+  dpr: number,
+  canvas: HTMLCanvasElement = getRuntimeCanvas(),
+): { fbW: number; fbH: number } {
+  const safeDpr = dpr > 0 ? dpr : 1
+  const fbW = Math.max(1, Math.round(cssW * safeDpr))
+  const fbH = Math.max(1, Math.round(cssH * safeDpr))
+  if (canvas.width !== fbW) canvas.width = fbW
+  if (canvas.height !== fbH) canvas.height = fbH
+  wakeRuntimeCanvasGl(canvas)
+  return { fbW, fbH }
 }
 
 export function getRuntimeCanvas(): HTMLCanvasElement {

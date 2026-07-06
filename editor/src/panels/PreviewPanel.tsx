@@ -40,7 +40,12 @@ import { useEditorCameraView } from '../hooks/useEditorCameraView'
 import { useEditorFitZoom } from '../hooks/useEditorFitZoom'
 import { useEditorCanvasViewport } from '../hooks/useEditorCanvasViewport'
 import { setEditorVisibleWorldCenter } from '../utils/editor-viewport-center'
-import { getRuntimeCanvas, wakeRuntimeCanvasGl } from '../utils/runtime-canvas'
+import {
+  alignRuntimeCanvasFramebuffer,
+  getRuntimeCanvas,
+  RUNTIME_SURFACE_MIN_CSS_PX,
+  wakeRuntimeCanvasGl,
+} from '../utils/runtime-canvas'
 import { debugSceneLog } from '../utils/debug-scene-log'
 import {
   commitEntityTransform,
@@ -176,6 +181,9 @@ export default function PreviewPanel({
     canvasHostRef.current?.appendChild(canvas)
     wakeRuntimeCanvasGl(canvas)
     setRuntimeCanvasReady(true)
+    if (runtimeSync.isEngineReady()) {
+      runtimeSync.requestEditorSurfaceSync()
+    }
     return () => {
       canvas.remove()
       if (canvasRef.current === canvas) canvasRef.current = null
@@ -543,11 +551,18 @@ export default function PreviewPanel({
     const pad = rulerMetrics.paddingPx
     const cssW = Math.max(1, el.clientWidth - pad * 2)
     const cssH = Math.max(1, el.clientHeight - pad * 2)
-    const fbW = Math.round(cssW * dpr)
-    const fbH = Math.round(cssH * dpr)
-    editorResizeSurface(cssW, cssH, dpr)
+    if (cssW < RUNTIME_SURFACE_MIN_CSS_PX || cssH < RUNTIME_SURFACE_MIN_CSS_PX) {
+      debugSceneLog('PreviewPanel.tsx:syncEditorSurface', 'surface_sync_deferred', {
+        cssW,
+        cssH,
+      }, 'H3')
+      return
+    }
     const canvas = getRuntimeCanvas()
+    // Module.canvas must point at the visible element before C++ wasm_sync_offscreen_framebuffer.
     wakeRuntimeCanvasGl(canvas)
+    editorResizeSurface(cssW, cssH, dpr)
+    const { fbW, fbH } = alignRuntimeCanvasFramebuffer(cssW, cssH, dpr, canvas)
     // #region agent log
     debugSceneLog('PreviewPanel.tsx:syncEditorSurface', 'surface_sync_applied', {
       cssW,
@@ -563,11 +578,7 @@ export default function PreviewPanel({
     }, 'H2')
     // #endregion
     applyCanvasPresentation()
-    if (
-      opts?.center
-      && selectedSceneId
-      && selection.entityId == null
-    ) {
+    if (opts?.center && selectedSceneId) {
       const centerKey = `${projectLoadEpoch}:${selectedSceneId}`
       if (sceneViewportCenterKeyRef.current !== centerKey) {
         sceneViewportCenterKeyRef.current = centerKey
@@ -595,18 +606,17 @@ export default function PreviewPanel({
     })
   }, [useDockedRuntimePreview, syncEditorSurface])
 
-  useEffect(() => {
-    if (useDockedRuntimePreview || !runtimeSync.isEngineReady() || !selectedSceneId) return
-    if (selection.entityId != null) return
+  useLayoutEffect(() => {
+    if (!runtimeCanvasReady || useDockedRuntimePreview || !engineReady) return
     syncEditorSurface({ center: true })
-  }, [
-    useDockedRuntimePreview,
-    engineReady,
-    selectedSceneId,
-    projectLoadEpoch,
-    selection.entityId,
-    syncEditorSurface,
-  ])
+  }, [runtimeCanvasReady, useDockedRuntimePreview, engineReady, syncEditorSurface])
+
+  useEffect(() => {
+    return runtimeSync.onEditorSurfaceSyncRequested(() => {
+      if (useDockedRuntimePreview) return
+      requestAnimationFrame(() => syncEditorSurface({ center: true }))
+    })
+  }, [useDockedRuntimePreview, syncEditorSurface])
 
   useEffect(() => {
     if (useDockedRuntimePreview || !engineReady) return
@@ -618,22 +628,6 @@ export default function PreviewPanel({
   }, [zoom, useDockedRuntimePreview, engineReady, applyCanvasPresentation, editorCameraView.x, editorCameraView.y, editorCameraView.zoomDevice])
 
   useEffect(() => {
-    let raf: number | null = null
-    const unsubscribe = runtimeSync.onProjectReloadApplied(() => {
-      if (useDockedRuntimePreview) return
-      if (raf != null) cancelAnimationFrame(raf)
-      raf = requestAnimationFrame(() => {
-        raf = null
-        syncEditorSurface()
-      })
-    })
-    return () => {
-      unsubscribe()
-      if (raf != null) cancelAnimationFrame(raf)
-    }
-  }, [useDockedRuntimePreview, syncEditorSurface])
-
-  useEffect(() => {
     const el = viewportRef.current
     if (!el || useDockedRuntimePreview) return
     const syncIfReady = () => {
@@ -643,7 +637,17 @@ export default function PreviewPanel({
     const ro = new ResizeObserver(() => syncIfReady())
     ro.observe(el)
     return () => ro.disconnect()
-  }, [useDockedRuntimePreview, syncEditorSurface, res.x, res.y, vp.x, vp.y, selectedSceneId])
+  }, [
+    useDockedRuntimePreview,
+    syncEditorSurface,
+    engineReady,
+    runtimeCanvasReady,
+    res.x,
+    res.y,
+    vp.x,
+    vp.y,
+    selectedSceneId,
+  ])
 
   const frameSelection = useCallback(() => {
     const el = viewportRef.current

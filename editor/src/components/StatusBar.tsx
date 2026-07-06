@@ -2,9 +2,9 @@ import { useMemo } from 'react'
 import { Check } from 'lucide-react'
 import { useEditorDispatch, useEditorSelector, useConsoleLogs } from '../store/editor-store'
 import { DEFAULT_WORLD } from '../types'
-import { isReady as isWasmReady } from '../utils/wasm-bridge'
 import { getProjectWorkbenchSnapshot } from '../utils/project-health'
 import { useRuntimeProfilePoll } from '../hooks/useRuntimeProfilePoll'
+import { useRuntimeReadiness } from '../hooks/useRuntimeReadiness'
 
 function runtimeDisplay(playing: boolean, wasmReady: boolean): { text: string; className: string } {
   if (playing) {
@@ -22,6 +22,7 @@ type StatusBarProps = Readonly<{
 
 export default function StatusBar({ compact = false }: StatusBarProps) {
   const dispatch = useEditorDispatch()
+  const { wasmReady } = useRuntimeReadiness()
   const { state: volatile } = useConsoleLogs()
   const project = useEditorSelector((s) => s.project)
   const selection = useEditorSelector((s) => s.selection)
@@ -87,18 +88,18 @@ export default function StatusBar({ compact = false }: StatusBarProps) {
     dispatch({ type: 'TOGGLE_CONSOLE' })
   }
 
-  const runtime = runtimeDisplay(isPlaying, isWasmReady())
+  const runtime = runtimeDisplay(isPlaying, wasmReady)
 
   const consoleActive = !bottomPanelCollapsed && consoleOpen
 
   if (compact) {
-    const runtime = runtimeDisplay(isPlaying, isWasmReady())
+    const runtimeCompact = runtimeDisplay(isPlaying, wasmReady)
     return (
       <footer
         className="editor-statusbar flex items-center justify-between text-[9px]
                    text-[var(--muted)] flex-shrink-0 select-none"
       >
-        <span className={runtime.className}>Runtime: {runtime.text}</span>
+        <span className={runtimeCompact.className}>Runtime: {runtimeCompact.text}</span>
         <div className="flex items-center gap-3">
           <span className="font-mono">X: {cursorPos.x} Y: {cursorPos.y}</span>
         </div>

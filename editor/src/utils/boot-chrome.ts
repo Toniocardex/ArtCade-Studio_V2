@@ -51,7 +51,9 @@ export function paintDocumentChrome(theme: Theme): void {
 export function applyTauriWindowSurface(theme: Theme): void {
   if (!isTauri()) return
   const rgb = THEME_SURFACE_RGB[theme]
-  void getCurrentWindow().setBackgroundColor({ ...rgb, alpha: 255 })
+  void getCurrentWindow().setBackgroundColor({ ...rgb, alpha: 255 }).catch(() => {
+    // Missing capability or headless WebView — document chrome still paints via CSS.
+  })
 }
 
 /** Boot-only: skip redundant IPC when boot-theme-init.js already painted the document. */

@@ -280,9 +280,13 @@ export function useWasmRuntimeLifecycle(opts: LifecycleOptions): void {
     })
 
     const attach = (): void => {
-      void loadWasmRuntime(canvas, WASM_RUNTIME_SRC, callbacks).catch((err) => {
-        console.error('[PreviewPanel] WASM rebind failed:', err)
-      })
+      void loadWasmRuntime(canvas, WASM_RUNTIME_SRC, callbacks)
+        .then(() => {
+          runtimeSync.requestEditorSurfaceSync()
+        })
+        .catch((err) => {
+          console.error('[PreviewPanel] WASM rebind failed:', err)
+        })
     }
 
     if (isReady()) {
@@ -310,6 +314,9 @@ export function useWasmRuntimeLifecycle(opts: LifecycleOptions): void {
       handleRuntimeTransform, sceneIdRef, syncRuntimeUiFlags,
       makeLogEntry, bootSyncRef,
     }))
+      .then(() => {
+        runtimeSync.requestEditorSurfaceSync()
+      })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, dispatch])
 }
@@ -514,6 +521,9 @@ export async function performRuntimeProjectSync(opts: ProjectSyncOptions): Promi
   }, 'H1')
   // #endregion
   runtimeSync.syncPresentationSnapshotNow()
+  if (syncOk) {
+    runtimeSync.requestEditorSurfaceSync()
+  }
 }
 
 export function useRuntimeProjectSync(opts: ProjectSyncOptions): void {
