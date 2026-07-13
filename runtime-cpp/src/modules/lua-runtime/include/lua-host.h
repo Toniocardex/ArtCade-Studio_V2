@@ -5,6 +5,7 @@
 #include <vector>
 #include <functional>
 #include <memory>
+#include <cstddef>
 
 // Forward-declare sol::state so BindingCallback can reference it without
 // pulling all of Sol2 into every translation unit that includes this header.
@@ -12,6 +13,18 @@
 namespace sol { class state; }
 
 namespace ArtCade::Modules {
+
+enum class LuaSandboxProfile {
+    LegacyGameplay,
+    LogicBoardStrict,
+};
+
+struct LuaHostOptions {
+    LuaSandboxProfile profile = LuaSandboxProfile::LegacyGameplay;
+    // Zero keeps the legacy unbounded allocator. Logic Board always supplies a
+    // finite cap and receives a controlled allocation failure when it is hit.
+    std::size_t maxMemoryBytes = 0;
+};
 
 /**
  * LuaHost — Lua 5.4 VM wrapper.
@@ -21,7 +34,7 @@ namespace ArtCade::Modules {
  */
 class LuaHost final : public IModule {
 public:
-    LuaHost();
+    explicit LuaHost(LuaHostOptions options = {});
     ~LuaHost();  // defined in .cpp where Impl (and sol::state) are complete
 
     bool init()     override;
@@ -50,10 +63,12 @@ public:
     bool        hasError()  const { return !lastError_.empty(); }
     std::string lastError() const { return lastError_; }
     void        clearError()      { lastError_.clear(); }
+    bool        memoryLimitExceeded() const;
 
 private:
     struct Impl;               // defined in lua-host.cpp
     std::unique_ptr<Impl> impl_;
+    LuaHostOptions options_;
 
     std::string                  lastError_;
     std::vector<BindingCallback> pendingBindings_;

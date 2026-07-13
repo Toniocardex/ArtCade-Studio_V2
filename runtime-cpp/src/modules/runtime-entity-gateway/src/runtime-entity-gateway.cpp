@@ -1145,6 +1145,20 @@ bool RuntimeEntityGateway::visibleInGame(EntityId id) const {
     return registry_->visibleInGame(id);
 }
 
+bool RuntimeEntityGateway::setRuntimeVisible(EntityId id, bool visible) {
+    if (!registry_->contains(id)) return false;
+    registry_->setVisibleInGame(id, visible);
+    SpriteComponent sprite{};
+    if (!registry_->getSprite(id, sprite)) return true;
+    if (!visible) {
+        sprite.alpha = 0.f;
+    } else if (const EntityDef* def = sceneManager_.getEntityDef(id)) {
+        sprite.alpha = def->sprite.alpha;
+    }
+    registry_->setSprite(id, sprite);
+    return true;
+}
+
 void RuntimeEntityGateway::applyDesignVisibilityForPlay() {
     for (const EntityId id : activeSceneIds()) {
         SpriteComponent sprite{};

@@ -1,5 +1,6 @@
 #include "../include/lua-host.h"
 #include <memory>
+#include <cstdlib>
 
 // Sol2 is a heavyweight header; include only in this TU.
 #define SOL_ALL_SAFETIES_ON 1
@@ -10,6 +11,38 @@ namespace ArtCade::Modules {
 // ------------------------------------------------------------------ Pimpl
 
 struct LuaHost::Impl {
+    struct MemoryBudget {
+        size_t used = 0;
+        size_t limit = 0;
+        bool exceeded = false;
+    } memory;
+
+    static void* budgetAllocator(void* ud, void* ptr, size_t oldSize, size_t newSize) {
+        auto* budget = static_cast<MemoryBudget*>(ud);
+        if (newSize == 0) {
+            if (ptr) {
+                budget->used = oldSize > budget->used ? 0 : budget->used - oldSize;
+                std::free(ptr);
+            }
+            return nullptr;
+        }
+        const size_t withoutOld = oldSize > budget->used ? 0 : budget->used - oldSize;
+        if (budget->limit != 0 && newSize > budget->limit - withoutOld) {
+            budget->exceeded = true;
+            return nullptr;
+        }
+        void* next = std::realloc(ptr, newSize);
+        if (!next) return nullptr;
+        budget->used = withoutOld + newSize;
+        return next;
+    }
+
+    explicit Impl(const LuaHostOptions& options)
+        : memory{0, options.maxMemoryBytes, false},
+          lua(options.maxMemoryBytes == 0
+                  ? sol::state{}
+                  : sol::state{sol::default_at_panic, &budgetAllocator, &memory}) {}
+
     sol::state lua;
     bool       scriptLoaded = false;
     bool       scriptTickRequired = true;
@@ -26,18 +59,33 @@ bool readTickRequirement(sol::state& lua) {
 
 // ------------------------------------------------------------------ lifecycle
 
-LuaHost::LuaHost()  : impl_(std::make_unique<Impl>()) {}
+LuaHost::LuaHost(LuaHostOptions options)
+    : impl_(std::make_unique<Impl>(options)), options_(options) {}
 LuaHost::~LuaHost() = default;
 
 bool LuaHost::init() {
     // Open only deterministic/sandboxed standard libraries (no io/os).
-    impl_->lua.open_libraries(
-        sol::lib::base,
-        sol::lib::math,
-        sol::lib::string,
-        sol::lib::table,
-        sol::lib::coroutine
-    );
+    if (options_.profile == LuaSandboxProfile::LogicBoardStrict) {
+        impl_->lua.open_libraries(sol::lib::base, sol::lib::math,
+                                  sol::lib::string, sol::lib::table);
+        // Lua's base library includes filesystem-capable loaders even when io/os
+        // are not opened. Remove them explicitly for the generated-board VM.
+        for (const char* name : {"dofile", "loadfile", "load", "collectgarbage"})
+            impl_->lua[name] = sol::nil;
+        impl_->lua["io"] = sol::nil;
+        impl_->lua["os"] = sol::nil;
+        impl_->lua["package"] = sol::nil;
+        impl_->lua["require"] = sol::nil;
+        impl_->lua["debug"] = sol::nil;
+        impl_->lua["coroutine"] = sol::nil;
+    } else {
+        impl_->lua.open_libraries(
+            sol::lib::base, sol::lib::math, sol::lib::string,
+            sol::lib::table, sol::lib::coroutine);
+        // Filesystem access is forbidden for every runtime profile.
+        impl_->lua["dofile"] = sol::nil;
+        impl_->lua["loadfile"] = sol::nil;
+    }
 
     // Switch Lua 5.4 to generational GC mode.
     // Generational GC is ideal for games: short-lived objects (coins, bullets,
@@ -153,6 +201,10 @@ void LuaHost::tick(float dt) {
 
 bool LuaHost::isScriptTickRequired() const {
     return impl_->scriptTickRequired;
+}
+
+bool LuaHost::memoryLimitExceeded() const {
+    return impl_->memory.exceeded;
 }
 
 } // namespace ArtCade::Modules

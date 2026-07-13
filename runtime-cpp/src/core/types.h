@@ -18,6 +18,7 @@ namespace ArtCade {
 using EntityId  = uint32_t;
 using SceneId   = std::string;
 using AssetId   = std::string;
+using ObjectTypeId = std::string;
 
 constexpr EntityId INVALID_ENTITY = 0;
 
@@ -38,6 +39,66 @@ struct GameVariableDefinition {
 struct Vec2 { float x = 0.f, y = 0.f; };
 struct Vec3 { float x = 1.f, y = 1.f, z = 1.f; };
 struct Vec4 { float r = 1.f, g = 1.f, b = 1.f, a = 1.f; };
+
+// ============================================================================
+// Logic Board authoring model
+// ============================================================================
+
+using LogicBoardId = std::string;
+using LogicRuleId  = std::string;
+
+enum class LogicKey {
+    A, B, C, D, E, F, G, H, I, J, K, L, M,
+    N, O, P, Q, R, S, T, U, V, W, X, Y, Z,
+    Num0, Num1, Num2, Num3, Num4, Num5, Num6, Num7, Num8, Num9,
+    ArrowLeft, ArrowRight, ArrowUp, ArrowDown,
+    Space, Enter,
+};
+
+struct LogicStringValue { std::string value; };
+struct LogicAssetReference { AssetId id; };
+struct LogicVariableReference { std::string id; };
+
+struct LogicEntityReference {
+    enum class Kind { Self };
+    Kind kind = Kind::Self;
+};
+
+using LogicValue = std::variant<
+    bool,
+    int64_t,
+    double,
+    LogicStringValue,
+    Vec2,
+    LogicAssetReference,
+    LogicEntityReference,
+    LogicVariableReference,
+    LogicKey>;
+
+struct LogicPropertyDef {
+    std::string key;
+    LogicValue  value = false;
+};
+
+struct LogicBlockDef {
+    std::string                   typeId;
+    std::vector<LogicPropertyDef> properties;
+};
+
+struct LogicRuleDef {
+    LogicRuleId               id;
+    bool                      enabled = true;
+    LogicBlockDef             trigger;
+    std::vector<LogicBlockDef> conditions;
+    std::vector<LogicBlockDef> actions;
+};
+
+struct LogicBoardDef {
+    LogicBoardId              id;
+    uint32_t                  schemaVersion = 1;
+    uint32_t                  apiVersion = 2;
+    std::vector<LogicRuleDef> rules;
+};
 
 // ============================================================================
 // Transform
@@ -342,6 +403,8 @@ struct EntityDef {
     EntityRuntimeFlags                           runtime;
     std::vector<GameVariableDefinition>          localVariables;
     std::unordered_map<std::string, GameVariableValue> localVariableOverrides;
+    // Authored only on ProjectDoc.objectTypes. Scene instances never override it.
+    std::optional<LogicBoardDef>                       logicBoard;
 };
 
 // Tilemap (Scene Editor Phase D2) — field names mirror editor TS.

@@ -279,20 +279,30 @@ void read_object_types_map(const nlohmann::json& doc,
     out.clear();
 
     const nlohmann::json* raw = nullptr;
-    if (doc.contains("objectTypes") && doc["objectTypes"].is_object())
+    if (doc.contains("objectTypes")
+        && (doc["objectTypes"].is_object() || doc["objectTypes"].is_array()))
         raw = &doc["objectTypes"];
-    else if (doc.contains("object_types") && doc["object_types"].is_object())
+    else if (doc.contains("object_types")
+             && (doc["object_types"].is_object() || doc["object_types"].is_array()))
         raw = &doc["object_types"];
     if (raw == nullptr)
         return;
 
-    for (auto& [key, val] : raw->items()) {
-        if (!val.is_object())
-            continue;
-        EntityDef entity;
-        read_object_type(val, key, entity);
-        if (!entity.className.empty())
-            out[entity.className] = std::move(entity);
+    if (raw->is_array()) {
+        for (const auto& val : *raw) {
+            if (!val.is_object()) continue;
+            const std::string key = val.value("id", std::string{});
+            EntityDef entity;
+            read_object_type(val, key, entity);
+            if (!entity.className.empty()) out[entity.className] = std::move(entity);
+        }
+    } else {
+        for (auto& [key, val] : raw->items()) {
+            if (!val.is_object()) continue;
+            EntityDef entity;
+            read_object_type(val, key, entity);
+            if (!entity.className.empty()) out[entity.className] = std::move(entity);
+        }
     }
 }
 

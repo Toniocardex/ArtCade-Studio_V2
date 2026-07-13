@@ -12,6 +12,7 @@
 #include "../../modules/input/include/input.h"
 #include "../../modules/layer-manager/include/layer-manager.h"
 #include "../../modules/lua-runtime/include/lua-host.h"
+#include "../../modules/logic-runtime/include/logic-runtime.h"
 #include "../../modules/physics/include/physics.h"
 #include "../../modules/presentation/include/editor_viewport_service.h"
 #include "../../modules/renderer/include/renderer.h"
@@ -28,8 +29,27 @@
 #include "../../world/include/world.h"
 
 #include <memory>
+#include <unordered_set>
+#include <vector>
 
 namespace ArtCade {
+
+class RuntimeLogicHostAdapter final : public Logic::ILogicRuntimeHost {
+public:
+    explicit RuntimeLogicHostAdapter(Modules::RuntimeEntityGateway& gateway)
+        : gateway_(gateway) {}
+    bool setVisible(EntityId owner, bool value) override {
+        return gateway_.setRuntimeVisible(owner, value);
+    }
+    bool setPosition(EntityId owner, Vec2 value) override {
+        Transform transform{};
+        if (!gateway_.getTransform(owner, transform)) return false;
+        transform.position = value;
+        return gateway_.setTransform(owner, transform);
+    }
+private:
+    Modules::RuntimeEntityGateway& gateway_;
+};
 
 /** Internal ownership table shared only by Application implementation units. */
 struct Application::Modules {
@@ -39,6 +59,10 @@ struct Application::Modules {
     std::unique_ptr<ArtCade::Modules::Input> input;
     std::unique_ptr<ArtCade::Modules::Audio> audio;
     std::unique_ptr<ArtCade::Modules::LuaHost> luaHost;
+    std::unique_ptr<RuntimeLogicHostAdapter> logicHost;
+    std::unique_ptr<ArtCade::Logic::LogicRuntime> logicRuntime;
+    std::vector<ArtCade::Logic::ScopeToken> logicScopes;
+    std::unordered_set<ObjectTypeId> logicObjectTypes;
     std::unique_ptr<ArtCade::Modules::SceneManager> sceneManager;
     std::unique_ptr<ArtCade::Modules::SceneMutationService> sceneMutation;
     std::unique_ptr<ArtCade::Modules::SceneLifecycleService> sceneLifecycle;

@@ -199,6 +199,9 @@ public:
 
     /** Design-time "visible in game" flag (editor may still draw the sprite). */
     bool visibleInGame(EntityId id) const;
+    /** Runtime-only root visibility used by Logic Board. Works without a sprite;
+     *  when one exists its alpha projection is updated for rendering. */
+    bool setRuntimeVisible(EntityId id, bool visible);
     /** Enter PLAY: hide sprites for entities marked invisible in the project. */
     void applyDesignVisibilityForPlay();
     /** Return to EDIT: restore sprite alpha from the project snapshot. */

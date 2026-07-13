@@ -99,6 +99,7 @@ private:
     bool initSubsystems();
     // Layer 5: load project data, initialize the world, and load Lua bytecode.
     bool loadProject(const std::string& projectPath);
+    bool installLogicScopesForActiveScene();
 
     void shutdownModules();
     void mainLoop();

@@ -21,6 +21,15 @@ double elapsedMs(Clock::time_point start) {
     return std::chrono::duration<double, std::milli>(Clock::now() - start).count();
 }
 
+std::string logicInputCode(LogicKey key) {
+    const int value = static_cast<int>(key);
+    if (value >= static_cast<int>(LogicKey::A) && value <= static_cast<int>(LogicKey::Z))
+        return "Key" + Logic::logicKeyName(key);
+    if (value >= static_cast<int>(LogicKey::Num0) && value <= static_cast<int>(LogicKey::Num9))
+        return "Digit" + Logic::logicKeyName(key);
+    return Logic::logicKeyName(key);
+}
+
 } // namespace
 
 void Application::tickFixedStep(float dt) {
@@ -162,6 +171,13 @@ void Application::loopIteration() {
 
     float simulatedDt = 0.f;
     if (simulating) {
+        if (mod_->logicRuntime) {
+            mod_->logicRuntime->beginFrame();
+            for (LogicKey key : Logic::supportedLogicKeys()) {
+                if (mod_->input->wasKeyPressed(logicInputCode(key)))
+                    mod_->logicRuntime->dispatchKeyPressed(key);
+            }
+        }
         if (!mod_->dialogManager || !mod_->dialogManager->isBlocking()) {
             const auto start = Clock::now();
             const uint32_t events = mod_->gameAPI->dispatchInputEvents();

@@ -15,6 +15,7 @@ void Application::handleSceneTransition(
             result.invalidations,
             ArtCade::Modules::SceneInvalidation::SceneActivation)) {
         resetCameraOnNextFrame_ = true;
+        installLogicScopesForActiveScene();
     }
 }
 

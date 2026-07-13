@@ -1,6 +1,7 @@
 #include "../include/app.h"
 
 #include "app_modules.h"
+#include "logic-core.h"
 
 #include "../../modules/editor-api/include/editor-api.h"
 #include "../../modules/presentation/include/presentation_mode.h"
@@ -211,7 +212,26 @@ bool Application::loadProject(const std::string& projectPath) {
         return false;
     }
 
+    const Logic::LogicCompileResult logic = Logic::compileProjectLogic(doc);
+    if (!logic.ok()) {
+        std::cerr << "[App] Logic Board validation failed";
+        if (!logic.diagnostics.empty())
+            std::cerr << " [" << logic.diagnostics.front().code << "] "
+                      << logic.diagnostics.front().message;
+        std::cerr << "\n";
+        return false;
+    }
+    std::string logicError;
+    if (!mod_->logicRuntime || !mod_->logicRuntime->loadPrograms(logic.programs, &logicError)) {
+        std::cerr << "[App] Could not load Logic Board programs: " << logicError << "\n";
+        return false;
+    }
+    mod_->logicObjectTypes.clear();
+    for (const Logic::LogicProgram& program : logic.programs)
+        mod_->logicObjectTypes.insert(program.objectTypeId);
+
     mod_->world->init(doc);
+    if (!installLogicScopesForActiveScene()) return false;
     if (mod_->spriteAnimator) {
         registerAnimationClipsFromAssets(*mod_->spriteAnimator, doc.imageAssets);
     }
@@ -251,6 +271,26 @@ bool Application::loadProject(const std::string& projectPath) {
 
     std::cout << "[App] Project loaded: " << doc.projectName
               << " (license=" << licenseTier_ << ")\n";
+    return true;
+}
+
+bool Application::installLogicScopesForActiveScene() {
+    if (!mod_ || !mod_->logicRuntime || !mod_->entityGateway) return false;
+    for (Logic::ScopeToken token : mod_->logicScopes) mod_->logicRuntime->cancelScope(token);
+    mod_->logicScopes.clear();
+    std::string error;
+    for (EntityId id : mod_->entityGateway->activeSceneIds()) {
+        const ObjectTypeId typeId = mod_->entityGateway->className(id);
+        if (mod_->logicObjectTypes.find(typeId) == mod_->logicObjectTypes.end()) continue;
+        const auto token = mod_->logicRuntime->install(typeId, id, &error);
+        if (!token) {
+            std::cerr << "[App] Could not install Logic Board scope: " << error << "\n";
+            return false;
+        }
+        mod_->logicScopes.push_back(*token);
+    }
+    mod_->logicRuntime->beginFrame();
+    mod_->logicRuntime->dispatchStart();
     return true;
 }
 

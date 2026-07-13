@@ -93,6 +93,8 @@ bool Application::initSubsystems() {
     mod_->entityGateway = std::make_unique<ArtCade::Modules::RuntimeEntityGateway>(
         *mod_->sceneManager);
     if (!boot_step("entity_gateway", mod_->entityGateway->init())) return false;
+    mod_->logicHost = std::make_unique<RuntimeLogicHostAdapter>(*mod_->entityGateway);
+    mod_->logicRuntime = std::make_unique<ArtCade::Logic::LogicRuntime>(*mod_->logicHost);
 
     mod_->sceneLifecycle = std::make_unique<ArtCade::Modules::SceneLifecycleService>(
         *mod_->sceneManager,
@@ -229,6 +231,10 @@ void Application::shutdownModules() {
     EditorAPI::clearEngineWiring();
 #endif
 
+    if (mod_->logicRuntime) { mod_->logicRuntime->shutdown(); mod_->logicRuntime.reset(); }
+    mod_->logicScopes.clear();
+    mod_->logicObjectTypes.clear();
+    mod_->logicHost.reset();
     if (mod_->luaHost) { mod_->luaHost->shutdown(); mod_->luaHost.reset(); }
     if (mod_->gameAPI) { mod_->gameAPI->shutdown(); mod_->gameAPI.reset(); }
     if (mod_->dialogManager) { mod_->dialogManager->shutdown(); mod_->dialogManager.reset(); }

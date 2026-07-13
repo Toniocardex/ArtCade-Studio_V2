@@ -185,6 +185,10 @@ artcade_test(logic_components_test
     logic-components-test.cpp
     artcade-lua-runtime)
 
+artcade_test(logic_board_test
+    logic-board-test.cpp
+    "artcade-logic-core;artcade-logic-runtime;artcade-lua-runtime")
+
 # Scene mutation / invalidation (stateless — no Raylib)
 artcade_test(scene_invalidation_test
     scene-invalidation-test.cpp
