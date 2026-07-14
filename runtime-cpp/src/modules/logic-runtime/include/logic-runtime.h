@@ -37,6 +37,10 @@ public:
     virtual bool isObjectType(EntityId entity, const ObjectTypeId& objectTypeId) = 0;
     /** Queues runtime-only destruction; it is applied after the event snapshot. */
     virtual bool requestDestroy(EntityId owner) = 0;
+    virtual bool playAnimationClip(EntityId owner, const AssetId& animationAssetId,
+                                   const std::string& clipId) = 0;
+    virtual bool stopAnimation(EntityId owner) = 0;
+    virtual bool setAnimationPlaybackSpeed(EntityId owner, float speed) = 0;
 };
 
 class LogicRuntime {

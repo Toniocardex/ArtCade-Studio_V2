@@ -30,13 +30,16 @@ inline constexpr const char* kCollisionEnter = "collision.enter";
 inline constexpr const char* kCollisionExit = "collision.exit";
 inline constexpr const char* kOtherIsObjectType = "collision.other_is_object_type";
 inline constexpr const char* kDestroySelf = "entity.destroy_self";
+inline constexpr const char* kAnimationPlayClip = "animation.play_clip";
+inline constexpr const char* kAnimationStop = "animation.stop";
+inline constexpr const char* kAnimationSetPlaybackSpeed = "animation.set_playback_speed";
 
 using LogicBlockTypeId = std::string;
 using LogicCategoryId = std::string;
 
 enum class BlockKind { Trigger, Condition, Action };
 enum class LogicValueKind { Bool, Integer, Number, String, Vec2, Asset, Entity, Variable, Key };
-enum class LogicRequiredComponent { PlatformerController };
+enum class LogicRequiredComponent { PlatformerController, SpriteAnimator };
 enum class LogicContextCapability {
     Self,
     EventOther,

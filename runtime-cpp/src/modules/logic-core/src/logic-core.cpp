@@ -48,6 +48,8 @@ bool ownerHasComponent(const EntityDef& owner, LogicRequiredComponent component)
     switch (component) {
         case LogicRequiredComponent::PlatformerController:
             return owner.platformerController.has_value();
+        case LogicRequiredComponent::SpriteAnimator:
+            return owner.spriteRenderer.has_value() && owner.spriteAnimator.has_value();
     }
     return false;
 }
@@ -65,6 +67,8 @@ LogicBlockAvailability availabilityFor(const EntityDef& owner,
             switch (component) {
                 case LogicRequiredComponent::PlatformerController:
                     return {false, "Requires Platformer Controller"};
+                case LogicRequiredComponent::SpriteAnimator:
+                    return {false, "Requires Sprite Animator"};
             }
         }
     }
@@ -74,6 +78,22 @@ LogicBlockAvailability availabilityFor(const EntityDef& owner,
         }
     }
     return {};
+}
+
+const SpriteAnimationAssetDef* findAnimationAsset(const ProjectDoc& project,
+                                                  const AssetId& assetId) {
+    for (const SpriteAnimationAssetDef& asset : project.spriteAnimationAssets) {
+        if (asset.id == assetId) return &asset;
+    }
+    return nullptr;
+}
+
+const SpriteAnimationClipDef* findAnimationClip(const SpriteAnimationAssetDef& asset,
+                                                const std::string& clipId) {
+    for (const SpriteAnimationClipDef& clip : asset.clips) {
+        if (clip.id == clipId) return &clip;
+    }
+    return nullptr;
 }
 
 void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
@@ -140,6 +160,11 @@ void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
                 out.push_back(makeError(objectTypeId, board, "LB_AXIS_RANGE",
                                         "Platformer movement axis must be between -1 and 1",
                                         &rule, &block, property.key));
+            } else if (block.typeId == kAnimationSetPlaybackSpeed
+                       && property.key == "speed" && *value <= 0.0) {
+                out.push_back(makeError(objectTypeId, board, "LB_ANIMATION_SPEED",
+                                        "Animation playback speed must be positive",
+                                        &rule, &block, property.key));
             }
         }
         if (block.typeId == kOtherIsObjectType && property.key == "objectTypeId") {
@@ -150,6 +175,27 @@ void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
                                         "Collision object type must reference an existing Object Type",
                                         &rule, &block, property.key));
             }
+        }
+    }
+    if (block.typeId == kAnimationPlayClip) {
+        const LogicPropertyDef* assetProperty = findProperty(block, "animationAssetId");
+        const LogicPropertyDef* clipProperty = findProperty(block, "clipId");
+        const auto* assetRef = assetProperty
+            ? std::get_if<LogicAssetReference>(&assetProperty->value) : nullptr;
+        const auto* clipRef = clipProperty
+            ? std::get_if<LogicStringValue>(&clipProperty->value) : nullptr;
+        const SpriteAnimationAssetDef* asset = nullptr;
+        if (!assetRef || assetRef->id.empty()
+            || (project && !(asset = findAnimationAsset(*project, assetRef->id)))) {
+            out.push_back(makeError(objectTypeId, board, "LB_ANIMATION_ASSET_REFERENCE",
+                                    "Animation action must reference an existing animation asset",
+                                    &rule, &block, "animationAssetId"));
+        }
+        if (!clipRef || clipRef->value.empty()
+            || (project && asset && !findAnimationClip(*asset, clipRef->value))) {
+            out.push_back(makeError(objectTypeId, board, "LB_ANIMATION_CLIP_REFERENCE",
+                                    "Animation action clip must belong to its animation asset",
+                                    &rule, &block, "clipId"));
         }
     }
     for (const LogicPropertyDescriptor& property : descriptor->properties) {
@@ -194,6 +240,20 @@ void emitAction(std::ostringstream& lua, const LogicBlockDef& action,
         lua << "      context.self:platformer_jump()\n";
     } else if (action.typeId == kDestroySelf) {
         lua << "      context.self:destroy_self()\n";
+    } else if (action.typeId == kAnimationPlayClip) {
+        const LogicPropertyDef* asset = findProperty(action, "animationAssetId");
+        const LogicPropertyDef* clip = findProperty(action, "clipId");
+        const auto* assetRef = asset ? std::get_if<LogicAssetReference>(&asset->value) : nullptr;
+        const auto* clipRef = clip ? std::get_if<LogicStringValue>(&clip->value) : nullptr;
+        lua << "      context.self:play_animation_clip(\""
+            << escapeLua(assetRef ? assetRef->id : std::string{}) << "\", \""
+            << escapeLua(clipRef ? clipRef->value : std::string{}) << "\")\n";
+    } else if (action.typeId == kAnimationStop) {
+        lua << "      context.self:stop_animation()\n";
+    } else if (action.typeId == kAnimationSetPlaybackSpeed) {
+        const LogicPropertyDef* p = findProperty(action, "speed");
+        lua << "      context.self:set_animation_playback_speed("
+            << std::get<double>(p->value) << ")\n";
     }
     if (const LogicBlockDescriptor* descriptor = findDescriptor(action.typeId))
         if (!descriptor->requiredFeature.empty()) features.insert(descriptor->requiredFeature);
@@ -282,6 +342,20 @@ const std::vector<LogicBlockDescriptor>& registry() {
             {}, {LogicContextCapability::EventOther}, {}, "collision.other_type"},
         {kDestroySelf, "entity", "Destroy Self", "Removes Self from the runtime world after event dispatch.",
             BlockKind::Action, {}, {}, {LogicContextCapability::Self}, {}, "entity.destroy"},
+        {kAnimationPlayClip, "animation", "Play Clip", "Plays an animation clip on Self.",
+            BlockKind::Action,
+            {{"animationAssetId", LogicValueKind::Asset, LogicAssetReference{}},
+             {"clipId", LogicValueKind::String, LogicStringValue{}}},
+            {LogicRequiredComponent::SpriteAnimator}, {LogicContextCapability::Self}, {},
+            "animation.play_clip"},
+        {kAnimationStop, "animation", "Stop Animation", "Stops Self's animation playback.",
+            BlockKind::Action, {}, {LogicRequiredComponent::SpriteAnimator},
+            {LogicContextCapability::Self}, {}, "animation.stop"},
+        {kAnimationSetPlaybackSpeed, "animation", "Set Playback Speed",
+            "Changes Self's runtime animation playback speed.",
+            BlockKind::Action, {{"speed", LogicValueKind::Number, 1.0}},
+            {LogicRequiredComponent::SpriteAnimator}, {LogicContextCapability::Self}, {},
+            "animation.set_playback_speed"},
     };
     return value;
 }

@@ -50,6 +50,9 @@ const std::unordered_set<std::string>& supportedFeatures() {
         "collision.exit",
         "collision.other_type",
         "entity.destroy",
+        "animation.play_clip",
+        "animation.stop",
+        "animation.set_playback_speed",
     };
     return value;
 }
@@ -113,6 +116,18 @@ struct LogicRuntime::Impl {
         void destroySelf() {
             if (!impl || !impl->host.requestDestroy(owner))
                 throw sol::error("destroy_self failed for owner");
+        }
+        void playAnimationClip(const std::string& animationAssetId, const std::string& clipId) {
+            if (!impl || !impl->host.playAnimationClip(owner, animationAssetId, clipId))
+                throw sol::error("play_animation_clip failed for owner");
+        }
+        void stopAnimation() {
+            if (!impl || !impl->host.stopAnimation(owner))
+                throw sol::error("stop_animation failed for owner");
+        }
+        void setAnimationPlaybackSpeed(float speed) {
+            if (!impl || !impl->host.setAnimationPlaybackSpeed(owner, speed))
+                throw sol::error("set_animation_playback_speed failed for owner");
         }
     };
 
@@ -289,7 +304,10 @@ bool LogicRuntime::initialize(std::string* error) {
             "is_grounded", &Impl::SelfProxy::isGrounded,
             "platformer_move", &Impl::SelfProxy::platformerMove,
             "platformer_jump", &Impl::SelfProxy::platformerJump,
-            "destroy_self", &Impl::SelfProxy::destroySelf);
+            "destroy_self", &Impl::SelfProxy::destroySelf,
+            "play_animation_clip", &Impl::SelfProxy::playAnimationClip,
+            "stop_animation", &Impl::SelfProxy::stopAnimation,
+            "set_animation_playback_speed", &Impl::SelfProxy::setAnimationPlaybackSpeed);
         lua.new_usertype<Impl::ContextProxy>(
             "LogicContext", sol::no_constructor,
             "self", &Impl::ContextProxy::self,
