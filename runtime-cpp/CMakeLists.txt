@@ -106,6 +106,7 @@ set(LUA_INCLUDE_DIR           ${CMAKE_CURRENT_SOURCE_DIR}/libs/lua)
 add_library(artcade-core INTERFACE)
 target_include_directories(artcade-core INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/modules/sfx/include
 )
 # Aggiungi include di terze parti solo se le directory esistono
 foreach(_inc IN ITEMS
@@ -136,6 +137,7 @@ target_link_libraries(artcade-project-json PUBLIC artcade-core)
 # Deterministic Logic Board authoring model validation/compiler. This module is
 # core-only: no Lua, renderer, filesystem, or editor presentation dependency.
 add_subdirectory(src/modules/logic-core)
+add_subdirectory(src/modules/sfx)
 
 # ============================================================================
 # Moduli stateless — nessuna dipendenza da Raylib o Lua.

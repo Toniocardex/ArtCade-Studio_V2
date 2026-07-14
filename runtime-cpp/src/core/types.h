@@ -1,5 +1,7 @@
 #pragma once
 
+#include "artcade/sfx/types.hpp"
+
 #include "project-defaults.h"
 #include <cstdint>
 #include <optional>
@@ -790,6 +792,9 @@ struct ProjectDoc {
     std::vector<ImageAssetDef>    imageAssets;   // editor assets + image points
     std::vector<SpriteAnimationAssetDef> spriteAnimationAssets;
     std::vector<AudioAssetDef>    audioAssets;   // native editor import catalog
+    // Authoring-only procedural SFX recipes. Runtime systems consume only the
+    // AudioAssetDef referenced by GeneratedSfxDef::outputAssetId.
+    std::vector<artcade::sfx::GeneratedSfxDef> generatedSfx;
     std::vector<FontAssetDef>     fontAssets;    // native editor import catalog
     WorldSettings                 world{};
     std::vector<GameVariableDefinition> globalVariables;
