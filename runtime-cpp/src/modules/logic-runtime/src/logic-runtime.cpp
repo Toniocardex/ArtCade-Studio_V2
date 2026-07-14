@@ -31,6 +31,21 @@ std::string callbackError(const std::string& ruleId, EntityId owner, const std::
     return out.str();
 }
 
+// Capabilities this LogicRuntime build knows how to execute. A program
+// compiled by a newer logic-core (declaring a feature this runtime predates)
+// must be rejected up front rather than silently calling an undefined Lua
+// method at dispatch time.
+const std::unordered_set<std::string>& supportedFeatures() {
+    static const std::unordered_set<std::string> value{
+        "event.start",
+        "input.key_pressed",
+        "entity.visibility",
+        "entity.transform",
+        "platformer.grounded",
+    };
+    return value;
+}
+
 } // namespace
 
 struct LogicRuntime::Impl {
@@ -75,6 +90,9 @@ struct LogicRuntime::Impl {
         void setPosition(float x, float y) {
             if (!impl || !impl->host.setPosition(owner, Vec2{x, y}))
                 throw sol::error("set_position failed for owner");
+        }
+        bool isGrounded() {
+            return impl && impl->host.isGrounded(owner);
         }
     };
 
@@ -221,7 +239,8 @@ bool LogicRuntime::initialize(std::string* error) {
         lua.new_usertype<Impl::SelfProxy>(
             "LogicSelf", sol::no_constructor,
             "set_visible", &Impl::SelfProxy::setVisible,
-            "set_position", &Impl::SelfProxy::setPosition);
+            "set_position", &Impl::SelfProxy::setPosition,
+            "is_grounded", &Impl::SelfProxy::isGrounded);
         lua.new_usertype<Impl::ContextProxy>(
             "LogicContext", sol::no_constructor,
             "self", &Impl::ContextProxy::self,
@@ -261,6 +280,13 @@ bool LogicRuntime::loadPrograms(const std::vector<LogicProgram>& programs, std::
         return false;
     }
     for (const LogicProgram& program : programs) {
+        for (const std::string& feature : program.requiredFeatures) {
+            if (!supportedFeatures().count(feature)) {
+                if (error) *error = "Logic program requires unsupported feature: " + feature;
+                impl_->enabled = false;
+                return false;
+            }
+        }
         impl_->apiVersionAccepted = false;
         if (!impl_->lua.loadLuaSource(program.source)) {
             if (error) *error = impl_->lua.lastError();

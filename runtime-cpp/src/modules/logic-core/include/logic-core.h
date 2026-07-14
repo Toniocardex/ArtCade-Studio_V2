@@ -21,6 +21,7 @@ inline constexpr const char* kOnStart = "event.on_start";
 inline constexpr const char* kKeyPressed = "input.key_pressed";
 inline constexpr const char* kSetVisible = "entity.set_visible";
 inline constexpr const char* kSetPosition = "entity.set_position";
+inline constexpr const char* kIsGrounded = "platformer.is_grounded";
 
 enum class BlockKind { Trigger, Condition, Action };
 enum class LogicValueKind { Bool, Integer, Number, String, Vec2, Asset, Entity, Variable, Key };
@@ -78,6 +79,7 @@ const LogicPropertyDef* findProperty(const LogicBlockDef& block, const std::stri
 
 LogicBlockDef makeDefaultTrigger();
 LogicBlockDef makeDefaultAction();
+LogicBlockDef makeDefaultCondition();
 LogicRuleDef makeDefaultRule(LogicRuleId id);
 
 std::string logicKeyName(LogicKey key);

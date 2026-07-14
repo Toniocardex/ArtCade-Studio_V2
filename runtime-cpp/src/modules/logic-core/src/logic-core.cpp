@@ -129,6 +129,28 @@ void emitAction(std::ostringstream& lua, const LogicBlockDef& action,
     }
 }
 
+// Conditions gate the rule's actions behind a single `if ... then` guard,
+// ANDed together (MVP semantics: no OR/grouping yet). Zero conditions means
+// no guard is emitted and actions run unconditionally, matching the trigger
+// firing with no gate at all.
+bool emitConditionGuard(std::ostringstream& lua, const std::vector<LogicBlockDef>& conditions,
+                        std::set<std::string>& features) {
+    if (conditions.empty()) return false;
+    lua << "    if ";
+    for (std::size_t i = 0; i < conditions.size(); ++i) {
+        if (i > 0) lua << " and ";
+        const LogicBlockDef& condition = conditions[i];
+        if (condition.typeId == kIsGrounded) {
+            const LogicPropertyDef* p = findProperty(condition, "expected");
+            const bool expected = p ? std::get<bool>(p->value) : true;
+            lua << "context.self:is_grounded() == " << (expected ? "true" : "false");
+            features.insert("platformer.grounded");
+        }
+    }
+    lua << " then\n";
+    return true;
+}
+
 } // namespace
 
 bool LogicCompileResult::ok() const {
@@ -147,6 +169,8 @@ const std::vector<LogicBlockDescriptor>& registry() {
         {kSetPosition, "Set Position", BlockKind::Action,
             {{"target", LogicValueKind::Entity, selfReference()},
              {"position", LogicValueKind::Vec2, Vec2{}}}},
+        {kIsGrounded, "Is Grounded", BlockKind::Condition,
+            {{"expected", LogicValueKind::Bool, true}}},
     };
     return value;
 }
@@ -168,6 +192,10 @@ LogicBlockDef makeDefaultTrigger() { return {kOnStart, {}}; }
 
 LogicBlockDef makeDefaultAction() {
     return {kSetVisible, {{"target", selfReference()}, {"visible", true}}};
+}
+
+LogicBlockDef makeDefaultCondition() {
+    return {kIsGrounded, {{"expected", true}}};
 }
 
 LogicRuleDef makeDefaultRule(LogicRuleId id) {
@@ -260,7 +288,9 @@ LogicCompileResult compileBoard(const ObjectTypeId& objectTypeId,
                 << logicKeyName(std::get<LogicKey>(key->value)) << "\", function()\n";
             features.insert("input.key_pressed");
         }
+        const bool guarded = emitConditionGuard(lua, rule.conditions, features);
         for (const LogicBlockDef& action : rule.actions) emitAction(lua, action, features);
+        if (guarded) lua << "    end\n";
         lua << "  end)\n";
     }
     lua << "end)\n";

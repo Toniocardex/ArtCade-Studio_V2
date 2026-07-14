@@ -38,6 +38,8 @@ class RuntimeLogicHostAdapter final : public Logic::ILogicRuntimeHost {
 public:
     explicit RuntimeLogicHostAdapter(Modules::RuntimeEntityGateway& gateway)
         : gateway_(gateway) {}
+    /** World is constructed after this adapter; wired in once available. */
+    void setWorld(World* world) { world_ = world; }
     bool setVisible(EntityId owner, bool value) override {
         return gateway_.setRuntimeVisible(owner, value);
     }
@@ -47,8 +49,12 @@ public:
         transform.position = value;
         return gateway_.setTransform(owner, transform);
     }
+    bool isGrounded(EntityId owner) override {
+        return world_ && world_->isPlatformerGrounded(owner);
+    }
 private:
     Modules::RuntimeEntityGateway& gateway_;
+    World* world_ = nullptr;
 };
 
 /** Internal ownership table shared only by Application implementation units. */

@@ -29,6 +29,8 @@ public:
     virtual ~ILogicRuntimeHost() = default;
     virtual bool setVisible(EntityId owner, bool value) = 0;
     virtual bool setPosition(EntityId owner, Vec2 value) = 0;
+    /** Read-only query: does not mutate components or physics state. */
+    virtual bool isGrounded(EntityId owner) = 0;
 };
 
 class LogicRuntime {

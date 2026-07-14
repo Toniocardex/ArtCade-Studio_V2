@@ -111,6 +111,7 @@ bool Application::initSubsystems() {
     mod_->world = std::make_unique<World>(
         *mod_->entityGateway, *mod_->physics, *mod_->variableManager);
     mod_->entityGateway->setPhysics(mod_->physics.get());
+    mod_->logicHost->setWorld(mod_->world.get());
     mod_->world->setRenderer(mod_->renderer.get());
     mod_->sceneLifecycle->set_gameplay_reset_handler([this]() {
         if (mod_->world) mod_->world->onSceneActivated();

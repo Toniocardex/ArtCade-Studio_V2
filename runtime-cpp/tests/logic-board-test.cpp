@@ -2,8 +2,10 @@
 #include "modules/logic-runtime/include/logic-runtime.h"
 #include "modules/lua-runtime/include/lua-host.h"
 
+#include <algorithm>
 #include <iostream>
 #include <string>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -19,6 +21,7 @@ struct Host final : ILogicRuntimeHost {
     LogicRuntime* runtime = nullptr;
     std::optional<ScopeToken> cancelOnVisible;
     bool failVisible = false;
+    std::unordered_set<EntityId> grounded;
     bool setVisible(EntityId owner, bool value) override {
         calls.push_back("visible:" + std::to_string(owner) + ":" + (value ? "1" : "0"));
         if (runtime && cancelOnVisible) runtime->cancelScope(*cancelOnVisible);
@@ -29,6 +32,9 @@ struct Host final : ILogicRuntimeHost {
                         + std::to_string(static_cast<int>(value.x)) + ","
                         + std::to_string(static_cast<int>(value.y)));
         return true;
+    }
+    bool isGrounded(EntityId owner) override {
+        return grounded.count(owner) != 0;
     }
 };
 
@@ -250,11 +256,85 @@ static void testLimitsSnapshotAndIsolation() {
     }
 }
 
+static void testIsGroundedCondition() {
+    // Registry: Is Grounded exists and is a Condition.
+    const LogicBlockDescriptor* descriptor = findDescriptor(kIsGrounded);
+    CHECK(descriptor != nullptr);
+    CHECK(descriptor && descriptor->kind == BlockKind::Condition);
+
+    LogicBlockDef condition = makeDefaultCondition();
+    CHECK(condition.typeId == kIsGrounded);
+
+    LogicBoardDef board;
+    board.id = "logic:Grounded";
+    LogicRuleDef rule = makeDefaultRule("rule-1");
+    rule.trigger = {kKeyPressed, {{"key", LogicKey::Space}}};
+    rule.conditions.push_back(condition);
+    board.rules.push_back(rule);
+
+    // Validation: expected is a required boolean property.
+    CHECK(validateBoard("Hero", board).empty());
+
+    // Compiler: expected=true compiles to `== true`; declares the capability.
+    LogicCompileResult trueCompiled = compileBoard("Hero", board);
+    CHECK(trueCompiled.ok());
+    CHECK(trueCompiled.programs[0].source.find("is_grounded() == true") != std::string::npos);
+    const auto& trueFeatures = trueCompiled.programs[0].requiredFeatures;
+    CHECK(std::find(trueFeatures.begin(), trueFeatures.end(), "platformer.grounded") != trueFeatures.end());
+
+    // Compiler: expected=false compiles to a real negation, not a no-op.
+    LogicBoardDef falseBoard = board;
+    std::get<bool>(falseBoard.rules[0].conditions[0].properties[0].value) = false;
+    LogicCompileResult falseCompiled = compileBoard("Hero", falseBoard);
+    CHECK(falseCompiled.ok());
+    CHECK(falseCompiled.programs[0].source.find("is_grounded() == false") != std::string::npos);
+
+    // Zero conditions: actions run directly, no guard emitted.
+    LogicCompileResult noCondCompiled = compileBoard("Hero", makeBoard());
+    CHECK(noCondCompiled.programs[0].source.find("is_grounded") == std::string::npos);
+
+    // Multiple conditions: deterministic AND.
+    LogicBoardDef multi = board;
+    multi.rules[0].conditions.push_back(condition);
+    LogicCompileResult multiCompiled = compileBoard("Hero", multi);
+    CHECK(multiCompiled.ok());
+    CHECK(multiCompiled.programs[0].source.find(" and ") != std::string::npos);
+
+    // Runtime: grounded=false blocks the action, grounded=true runs it.
+    {
+        Host host;
+        LogicRuntime runtime(host);
+        std::string error;
+        CHECK(runtime.loadPrograms(trueCompiled.programs, &error));
+        CHECK(runtime.install("Hero", 1, &error).has_value());
+        runtime.beginFrame();
+        runtime.dispatchKeyPressed(LogicKey::Space);
+        CHECK(host.calls.empty());
+        host.grounded.insert(1);
+        runtime.beginFrame();
+        runtime.dispatchKeyPressed(LogicKey::Space);
+        CHECK(!host.calls.empty());
+    }
+
+    // Compatibility: an unrecognized required feature is rejected up front,
+    // not silently executed against a nonexistent Lua method.
+    {
+        Host host;
+        LogicRuntime runtime(host);
+        LogicProgram program = customProgram("Hero", " context:on_start('r', function() end)");
+        program.requiredFeatures = {"future.unsupported"};
+        std::string error;
+        CHECK(!runtime.loadPrograms({program}, &error));
+        CHECK(!error.empty());
+    }
+}
+
 int main() {
     testCompilerAndJson();
     testRuntime();
     testStrictSandboxAndBudget();
     testLimitsSnapshotAndIsolation();
+    testIsGroundedCondition();
     std::cout << passed << " passed, " << failed << " failed\n";
     return failed == 0 ? 0 : 1;
 }
