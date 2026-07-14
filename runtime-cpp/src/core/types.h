@@ -598,9 +598,10 @@ struct SceneInstanceDef {
     std::string layerId;      // render layer id ("" = default layer)
     std::optional<SpriteRendererOverride> spriteRendererOverride;
     std::optional<SpriteAnimatorOverride> spriteAnimatorOverride;
-    // v3 decoder/migration input only. The v4 serializer never emits these.
-    std::optional<SpriteRendererComponent> spriteRenderer;
-    std::optional<SpriteAnimatorComponent> spriteAnimator;
+    // v3 decoder/migration input only. No authoring/runtime path may read
+    // these, and the v4 serializer never emits them.
+    std::optional<SpriteRendererComponent> legacySpriteRendererV3;
+    std::optional<SpriteAnimatorComponent> legacySpriteAnimatorV3;
     std::optional<TilemapComponent>        tilemap;
     std::unordered_map<std::string, GameVariableValue> localVariableOverrides;
 };
