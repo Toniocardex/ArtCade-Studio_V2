@@ -176,6 +176,10 @@ void Application::loopIteration() {
             for (LogicKey key : Logic::supportedLogicKeys()) {
                 if (mod_->input->wasKeyPressed(logicInputCode(key)))
                     mod_->logicRuntime->dispatchKeyPressed(key);
+                if (mod_->input->wasKeyReleased(logicInputCode(key)))
+                    mod_->logicRuntime->dispatchKeyReleased(key);
+                if (mod_->input->isKeyDown(logicInputCode(key)))
+                    mod_->logicRuntime->dispatchKeyHeld(key);
             }
         }
         if (!mod_->dialogManager || !mod_->dialogManager->isBlocking()) {

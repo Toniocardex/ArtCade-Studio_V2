@@ -44,9 +44,44 @@ bool validId(const std::string& id) {
     return !id.empty() && id.size() <= kMaxLogicIdLength;
 }
 
+bool ownerHasComponent(const EntityDef& owner, LogicRequiredComponent component) {
+    switch (component) {
+        case LogicRequiredComponent::PlatformerController:
+            return owner.platformerController.has_value();
+    }
+    return false;
+}
+
+bool containsCapability(const std::vector<LogicContextCapability>& values,
+                        LogicContextCapability expected) {
+    return std::find(values.begin(), values.end(), expected) != values.end();
+}
+
+LogicBlockAvailability availabilityFor(const EntityDef& owner,
+                                       const LogicBlockDescriptor& candidate,
+                                       const LogicBlockDescriptor* trigger) {
+    for (const LogicRequiredComponent component : candidate.requiredComponents) {
+        if (!ownerHasComponent(owner, component)) {
+            switch (component) {
+                case LogicRequiredComponent::PlatformerController:
+                    return {false, "Requires Platformer Controller"};
+            }
+        }
+    }
+    for (const LogicContextCapability capability : candidate.requiredContext) {
+        if (!trigger || !containsCapability(trigger->providedContext, capability)) {
+            return {false, "Requires a trigger that provides the required context"};
+        }
+    }
+    return {};
+}
+
 void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
                    const LogicRuleDef& rule, const LogicBlockDef& block,
-                   BlockKind expected, std::vector<LogicDiagnostic>& out) {
+                   BlockKind expected, const EntityDef* owner,
+                   const LogicBlockDescriptor* trigger,
+                   const ProjectDoc* project,
+                   std::vector<LogicDiagnostic>& out) {
     const LogicBlockDescriptor* descriptor = findDescriptor(block.typeId);
     if (!descriptor) {
         out.push_back(makeError(objectTypeId, board, "LB_UNKNOWN_BLOCK",
@@ -58,6 +93,13 @@ void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
         out.push_back(makeError(objectTypeId, board, "LB_WRONG_BLOCK_KIND",
                                 "Block is used in the wrong rule section", &rule, &block));
         return;
+    }
+    if (owner) {
+        const LogicBlockAvailability availability = availabilityFor(*owner, *descriptor, trigger);
+        if (!availability.compatible) {
+            out.push_back(makeError(objectTypeId, board, "LB_INCOMPATIBLE_BLOCK",
+                                    availability.reason, &rule, &block));
+        }
     }
 
     std::unordered_set<std::string> seen;
@@ -85,6 +127,27 @@ void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
             if (!std::isfinite(v->x) || !std::isfinite(v->y)) {
                 out.push_back(makeError(objectTypeId, board, "LB_NON_FINITE",
                                         "Vec2 property must contain finite values",
+                                        &rule, &block, property.key));
+            }
+        }
+        if (const double* value = std::get_if<double>(&property.value)) {
+            if (!std::isfinite(*value)) {
+                out.push_back(makeError(objectTypeId, board, "LB_NON_FINITE",
+                                        "Number property must be finite", &rule, &block,
+                                        property.key));
+            } else if (block.typeId == kMoveHorizontal && property.key == "axis"
+                       && (*value < -1.0 || *value > 1.0)) {
+                out.push_back(makeError(objectTypeId, board, "LB_AXIS_RANGE",
+                                        "Platformer movement axis must be between -1 and 1",
+                                        &rule, &block, property.key));
+            }
+        }
+        if (block.typeId == kOtherIsObjectType && property.key == "objectTypeId") {
+            const auto* referencedType = std::get_if<LogicStringValue>(&property.value);
+            if (!referencedType || referencedType->value.empty()
+                || (project && project->objectTypes.count(referencedType->value) == 0)) {
+                out.push_back(makeError(objectTypeId, board, "LB_OBJECT_TYPE_REFERENCE",
+                                        "Collision object type must reference an existing Object Type",
                                         &rule, &block, property.key));
             }
         }
@@ -120,13 +183,20 @@ void emitAction(std::ostringstream& lua, const LogicBlockDef& action,
         const LogicPropertyDef* p = findProperty(action, "visible");
         const bool value = std::get<bool>(p->value);
         lua << "      context.self:set_visible(" << (value ? "true" : "false") << ")\n";
-        features.insert("entity.visibility");
     } else if (action.typeId == kSetPosition) {
         const LogicPropertyDef* p = findProperty(action, "position");
         const Vec2 value = std::get<Vec2>(p->value);
         lua << "      context.self:set_position(" << value.x << ", " << value.y << ")\n";
-        features.insert("entity.transform");
+    } else if (action.typeId == kMoveHorizontal) {
+        const LogicPropertyDef* p = findProperty(action, "axis");
+        lua << "      context.self:platformer_move(" << std::get<double>(p->value) << ")\n";
+    } else if (action.typeId == kJump) {
+        lua << "      context.self:platformer_jump()\n";
+    } else if (action.typeId == kDestroySelf) {
+        lua << "      context.self:destroy_self()\n";
     }
+    if (const LogicBlockDescriptor* descriptor = findDescriptor(action.typeId))
+        if (!descriptor->requiredFeature.empty()) features.insert(descriptor->requiredFeature);
 }
 
 // Conditions gate the rule's actions behind a single `if ... then` guard,
@@ -144,8 +214,14 @@ bool emitConditionGuard(std::ostringstream& lua, const std::vector<LogicBlockDef
             const LogicPropertyDef* p = findProperty(condition, "expected");
             const bool expected = p ? std::get<bool>(p->value) : true;
             lua << "context.self:is_grounded() == " << (expected ? "true" : "false");
-            features.insert("platformer.grounded");
+        } else if (condition.typeId == kOtherIsObjectType) {
+            const LogicPropertyDef* p = findProperty(condition, "objectTypeId");
+            const auto* type = p ? std::get_if<LogicStringValue>(&p->value) : nullptr;
+            lua << "context:other_is_object_type(other, \""
+                << escapeLua(type ? type->value : std::string{}) << "\")";
         }
+        if (const LogicBlockDescriptor* descriptor = findDescriptor(condition.typeId))
+            if (!descriptor->requiredFeature.empty()) features.insert(descriptor->requiredFeature);
     }
     lua << " then\n";
     return true;
@@ -160,17 +236,52 @@ bool LogicCompileResult::ok() const {
 
 const std::vector<LogicBlockDescriptor>& registry() {
     static const std::vector<LogicBlockDescriptor> value{
-        {kOnStart, "On Start", BlockKind::Trigger, {}},
-        {kKeyPressed, "Key Pressed", BlockKind::Trigger,
-            {{"key", LogicValueKind::Key, LogicKey::Space}}},
-        {kSetVisible, "Set Visible", BlockKind::Action,
+        {kOnStart, "system", "On Start", "Runs once when Play begins.",
+            BlockKind::Trigger, {}, {}, {}, {LogicContextCapability::Self}, "event.start"},
+        {kKeyPressed, "input", "Key Pressed", "Runs when the selected key is pressed.",
+            BlockKind::Trigger, {{"key", LogicValueKind::Key, LogicKey::Space}}, {}, {},
+            {LogicContextCapability::Self}, "input.key_pressed"},
+        {kKeyReleased, "input", "Key Released", "Runs when the selected key is released.",
+            BlockKind::Trigger, {{"key", LogicValueKind::Key, LogicKey::Space}}, {}, {},
+            {LogicContextCapability::Self}, "input.key_released"},
+        {kKeyHeld, "input", "While Key Held", "Runs once per tick while the selected key is held.",
+            BlockKind::Trigger, {{"key", LogicValueKind::Key, LogicKey::Space}}, {}, {},
+            {LogicContextCapability::Self}, "input.key_held", true},
+        {kSetVisible, "entity", "Set Visible", "Shows or hides Self.",
+            BlockKind::Action,
             {{"target", LogicValueKind::Entity, selfReference()},
-             {"visible", LogicValueKind::Bool, true}}},
-        {kSetPosition, "Set Position", BlockKind::Action,
+             {"visible", LogicValueKind::Bool, true}},
+            {}, {LogicContextCapability::Self}, {}, "entity.visibility"},
+        {kSetPosition, "entity", "Set Position", "Moves Self to a world position.",
+            BlockKind::Action,
             {{"target", LogicValueKind::Entity, selfReference()},
-             {"position", LogicValueKind::Vec2, Vec2{}}}},
-        {kIsGrounded, "Is Grounded", BlockKind::Condition,
-            {{"expected", LogicValueKind::Bool, true}}},
+             {"position", LogicValueKind::Vec2, Vec2{}}},
+            {}, {LogicContextCapability::Self}, {}, "entity.transform"},
+        {kIsGrounded, "platformer", "Is Grounded", "Checks whether Self is touching valid ground.",
+            BlockKind::Condition, {{"expected", LogicValueKind::Bool, true}},
+            {LogicRequiredComponent::PlatformerController}, {LogicContextCapability::Self}, {},
+            "platformer.grounded"},
+        {kMoveHorizontal, "platformer", "Move Horizontal", "Requests horizontal platformer movement.",
+            BlockKind::Action, {{"axis", LogicValueKind::Number, 0.0}},
+            {LogicRequiredComponent::PlatformerController}, {LogicContextCapability::Self}, {},
+            "platformer.move"},
+        {kJump, "platformer", "Jump", "Requests a platformer jump.",
+            BlockKind::Action, {}, {LogicRequiredComponent::PlatformerController},
+            {LogicContextCapability::Self}, {}, "platformer.jump"},
+        {kCollisionEnter, "collision", "On Collision Enter", "Runs once when Self begins overlapping another collider.",
+            BlockKind::Trigger, {}, {}, {},
+            {LogicContextCapability::Self, LogicContextCapability::EventOther,
+             LogicContextCapability::CollisionContact}, "collision.enter"},
+        {kCollisionExit, "collision", "On Collision Exit", "Runs once when Self stops overlapping another collider.",
+            BlockKind::Trigger, {}, {}, {},
+            {LogicContextCapability::Self, LogicContextCapability::EventOther,
+             LogicContextCapability::CollisionContact}, "collision.exit"},
+        {kOtherIsObjectType, "collision", "Other Is Object Type", "Checks the Object Type of collision Other.",
+            BlockKind::Condition,
+            {{"objectTypeId", LogicValueKind::String, LogicStringValue{}}},
+            {}, {LogicContextCapability::EventOther}, {}, "collision.other_type"},
+        {kDestroySelf, "entity", "Destroy Self", "Removes Self from the runtime world after event dispatch.",
+            BlockKind::Action, {}, {}, {LogicContextCapability::Self}, {}, "entity.destroy"},
     };
     return value;
 }
@@ -188,15 +299,27 @@ const LogicPropertyDef* findProperty(const LogicBlockDef& block, const std::stri
     return it == block.properties.end() ? nullptr : &*it;
 }
 
-LogicBlockDef makeDefaultTrigger() { return {kOnStart, {}}; }
-
-LogicBlockDef makeDefaultAction() {
-    return {kSetVisible, {{"target", selfReference()}, {"visible", true}}};
+LogicBlockDef makeDefaultBlock(const LogicBlockTypeId& typeId, BlockKind expected) {
+    const LogicBlockDescriptor* descriptor = findDescriptor(typeId);
+    if (!descriptor || descriptor->kind != expected) return {};
+    LogicBlockDef block;
+    block.typeId = descriptor->typeId;
+    for (const LogicPropertyDescriptor& property : descriptor->properties)
+        block.properties.push_back({property.key, property.defaultValue});
+    return block;
 }
 
-LogicBlockDef makeDefaultCondition() {
-    return {kIsGrounded, {{"expected", true}}};
+LogicBlockAvailability blockAvailability(const EntityDef& owner,
+                                         const LogicBlockDescriptor& candidate,
+                                         const LogicBlockDescriptor* trigger) {
+    return availabilityFor(owner, candidate, trigger);
 }
+
+LogicBlockDef makeDefaultTrigger() { return makeDefaultBlock(kOnStart, BlockKind::Trigger); }
+
+LogicBlockDef makeDefaultAction() { return makeDefaultBlock(kSetVisible, BlockKind::Action); }
+
+LogicBlockDef makeDefaultCondition() { return makeDefaultBlock(kIsGrounded, BlockKind::Condition); }
 
 LogicRuleDef makeDefaultRule(LogicRuleId id) {
     LogicRuleDef rule;
@@ -237,7 +360,9 @@ std::optional<LogicKey> logicKeyFromName(const std::string& name) {
 }
 
 std::vector<LogicDiagnostic> validateBoard(const ObjectTypeId& objectTypeId,
-                                           const LogicBoardDef& board) {
+                                           const LogicBoardDef& board,
+                                           const EntityDef* owner,
+                                           const ProjectDoc* project) {
     std::vector<LogicDiagnostic> out;
     if (!validId(board.id)) out.push_back(makeError(objectTypeId, board, "LB_BOARD_ID", "Invalid board id"));
     if (board.schemaVersion != kLogicBoardSchemaVersion)
@@ -257,19 +382,25 @@ std::vector<LogicDiagnostic> validateBoard(const ObjectTypeId& objectTypeId,
             out.push_back(makeError(objectTypeId, board, "LB_ACTION_LIMIT", "Rule exceeds the action limit", &rule));
         if (rule.conditions.size() > kMaxConditionsPerRule)
             out.push_back(makeError(objectTypeId, board, "LB_CONDITION_LIMIT", "Rule exceeds the condition limit", &rule));
-        validateBlock(objectTypeId, board, rule, rule.trigger, BlockKind::Trigger, out);
+        const LogicBlockDescriptor* trigger = findDescriptor(rule.trigger.typeId);
+        validateBlock(objectTypeId, board, rule, rule.trigger, BlockKind::Trigger, owner,
+                      nullptr, project, out);
         for (const LogicBlockDef& condition : rule.conditions)
-            validateBlock(objectTypeId, board, rule, condition, BlockKind::Condition, out);
+            validateBlock(objectTypeId, board, rule, condition, BlockKind::Condition, owner,
+                          trigger, project, out);
         for (const LogicBlockDef& action : rule.actions)
-            validateBlock(objectTypeId, board, rule, action, BlockKind::Action, out);
+            validateBlock(objectTypeId, board, rule, action, BlockKind::Action, owner,
+                          trigger, project, out);
     }
     return out;
 }
 
 LogicCompileResult compileBoard(const ObjectTypeId& objectTypeId,
-                                const LogicBoardDef& board) {
+                                const LogicBoardDef& board,
+                                const EntityDef* owner,
+                                const ProjectDoc* project) {
     LogicCompileResult result;
-    result.diagnostics = validateBoard(objectTypeId, board);
+    result.diagnostics = validateBoard(objectTypeId, board, owner, project);
     if (!result.ok()) return result;
 
     std::set<std::string> features;
@@ -281,12 +412,21 @@ LogicCompileResult compileBoard(const ObjectTypeId& objectTypeId,
         if (!rule.enabled) continue;
         if (rule.trigger.typeId == kOnStart) {
             lua << "  context:on_start(\"" << escapeLua(rule.id) << "\", function()\n";
-            features.insert("event.start");
+        } else if (rule.trigger.typeId == kCollisionEnter || rule.trigger.typeId == kCollisionExit) {
+            const char* registerMethod = rule.trigger.typeId == kCollisionEnter
+                ? "on_collision_enter" : "on_collision_exit";
+            lua << "  context:" << registerMethod << "(\"" << escapeLua(rule.id)
+                << "\", function(other)\n";
         } else {
             const LogicPropertyDef* key = findProperty(rule.trigger, "key");
-            lua << "  context:on_key_pressed(\"" << escapeLua(rule.id) << "\", \""
+            const char* registerMethod = rule.trigger.typeId == kKeyReleased ? "on_key_released"
+                : rule.trigger.typeId == kKeyHeld ? "on_key_held" : "on_key_pressed";
+            lua << "  context:" << registerMethod << "(\"" << escapeLua(rule.id) << "\", \""
                 << logicKeyName(std::get<LogicKey>(key->value)) << "\", function()\n";
-            features.insert("input.key_pressed");
+        }
+        if (const LogicBlockDescriptor* descriptor = findDescriptor(rule.trigger.typeId)) {
+            if (!descriptor->requiredFeature.empty()) features.insert(descriptor->requiredFeature);
+            result.requiresTick = result.requiresTick || descriptor->requiresTick;
         }
         const bool guarded = emitConditionGuard(lua, rule.conditions, features);
         for (const LogicBlockDef& action : rule.actions) emitAction(lua, action, features);
@@ -299,6 +439,7 @@ LogicCompileResult compileBoard(const ObjectTypeId& objectTypeId,
     program.objectTypeId = objectTypeId;
     program.boardId = board.id;
     program.source = lua.str();
+    program.requiresTick = result.requiresTick;
     program.requiredFeatures.assign(features.begin(), features.end());
     result.programs.push_back(std::move(program));
     return result;
@@ -319,11 +460,12 @@ LogicCompileResult compileProjectLogic(const ProjectDoc& project) {
         if (!type.logicBoard) continue;
         for (const LogicRuleDef& rule : type.logicBoard->rules)
             blocks += 1 + rule.conditions.size() + rule.actions.size();
-        LogicCompileResult one = compileBoard(id, *type.logicBoard);
+        LogicCompileResult one = compileBoard(id, *type.logicBoard, &type, &project);
         result.programs.insert(result.programs.end(),
             std::make_move_iterator(one.programs.begin()), std::make_move_iterator(one.programs.end()));
         result.diagnostics.insert(result.diagnostics.end(),
             std::make_move_iterator(one.diagnostics.begin()), std::make_move_iterator(one.diagnostics.end()));
+        result.requiresTick = result.requiresTick || one.requiresTick;
     }
     if (blocks > kMaxBlocksPerProject) {
         LogicDiagnostic d;

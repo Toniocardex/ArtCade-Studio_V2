@@ -368,6 +368,39 @@ struct LifecycleEvent {
     std::vector<std::string> tags;
 };
 
+/** Object-Type-owned sprite rendering defaults (project format v4). */
+struct SpriteRendererComponent {
+    AssetId imageAssetId;     // "" = no static image
+    AssetId animationAssetId; // "" = no animation source (mutually exclusive with imageAssetId)
+    bool    visible = true;
+};
+
+/** Object-Type-owned sprite animation playback defaults (project format v4). */
+struct SpriteAnimatorComponent {
+    std::string initialClipId;
+    bool        autoPlay = true;
+    float       playbackSpeed = 1.f;
+};
+
+/** Sparse per-instance delta over SpriteRendererComponent. Null means inherit. */
+struct SpriteRendererOverride {
+    std::optional<AssetId> imageAssetId;
+    std::optional<AssetId> animationAssetId;
+    std::optional<bool>    visible;
+    // Migration-only compatibility bit for v3 projects where only some
+    // instances had the component. Normal authoring never exposes this field.
+    std::optional<bool>    capabilityEnabled;
+};
+
+/** Sparse per-instance delta over SpriteAnimatorComponent. Null means inherit. */
+struct SpriteAnimatorOverride {
+    std::optional<std::string> initialClipId;
+    std::optional<bool>        autoPlay;
+    std::optional<float>       playbackSpeed;
+    // See SpriteRendererOverride::capabilityEnabled.
+    std::optional<bool>        capabilityEnabled;
+};
+
 // ============================================================================
 // Entity / Scene definitions
 // ============================================================================
@@ -380,6 +413,8 @@ struct EntityDef {
     std::vector<std::string> tags;
     Transform        transform;
     SpriteComponent  sprite;
+    std::optional<SpriteRendererComponent> spriteRenderer;
+    std::optional<SpriteAnimatorComponent> spriteAnimator;
     PhysicsComponent physics;
     std::optional<CollisionBodyComponent> collisionBody;
     AnimationState   animation;
@@ -553,25 +588,6 @@ struct TilemapComponent {
     std::vector<TilemapChunk> chunks;                  // always [] in Slice 4
 };
 
-/**
- * Per-instance sprite rendering override authored by the native editor. The
- * AssetId references the project's image catalog (ProjectDoc.imageAssets);
- * empty means "no image". Optional on the instance so absence is explicit.
- */
-struct SpriteRendererComponent {
-    AssetId imageAssetId;     // "" = no static image
-    AssetId animationAssetId; // "" = no animation source (mutually exclusive with imageAssetId)
-    bool    visible = true;
-};
-
-/** Per-instance sprite animation playback, driving a SpriteRendererComponent
- *  whose animationAssetId names the SpriteAnimationAssetDef to play. */
-struct SpriteAnimatorComponent {
-    std::string initialClipId;
-    bool        autoPlay = true;
-    float       playbackSpeed = 1.f;
-};
-
 /** Scene placement of an object type (project format v2). */
 struct SceneInstanceDef {
     EntityId    id           = 0;
@@ -580,6 +596,9 @@ struct SceneInstanceDef {
     Transform   transform;
     bool        visible      = true;
     std::string layerId;      // render layer id ("" = default layer)
+    std::optional<SpriteRendererOverride> spriteRendererOverride;
+    std::optional<SpriteAnimatorOverride> spriteAnimatorOverride;
+    // v3 decoder/migration input only. The v4 serializer never emits these.
     std::optional<SpriteRendererComponent> spriteRenderer;
     std::optional<SpriteAnimatorComponent> spriteAnimator;
     std::optional<TilemapComponent>        tilemap;

@@ -52,6 +52,16 @@ public:
     bool isGrounded(EntityId owner) override {
         return world_ && world_->isPlatformerGrounded(owner);
     }
+    bool requestPlatformerMove(EntityId owner, float axis) override {
+        if (!world_) return false;
+        world_->setMovementIntent(owner, axis, 0.f);
+        return true;
+    }
+    bool requestPlatformerJump(EntityId owner) override {
+        if (!world_) return false;
+        world_->requestJump(owner);
+        return true;
+    }
 private:
     Modules::RuntimeEntityGateway& gateway_;
     World* world_ = nullptr;

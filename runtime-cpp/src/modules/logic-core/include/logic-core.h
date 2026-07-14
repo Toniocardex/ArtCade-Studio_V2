@@ -19,12 +19,31 @@ inline constexpr std::size_t kMaxLogicIdLength = 128;
 
 inline constexpr const char* kOnStart = "event.on_start";
 inline constexpr const char* kKeyPressed = "input.key_pressed";
+inline constexpr const char* kKeyReleased = "input.key_released";
+inline constexpr const char* kKeyHeld = "input.key_held";
 inline constexpr const char* kSetVisible = "entity.set_visible";
 inline constexpr const char* kSetPosition = "entity.set_position";
 inline constexpr const char* kIsGrounded = "platformer.is_grounded";
+inline constexpr const char* kMoveHorizontal = "platformer.move_horizontal";
+inline constexpr const char* kJump = "platformer.jump";
+inline constexpr const char* kCollisionEnter = "collision.enter";
+inline constexpr const char* kCollisionExit = "collision.exit";
+inline constexpr const char* kOtherIsObjectType = "collision.other_is_object_type";
+inline constexpr const char* kDestroySelf = "entity.destroy_self";
+
+using LogicBlockTypeId = std::string;
+using LogicCategoryId = std::string;
 
 enum class BlockKind { Trigger, Condition, Action };
 enum class LogicValueKind { Bool, Integer, Number, String, Vec2, Asset, Entity, Variable, Key };
+enum class LogicRequiredComponent { PlatformerController };
+enum class LogicContextCapability {
+    Self,
+    EventOther,
+    DeltaTime,
+    CollisionContact,
+    MessagePayload,
+};
 
 struct LogicPropertyDescriptor {
     std::string    key;
@@ -33,10 +52,22 @@ struct LogicPropertyDescriptor {
 };
 
 struct LogicBlockDescriptor {
-    std::string                          typeId;
+    LogicBlockTypeId                     typeId;
+    LogicCategoryId                      categoryId;
     std::string                          displayName;
+    std::string                          description;
     BlockKind                            kind = BlockKind::Trigger;
     std::vector<LogicPropertyDescriptor> properties;
+    std::vector<LogicRequiredComponent>  requiredComponents;
+    std::vector<LogicContextCapability>  requiredContext;
+    std::vector<LogicContextCapability>  providedContext;
+    std::string                          requiredFeature;
+    bool                                 requiresTick = false;
+};
+
+struct LogicBlockAvailability {
+    bool compatible = true;
+    std::string reason;
 };
 
 enum class DiagnosticSeverity { Warning, Error };
@@ -76,6 +107,10 @@ struct LogicJsonResult {
 const std::vector<LogicBlockDescriptor>& registry();
 const LogicBlockDescriptor* findDescriptor(const std::string& typeId);
 const LogicPropertyDef* findProperty(const LogicBlockDef& block, const std::string& key);
+LogicBlockDef makeDefaultBlock(const LogicBlockTypeId& typeId, BlockKind expected);
+LogicBlockAvailability blockAvailability(const EntityDef& owner,
+                                         const LogicBlockDescriptor& candidate,
+                                         const LogicBlockDescriptor* trigger = nullptr);
 
 LogicBlockDef makeDefaultTrigger();
 LogicBlockDef makeDefaultAction();
@@ -87,9 +122,13 @@ std::optional<LogicKey> logicKeyFromName(const std::string& name);
 std::vector<LogicKey> supportedLogicKeys();
 
 std::vector<LogicDiagnostic> validateBoard(const ObjectTypeId& objectTypeId,
-                                           const LogicBoardDef& board);
+                                           const LogicBoardDef& board,
+                                           const EntityDef* owner = nullptr,
+                                           const ProjectDoc* project = nullptr);
 LogicCompileResult compileBoard(const ObjectTypeId& objectTypeId,
-                                const LogicBoardDef& board);
+                                const LogicBoardDef& board,
+                                const EntityDef* owner = nullptr,
+                                const ProjectDoc* project = nullptr);
 LogicCompileResult compileProjectLogic(const ProjectDoc& project);
 
 nlohmann::json logicBoardToJson(const LogicBoardDef& board);

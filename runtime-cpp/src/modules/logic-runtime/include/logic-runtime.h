@@ -31,6 +31,12 @@ public:
     virtual bool setPosition(EntityId owner, Vec2 value) = 0;
     /** Read-only query: does not mutate components or physics state. */
     virtual bool isGrounded(EntityId owner) = 0;
+    virtual bool requestPlatformerMove(EntityId owner, float axis) = 0;
+    virtual bool requestPlatformerJump(EntityId owner) = 0;
+    /** Read-only, materialized-world query for EventOther. */
+    virtual bool isObjectType(EntityId entity, const ObjectTypeId& objectTypeId) = 0;
+    /** Queues runtime-only destruction; it is applied after the event snapshot. */
+    virtual bool requestDestroy(EntityId owner) = 0;
 };
 
 class LogicRuntime {
@@ -49,6 +55,10 @@ public:
     void beginFrame();
     void dispatchStart();
     void dispatchKeyPressed(LogicKey key);
+    void dispatchKeyReleased(LogicKey key);
+    void dispatchKeyHeld(LogicKey key);
+    void dispatchCollisionEnter(EntityId owner, EntityId other);
+    void dispatchCollisionExit(EntityId owner, EntityId other);
     void shutdown() noexcept;
 
     bool isEnabled() const;

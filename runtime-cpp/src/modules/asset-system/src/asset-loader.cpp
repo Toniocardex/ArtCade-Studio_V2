@@ -206,7 +206,7 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
             const Logic::LogicJsonResult parsed =
                 Logic::logicBoardFromJson(rawType["logicBoard"], board);
             if (!parsed.ok) return false;
-            const auto diagnostics = Logic::validateBoard(typeId, board);
+            const auto diagnostics = Logic::validateBoard(typeId, board, &typeIt->second);
             if (!diagnostics.empty()) return false;
             typeIt->second.logicBoard = std::move(board);
             return true;

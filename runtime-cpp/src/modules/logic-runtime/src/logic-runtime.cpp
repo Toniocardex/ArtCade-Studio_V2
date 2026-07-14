@@ -39,9 +39,17 @@ const std::unordered_set<std::string>& supportedFeatures() {
     static const std::unordered_set<std::string> value{
         "event.start",
         "input.key_pressed",
+        "input.key_released",
+        "input.key_held",
         "entity.visibility",
         "entity.transform",
         "platformer.grounded",
+        "platformer.move",
+        "platformer.jump",
+        "collision.enter",
+        "collision.exit",
+        "collision.other_type",
+        "entity.destroy",
     };
     return value;
 }
@@ -49,7 +57,7 @@ const std::unordered_set<std::string>& supportedFeatures() {
 } // namespace
 
 struct LogicRuntime::Impl {
-    enum class EventKind { Start, KeyPressed };
+    enum class EventKind { Start, KeyPressed, KeyReleased, KeyHeld, CollisionEnter, CollisionExit };
 
     struct ContextProxy;
 
@@ -94,6 +102,18 @@ struct LogicRuntime::Impl {
         bool isGrounded() {
             return impl && impl->host.isGrounded(owner);
         }
+        void platformerMove(float axis) {
+            if (!impl || !impl->host.requestPlatformerMove(owner, axis))
+                throw sol::error("platformer_move failed for owner");
+        }
+        void platformerJump() {
+            if (!impl || !impl->host.requestPlatformerJump(owner))
+                throw sol::error("platformer_jump failed for owner");
+        }
+        void destroySelf() {
+            if (!impl || !impl->host.requestDestroy(owner))
+                throw sol::error("destroy_self failed for owner");
+        }
     };
 
     struct ContextProxy {
@@ -112,6 +132,30 @@ struct LogicRuntime::Impl {
             if (!key) throw sol::error("Unsupported Logic key: " + keyName);
             impl->addSubscription(scope, owner, ruleId, EventKind::KeyPressed,
                                   *key, std::move(callback));
+        }
+        void onKeyReleased(const std::string& ruleId, const std::string& keyName,
+                           sol::protected_function callback) {
+            const std::optional<LogicKey> key = logicKeyFromName(keyName);
+            if (!key) throw sol::error("Unsupported Logic key: " + keyName);
+            impl->addSubscription(scope, owner, ruleId, EventKind::KeyReleased, *key, std::move(callback));
+        }
+        void onKeyHeld(const std::string& ruleId, const std::string& keyName,
+                       sol::protected_function callback) {
+            const std::optional<LogicKey> key = logicKeyFromName(keyName);
+            if (!key) throw sol::error("Unsupported Logic key: " + keyName);
+            impl->addSubscription(scope, owner, ruleId, EventKind::KeyHeld, *key, std::move(callback));
+        }
+        void onCollisionEnter(const std::string& ruleId, sol::protected_function callback) {
+            impl->addSubscription(scope, owner, ruleId, EventKind::CollisionEnter,
+                                  LogicKey::Space, std::move(callback));
+        }
+        void onCollisionExit(const std::string& ruleId, sol::protected_function callback) {
+            impl->addSubscription(scope, owner, ruleId, EventKind::CollisionExit,
+                                  LogicKey::Space, std::move(callback));
+        }
+        bool otherIsObjectType(EntityId other, const std::string& objectTypeId) {
+            return impl && other != INVALID_ENTITY && !objectTypeId.empty()
+                && impl->host.isObjectType(other, objectTypeId);
         }
     };
 
@@ -168,7 +212,7 @@ struct LogicRuntime::Impl {
             std::move(callback), true});
     }
 
-    bool callSubscription(uint64_t token) {
+    bool callSubscription(uint64_t token, std::optional<EntityId> other = std::nullopt) {
         Subscription* sub = findSubscription(token);
         if (!sub || !sub->active || !enabled) return true;
         if (dispatchDepth >= limits.maxEventDepth) {
@@ -181,7 +225,7 @@ struct LogicRuntime::Impl {
         lua_State* state = sub->callback.lua_state();
         g_instructionBudget = limits.maxInstructionsPerCallback;
         lua_sethook(state, instructionHook, LUA_MASKCOUNT, 1000);
-        sol::protected_function_result result = sub->callback();
+        sol::protected_function_result result = other ? sub->callback(*other) : sub->callback();
         lua_sethook(state, nullptr, 0, 0);
         --dispatchDepth;
         if (!result.valid()) {
@@ -200,7 +244,8 @@ struct LogicRuntime::Impl {
         return true;
     }
 
-    void dispatch(EventKind kind, LogicKey key) {
+    void dispatch(EventKind kind, LogicKey key, EntityId owner = INVALID_ENTITY,
+                  std::optional<EntityId> other = std::nullopt) {
         if (!enabled || dispatchDepth != 0) return;
         std::vector<uint64_t> snapshot;
         snapshot.reserve(subscriptions.size());
@@ -209,8 +254,9 @@ struct LogicRuntime::Impl {
             const auto it = std::find_if(scopes.begin(), scopes.end(),
                 [&](const Scope& value) { return value.token == sub.scope; });
             if (it != scopes.end()) scope = &*it;
+            const bool isCollision = kind == EventKind::CollisionEnter || kind == EventKind::CollisionExit;
             if (sub.active && scope && scope->active && sub.kind == kind
-                && (kind != EventKind::KeyPressed || sub.key == key)) {
+                && (isCollision ? sub.owner == owner : kind == EventKind::Start || sub.key == key)) {
                 snapshot.push_back(sub.token);
             }
         }
@@ -224,7 +270,7 @@ struct LogicRuntime::Impl {
             }
         }
         eventsThisFrame += static_cast<uint32_t>(snapshot.size());
-        for (uint64_t token : snapshot) callSubscription(token);
+        for (uint64_t token : snapshot) callSubscription(token, other);
     }
 };
 
@@ -240,12 +286,20 @@ bool LogicRuntime::initialize(std::string* error) {
             "LogicSelf", sol::no_constructor,
             "set_visible", &Impl::SelfProxy::setVisible,
             "set_position", &Impl::SelfProxy::setPosition,
-            "is_grounded", &Impl::SelfProxy::isGrounded);
+            "is_grounded", &Impl::SelfProxy::isGrounded,
+            "platformer_move", &Impl::SelfProxy::platformerMove,
+            "platformer_jump", &Impl::SelfProxy::platformerJump,
+            "destroy_self", &Impl::SelfProxy::destroySelf);
         lua.new_usertype<Impl::ContextProxy>(
             "LogicContext", sol::no_constructor,
             "self", &Impl::ContextProxy::self,
             "on_start", &Impl::ContextProxy::onStart,
-            "on_key_pressed", &Impl::ContextProxy::onKeyPressed);
+            "on_key_pressed", &Impl::ContextProxy::onKeyPressed,
+            "on_key_released", &Impl::ContextProxy::onKeyReleased,
+            "on_key_held", &Impl::ContextProxy::onKeyHeld,
+            "on_collision_enter", &Impl::ContextProxy::onCollisionEnter,
+            "on_collision_exit", &Impl::ContextProxy::onCollisionExit,
+            "other_is_object_type", &Impl::ContextProxy::otherIsObjectType);
 
         sol::table logic = lua.create_named_table("logic");
         logic.set_function("require_api_version", [impl](uint32_t version) {
@@ -353,6 +407,18 @@ void LogicRuntime::beginFrame() {
 void LogicRuntime::dispatchStart() { impl_->dispatch(Impl::EventKind::Start, LogicKey::Space); }
 void LogicRuntime::dispatchKeyPressed(LogicKey key) {
     impl_->dispatch(Impl::EventKind::KeyPressed, key);
+}
+void LogicRuntime::dispatchKeyReleased(LogicKey key) {
+    impl_->dispatch(Impl::EventKind::KeyReleased, key);
+}
+void LogicRuntime::dispatchKeyHeld(LogicKey key) {
+    impl_->dispatch(Impl::EventKind::KeyHeld, key);
+}
+void LogicRuntime::dispatchCollisionEnter(EntityId owner, EntityId other) {
+    impl_->dispatch(Impl::EventKind::CollisionEnter, LogicKey::Space, owner, other);
+}
+void LogicRuntime::dispatchCollisionExit(EntityId owner, EntityId other) {
+    impl_->dispatch(Impl::EventKind::CollisionExit, LogicKey::Space, owner, other);
 }
 
 void LogicRuntime::shutdown() noexcept {
