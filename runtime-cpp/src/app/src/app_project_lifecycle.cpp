@@ -366,6 +366,7 @@ bool Application::installLogicScopesForActiveScene() {
 bool Application::installScriptScopesForActiveScene() {
     if (!mod_ || !mod_->entityGateway) return false;
     if (!mod_->logicHost) return false;
+    mod_->activeGameplayCollisionPairs.clear();
     mod_->scriptRuntime = std::make_unique<Scripts::ScriptRuntime>(*mod_->logicHost);
     std::string error;
     for (EntityId id : mod_->entityGateway->activeSceneIds()) {

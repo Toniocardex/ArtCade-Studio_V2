@@ -248,6 +248,7 @@ void Application::shutdownModules() {
     if (mod_->scriptRuntime) { mod_->scriptRuntime->shutdown(); mod_->scriptRuntime.reset(); }
     mod_->scriptPrograms.clear();
     mod_->scriptAttachments.clear();
+    mod_->activeGameplayCollisionPairs.clear();
     if (mod_->luaHost) { mod_->luaHost->shutdown(); mod_->luaHost.reset(); }
     if (mod_->gameAPI) { mod_->gameAPI->shutdown(); mod_->gameAPI.reset(); }
     if (mod_->dialogManager) { mod_->dialogManager->shutdown(); mod_->dialogManager.reset(); }

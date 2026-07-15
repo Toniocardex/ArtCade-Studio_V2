@@ -14,6 +14,7 @@ public:
     virtual ~IGameplayRuntimeHost() = default;
     virtual bool setVisible(EntityId owner, bool value) = 0;
     virtual bool setPosition(EntityId owner, Vec2 value) = 0;
+    virtual bool translate(EntityId owner, Vec2 delta) = 0;
     virtual bool isGrounded(EntityId owner) = 0;
     virtual bool requestPlatformerMove(EntityId owner, float axis) = 0;
     virtual bool requestPlatformerJump(EntityId owner) = 0;

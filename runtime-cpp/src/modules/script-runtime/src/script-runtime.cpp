@@ -13,6 +13,29 @@ using ArtCade::Modules::LuaHost;
 using ArtCade::Modules::LuaHostOptions;
 using ArtCade::Modules::LuaSandboxProfile;
 
+std::vector<LogicKey> normalizedKeys(const std::vector<LogicKey>& keys) {
+    std::vector<LogicKey> normalized;
+    normalized.reserve(keys.size());
+    for (LogicKey key : keys) {
+        const int value = static_cast<int>(key);
+        if (value < static_cast<int>(LogicKey::A)
+            || value > static_cast<int>(LogicKey::Enter)) continue;
+        normalized.push_back(key);
+    }
+    std::sort(normalized.begin(), normalized.end(), [](LogicKey a, LogicKey b) {
+        return static_cast<int>(a) < static_cast<int>(b);
+    });
+    normalized.erase(std::unique(normalized.begin(), normalized.end()), normalized.end());
+    return normalized;
+}
+
+ScriptInputSnapshot normalizedInput(const ScriptInputSnapshot& input) {
+    return ScriptInputSnapshot{
+        normalizedKeys(input.pressed),
+        normalizedKeys(input.released),
+        normalizedKeys(input.held)};
+}
+
 std::unique_ptr<LuaHost> loadIsolatedHost(
     const ScriptProgram& program,
     const ScriptRuntimeLimits& limits,
@@ -65,7 +88,8 @@ struct ScriptRuntime::Impl {
     explicit Impl(ScriptRuntimeLimits value, IGameplayRuntimeHost* runtimeHost = nullptr)
         : limits(value), host(runtimeHost) {}
 
-    void disable(Scope& scope, ScriptRuntimePhase phase, std::string message) {
+    void disable(Scope& scope, ScriptRuntimePhase phase,
+                 std::string callback, std::string message) {
         scope.active = false;
         ScriptRuntimeDiagnostic diagnostic;
         diagnostic.owner = scope.owner;
@@ -75,16 +99,31 @@ struct ScriptRuntime::Impl {
         diagnostic.phase = phase;
         diagnostic.line = scriptDiagnosticLine(message);
         diagnostic.column = diagnostic.line > 0 ? 1 : 0;
-        diagnostic.callback = phase == ScriptRuntimePhase::Start
-            ? "on_start" : phase == ScriptRuntimePhase::Update ? "on_update" : "load";
+        diagnostic.callback = std::move(callback);
         diagnostic.message = std::move(message);
         diagnostics.push_back(std::move(diagnostic));
+    }
+
+    template<typename Invoke>
+    void dispatchCollisionToOwner(EntityId owner, EntityId other,
+                                  const char* callback, Invoke invoke) {
+        if (!startDispatched || owner == INVALID_ENTITY
+            || other == INVALID_ENTITY || owner == other) return;
+        for (Scope& scope : scopes) {
+            if (!scope.active || scope.owner != owner) continue;
+            if (invoke(*scope.host, scope.owner, other)) continue;
+            const std::string message = scope.host->memoryLimitExceeded()
+                ? "Script memory limit exceeded in " + std::string(callback)
+                : scope.host->lastError();
+            disable(scope, ScriptRuntimePhase::Collision, callback, message);
+        }
     }
 
     ScriptRuntimeLimits limits;
     IGameplayRuntimeHost* host = nullptr;
     std::vector<Scope> scopes;
     std::vector<ScriptRuntimeDiagnostic> diagnostics;
+    ScriptInputSnapshot input;
     bool startDispatched = false;
 };
 
@@ -133,9 +172,66 @@ void ScriptRuntime::dispatchStart() {
             const std::string message = scope.host->memoryLimitExceeded()
                 ? "Script memory limit exceeded in on_start"
                 : scope.host->lastError();
-            impl_->disable(scope, ScriptRuntimePhase::Start, message);
+            impl_->disable(scope, ScriptRuntimePhase::Start, "on_start", message);
         }
     }
+}
+
+void ScriptRuntime::dispatchInput(const ScriptInputSnapshot& input) {
+    impl_->input = normalizedInput(input);
+    if (!impl_->startDispatched) return;
+
+    const auto dispatch = [&](const std::vector<LogicKey>& keys,
+                              const char* callback,
+                              auto invoke) {
+        for (LogicKey key : keys) {
+            for (Impl::Scope& scope : impl_->scopes) {
+                if (!scope.active) continue;
+                if (invoke(*scope.host, scope.owner, key)) continue;
+                const std::string message = scope.host->memoryLimitExceeded()
+                    ? "Script memory limit exceeded in " + std::string(callback)
+                    : scope.host->lastError();
+                impl_->disable(scope, ScriptRuntimePhase::Input, callback, message);
+            }
+        }
+    };
+
+    dispatch(impl_->input.pressed, "on_key_pressed",
+        [&](LuaHost& host, EntityId owner, LogicKey key) {
+            return host.callManualOnKeyPressed(
+                impl_->host, owner, key, impl_->input,
+                impl_->limits.maxInstructionsPerCallback, impl_->limits.maxCallDepth);
+        });
+    dispatch(impl_->input.released, "on_key_released",
+        [&](LuaHost& host, EntityId owner, LogicKey key) {
+            return host.callManualOnKeyReleased(
+                impl_->host, owner, key, impl_->input,
+                impl_->limits.maxInstructionsPerCallback, impl_->limits.maxCallDepth);
+        });
+    dispatch(impl_->input.held, "on_key_held",
+        [&](LuaHost& host, EntityId owner, LogicKey key) {
+            return host.callManualOnKeyHeld(
+                impl_->host, owner, key, impl_->input,
+                impl_->limits.maxInstructionsPerCallback, impl_->limits.maxCallDepth);
+        });
+}
+
+void ScriptRuntime::dispatchCollisionEnter(EntityId owner, EntityId other) {
+    impl_->dispatchCollisionToOwner(owner, other, "on_collision_enter",
+        [&](LuaHost& host, EntityId self, EntityId eventOther) {
+            return host.callManualOnCollisionEnter(
+                impl_->host, self, eventOther, impl_->input,
+                impl_->limits.maxInstructionsPerCallback, impl_->limits.maxCallDepth);
+        });
+}
+
+void ScriptRuntime::dispatchCollisionExit(EntityId owner, EntityId other) {
+    impl_->dispatchCollisionToOwner(owner, other, "on_collision_exit",
+        [&](LuaHost& host, EntityId self, EntityId eventOther) {
+            return host.callManualOnCollisionExit(
+                impl_->host, self, eventOther, impl_->input,
+                impl_->limits.maxInstructionsPerCallback, impl_->limits.maxCallDepth);
+        });
 }
 
 void ScriptRuntime::update(float dt) {
@@ -143,12 +239,13 @@ void ScriptRuntime::update(float dt) {
     for (Impl::Scope& scope : impl_->scopes) {
         if (!scope.active || !scope.host->hasManualOnUpdate()) continue;
         if (!scope.host->callManualOnUpdate(
-                impl_->host, scope.owner, dt, impl_->limits.maxInstructionsPerCallback,
+                impl_->host, scope.owner, dt, impl_->input,
+                impl_->limits.maxInstructionsPerCallback,
                 impl_->limits.maxCallDepth)) {
             const std::string message = scope.host->memoryLimitExceeded()
                 ? "Script memory limit exceeded in on_update"
                 : scope.host->lastError();
-            impl_->disable(scope, ScriptRuntimePhase::Update, message);
+            impl_->disable(scope, ScriptRuntimePhase::Update, "on_update", message);
         }
     }
 }
@@ -162,6 +259,7 @@ void ScriptRuntime::cancelOwner(EntityId owner) {
 void ScriptRuntime::shutdown() noexcept {
     impl_->scopes.clear();
     impl_->diagnostics.clear();
+    impl_->input = {};
     impl_->startDispatched = false;
 }
 

@@ -34,6 +34,12 @@ struct Host final : ILogicRuntimeHost {
                         + std::to_string(static_cast<int>(value.y)));
         return true;
     }
+    bool translate(EntityId owner, Vec2 delta) override {
+        calls.push_back("translate:" + std::to_string(owner) + ":"
+                        + std::to_string(static_cast<int>(delta.x)) + ","
+                        + std::to_string(static_cast<int>(delta.y)));
+        return true;
+    }
     bool isGrounded(EntityId owner) override {
         return grounded.count(owner) != 0;
     }
@@ -428,7 +434,6 @@ static void testPlaySoundAction() {
             }));
         CHECK(!compileBoard("Hero", draft, nullptr, &project).ok());
     }
-
     // Valid: existing StaticSound asset, volume in range.
     {
         const LogicBoardDef board = makeBoardWith("jump.wav", 0.8);

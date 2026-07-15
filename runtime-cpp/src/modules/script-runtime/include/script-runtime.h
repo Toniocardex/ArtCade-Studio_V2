@@ -38,6 +38,9 @@ public:
     bool install(const ScriptProgram& program, EntityId owner,
                  ScriptAttachmentId attachmentId, std::string* error = nullptr);
     void dispatchStart();
+    void dispatchInput(const ScriptInputSnapshot& input);
+    void dispatchCollisionEnter(EntityId owner, EntityId other);
+    void dispatchCollisionExit(EntityId owner, EntityId other);
     void update(float dt);
     void cancelOwner(EntityId owner);
     void shutdown() noexcept;

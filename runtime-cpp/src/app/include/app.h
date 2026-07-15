@@ -101,6 +101,7 @@ private:
     bool loadProject(const std::string& projectPath);
     bool installLogicScopesForActiveScene();
     bool installScriptScopesForActiveScene();
+    void dispatchGameplayCollisionTransitions();
 
     void shutdownModules();
     void mainLoop();

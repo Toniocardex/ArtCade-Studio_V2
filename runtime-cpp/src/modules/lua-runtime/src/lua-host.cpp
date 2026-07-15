@@ -1,4 +1,8 @@
 #include "../include/lua-host.h"
+#include "logic-core.h"
+#include "script-core.h"
+#include <algorithm>
+#include <cmath>
 #include <memory>
 #include <cstdlib>
 #include <cstdint>
@@ -55,6 +59,12 @@ struct LuaHost::Impl {
     uint32_t   manualSupportedApiVersion = 0;
     int        manualOnStartRef = LUA_NOREF;
     int        manualOnUpdateRef = LUA_NOREF;
+    int        manualOnKeyPressedRef = LUA_NOREF;
+    int        manualOnKeyReleasedRef = LUA_NOREF;
+    int        manualOnKeyHeldRef = LUA_NOREF;
+    int        manualOnCollisionEnterRef = LUA_NOREF;
+    int        manualOnCollisionExitRef = LUA_NOREF;
+    Scripts::ScriptInputSnapshot manualInput;
 
     static int requireManualApiVersion(lua_State* state) {
         auto* impl = static_cast<Impl*>(lua_touserdata(state, lua_upvalueindex(1)));
@@ -70,10 +80,18 @@ struct LuaHost::Impl {
 
     void clearManualCallbacks() {
         lua_State* state = lua.lua_state();
-        if (manualOnStartRef != LUA_NOREF) luaL_unref(state, LUA_REGISTRYINDEX, manualOnStartRef);
-        if (manualOnUpdateRef != LUA_NOREF) luaL_unref(state, LUA_REGISTRYINDEX, manualOnUpdateRef);
-        manualOnStartRef = LUA_NOREF;
-        manualOnUpdateRef = LUA_NOREF;
+        const auto clear = [&](int& ref) {
+            if (ref != LUA_NOREF) luaL_unref(state, LUA_REGISTRYINDEX, ref);
+            ref = LUA_NOREF;
+        };
+        clear(manualOnStartRef);
+        clear(manualOnUpdateRef);
+        clear(manualOnKeyPressedRef);
+        clear(manualOnKeyReleasedRef);
+        clear(manualOnKeyHeldRef);
+        clear(manualOnCollisionEnterRef);
+        clear(manualOnCollisionExitRef);
+        manualInput = {};
         manualApiRequested = false;
     }
 };
@@ -158,12 +176,128 @@ int manualSetPosition(lua_State* state) {
     luaL_checktype(state, 1, LUA_TTABLE);
     const float x = static_cast<float>(luaL_checknumber(state, 2));
     const float y = static_cast<float>(luaL_checknumber(state, 3));
-    if (!host || !host->setPosition(manualOwner(state), Vec2{x, y}))
+    if (!std::isfinite(x) || !std::isfinite(y)
+        || !host || !host->setPosition(manualOwner(state), Vec2{x, y}))
         return luaL_error(state, "ctx.self:set_position failed");
     return 0;
 }
 
-void setManualSelfMethod(lua_State* state, IGameplayRuntimeHost* host,
+int manualTranslate(lua_State* state) {
+    IGameplayRuntimeHost* host = manualGameplayHost(state);
+    luaL_checktype(state, 1, LUA_TTABLE);
+    const float x = static_cast<float>(luaL_checknumber(state, 2));
+    const float y = static_cast<float>(luaL_checknumber(state, 3));
+    if (!std::isfinite(x) || !std::isfinite(y)
+        || !host || !host->translate(manualOwner(state), Vec2{x, y}))
+        return luaL_error(state, "ctx.self:translate failed");
+    return 0;
+}
+
+int manualDestroy(lua_State* state) {
+    IGameplayRuntimeHost* host = manualGameplayHost(state);
+    luaL_checktype(state, 1, LUA_TTABLE);
+    if (!host || !host->requestDestroy(manualOwner(state)))
+        return luaL_error(state, "ctx.self:destroy failed");
+    return 0;
+}
+
+int manualPlatformerMove(lua_State* state) {
+    IGameplayRuntimeHost* host = manualGameplayHost(state);
+    luaL_checktype(state, 1, LUA_TTABLE);
+    const float axis = static_cast<float>(luaL_checknumber(state, 2));
+    if (!std::isfinite(axis) || !host
+        || !host->requestPlatformerMove(manualOwner(state), axis))
+        return luaL_error(state, "ctx.platformer:move failed");
+    return 0;
+}
+
+int manualPlatformerJump(lua_State* state) {
+    IGameplayRuntimeHost* host = manualGameplayHost(state);
+    luaL_checktype(state, 1, LUA_TTABLE);
+    if (!host || !host->requestPlatformerJump(manualOwner(state)))
+        return luaL_error(state, "ctx.platformer:jump failed");
+    return 0;
+}
+
+int manualPlatformerIsGrounded(lua_State* state) {
+    IGameplayRuntimeHost* host = manualGameplayHost(state);
+    luaL_checktype(state, 1, LUA_TTABLE);
+    if (!host) return luaL_error(state, "ctx.platformer:is_grounded failed");
+    lua_pushboolean(state, host->isGrounded(manualOwner(state)) ? 1 : 0);
+    return 1;
+}
+
+int manualAnimationPlay(lua_State* state) {
+    IGameplayRuntimeHost* host = manualGameplayHost(state);
+    luaL_checktype(state, 1, LUA_TTABLE);
+    const char* assetId = luaL_checkstring(state, 2);
+    const char* clipId = luaL_checkstring(state, 3);
+    if (!host || !host->playAnimationClip(manualOwner(state), assetId, clipId))
+        return luaL_error(state, "ctx.animation:play failed");
+    return 0;
+}
+
+int manualAnimationStop(lua_State* state) {
+    IGameplayRuntimeHost* host = manualGameplayHost(state);
+    luaL_checktype(state, 1, LUA_TTABLE);
+    if (!host || !host->stopAnimation(manualOwner(state)))
+        return luaL_error(state, "ctx.animation:stop failed");
+    return 0;
+}
+
+int manualAnimationSetSpeed(lua_State* state) {
+    IGameplayRuntimeHost* host = manualGameplayHost(state);
+    luaL_checktype(state, 1, LUA_TTABLE);
+    const float speed = static_cast<float>(luaL_checknumber(state, 2));
+    if (!std::isfinite(speed) || speed <= 0.f || !host
+        || !host->setAnimationPlaybackSpeed(manualOwner(state), speed))
+        return luaL_error(state, "ctx.animation:set_speed failed");
+    return 0;
+}
+
+int manualAudioPlay(lua_State* state) {
+    IGameplayRuntimeHost* host = manualGameplayHost(state);
+    luaL_checktype(state, 1, LUA_TTABLE);
+    const char* assetId = luaL_checkstring(state, 2);
+    const float volume = static_cast<float>(luaL_optnumber(state, 3, 1.0));
+    if (!std::isfinite(volume) || volume < 0.f || volume > 1.f || !host
+        || !host->playSound(manualOwner(state), assetId, volume))
+        return luaL_error(state, "ctx.audio:play failed");
+    return 0;
+}
+
+const Scripts::ScriptInputSnapshot* manualInput(lua_State* state) {
+    return static_cast<const Scripts::ScriptInputSnapshot*>(
+        lua_touserdata(state, lua_upvalueindex(1)));
+}
+
+bool inputContains(const std::vector<LogicKey>& keys, LogicKey key) {
+    return std::find(keys.begin(), keys.end(), key) != keys.end();
+}
+
+int manualInputQuery(lua_State* state, const std::vector<LogicKey> Scripts::ScriptInputSnapshot::*field) {
+    luaL_checktype(state, 1, LUA_TTABLE);
+    const char* name = luaL_checkstring(state, 2);
+    const std::optional<LogicKey> key = Logic::logicKeyFromName(name);
+    if (!key) return luaL_error(state, "Unknown ArtCade input key '%s'", name);
+    const Scripts::ScriptInputSnapshot* input = manualInput(state);
+    lua_pushboolean(state, input && inputContains(input->*field, *key) ? 1 : 0);
+    return 1;
+}
+
+int manualInputDown(lua_State* state) {
+    return manualInputQuery(state, &Scripts::ScriptInputSnapshot::held);
+}
+
+int manualInputPressed(lua_State* state) {
+    return manualInputQuery(state, &Scripts::ScriptInputSnapshot::pressed);
+}
+
+int manualInputReleased(lua_State* state) {
+    return manualInputQuery(state, &Scripts::ScriptInputSnapshot::released);
+}
+
+void setManualHostMethod(lua_State* state, IGameplayRuntimeHost* host,
                          EntityId owner, const char* name, lua_CFunction function) {
     lua_pushlightuserdata(state, host);
     lua_pushinteger(state, static_cast<lua_Integer>(owner));
@@ -171,14 +305,55 @@ void setManualSelfMethod(lua_State* state, IGameplayRuntimeHost* host,
     lua_setfield(state, -2, name);
 }
 
-void pushManualContext(lua_State* state, IGameplayRuntimeHost* host, EntityId owner) {
+void setManualInputMethod(lua_State* state, const Scripts::ScriptInputSnapshot* input,
+                          const char* name, lua_CFunction function) {
+    lua_pushlightuserdata(state, const_cast<Scripts::ScriptInputSnapshot*>(input));
+    lua_pushcclosure(state, function, 1);
+    lua_setfield(state, -2, name);
+}
+
+void pushManualContext(lua_State* state, IGameplayRuntimeHost* host, EntityId owner,
+                       const Scripts::ScriptInputSnapshot* input, EntityId other) {
     lua_newtable(state);
     lua_pushinteger(state, static_cast<lua_Integer>(owner));
     lua_setfield(state, -2, "entity_id");
+
     lua_newtable(state);
-    setManualSelfMethod(state, host, owner, "set_visible", manualSetVisible);
-    setManualSelfMethod(state, host, owner, "set_position", manualSetPosition);
+    setManualHostMethod(state, host, owner, "set_visible", manualSetVisible);
+    setManualHostMethod(state, host, owner, "set_position", manualSetPosition);
+    setManualHostMethod(state, host, owner, "translate", manualTranslate);
+    setManualHostMethod(state, host, owner, "destroy", manualDestroy);
     lua_setfield(state, -2, "self");
+
+    lua_newtable(state);
+    setManualHostMethod(state, host, owner, "move", manualPlatformerMove);
+    setManualHostMethod(state, host, owner, "jump", manualPlatformerJump);
+    setManualHostMethod(state, host, owner, "is_grounded", manualPlatformerIsGrounded);
+    lua_setfield(state, -2, "platformer");
+
+    lua_newtable(state);
+    setManualHostMethod(state, host, owner, "play", manualAnimationPlay);
+    setManualHostMethod(state, host, owner, "stop", manualAnimationStop);
+    setManualHostMethod(state, host, owner, "set_speed", manualAnimationSetSpeed);
+    lua_setfield(state, -2, "animation");
+
+    lua_newtable(state);
+    setManualHostMethod(state, host, owner, "play", manualAudioPlay);
+    lua_setfield(state, -2, "audio");
+
+    lua_newtable(state);
+    setManualInputMethod(state, input, "is_key_down", manualInputDown);
+    setManualInputMethod(state, input, "is_key_pressed", manualInputPressed);
+    setManualInputMethod(state, input, "is_key_released", manualInputReleased);
+    lua_setfield(state, -2, "input");
+
+    lua_newtable(state);
+    if (other != INVALID_ENTITY)
+        lua_pushinteger(state, static_cast<lua_Integer>(other));
+    else
+        lua_pushnil(state);
+    lua_setfield(state, -2, "other");
+    lua_setfield(state, -2, "event");
 }
 
 bool readTickRequirement(sol::state& lua) {
@@ -376,7 +551,12 @@ bool LuaHost::loadManualProgramSource(
         return true;
     };
     const bool valid = captureCallback("on_start", impl_->manualOnStartRef)
-        && captureCallback("on_update", impl_->manualOnUpdateRef);
+        && captureCallback("on_update", impl_->manualOnUpdateRef)
+        && captureCallback("on_key_pressed", impl_->manualOnKeyPressedRef)
+        && captureCallback("on_key_released", impl_->manualOnKeyReleasedRef)
+        && captureCallback("on_key_held", impl_->manualOnKeyHeldRef)
+        && captureCallback("on_collision_enter", impl_->manualOnCollisionEnterRef)
+        && captureCallback("on_collision_exit", impl_->manualOnCollisionExitRef);
     lua_pop(state, 1);
     if (!valid) {
         impl_->clearManualCallbacks();
@@ -390,15 +570,24 @@ bool LuaHost::loadManualProgramSource(
 namespace {
 bool callManualCallback(lua_State* state, int callbackRef,
                         IGameplayRuntimeHost* host, EntityId owner,
-                        const float* dt, uint32_t maxInstructions,
+                        const Scripts::ScriptInputSnapshot* input,
+                        const float* dt, const LogicKey* key, EntityId other,
+                        uint32_t maxInstructions,
                         uint32_t maxCallDepth,
                         std::string& error) {
     if (callbackRef == LUA_NOREF) return true;
     lua_rawgeti(state, LUA_REGISTRYINDEX, callbackRef);
-    pushManualContext(state, host, owner);
+    pushManualContext(state, host, owner, input, other);
     int arguments = 1;
     if (dt) {
         lua_pushnumber(state, static_cast<lua_Number>(*dt));
+        ++arguments;
+    } else if (key) {
+        const std::string name = Logic::logicKeyName(*key);
+        lua_pushlstring(state, name.data(), name.size());
+        ++arguments;
+    } else if (other != INVALID_ENTITY) {
+        lua_pushinteger(state, static_cast<lua_Integer>(other));
         ++arguments;
     }
     ManualHookGuard hook(state, maxInstructions, maxCallDepth);
@@ -417,26 +606,101 @@ bool callManualCallback(lua_State* state, int callbackRef,
 }
 }
 
+namespace {
+bool finishManualCall(bool ok, bool memoryExceeded, std::string& error) {
+    if (ok && memoryExceeded) error = "Manual script memory limit exceeded";
+    return ok && !memoryExceeded;
+}
+}
+
 bool LuaHost::callManualOnStart(IGameplayRuntimeHost* host, EntityId owner,
                                 uint32_t maxInstructions,
                                 uint32_t maxCallDepth) {
     lastError_.clear();
+    impl_->manualInput = {};
     const bool ok = callManualCallback(impl_->lua.lua_state(), impl_->manualOnStartRef,
-                                       host, owner, nullptr, maxInstructions,
+                                       host, owner, &impl_->manualInput,
+                                       nullptr, nullptr, INVALID_ENTITY, maxInstructions,
                                        maxCallDepth, lastError_);
-    if (ok && impl_->memory.exceeded) lastError_ = "Manual script memory limit exceeded";
-    return ok && !impl_->memory.exceeded;
+    return finishManualCall(ok, impl_->memory.exceeded, lastError_);
+}
+
+bool LuaHost::callManualOnKeyPressed(
+    IGameplayRuntimeHost* host, EntityId owner, LogicKey key,
+    const Scripts::ScriptInputSnapshot& input,
+    uint32_t maxInstructions, uint32_t maxCallDepth) {
+    lastError_.clear();
+    impl_->manualInput = input;
+    const bool ok = callManualCallback(
+        impl_->lua.lua_state(), impl_->manualOnKeyPressedRef, host, owner,
+        &impl_->manualInput, nullptr, &key, INVALID_ENTITY,
+        maxInstructions, maxCallDepth, lastError_);
+    return finishManualCall(ok, impl_->memory.exceeded, lastError_);
+}
+
+bool LuaHost::callManualOnKeyReleased(
+    IGameplayRuntimeHost* host, EntityId owner, LogicKey key,
+    const Scripts::ScriptInputSnapshot& input,
+    uint32_t maxInstructions, uint32_t maxCallDepth) {
+    lastError_.clear();
+    impl_->manualInput = input;
+    const bool ok = callManualCallback(
+        impl_->lua.lua_state(), impl_->manualOnKeyReleasedRef, host, owner,
+        &impl_->manualInput, nullptr, &key, INVALID_ENTITY,
+        maxInstructions, maxCallDepth, lastError_);
+    return finishManualCall(ok, impl_->memory.exceeded, lastError_);
+}
+
+bool LuaHost::callManualOnKeyHeld(
+    IGameplayRuntimeHost* host, EntityId owner, LogicKey key,
+    const Scripts::ScriptInputSnapshot& input,
+    uint32_t maxInstructions, uint32_t maxCallDepth) {
+    lastError_.clear();
+    impl_->manualInput = input;
+    const bool ok = callManualCallback(
+        impl_->lua.lua_state(), impl_->manualOnKeyHeldRef, host, owner,
+        &impl_->manualInput, nullptr, &key, INVALID_ENTITY,
+        maxInstructions, maxCallDepth, lastError_);
+    return finishManualCall(ok, impl_->memory.exceeded, lastError_);
+}
+
+bool LuaHost::callManualOnCollisionEnter(
+    IGameplayRuntimeHost* host, EntityId owner, EntityId other,
+    const Scripts::ScriptInputSnapshot& input,
+    uint32_t maxInstructions, uint32_t maxCallDepth) {
+    lastError_.clear();
+    impl_->manualInput = input;
+    const bool ok = callManualCallback(
+        impl_->lua.lua_state(), impl_->manualOnCollisionEnterRef, host, owner,
+        &impl_->manualInput, nullptr, nullptr, other,
+        maxInstructions, maxCallDepth, lastError_);
+    return finishManualCall(ok, impl_->memory.exceeded, lastError_);
+}
+
+bool LuaHost::callManualOnCollisionExit(
+    IGameplayRuntimeHost* host, EntityId owner, EntityId other,
+    const Scripts::ScriptInputSnapshot& input,
+    uint32_t maxInstructions, uint32_t maxCallDepth) {
+    lastError_.clear();
+    impl_->manualInput = input;
+    const bool ok = callManualCallback(
+        impl_->lua.lua_state(), impl_->manualOnCollisionExitRef, host, owner,
+        &impl_->manualInput, nullptr, nullptr, other,
+        maxInstructions, maxCallDepth, lastError_);
+    return finishManualCall(ok, impl_->memory.exceeded, lastError_);
 }
 
 bool LuaHost::callManualOnUpdate(IGameplayRuntimeHost* host, EntityId owner, float dt,
+                                 const Scripts::ScriptInputSnapshot& input,
                                  uint32_t maxInstructions,
                                  uint32_t maxCallDepth) {
     lastError_.clear();
+    impl_->manualInput = input;
     const bool ok = callManualCallback(impl_->lua.lua_state(), impl_->manualOnUpdateRef,
-                                       host, owner, &dt, maxInstructions,
+                                       host, owner, &impl_->manualInput,
+                                       &dt, nullptr, INVALID_ENTITY, maxInstructions,
                                        maxCallDepth, lastError_);
-    if (ok && impl_->memory.exceeded) lastError_ = "Manual script memory limit exceeded";
-    return ok && !impl_->memory.exceeded;
+    return finishManualCall(ok, impl_->memory.exceeded, lastError_);
 }
 
 bool LuaHost::hasManualOnUpdate() const {

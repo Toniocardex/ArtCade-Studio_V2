@@ -13,6 +13,7 @@
 // pulling all of Sol2 into every translation unit that includes this header.
 // The full definition is only needed in lua-host.cpp and game-api.cpp.
 namespace sol { class state; }
+namespace ArtCade::Scripts { struct ScriptInputSnapshot; }
 
 namespace ArtCade::Modules {
 
@@ -61,7 +62,7 @@ public:
 
     // Strict manual-script contract. The source chunk must call
     // artcade.require_api_version() and return a table whose optional
-    // on_start/on_update fields are functions. Calls are protected and bounded.
+    // supported lifecycle fields are functions. Calls are protected and bounded.
     bool loadManualProgramSource(const std::string& sourceCode,
                                  const std::string& sourcePath,
                                  uint32_t supportedApiVersion,
@@ -70,7 +71,28 @@ public:
     bool callManualOnStart(IGameplayRuntimeHost* host, EntityId owner,
                            uint32_t maxInstructions,
                            uint32_t maxCallDepth);
+    bool callManualOnKeyPressed(IGameplayRuntimeHost* host, EntityId owner,
+                                LogicKey key,
+                                const Scripts::ScriptInputSnapshot& input,
+                                uint32_t maxInstructions, uint32_t maxCallDepth);
+    bool callManualOnKeyReleased(IGameplayRuntimeHost* host, EntityId owner,
+                                 LogicKey key,
+                                 const Scripts::ScriptInputSnapshot& input,
+                                 uint32_t maxInstructions, uint32_t maxCallDepth);
+    bool callManualOnKeyHeld(IGameplayRuntimeHost* host, EntityId owner,
+                             LogicKey key,
+                             const Scripts::ScriptInputSnapshot& input,
+                             uint32_t maxInstructions, uint32_t maxCallDepth);
+    bool callManualOnCollisionEnter(IGameplayRuntimeHost* host, EntityId owner,
+                                    EntityId other,
+                                    const Scripts::ScriptInputSnapshot& input,
+                                    uint32_t maxInstructions, uint32_t maxCallDepth);
+    bool callManualOnCollisionExit(IGameplayRuntimeHost* host, EntityId owner,
+                                   EntityId other,
+                                   const Scripts::ScriptInputSnapshot& input,
+                                   uint32_t maxInstructions, uint32_t maxCallDepth);
     bool callManualOnUpdate(IGameplayRuntimeHost* host, EntityId owner, float dt,
+                            const Scripts::ScriptInputSnapshot& input,
                             uint32_t maxInstructions,
                             uint32_t maxCallDepth);
     bool hasManualOnUpdate() const;

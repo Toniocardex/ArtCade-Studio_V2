@@ -29,7 +29,9 @@
 #include "../../modules/variable-manager/include/variable-manager.h"
 #include "../../world/include/world.h"
 
+#include <cmath>
 #include <memory>
+#include <set>
 #include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
@@ -52,16 +54,27 @@ public:
         transform.position = value;
         return gateway_.setTransform(owner, transform);
     }
+    bool translate(EntityId owner, Vec2 delta) override {
+        if (!std::isfinite(delta.x) || !std::isfinite(delta.y)) return false;
+        Transform transform{};
+        if (!gateway_.getTransform(owner, transform)) return false;
+        transform.position.x += delta.x;
+        transform.position.y += delta.y;
+        return gateway_.setTransform(owner, transform);
+    }
     bool isGrounded(EntityId owner) override {
         return world_ && world_->isPlatformerGrounded(owner);
     }
     bool requestPlatformerMove(EntityId owner, float axis) override {
-        if (!world_) return false;
+        PlatformerControllerComponent platformer{};
+        if (!world_ || !std::isfinite(axis)
+            || !gateway_.getPlatformerController(owner, platformer)) return false;
         world_->setMovementIntent(owner, axis, 0.f);
         return true;
     }
     bool requestPlatformerJump(EntityId owner) override {
-        if (!world_) return false;
+        PlatformerControllerComponent platformer{};
+        if (!world_ || !gateway_.getPlatformerController(owner, platformer)) return false;
         world_->requestJump(owner);
         return true;
     }
@@ -109,6 +122,7 @@ struct Application::Modules {
     std::unique_ptr<ArtCade::Scripts::ScriptRuntime> scriptRuntime;
     std::unordered_map<AssetId, ArtCade::Scripts::ScriptProgram> scriptPrograms;
     std::unordered_map<ObjectTypeId, std::vector<ScriptAttachmentDef>> scriptAttachments;
+    std::set<std::pair<EntityId, EntityId>> activeGameplayCollisionPairs;
     std::unique_ptr<ArtCade::Modules::SceneManager> sceneManager;
     std::unique_ptr<ArtCade::Modules::SceneMutationService> sceneMutation;
     std::unique_ptr<ArtCade::Modules::SceneLifecycleService> sceneLifecycle;

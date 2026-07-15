@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <limits>
 #include <string>
+#include <vector>
 
 namespace ArtCade::Scripts {
 
@@ -18,7 +19,15 @@ struct ScriptProgram {
     std::string source;
 };
 
-enum class ScriptRuntimePhase { Load, Start, Update };
+// Immutable per-frame input projection. Producers may submit keys in any order;
+// ScriptRuntime normalizes and deduplicates them before dispatch.
+struct ScriptInputSnapshot {
+    std::vector<LogicKey> pressed;
+    std::vector<LogicKey> released;
+    std::vector<LogicKey> held;
+};
+
+enum class ScriptRuntimePhase { Load, Start, Input, Collision, Update };
 
 inline int scriptDiagnosticLine(const std::string& message) {
     for (std::size_t colon = message.find(':'); colon != std::string::npos;
