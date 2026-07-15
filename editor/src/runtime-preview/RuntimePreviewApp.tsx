@@ -4,7 +4,7 @@ import { emitTo, listen } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { assetOrchestrator } from '../utils/asset-orchestrator'
 import { dirName } from '../utils/project'
-import { getRuntimeCanvas } from '../utils/runtime-canvas'
+import { getRuntimeCanvas, bindRuntimeSurfaceToHost, unbindRuntimeSurface, syncRuntimeSurfaceLayout } from '../utils/runtime-canvas'
 import {
   RUNTIME_PREVIEW_CLOSED_EVENT,
   RUNTIME_PREVIEW_READY_EVENT,
@@ -82,16 +82,30 @@ export default function RuntimePreviewApp() {
 
   useLayoutEffect(() => {
     const canvas = getRuntimeCanvas()
-    hostRef.current?.appendChild(canvas)
-    setCanvasReady(true)
+    let cancelled = false
+    let raf = 0
+
+    const tryBind = (): void => {
+      if (cancelled) return
+      if (!bindRuntimeSurfaceToHost(hostRef.current, canvas)) {
+        raf = requestAnimationFrame(tryBind)
+        return
+      }
+      setCanvasReady(true)
+    }
+    tryBind()
+
     return () => {
-      canvas.remove()
+      cancelled = true
+      cancelAnimationFrame(raf)
+      unbindRuntimeSurface()
       setCanvasReady(false)
     }
   }, [])
 
   useLayoutEffect(() => {
     applyPreviewCanvasPresentation(bundle, windowSize, status === 'running', presentationSnapshot)
+    syncRuntimeSurfaceLayout()
   }, [bundle, windowSize, status, presentationSnapshot, applyPreviewCanvasPresentation])
 
   useEffect(() => {

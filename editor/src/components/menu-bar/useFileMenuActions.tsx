@@ -23,6 +23,7 @@ import {
 } from '../../utils/project'
 import { runtimeSync } from '../../utils/runtime-sync-service'
 import { alertDialog, confirmDialog } from '../../utils/native-dialog'
+import { resolveUnsavedGuard } from '../../utils/unsaved-guard'
 import type { ProjectDoc } from '../../types'
 import type { FileMenuItem } from './FileMenu'
 import { makeConsoleEntry } from './makeConsoleEntry'
@@ -69,14 +70,20 @@ export function useFileMenuActions({
 }: UseFileMenuActionsParams) {
   const confirmDiscardIfDirty = useCallback(
     async (actionLabel: string): Promise<boolean> => {
-      if (!projectDirty) return true
-      return confirmDialog(
-        `You have unsaved changes in "${project?.projectName ?? 'this project'}".\n` +
-          `${actionLabel} will discard them. Continue?`,
-        { title: 'Unsaved changes', kind: 'warning' },
-      )
+      return resolveUnsavedGuard({
+        state: {
+          project,
+          projectPath,
+          projectDirty,
+          openScripts,
+          dialogs,
+        },
+        actionLabel,
+        dispatch,
+        flushBeforePersist,
+      })
     },
-    [project?.projectName, projectDirty],
+    [dialogs, dispatch, flushBeforePersist, openScripts, project, projectDirty, projectPath],
   )
 
   const handleOpenProject = useCallback(async () => {

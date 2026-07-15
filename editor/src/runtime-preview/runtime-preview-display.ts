@@ -2,8 +2,8 @@ import type { PreviewTransitionBundle } from '../utils/runtime-sync-service'
 import type { PresentationSnapshot } from '../utils/presentation-snapshot'
 import {
   type DisplaySize,
-  runtimeCanvasBootStyle,
-  runtimeCanvasPlayStyle,
+  runtimeCanvasBootVisual,
+  runtimeCanvasPlayVisual,
   sceneBackgroundCss,
 } from '../utils/runtime-canvas-presentation'
 
@@ -46,29 +46,27 @@ export function runtimePreviewBackground(bundle: PreviewTransitionBundle | null)
   return sceneBackgroundCss(scene?.backgroundColor)
 }
 
+/**
+ * Visual-only preview canvas style. Geometry is owned by the SurfaceBinder.
+ */
 export function runtimePreviewCanvasStyle(
   bundle: PreviewTransitionBundle | null,
-  windowSize: RuntimePreviewDisplaySize,
+  _windowSize: RuntimePreviewDisplaySize,
   presentation?: PresentationSnapshot | null,
-): Partial<CSSStyleDeclaration> {
+): ReturnType<typeof runtimeCanvasPlayVisual> {
   const logical = runtimePreviewLogicalSize(bundle)
   const background = runtimePreviewBackground(bundle)
   if (!logical) {
-    return runtimeCanvasBootStyle(windowSize, background)
+    return runtimeCanvasBootVisual(background)
   }
   if (!isRuntimePreviewSnapshot(presentation)) {
     return {
-      ...runtimeCanvasBootStyle(windowSize, background),
+      ...runtimeCanvasBootVisual(background),
       visibility: 'hidden',
     }
   }
-  const hostSize = runtimePreviewDisplaySize(logical, windowSize, presentation)
-  return {
-    ...runtimeCanvasPlayStyle({
-      hostSize,
-      background,
-      layout: 'floating-centered',
-    }),
+  return runtimeCanvasPlayVisual({
+    background,
     visibility: 'visible',
-  }
+  })
 }

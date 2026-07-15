@@ -20,12 +20,14 @@ EM_JS(void, wasm_sync_offscreen_framebuffer, (int width, int height), {
     : null;
   if (!canvas) return;
   if (width > 0 && height > 0) {
-    canvas.width = width;
-    canvas.height = height;
+    if (canvas.width !== width) canvas.width = width;
+    if (canvas.height !== height) canvas.height = height;
   }
   try {
-    if (typeof GL !== 'undefined' && GL.resizeOffscreenFramebuffer) {
-      GL.resizeOffscreenFramebuffer(canvas);
+    var glHost = (typeof GL !== 'undefined') ? GL
+      : ((typeof Module !== 'undefined') ? Module['GL'] : null);
+    if (glHost && glHost.resizeOffscreenFramebuffer) {
+      glHost.resizeOffscreenFramebuffer(canvas);
     }
   } catch (e) {}
 });
@@ -148,6 +150,12 @@ float RaylibSurface::delta_time() const {
 }
 
 void RaylibSurface::begin_drawing() {
+#ifdef __EMSCRIPTEN__
+    // Rebind OFFSCREEN_FRAMEBUFFER every frame so re-parent/resize cannot leave
+    // ClearBackground on the visible canvas while world draws hit a stale FBO.
+    wasm_sync_offscreen_framebuffer(static_cast<int>(width_),
+                                    static_cast<int>(height_));
+#endif
     BeginDrawing();
 }
 

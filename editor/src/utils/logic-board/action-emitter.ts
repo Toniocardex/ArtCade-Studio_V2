@@ -81,18 +81,26 @@ function resolveAudioPath(
 }
 
 /**
- * Emit a single Lua statement for a Logic Board action. ALWAYS returns a
- * string — when the action shape is unknown (stale `direction` enum from
- * an older project.json, future action type loaded by an older editor,
- * malformed data) we emit a `-- TODO unknown ...` comment instead of
- * letting the function fall off the end with implicit `undefined`. That
- * keeps the compiled Lua valid and surfaces the issue to the user via the
- * generated source preview, rather than silently dropping behaviours.
+ * Emit a single Lua statement for a Logic Board action.
+ * Unsupported / malformed actions throw so Play and export cannot ship silent no-ops.
+ * Feature DoD: every action type must compile to real GameAPI calls or fail loudly.
  */
-function unknownActionComment(a: LogicAction, detail?: string): string {
-  const type = (a as { type?: unknown }).type ?? 'unknown'
-  const tail = detail ? ` (${detail})` : ''
-  return `-- TODO ArtCade: unknown action ${luaString(String(type))}${tail}`
+export class UnsupportedLogicActionError extends Error {
+  readonly actionType: string
+  readonly detail?: string
+
+  constructor(actionType: string, detail?: string) {
+    const tail = detail ? ` (${detail})` : ''
+    super(`Unsupported Logic Board action "${actionType}"${tail}`)
+    this.name = 'UnsupportedLogicActionError'
+    this.actionType = actionType
+    this.detail = detail
+  }
+}
+
+function rejectUnsupportedAction(a: LogicAction, detail?: string): never {
+  const type = String((a as { type?: unknown }).type ?? 'unknown')
+  throw new UnsupportedLogicActionError(type, detail)
 }
 
 export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
@@ -106,7 +114,7 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
         case 'resume': return `time.resume()`
         case 'toggle': return `time.togglePause()`
       }
-      return unknownActionComment(a, `setPause mode=${String(mode)}`)
+      rejectUnsupportedAction(a, `setPause mode=${String(mode)}`)
     }
     case 'modifyVariable': {
       const key = luaString(a.key)
@@ -135,7 +143,7 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
           case 'clamp':    return `global.set(${key}, math.max(${lo}, math.min(${hi}, ${cur})))`
         }
       }
-      return unknownActionComment(a, `modifyVariable op=${String(a.op)}`)
+      return rejectUnsupportedAction(a, `modifyVariable op=${String(a.op)}`)
     }
     case 'setVariable':
       return `global.set(${luaString(a.key)}, ${valueSourceExpr(a.value, project)})`
@@ -162,7 +170,7 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
         case 'pause':  return `audio.pauseMusic()`
         case 'resume': return `audio.resumeMusic()`
       }
-      return unknownActionComment(a, `controlMusic mode=${String(mode)}`)
+      return rejectUnsupportedAction(a, `controlMusic mode=${String(mode)}`)
     }
     case 'setVolume': {
       const vol = numberSourceExpr(a.volume, project)
@@ -171,7 +179,7 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
         case 'music':  return `audio.setMusicVolume(${vol})`
         case 'sfx':    return `audio.setSfxVolume(${vol})`
       }
-      return unknownActionComment(a, `setVolume channel=${String(a.channel)}`)
+      return rejectUnsupportedAction(a, `setVolume channel=${String(a.channel)}`)
     }
     case 'fadeMusic':
       return `audio.fadeMusic(${numberSourceExpr(a.volume, project)}, ${numberSourceExpr(a.seconds, project)})`
@@ -211,7 +219,7 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
         case 'backward':
           return `(function() local _d = entity.flipX(${t}) and -1 or 1; entity.setVelocity(${t}, -_d * (${s}), 0) end)()`
       }
-      return unknownActionComment(a,
+      return rejectUnsupportedAction(a,
         `direction=${String((a as { direction?: unknown }).direction)}`)
     }
     case 'controllerMovement': {
@@ -226,7 +234,7 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
         case 'down':
           return `_logic_add_movement(${t}, 0, 1)`
       }
-      return unknownActionComment(a,
+      return rejectUnsupportedAction(a,
         `direction=${String((a as { direction?: unknown }).direction)}`)
     }
     case 'moveController': {
@@ -243,7 +251,7 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
         case 'stop':
           return `movement.clearIntent(${t})`
       }
-      return unknownActionComment(a,
+      return rejectUnsupportedAction(a,
         `direction=${String((a as { direction?: unknown }).direction)}`)
     }
     case 'clearMovementIntent':
@@ -429,5 +437,5 @@ export function actionLua(a: LogicAction, ctx: ActionEmitCtx = {}): string {
   // editor expected, malformed payload). Emit a parseable Lua comment
   // so emitActionSequence drops it cleanly instead of compiling
   // undefined into the output and crashing the Lua preview.
-  return unknownActionComment(a)
+  return rejectUnsupportedAction(a)
 }

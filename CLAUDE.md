@@ -1,12 +1,14 @@
 # ArtCade V2 Development Guidelines
 
+**Cursor / AI agents:** delivery pipeline and code-review format live in [`.cursor/rules/cursorrules-artcade.mdc`](.cursor/rules/cursorrules-artcade.mdc). **Authoritative architecture paletti** live in [`.cursor/rules/artcade-architecture-authority.mdc`](.cursor/rules/artcade-architecture-authority.mdc). Narrative layout: [`AGENTS.md`](AGENTS.md).
+
 ## Project Vision
 
-**Dual-Runtime 2D Game Engine**: Same C++ codebase compiles to:
+**Authoring-first 2D game engine/editor** (Scene | Logic | Script) with dual runtime:
 - Windows/macOS/Linux native executables (Raylib)
 - WebAssembly (Emscripten) for browsers + Tauri preview
 
-Lua 5.4 bytecode as the game logic layer, deterministic and portable.
+Lua 5.4 bytecode as the game logic layer. Raylib is a **backend**, not the architecture core. React is presentation only (Command/Intent → ProjectDocument). Editor Play and export must share gameplay semantics.
 
 ---
 

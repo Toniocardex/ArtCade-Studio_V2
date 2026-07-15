@@ -19,6 +19,7 @@ import { saveDialogsToProject, starterInnkeeperScript } from '../../utils/dialog
 import type { DialogScript } from '../../utils/dialog/dialog-script'
 import { confirmDialog } from '../../utils/native-dialog'
 import { resolveManualMainLua } from '../../utils/project-main-script'
+import { mainScriptBodyForProjectWithStatus } from './project-script'
 import { makeConsoleEntry } from './makeConsoleEntry'
 
 export type PersistKind = 'Build' | 'WASM' | 'Web' | 'save'
@@ -151,8 +152,25 @@ export async function ensureProjectOnDisk(
   try {
     await saveDialogsToProject(buildPath, dialogs)
     if (kind === 'save' && project.mainScriptPath) {
-      await saveScript(resolveScriptPath(buildPath, project.mainScriptPath), manualLua, buildPath)
-      dispatch({ type: 'MARK_SCRIPT_SAVED', path: project.mainScriptPath })
+      // Ship authority: disk main.lua is the composed Play/export entry
+      // (Logic Board + My Script). Script editor buffers keep the manual body only.
+      const composed = mainScriptBodyForProjectWithStatus(project, buildPath, manualLua)
+      if (composed.compileError) {
+        dispatch({
+          type: 'LOG',
+          entry: makeConsoleEntry(
+            `${logPrefix} Logic Board compile failed — save aborted:\n${composed.compileError}`,
+            'error',
+          ),
+        })
+        return null
+      }
+      await saveScript(
+        resolveScriptPath(buildPath, project.mainScriptPath),
+        composed.lua,
+        buildPath,
+      )
+      // Do not MARK_SCRIPT_SAVED with composed content — open buffer stays manual.
     }
     await saveProjectFile(buildPath, project)
     dispatch({ type: 'MARK_PROJECT_SAVED' })

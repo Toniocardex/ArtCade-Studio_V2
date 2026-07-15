@@ -716,6 +716,10 @@ EMSCRIPTEN_KEEPALIVE void editor_set_mode(int mode) {
             ? ArtCade::Presentation::PresentationMode::SceneEdit
             : ArtCade::s_playPresentationMode);
     }
+    if (auto* r = ArtCade::EditorAPI::s_renderer) {
+        // Play uses the game-view compositor; edit draws directly to the surface.
+        r->setGameViewCompositorEnabled(mode != 0);
+    }
     if (auto* gw = ArtCade::EditorAPI::s_entityGateway) {
         if (mode == 1) gw->applyDesignVisibilityForPlay();
         else           gw->restoreDesignVisibilityForEdit();
@@ -1437,6 +1441,8 @@ EMSCRIPTEN_KEEPALIVE int editor_enter_play_mode(
     ArtCade::EditorAPI::s_mode = 1;
     if (auto* vp = ArtCade::EditorAPI::s_viewport)
         vp->set_presentation_mode(ArtCade::s_playPresentationMode);
+    if (auto* r = ArtCade::EditorAPI::s_renderer)
+        r->setGameViewCompositorEnabled(true);
     if (auto* gw = ArtCade::EditorAPI::s_entityGateway)
         gw->applyDesignVisibilityForPlay();
     ArtCade::EditorAPI::notifyConsoleLine("[EditorAPI] Mode: PLAY", "info");
@@ -1461,6 +1467,8 @@ EMSCRIPTEN_KEEPALIVE int editor_exit_play_mode(
         vp->set_presentation_mode(
             ArtCade::Presentation::PresentationMode::SceneEdit);
     }
+    if (auto* r = ArtCade::EditorAPI::s_renderer)
+        r->setGameViewCompositorEnabled(false);
     if (auto* gw = ArtCade::EditorAPI::s_entityGateway)
         gw->restoreDesignVisibilityForEdit();
 

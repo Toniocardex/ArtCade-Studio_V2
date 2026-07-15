@@ -24,7 +24,6 @@ export function usePreviewPlayStop(): () => void {
   const project = useEditorSelector((s) => s.project)
   const projectPath = useEditorSelector((s) => s.projectPath)
   const isPlaying = useEditorSelector((s) => s.isPlaying)
-  const mode = useEditorSelector((s) => s.mode)
   const openScripts = useEditorSelector((s) => s.openScripts)
   const dialogs = useEditorSelector((s) => s.dialogs)
   const selectionSceneId = useEditorSelector((s) => s.selection.sceneId)
@@ -132,19 +131,13 @@ export function usePreviewPlayStop(): () => void {
       return
     }
 
-    if (!isPlaying) {
-      if (document.activeElement instanceof HTMLElement) {
-        document.activeElement.blur()
-      }
-      if (mode !== 'canvas') {
-        dispatch({ type: 'SET_MODE', mode: 'canvas' })
-      }
+    if (!isPlaying && document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur()
     }
   }, [
     dispatch,
     dialogs,
     isPlaying,
-    mode,
     openScripts,
     project,
     projectPath,

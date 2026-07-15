@@ -91,7 +91,7 @@ export function CameraFrameOverlay({
   }
 
   return (
-    <div className="absolute inset-0 z-[2] pointer-events-none">
+    <div className="absolute inset-0 z-[6] pointer-events-none">
       <div
         className="absolute"
         style={{

@@ -74,6 +74,7 @@ export default function InspectorPanel() {
   const inspectorAsset = useEditorSelector((s) => s.inspectorAsset)
   const inspectorLayerId = useEditorSelector((s) => s.inspectorLayerId)
   const activePaintTilesetId = useEditorSelector((s) => s.activePaintTilesetId)
+  const isPlaying = useEditorSelector((s) => s.isPlaying)
 
   const entity = (project && selection.entityId != null)
     ? project.entities?.[selection.entityId] ?? null
@@ -93,6 +94,15 @@ export default function InspectorPanel() {
 
   return (
     <div className="h-full flex flex-col bg-[var(--bg-window)]" data-panel="inspector">
+      {isPlaying && (
+        <div
+          className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide
+                     border-b border-[var(--outline)] bg-[var(--surface)] text-[var(--muted)]"
+          data-testid="inspector-play-lock"
+        >
+          Play session — authoring locked
+        </div>
+      )}
       <div className="editor-panel-header flex-col !items-start !gap-0.5 !py-2">
         {mode === 'entity' && (
           <button
@@ -153,7 +163,10 @@ export default function InspectorPanel() {
       )}
 
       {!isTilesetPaint && (
-        <div className="flex-1 overflow-y-auto px-4 pb-3 panel-scroll" data-panel="inspector-body">
+        <div
+          className={`flex-1 overflow-y-auto px-4 pb-3 panel-scroll${isPlaying ? ' pointer-events-none opacity-60' : ''}`}
+          data-panel="inspector-body"
+        >
           {mode === 'entity' && entity && (
             <EntityInspector key={entity.id} entity={entity} />
           )}

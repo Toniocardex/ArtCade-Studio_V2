@@ -51,6 +51,7 @@ import { ensureBootSessionReset } from '../utils/boot-session'
 import { runLoadProjectSideEffects } from '../utils/project-load-side-effects'
 import { normalizeProjectDoc } from '../utils/project-object-types'
 import { TextPromptProvider } from '../components/TextPromptProvider'
+import { ChoicePromptModal } from '../components/ChoicePromptModal'
 import { ProjectSaveRecoveryModal } from '../components/ProjectSaveRecoveryModal'
 import {
   applyProjectRedo,
@@ -61,6 +62,7 @@ import {
   projectRevision,
   snapshotProjectHistory,
 } from './project-history'
+import { getActionFamily } from './action-families'
 
 export type { CoreState, VolatileState, Action }
 export { shallowEqual }
@@ -74,10 +76,17 @@ export function coreReducer(state: CoreState, action: Action): CoreState {
     return snapshotProjectHistory(state)
   }
   if (action.type === 'PROJECT_UNDO' || action.type === 'LOGIC_UNDO') {
+    if (state.isPlaying) return state
     return applyProjectUndo(state)
   }
   if (action.type === 'PROJECT_REDO' || action.type === 'LOGIC_REDO') {
+    if (state.isPlaying) return state
     return applyProjectRedo(state)
+  }
+
+  // Authoring Commands are blocked while PlaySession is active (paletto §11).
+  if (state.isPlaying && getActionFamily(action.type) === 'authoring') {
+    return state
   }
 
   let next = state
@@ -183,6 +192,7 @@ export function EditorProvider({ children }: { children: ReactNode }) {
           <VolatileContext.Provider value={volatileValue}>
             <TextPromptProvider>
               {children}
+              <ChoicePromptModal />
               <ProjectSaveRecoveryModal />
             </TextPromptProvider>
           </VolatileContext.Provider>

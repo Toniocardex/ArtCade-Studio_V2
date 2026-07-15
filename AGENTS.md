@@ -1,8 +1,17 @@
 # ArtCade V2 Development Guidelines
 
-**Cursor / AI agents:** delivery pipeline (implement → test → **diff audit** → pre-commit review → commit → builds), pre-commit checks, and code-review format live in [`.cursor/rules/cursorrules-artcade.mdc`](.cursor/rules/cursorrules-artcade.mdc) (canonical; versioned in git). This file covers architecture and repo layout — not step-by-step agent workflow.
+**Cursor / AI agents:** delivery pipeline (implement → test → **diff audit** → pre-commit review → commit → builds), pre-commit checks, and code-review format live in [`.cursor/rules/cursorrules-artcade.mdc`](.cursor/rules/cursorrules-artcade.mdc). **Authoritative architecture paletti** (ProjectDocument, Commands, PlaySession, Logic/Script, React adaptations of the RmlUi contract) live in [`.cursor/rules/artcade-architecture-authority.mdc`](.cursor/rules/artcade-architecture-authority.mdc). This file covers architecture narrative and repo layout — not step-by-step agent workflow.
 
 ## Project Vision
+
+**Authoring-first 2D game engine/editor** with dual runtime (native Raylib + WASM) and two gameplay authoring tiers:
+
+- **Logic Board** — accessible visual rules (WHEN / IF-AND / DO)
+- **Script Editor** — advanced project Lua (behavior + global scripts)
+
+UX workspaces: **Scene | Logic | Script**.
+
+Not a thin Raylib wrapper: authoritative `ProjectDocument`, non-destructive authoring, Play isolated from edit, reliable Undo/Redo, Windows + HTML5/WASM export, **Editor Play == exported game** semantics, shared gameplay host for Logic and Script.
 
 **Dual-Runtime 2D Game Engine**: Same C++ codebase compiles to:
 - Windows/macOS/Linux native executables (Raylib)
@@ -14,19 +23,24 @@ Lua 5.4 bytecode as the game logic layer, deterministic and portable.
 
 ## Key Architectural Decisions
 
-### 1. Raylib + Emscripten (Not Rust/WASM)
-**Why**: Raylib is C, born for Emscripten. Write once (C++), compile twice (native .exe + .wasm).
-Zero rendering logic rewrite. 99% code identical across targets.
+### 1. Raylib is a backend, not the architecture
+**Why**: Raylib (via platform boundaries) provides render/input/audio. Domain systems must not depend on Raylib APIs except at dedicated adapters.
+
+```
+Editor / Runtime systems → Platform abstraction → Raylib
+```
+
+Same C++ compiles to native `.exe` and Emscripten `.wasm` with near-identical gameplay code.
 
 ### 2. Hybrid authoring (Logic Board + Lua + dialogs)
-**Why**: Gameplay ships as compiled Lua, but the editor provides a visual Logic Board (JSON schemas → Lua compiler), a script tab, and RPG-style dialog graphs (`dialogs/*.json`). The C++ runtime is Lua + Raylib + Sol2 without the old monolithic AST runtime.
+**Why**: Gameplay ships as compiled Lua, but the editor provides a visual Logic Board (JSON schemas → Lua compiler), a script tab, and RPG-style dialog graphs (`dialogs/*.json`). The C++ runtime is Lua + Raylib + Sol2 without the old monolithic AST runtime. Generated Logic Lua is read-only and must never overwrite user scripts.
 
 ### 3. Tauri Preview Integration
 **Why**: Tauri loads the WASM build inside WebView. What you see in editor preview is
-exactly what users see in browser. No sync issues.
+exactly what users see in browser. No sync issues. React is the presentation layer (RmlUi analogue): intents/commands only — never document owner.
 
 ### 4. Lua for Game Logic
-**Why**: Portable, deterministic, easy Lua<->C++ binding via Sol2. Native builds use bytecode; editor preview hot-reloads Lua source via WASM.
+**Why**: Portable, deterministic, easy Lua<->C++ binding via Sol2. Native builds use bytecode; editor preview hot-reloads Lua source via WASM only where explicitly supported — **no automatic hot-reload as MVP product policy** until teardown/parity are solid.
 
 ### 5. ProjectRuntimeSettings (editor ↔ runtime contract)
 **Why**: Preview and native exe must share timing and physics. `editor/src/utils/runtime-fingerprint.ts` (`RuntimeProjectPayload` / fingerprint `fps` + `pm`) mirrors C++ `ProjectRuntimeSettings` in `runtime-cpp/src/core/types.h`, applied by `Application::applyRuntimeSettings()` on load.
@@ -37,11 +51,13 @@ exactly what users see in browser. No sync issues.
 ### 7. ProjectDocument as the Authoring Authority
 **Why**: ArtCade is an editor, not a loose collection of UI stores. Durable project data must have one owner so save/load, undo/redo, preview sync, migrations, and AI-generated edits cannot drift apart.
 
-- `ProjectDocument` / `ProjectDoc` is the only source of truth for persisted authoring data: scenes, objects, assets, prefab/object types, components, Logic Board data, dialogs, and project settings.
+- `ProjectDocument` / `ProjectDoc` is the only source of truth for persisted authoring data: scenes, objects, assets, prefab/object types, components, Logic Board data, dialogs, script attachments, and project settings.
 - UI components display snapshots, dispatch commands/intents, and receive updated snapshots. They must not directly mutate durable entities, scenes, assets, prefab/object types, or rulesheets.
 - Every persistent authoring change must flow through the command/intent path that validates, updates revision/dirty state, and records undo/redo where appropriate.
+- Dirty = `revision != savedRevision` (project) / `bufferRevision != savedBufferRevision` (script buffer). No hand-maintained dirty flag as a second authority.
 - Do not keep two equivalent mutable representations synchronized by hand. If two representations exist, one must be deterministically derived from the other.
-- Use stable IDs for objects, scenes, assets, prefab/object types, components, and rulesheets. Names are display labels only and must not be internal keys.
+- Use stable IDs for objects, scenes, assets, prefab/object types, components, layers, and rulesheets. Names are display labels only; paths are location only — neither are internal keys.
+- Object Type owns defaults; EntityInstance owns sparse overrides; one canonical resolver for Inspector, Scene View, validator, Play, and export.
 - Duplicate names in the same authoring scope are not allowed for generated objects/prefabs. Block the operation or require an explicit unique name.
 
 ### 8. Editor State vs Game State
@@ -49,9 +65,11 @@ exactly what users see in browser. No sync issues.
 
 - `ProjectDocument` / `ProjectDoc`: saved project data.
 - `EditorWorkspaceState`: temporary editor state such as selection, zoom, visible grid, open panels, focus mode, rulers, and tool palette state.
-- `PlaySession`: runtime state during play/test.
+- `EditorUiState`: layout preferences (splitters, console, filters) — not project undo.
+- `PlaySession`: runtime state during play/test; materializes once from the document; lost on Stop; authoring undo blocked while playing.
 - `PlaySession` must not write back into `ProjectDocument` unless the user performs an explicit authoring command.
 - UI-only toggles, zoom, selection, panel layout, and editor grid visibility must not mark the project dirty or create undo/redo entries.
+- Script buffer history is separate from project history; route Undo/Redo by focus.
 
 ### 9. Validation, Versioning, and Assets
 **Why**: Every entry point into the project model must enforce the same contract.
@@ -62,6 +80,18 @@ exactly what users see in browser. No sync issues.
 - Silent saved-format changes are forbidden.
 - Assets are referenced through registry-backed `AssetRef` / stable asset IDs, not scattered raw paths.
 - Import, move, rename, and delete must update the asset registry atomically. Deleting referenced assets requires dependency checks first.
+- Generated SFX recipes are authoring-only; runtime plays AudioAssetDefs only.
+
+### 10. Logic Board, Script, and shared gameplay host
+**Why**: Visual and scripted gameplay must share one runtime contract.
+
+- Logic Board is type-targeted via `project.logicBoards`, descriptor-driven (WHEN / IF-AND / DO).
+- **Shipping authority (React stack):** TS compile → composed `main.lua` → GameAPI. Play, Save, Pack, and export use that path. C++ `objectTypes[].logicBoard` / LogicRuntime is dormant and must not dual-fire.
+- Unsupported Logic actions fail compile (no soft `-- TODO` no-ops).
+- Disk `main.lua` may be composed for native load; Script editor extracts `MANUAL_BEGIN`/`MANUAL_END` as My Script only.
+- Behavior scripts type-owned; project scripts global and ordered; Lua source under project root with relative paths only.
+- Editor Play and export must share semantics; a feature is not done until both paths work.
+- Deferred entity destroy; Lua sandbox without OS/FS/Raylib/ProjectDocument access.
 
 ---
 

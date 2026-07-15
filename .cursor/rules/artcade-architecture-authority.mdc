@@ -1,0 +1,85 @@
+---
+description: ArtCade authoritative architecture — ProjectDocument, Commands, Play, Logic/Script, React adaptations
+alwaysApply: true
+---
+
+# ArtCade — architecture authority (React / Tauri stack)
+
+Canonical product+architecture contract. Outranks generic React/web advice. Origin: ArtCade RmlUi recap, adapted for this repo (`editor/` React+Tauri, `runtime-cpp/` Raylib+Lua).
+
+## Product shape
+
+- Authoring engine: **Scene | Logic | Script** (not a Raylib wrapper).
+- Logic Board = accessible visual gameplay; Script Editor = advanced Lua.
+- Editor Play and exported game must share the **same gameplay semantics**.
+
+## Stack roles
+
+| Layer | Role |
+|---|---|
+| React UI | Presentation only — show, input, emit Intent/Command, ephemeral local UI state |
+| Tauri / FS services | Native I/O boundary (scripts, assets, project files) |
+| Editor TS domain | ProjectDocument, commands, validators, workspace, play orchestration |
+| Runtime C++/WASM | World, sim, input, render, physics, Lua, audio — **not** editorial UI |
+| Raylib | Technical backend under platform abstraction — **not** architecture core |
+
+```
+Editor / Runtime systems → Platform abstraction → Raylib
+```
+
+Domain code must not call Raylib except at dedicated boundaries.
+
+## Three states (never mix)
+
+| State | Persists? | Undo? | Examples |
+|---|---|---|---|
+| `ProjectDocument` / `ProjectDoc` | Yes | Project history | scenes, object types, instances, assets, layers, Logic Board, script attachments, settings |
+| `EditorWorkspaceState` | No | No | selection, active scene, tool, pan/zoom per scene, grid UI, open tabs, tile paint workspace |
+| `EditorUiState` / layout prefs | Preferences only | No | splitters, console open, panel layout, filters |
+| `PlaySession` | No (lost on Stop) | Blocked | runtime positions, velocities, Lua scopes, collision, audio queue |
+
+**Dirty:** `revision != savedRevision` (project) and `bufferRevision != savedBufferRevision` (script). No hand-maintained dirty boolean as a second authority.
+
+**Mutation path (only):**
+```
+UI → Intent/Command → store/coordinator → ProjectDocument → DomainChange → derived refresh
+```
+
+Forbidden: panels, Scene View, Logic/Script UI, asset editors, or Play mutating the document directly.
+
+## Non-negotiable paletti
+
+1. Stable **IDs** are identity; names are labels; paths are location — never keys.
+2. Object Type owns defaults; EntityInstance owns sparse overrides; **one canonical resolver** for Inspector, Scene View, validator, Play, export.
+3. Layer visual order is authoritative via an ordered layer list (this React stack: `ProjectDoc.layers` + per-scene `layerSettings`; RmlUi wording was `SceneDef.layers`). Instances use `layerId`. No parallel LayerManager as authority.
+4. Scene View: **one camera** for render, pick, drag, snap, overlay, grid. During Play: no edit grid, no authoring controls, no document writes.
+5. Play materializes **once** from ProjectDocument; runtime does not continuously re-read the document or use authoring assets as live authority.
+6. Gameplay focus is explicit (enter Play / explicit lose) — not “mouse hovered viewport”.
+7. Stop returns to origin workspace (Logic→Play→Scene→Stop→Logic) unless user changed workspace during Play.
+8. Logic Board is **type-targeted** via `project.logicBoards` (React stack). Shipping authority is **TS compile → composed main.lua → GameAPI**. Generated Lua is read-only and never overwrites the My Script buffer. Parallel C++ `objectTypes[].logicBoard` / LogicRuntime must not run alongside composed main until that stack becomes the sole host.
+9. Behavior scripts type-owned; project scripts global ordered; Lua source on disk under project root (relative paths only). `.luac` is derived export output only. Composed main on disk is the Play/export entry; Script editor loads/extracts the MANUAL_BEGIN/END body only.
+10. Logic + Script share one gameplay host API; remain separate programs. Adapters are thin forwards — no duplicated system logic.
+11. Runtime destroy is **deferred**. No automatic hot reload in MVP.
+12. Lua sandbox: no `io`/`os`/filesystem/network/Raylib/ProjectDocument. Controlled `require` of registered Script Assets only.
+13. Audio: recipe (Generated SFX) ≠ runtime AudioAsset; Play routes via command queue, not direct Raylib from Logic.
+14. Export validates Logic+scripts, materializes programs, does not depend on editor UI state or unsaved buffers.
+15. Unsaved guard on New/Open/Exit/Close: Save All / Discard / Cancel; failed save aborts.
+16. Feature DoD: model → Command → Undo → serializer/migration → validation → UI → Play → export → tests. No editor-only features.
+17. React remains presentation; Raylib remains backend. No parallel managers owning the same data. No polling/hidden bidirectional document mirrors.
+
+## Scene surface (React adaptation)
+
+- One long-lived WASM/Raylib canvas; React hosts measure + overlays only.
+- Never detach the GL canvas; prefer pin-on-body + binder layout over reparent churn.
+- React does not own gameplay pixels.
+
+## Script editor (React adaptation)
+
+- Abstract text surface (CodeMirror iframe / `ICodeEditorSurface` equivalent).
+- Do not rebuild the editor DOM on every keystroke.
+- Script buffer = workspace; saved file ≠ active buffer; project Undo ≠ text Undo (route by focus).
+
+## When implementing or reviewing
+
+- Prefer Command + validator + ID refs + Play/export parity over UI convenience shortcuts.
+- If a change violates a paletto above, it is at least SHOULD-FIX; silent Play≠export or document mutation from UI is BLOCKER.

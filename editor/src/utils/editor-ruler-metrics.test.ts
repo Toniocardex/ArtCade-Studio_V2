@@ -18,7 +18,7 @@ describe('pickRulerTickStep', () => {
 })
 
 describe('buildEditorRulerMetrics', () => {
-  it('reads zoom and bounds from the presentation snapshot', () => {
+  it('reads CSS zoom and bounds from the presentation snapshot', () => {
     const metrics = buildEditorRulerMetrics({
       presentationSnapshot: {
         revision: 1n,
@@ -32,8 +32,9 @@ describe('buildEditorRulerMetrics', () => {
       fallbackZoom: 1,
       rulerStep: 64,
       worldSize: WORLD,
+      devicePixelRatio: 2,
     })
-    expect(metrics.zoom).toBe(2)
+    expect(metrics.zoom).toBe(1)
     expect(metrics.worldMaxX).toBe(400)
     expect(metrics.paddingPx).toBe(8)
   })

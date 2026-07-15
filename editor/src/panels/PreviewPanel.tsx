@@ -41,11 +41,13 @@ import { useEditorCanvasViewport } from '../hooks/useEditorCanvasViewport'
 import { setEditorVisibleWorldCenter } from '../utils/editor-viewport-center'
 import {
   alignRuntimeCanvasFramebuffer,
+  bindRuntimeSurfaceToHost,
   getRuntimeCanvas,
   RUNTIME_SURFACE_MIN_CSS_PX,
+  syncRuntimeSurfaceLayout,
+  unbindRuntimeSurface,
   wakeRuntimeCanvasGl,
 } from '../utils/runtime-canvas'
-import { debugSceneLog } from '../utils/debug-scene-log'
 import {
   commitEntityTransform,
   consumeRuntimeTransformEcho,
@@ -55,8 +57,8 @@ import { clearTransformPreview } from '../utils/transform-preview-store'
 import {
   applyRuntimeCanvasPresentation,
   playStageAvailableSize,
-  runtimeCanvasEditStyle,
-  runtimeCanvasPlayStyle,
+  runtimeCanvasEditVisual,
+  runtimeCanvasPlayVisual,
   RUNTIME_PLAY_STAGE_PADDING_PX,
   sceneBackgroundCss,
 } from '../utils/runtime-canvas-presentation'
@@ -170,21 +172,31 @@ export default function PreviewPanel({
     clearTransformPreview(entityId)
   }
 
-  // Adopt the singleton runtime canvas (see utils/runtime-canvas.ts). The
-  // engine's GL context is bound to that one element forever, so the panel
-  // re-parents it instead of letting React mint a new <canvas> per mount —
-  // a fresh element would never receive a frame.
+  // Bind the body-pinned singleton canvas to the measure host (never reparent
+  // into React). WebView2/ANGLE stops presenting after detach/reparent churn.
   useLayoutEffect(() => {
     const canvas = getRuntimeCanvas()
     canvasRef.current = canvas
-    canvasHostRef.current?.appendChild(canvas)
-    wakeRuntimeCanvasGl(canvas)
-    setRuntimeCanvasReady(true)
-    if (runtimeSync.isEngineReady()) {
-      runtimeSync.requestEditorSurfaceSync()
+    let cancelled = false
+    let raf = 0
+
+    const tryBind = (): void => {
+      if (cancelled) return
+      if (!bindRuntimeSurfaceToHost(canvasHostRef.current, canvas)) {
+        raf = requestAnimationFrame(tryBind)
+        return
+      }
+      setRuntimeCanvasReady(true)
+      if (runtimeSync.isEngineReady()) {
+        runtimeSync.requestEditorSurfaceSync()
+      }
     }
+    tryBind()
+
     return () => {
-      canvas.remove()
+      cancelled = true
+      cancelAnimationFrame(raf)
+      unbindRuntimeSurface()
       if (canvasRef.current === canvas) canvasRef.current = null
       setRuntimeCanvasReady(false)
     }
@@ -192,10 +204,15 @@ export default function PreviewPanel({
 
   useLayoutEffect(() => {
     if (!runtimeCanvasReady) return
-    const host = canvasHostRef.current
-    if (!host) return
     const canvas = getRuntimeCanvas()
-    if (canvas.parentElement !== host) host.appendChild(canvas)
+    if (!bindRuntimeSurfaceToHost(canvasHostRef.current, canvas)) return
+    if (!useDockedRuntimePreview && runtimeSync.isEngineReady()) {
+      runtimeSync.requestEditorSurfaceSync()
+    }
+    return () => {
+      // Park before React destroys this host branch (play↔edit swap).
+      unbindRuntimeSurface()
+    }
   }, [useDockedRuntimePreview, runtimeCanvasReady])
 
   // Mount-only: wasm-bridge onReady also calls syncRuntimeUiFlags; do not run
@@ -391,6 +408,9 @@ export default function PreviewPanel({
       fallbackZoom: zoom,
       rulerStep: editorRulerStep,
       worldSize: frame,
+      devicePixelRatio: typeof window !== 'undefined' && window.devicePixelRatio > 0
+        ? window.devicePixelRatio
+        : 1,
     }),
     [presentationSnapshot, zoom, editorRulerStep, frame.x, frame.y],
   )
@@ -485,41 +505,28 @@ export default function PreviewPanel({
     [playStage.x, playStage.y],
   )
 
-  // The runtime canvas is a persistent DOM node React does not manage, so its
-  // presentation is applied imperatively via runtime-canvas-presentation.
+  // Visual CSS only — SurfaceBinder owns fixed geometry over the measure host.
   const applyCanvasPresentation = useCallback(() => {
     const canvas = getRuntimeCanvas()
     const pointerEvents = useDockedRuntimePreview || !panActive ? 'auto' : 'none'
     if (useDockedRuntimePreview) {
-      applyRuntimeCanvasPresentation(canvas, {
-        ...runtimeCanvasPlayStyle({
-          hostSize: playHostSize,
-          background: bgColor,
-          layout: 'docked-top-left',
-          pointerEvents,
-        }),
+      applyRuntimeCanvasPresentation(canvas, runtimeCanvasPlayVisual({
+        background: bgColor,
+        pointerEvents,
         visibility: playSnapshotReady ? 'visible' : 'hidden',
-      })
+      }))
+      syncRuntimeSurfaceLayout(canvas)
       return
     }
-    const el = viewportRef.current
-    const pad = rulerMetrics.paddingPx
-    const cssW = el ? Math.max(1, el.clientWidth - pad * 2) : frame.x
-    const cssH = el ? Math.max(1, el.clientHeight - pad * 2) : frame.y
-    applyRuntimeCanvasPresentation(canvas, runtimeCanvasEditStyle({
-      cssWidth: cssW,
-      cssHeight: cssH,
+    applyRuntimeCanvasPresentation(canvas, runtimeCanvasEditVisual({
       background: bgColor,
       pointerEvents,
     }))
+    syncRuntimeSurfaceLayout(canvas)
   }, [
     useDockedRuntimePreview,
-    frame.x,
-    frame.y,
-    playHostSize,
     bgColor,
     panActive,
-    rulerMetrics.paddingPx,
     playSnapshotReady,
   ])
 
@@ -536,46 +543,20 @@ export default function PreviewPanel({
   const syncEditorSurface = useCallback((opts?: { center?: boolean }) => {
     const el = viewportRef.current
     const apiReady = runtimeSync.isEngineReady()
-    if (!el || useDockedRuntimePreview || !apiReady) {
-      // #region agent log
-      debugSceneLog('PreviewPanel.tsx:syncEditorSurface', 'surface_sync_skipped', {
-        hasEl: !!el,
-        useDockedRuntimePreview,
-        apiReady,
-      }, 'H3')
-      // #endregion
-      return
-    }
+    if (!el || useDockedRuntimePreview || !apiReady) return
     const dpr = window.devicePixelRatio || 1
     const pad = rulerMetrics.paddingPx
     const cssW = Math.max(1, el.clientWidth - pad * 2)
     const cssH = Math.max(1, el.clientHeight - pad * 2)
     if (cssW < RUNTIME_SURFACE_MIN_CSS_PX || cssH < RUNTIME_SURFACE_MIN_CSS_PX) {
-      debugSceneLog('PreviewPanel.tsx:syncEditorSurface', 'surface_sync_deferred', {
-        cssW,
-        cssH,
-      }, 'H3')
+      // ResizeObserver re-enters when the host grows past the minimum.
       return
     }
     const canvas = getRuntimeCanvas()
-    // Module.canvas must point at the visible element before C++ wasm_sync_offscreen_framebuffer.
+    bindRuntimeSurfaceToHost(canvasHostRef.current, canvas)
     wakeRuntimeCanvasGl(canvas)
     editorResizeSurface(cssW, cssH, dpr)
-    const { fbW, fbH } = alignRuntimeCanvasFramebuffer(cssW, cssH, dpr, canvas)
-    // #region agent log
-    debugSceneLog('PreviewPanel.tsx:syncEditorSurface', 'surface_sync_applied', {
-      cssW,
-      cssH,
-      fbW,
-      fbH,
-      canvasW: canvas.width,
-      canvasH: canvas.height,
-      clientW: canvas.clientWidth,
-      clientH: canvas.clientHeight,
-      connected: canvas.isConnected,
-      parentTag: canvas.parentElement?.tagName ?? null,
-    }, 'H2')
-    // #endregion
+    alignRuntimeCanvasFramebuffer(cssW, cssH, dpr, canvas)
     applyCanvasPresentation()
     if (opts?.center && selectedSceneId) {
       const centerKey = `${projectLoadEpoch}:${selectedSceneId}`
@@ -717,7 +698,12 @@ export default function PreviewPanel({
               height: `${playHostSize.y}px`,
             }}
           >
-            <div ref={canvasHostRef} className="absolute inset-0 w-full h-full overflow-hidden" />
+            {/* Measure slot only — canvas is body-pinned by SurfaceBinder. */}
+            <div
+              ref={canvasHostRef}
+              className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none"
+              aria-hidden
+            />
           </div>
         </div>
       ) : (
@@ -733,28 +719,34 @@ export default function PreviewPanel({
         style={{ cursor: panCursor }}
       >
         <div className="absolute inset-0 overflow-hidden">
-          <div ref={canvasHostRef} className="absolute inset-0 w-full h-full overflow-hidden" />
-          {activePaintTilesetId && !useDockedRuntimePreview && (
-            <TilePaintOverlay
-              tilemap={paintTilemap}
-              activeLayerId={editorActiveLayerId}
-              selectedTileCell={selectedTileCell}
-              sceneId={selectedSceneId ?? ''}
-              paintTilesetAssetId={activePaintTilesetId}
-              dispatch={dispatch}
-            />
-          )}
-          {showCameraFrame && (
-            <CameraFrameOverlay
-              worldSize={res}
-              viewportSize={vp}
-              zoom={zoom}
-              fillFrame={preview}
-              cameraStart={selectedScene?.cameraStart}
-              cameraWorldOrigin={{ x: editorCameraView.x, y: editorCameraView.y }}
-              onCameraStartDrag={onCameraStartDrag}
-            />
-          )}
+          <div
+            ref={canvasHostRef}
+            className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none"
+            aria-hidden
+          />
+          <div className="runtime-surface-overlay-layer absolute inset-0">
+            {activePaintTilesetId && !useDockedRuntimePreview && (
+              <TilePaintOverlay
+                tilemap={paintTilemap}
+                activeLayerId={editorActiveLayerId}
+                selectedTileCell={selectedTileCell}
+                sceneId={selectedSceneId ?? ''}
+                paintTilesetAssetId={activePaintTilesetId}
+                dispatch={dispatch}
+              />
+            )}
+            {showCameraFrame && (
+              <CameraFrameOverlay
+                worldSize={res}
+                viewportSize={vp}
+                zoom={zoom}
+                fillFrame={preview}
+                cameraStart={selectedScene?.cameraStart}
+                cameraWorldOrigin={{ x: editorCameraView.x, y: editorCameraView.y }}
+                onCameraStartDrag={onCameraStartDrag}
+              />
+            )}
+          </div>
         </div>
       </CanvasViewportWithRulers>
       )}

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   playStageAvailableSize,
+  runtimeCanvasEditVisual,
   runtimeCanvasPlayStyle,
+  runtimeCanvasPlayVisual,
   sceneBackgroundCss,
 } from './runtime-canvas-presentation'
 
@@ -16,22 +18,33 @@ describe('runtime-canvas-presentation', () => {
       .toBe('rgb(21, 23, 28)')
   })
 
-  it('builds docked and floating play styles from the same viewport contract', () => {
-    const hostSize = { x: 1024, y: 640 }
+  it('builds play visuals without owning geometry', () => {
+    const visual = runtimeCanvasPlayVisual({
+      background: 'rgb(21, 23, 28)',
+      pointerEvents: 'auto',
+    })
+    expect(visual.background).toBe('rgb(21, 23, 28)')
+    expect(visual.imageRendering).toBe('pixelated')
+    expect(visual).not.toHaveProperty('width')
+    expect(visual).not.toHaveProperty('left')
+  })
+
+  it('keeps deprecated play style width contract for callers', () => {
     const docked = runtimeCanvasPlayStyle({
-      hostSize,
+      hostSize: { x: 1024, y: 640 },
       background: 'rgb(21, 23, 28)',
       layout: 'docked-top-left',
       pointerEvents: 'auto',
     })
-    const floating = runtimeCanvasPlayStyle({
-      hostSize,
-      background: 'rgb(21, 23, 28)',
-      layout: 'floating-centered',
-    })
-
     expect(docked.width).toBe('1024px')
     expect(docked.transform).toBe('none')
-    expect(floating.transform).toBe('translate(-50%, -50%)')
+  })
+
+  it('forces edit canvas visibility after play may have hidden it', () => {
+    const style = runtimeCanvasEditVisual({
+      background: '#050608',
+    })
+    expect(style.visibility).toBe('visible')
+    expect(style.opacity).toBe('1')
   })
 })

@@ -1,27 +1,28 @@
 // ---------------------------------------------------------------------------
-// runtime-canvas — the one canvas element the WASM engine renders into
+// runtime-canvas — singleton WASM surface + pin-on-body SurfaceBinder
 // ---------------------------------------------------------------------------
 //
-// A WebGLRenderingContext is permanently bound to the canvas element it was
-// created on. Emscripten/Raylib creates the GL context once, on first init;
-// assigning `Module.canvas = otherCanvas` later does NOT move rendering to
-// the new element — frames keep going to the original (possibly detached)
-// canvas while the new one only shows its CSS background.
+// A WebGLRenderingContext is permanently bound to the canvas it was created on.
+// WebView2/ANGLE also stops presenting if the canvas is detached or repeatedly
+// re-parented into React hosts. Contract:
 //
-// PreviewPanel unmounts/remounts on layout-tier changes and view switches,
-// and React always creates fresh DOM nodes on remount. So instead of a JSX
-// <canvas>, the panel adopts this singleton element into a host div on every
-// mount. Re-parenting a canvas preserves its GL context and the input
-// listeners Emscripten attached at init.
+//   1. One canvas element for the life of the app.
+//   2. Parent is always document.body after boot (never React host children).
+//   3. SurfaceBinder positions it with position:fixed + host getBoundingClientRect.
+//   4. React hosts are measure slots + overlay stacks only.
 //
-// WASM is built with -sOFFSCREEN_FRAMEBUFFER=1 (see runtime-cpp app CMakeLists).
-// After resize or re-parent, Module.GL.resizeOffscreenFramebuffer must run or
-// only ClearBackground composites to the visible canvas while world draws stay
-// on a stale offscreen buffer.
-
-import { debugSceneLog } from './debug-scene-log'
+// WASM uses -sOFFSCREEN_FRAMEBUFFER=1 — wakeRuntimeCanvasGl after resize.
 
 const RUNTIME_CANVAS_KEY = '__artcadeRuntimeCanvas'
+
+/** Fixed canvas stacks under DOM overlays (paint / camera frame). */
+export const RUNTIME_SURFACE_Z_INDEX = 4
+
+/** DOM overlays above the pinned canvas (must exceed RUNTIME_SURFACE_Z_INDEX). */
+export const RUNTIME_SURFACE_OVERLAY_Z_INDEX = 6
+
+/** Minimum CSS viewport edge before we resize the WASM surface. */
+export const RUNTIME_SURFACE_MIN_CSS_PX = 32
 
 type EmscriptenGlHost = {
   resizeOffscreenFramebuffer?: (canvas: HTMLCanvasElement) => void
@@ -33,51 +34,174 @@ type CanvasGlobal = typeof globalThis & {
   GL?: EmscriptenGlHost
 }
 
+type SurfaceBinderState = {
+  host: HTMLElement | null
+  raf: number
+  lastLeft: number
+  lastTop: number
+  lastW: number
+  lastH: number
+}
+
+const binder: SurfaceBinderState = {
+  host: null,
+  raf: 0,
+  lastLeft: Number.NaN,
+  lastTop: Number.NaN,
+  lastW: Number.NaN,
+  lastH: Number.NaN,
+}
+
+function resetBinderLayoutCache(): void {
+  binder.lastLeft = Number.NaN
+  binder.lastTop = Number.NaN
+  binder.lastW = Number.NaN
+  binder.lastH = Number.NaN
+}
+
 function emscriptenGl(): EmscriptenGlHost | undefined {
   const g = globalThis as CanvasGlobal
   return g.GL ?? g.Module?.GL
 }
 
 /**
- * Rebinds Emscripten to the singleton canvas after DOM re-parent or resize.
- * Required with OFFSCREEN_FRAMEBUFFER so world draws reach the visible canvas.
+ * Rebinds Emscripten Module.canvas and OFFSCREEN_FRAMEBUFFER after resize.
  */
 export function wakeRuntimeCanvasGl(canvas: HTMLCanvasElement = getRuntimeCanvas()): void {
   const g = globalThis as CanvasGlobal
   if (g.Module) g.Module.canvas = canvas
 
-  canvas.style.visibility = 'visible'
-  canvas.style.opacity = '1'
-
   const glModule = emscriptenGl()
-  const hasResize = typeof glModule?.resizeOffscreenFramebuffer === 'function'
-  // #region agent log
-  debugSceneLog('runtime-canvas.ts:wakeRuntimeCanvasGl', 'wake_gl', {
-    hasResize,
-    hasModuleGl: !!(g.Module?.GL),
-    hasGlobalGl: !!g.GL,
-    canvasW: canvas.width,
-    canvasH: canvas.height,
-    moduleCanvasMatch: g.Module?.canvas === canvas,
-  }, 'H2')
-  // #endregion
-
-  if (canvas.width > 0 && canvas.height > 0 && hasResize) {
+  if (canvas.width > 0 && canvas.height > 0 && typeof glModule?.resizeOffscreenFramebuffer === 'function') {
     try {
-      glModule!.resizeOffscreenFramebuffer!(canvas)
+      glModule.resizeOffscreenFramebuffer(canvas)
     } catch {
       // Non-fatal when GL is not exported yet (stale game.js).
     }
   }
 }
 
-/** Minimum CSS viewport edge before we resize the WASM surface (avoids 1×1 boot races). */
-export const RUNTIME_SURFACE_MIN_CSS_PX = 32
+function ensurePinnedOnBody(canvas: HTMLCanvasElement): void {
+  if (canvas.parentElement !== document.body) {
+    document.body.appendChild(canvas)
+  }
+}
+
+function stopBinderLoop(): void {
+  if (binder.raf !== 0) {
+    cancelAnimationFrame(binder.raf)
+    binder.raf = 0
+  }
+}
+
+function startBinderLoop(): void {
+  if (binder.raf !== 0) return
+  const tick = (): void => {
+    binder.raf = 0
+    if (!binder.host) return
+    syncRuntimeSurfaceLayout()
+    binder.raf = requestAnimationFrame(tick)
+  }
+  binder.raf = requestAnimationFrame(tick)
+}
 
 /**
- * Aligns the singleton canvas backing store with the editor viewport, then
- * rebinds Emscripten's offscreen FBO. Call after `editor_resize_surface` or
- * when the canvas is re-parented into PreviewPanel.
+ * Positions the body-pinned canvas over the active host rect.
+ * Does not change parent — only left/top/width/height/z-index.
+ * Skips style/FBO work when the rect is unchanged (binder rAF loop).
+ */
+export function syncRuntimeSurfaceLayout(
+  canvas: HTMLCanvasElement = getRuntimeCanvas(),
+): boolean {
+  ensurePinnedOnBody(canvas)
+  const host = binder.host
+  if (!host || !host.isConnected) return false
+
+  const rect = host.getBoundingClientRect()
+  const left = Math.round(rect.left)
+  const top = Math.round(rect.top)
+  const w = Math.max(1, Math.round(rect.width))
+  const h = Math.max(1, Math.round(rect.height))
+  const sizeChanged = w !== binder.lastW || h !== binder.lastH
+  const moved = left !== binder.lastLeft || top !== binder.lastTop
+  if (!sizeChanged && !moved) {
+    return w >= RUNTIME_SURFACE_MIN_CSS_PX && h >= RUNTIME_SURFACE_MIN_CSS_PX
+  }
+
+  binder.lastLeft = left
+  binder.lastTop = top
+  binder.lastW = w
+  binder.lastH = h
+
+  canvas.style.position = 'fixed'
+  canvas.style.left = `${left}px`
+  canvas.style.top = `${top}px`
+  canvas.style.right = 'auto'
+  canvas.style.bottom = 'auto'
+  canvas.style.width = `${w}px`
+  canvas.style.height = `${h}px`
+  canvas.style.margin = '0'
+  canvas.style.transform = 'none'
+  canvas.style.transformOrigin = '0 0'
+  canvas.style.zIndex = String(RUNTIME_SURFACE_Z_INDEX)
+  canvas.style.display = 'block'
+  if (sizeChanged) wakeRuntimeCanvasGl(canvas)
+  return w >= RUNTIME_SURFACE_MIN_CSS_PX && h >= RUNTIME_SURFACE_MIN_CSS_PX
+}
+
+/**
+ * Binds the singleton surface to a measure host. Canvas stays on document.body.
+ * @returns true when the host is connected and layout was applied
+ */
+export function bindRuntimeSurfaceToHost(
+  host: HTMLElement | null | undefined,
+  canvas: HTMLCanvasElement = getRuntimeCanvas(),
+): boolean {
+  if (!host || !host.isConnected) return false
+  ensurePinnedOnBody(canvas)
+  if (binder.host !== host) resetBinderLayoutCache()
+  binder.host = host
+  const ok = syncRuntimeSurfaceLayout(canvas)
+  startBinderLoop()
+  return ok || host.isConnected
+}
+
+/**
+ * Clears the active host and parks the surface (still on body, not visible).
+ * @param host when set, no-ops if a different host is currently bound
+ */
+export function unbindRuntimeSurface(
+  host?: HTMLElement | null,
+  canvas: HTMLCanvasElement = getRuntimeCanvas(),
+): void {
+  if (host != null && binder.host != null && host !== binder.host) return
+  stopBinderLoop()
+  binder.host = null
+  resetBinderLayoutCache()
+  parkRuntimeCanvasOnBody(canvas)
+}
+
+/**
+ * Hides the surface on body without detaching. Used when no host is active.
+ */
+export function parkRuntimeCanvasOnBody(
+  canvas: HTMLCanvasElement = getRuntimeCanvas(),
+): void {
+  ensurePinnedOnBody(canvas)
+  canvas.style.position = 'fixed'
+  canvas.style.left = '0'
+  canvas.style.top = '0'
+  canvas.style.width = '1px'
+  canvas.style.height = '1px'
+  canvas.style.opacity = '0'
+  canvas.style.visibility = 'visible'
+  canvas.style.pointerEvents = 'none'
+  canvas.style.zIndex = '0'
+  wakeRuntimeCanvasGl(canvas)
+}
+
+/**
+ * Aligns the canvas backing store with the CSS viewport, then wakes the FBO.
  */
 export function alignRuntimeCanvasFramebuffer(
   cssW: number,
@@ -117,26 +241,22 @@ export function prepareRuntimeCanvasForWasmBoot(canvas: HTMLCanvasElement = getR
 }
 
 /**
- * Attach the runtime canvas to document.body before game.js runs main().
- * Raylib/Emscripten needs a connected canvas with backing-store dimensions;
- * waiting for PreviewPanel layout often leaves init too late or on a zero-size host.
+ * Pin the runtime canvas on document.body before game.js runs main().
+ * Never leaves the canvas disconnected — WebView2 stops presenting after detach.
  */
 export function ensureRuntimeCanvasForWasmBoot(
   canvas: HTMLCanvasElement = getRuntimeCanvas(),
 ): HTMLCanvasElement {
   prepareRuntimeCanvasForWasmBoot(canvas)
-  if (!canvas.isConnected) {
-    canvas.style.position = 'fixed'
-    canvas.style.left = '0'
-    canvas.style.top = '0'
-    // CSS size must match backing store — WebView2 can hang WebGL init on 1×1 CSS + large buffer.
-    canvas.style.width = `${BOOT_CANVAS_WIDTH}px`
-    canvas.style.height = `${BOOT_CANVAS_HEIGHT}px`
-    canvas.style.opacity = '1'
-    canvas.style.visibility = 'visible'
-    canvas.style.pointerEvents = 'none'
-    canvas.style.zIndex = '0'
-    document.body.appendChild(canvas)
-  }
+  ensurePinnedOnBody(canvas)
+  canvas.style.position = 'fixed'
+  canvas.style.left = '0'
+  canvas.style.top = '0'
+  canvas.style.width = `${BOOT_CANVAS_WIDTH}px`
+  canvas.style.height = `${BOOT_CANVAS_HEIGHT}px`
+  canvas.style.opacity = '1'
+  canvas.style.visibility = 'visible'
+  canvas.style.pointerEvents = 'none'
+  canvas.style.zIndex = '0'
   return canvas
 }

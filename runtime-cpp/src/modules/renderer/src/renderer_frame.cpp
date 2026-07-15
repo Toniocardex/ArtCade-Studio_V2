@@ -127,6 +127,15 @@ Camera2D Renderer::Impl::frame_camera_with_shake() const {
 }
 
 void Renderer::Impl::begin_world_scissor(const Camera2D& frameCamera) {
+    // SceneEdit draws the framed world on the full editor surface. Scissor is
+    // for play/camera letterboxing; with OFFSCREEN_FRAMEBUFFER a stale FBO
+    // height in rlScissor Y-flip can clip the entire world (clear-only view).
+    if (hasCommittedPresentation_
+        && lastCommittedPresentation_.effectiveMode
+            == ArtCade::Presentation::PresentationMode::SceneEdit) {
+        worldScissorActive = false;
+        return;
+    }
     const uint32_t fbW = framebuffer_width();
     const uint32_t fbH = framebuffer_height();
     const Vec2& bounds = scene_world_bounds();
@@ -220,7 +229,14 @@ void Renderer::beginFrame(
     impl_->inGameViewTexturePass = false;
     impl_->surface.begin_drawing();
 
-    if (impl_->gameViewCompositorEnabled) {
+    // Compositor is play-only. If the flag is stale after mode switches, SceneEdit
+    // must still open Mode2D on the backbuffer or only ClearBackground is visible.
+    const bool useGameViewCompositor =
+        impl_->gameViewCompositorEnabled
+        && presentation.effectiveMode != PresentationMode::SceneEdit
+        && presentation.effectiveMode != PresentationMode::CameraPreview;
+
+    if (useGameViewCompositor) {
         ClearBackground(renderer_to_color(clearColor));
         return;
     }

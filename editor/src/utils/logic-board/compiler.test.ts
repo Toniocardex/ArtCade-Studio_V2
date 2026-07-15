@@ -904,33 +904,20 @@ describe('compileLogicBoard — actions', () => {
     expect(lua).toContain('audio.playSound("a.ogg", 1, 1)')
   })
 
-  // Regression for the "unknown enum crashes the compiler" path: a stale
-  // project.json (older editor, hand-edited save, future runtime) may pass
-  // an action whose enum value the current emitter doesn't recognise.
-  // actionLua used to fall off the switch and return undefined, which then
-  // silently dropped the action from the compiled Lua (the consumer guard
-  // `if (code && !code.startsWith('--'))` masked the undefined). We now
-  // emit an ArtCade marker comment so the issue surfaces in the Lua preview AND the
-  // compiler keeps producing a parseable script for the rest of the board.
-  it('unknown action enum produces a marker comment instead of crashing', () => {
-    // moveInDirection with an unrecognised direction.
+  // Unsupported / malformed actions must fail compile (Play == export). Soft
+  // -- TODO comments were a silent no-op path and are forbidden.
+  it('unknown action enum fails compile instead of soft-commenting', () => {
     const board1 = {
       boardId: 'b', target: { type: 'object_type', objectTypeId: 'Player' },
       events: [{
         id: 'e', enabled: true,
         trigger: { type: 'onSpawn' },
-        // direction is typed as a union; cast through unknown for the test.
         actions: [{ type: 'moveInDirection', target: 'self',
                     direction: 'diagonal-up-left', speed: 100 } as unknown as never],
       }],
     } as never
-    const lua = compileLogicBoard([board1])
-    // The compiler must not throw and must not embed `undefined` anywhere.
-    expect(lua).not.toContain('undefined')
-    // Surface the dropped action so the user can fix it.
-    expect(lua).toContain('-- TODO ArtCade: unknown action "moveInDirection"')
+    expect(() => compileLogicBoard([board1])).toThrow(/Unsupported Logic Board action/)
 
-    // Completely unknown top-level action type.
     const board2 = {
       boardId: 'b2', target: { type: 'object_type', objectTypeId: 'Player' },
       events: [{
@@ -939,9 +926,7 @@ describe('compileLogicBoard — actions', () => {
         actions: [{ type: 'newFutureAction', target: 'self' } as unknown as never],
       }],
     } as never
-    const lua2 = compileLogicBoard([board2])
-    expect(lua2).not.toContain('undefined')
-    expect(lua2).toContain('-- TODO ArtCade: unknown action "newFutureAction"')
+    expect(() => compileLogicBoard([board2])).toThrow(/Unsupported Logic Board action/)
   })
 })
 

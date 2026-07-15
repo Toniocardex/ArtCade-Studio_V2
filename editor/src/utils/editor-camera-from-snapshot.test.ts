@@ -33,12 +33,12 @@ describe('editor-camera-from-snapshot', () => {
     expect(editorViewFromSnapshot(SAMPLE, 2)).toEqual({
       x: 120,
       y: 80,
-      zoomDevice: 4,
+      zoomDevice: 2,
     })
   })
 
-  it('derives CSS zoom from surfacePixelsPerWorldUnit', () => {
-    expect(editorZoomCssFromSnapshot(SAMPLE, 2)).toBe(2)
+  it('derives CSS zoom from device zoom ÷ DPR', () => {
+    expect(editorZoomCssFromSnapshot(SAMPLE, 2)).toBe(1)
   })
 
   it('falls back to defaults when zoom is non-positive', () => {

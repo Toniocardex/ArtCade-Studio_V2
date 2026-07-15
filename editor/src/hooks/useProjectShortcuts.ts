@@ -22,7 +22,7 @@ import { useProjectNamePersist } from '../components/menu-bar/project-name-conte
 import { ensureProjectOnDisk } from '../components/menu-bar/ensureProjectOnDisk'
 import { resolveManualMainLua } from '../utils/project-main-script'
 import { loadDialogsFromProject, starterInnkeeperScript } from '../utils/dialog/dialog-file-api'
-import { confirmDialog } from '../utils/native-dialog'
+import { resolveUnsavedGuard } from '../utils/unsaved-guard'
 
 let _kbdLogId = 500
 function kbdLog(message: string, level: ConsoleEntry['level']): ConsoleEntry {
@@ -48,15 +48,6 @@ type ShortcutCtx = Readonly<{
   dispatch: Dispatch<EditorAction>
   flushBeforePersist: () => ProjectDoc | null
 }>
-
-async function confirmDirty(state: CoreState, actionLabel: string): Promise<boolean> {
-  if (!state.projectDirty) return true
-  return confirmDialog(
-    `You have unsaved changes in "${state.project?.projectName ?? 'this project'}".\n` +
-      `${actionLabel} will discard them. Continue?`,
-    { title: 'Unsaved changes', kind: 'warning' },
-  )
-}
 
 async function saveProjectAsFlow(ctx: ShortcutCtx): Promise<void> {
   const flushed = ctx.flushBeforePersist()
@@ -130,7 +121,12 @@ async function handleCtrlSave(ctx: ShortcutCtx): Promise<void> {
 }
 
 async function handleCtrlNew(ctx: ShortcutCtx): Promise<void> {
-  if (!(await confirmDirty(ctx.state, 'Creating a new project'))) return
+  if (!(await resolveUnsavedGuard({
+    state: ctx.state,
+    actionLabel: 'Creating a new project will replace the current one.',
+    dispatch: ctx.dispatch,
+    flushBeforePersist: ctx.flushBeforePersist,
+  }))) return
   const blank = createBlankProject('Untitled')
   runtimeSync.reset()
   const starter = { innkeeper: starterInnkeeperScript() }
@@ -148,7 +144,12 @@ async function handleCtrlNew(ctx: ShortcutCtx): Promise<void> {
 }
 
 async function handleCtrlOpen(ctx: ShortcutCtx): Promise<void> {
-  if (!(await confirmDirty(ctx.state, 'Opening a different project'))) return
+  if (!(await resolveUnsavedGuard({
+    state: ctx.state,
+    actionLabel: 'Opening a different project will replace the current one.',
+    dispatch: ctx.dispatch,
+    flushBeforePersist: ctx.flushBeforePersist,
+  }))) return
   const path = await openProjectDialog()
   if (!path) return
   ctx.dispatch({ type: 'LOG', entry: kbdLog(`Opening ${path}…`, 'info') })

@@ -51,3 +51,11 @@
   position: relative;
   flex: 0 0 auto;
 }
+
+/* DOM overlays above the body-pinned WASM canvas (z-index 4). */
+.runtime-surface-overlay-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+}

@@ -1,25 +1,32 @@
 import { describe, expect, it } from 'vitest'
-import { BLANK_MAIN_LUA } from './project-factory'
+import { composeProjectLua } from './project-lua-composer'
 import {
-  LEGACY_GENERATED_LUA_MARKER,
+  extractManualMainLua,
+  isComposedMainLua,
   migrateLegacyGeneratedMainLua,
 } from './project-main-script'
 
-describe('migrateLegacyGeneratedMainLua', () => {
-  it('resets only legacy generated main scripts and marks the replacement dirty', () => {
-    expect(migrateLegacyGeneratedMainLua(`-- ${LEGACY_GENERATED_LUA_MARKER}`)).toEqual({
-      content: BLANK_MAIN_LUA,
-      isDirty: true,
-      migrated: true,
-    })
+describe('composed main.lua ship authority', () => {
+  it('round-trips My Script through MANUAL markers', () => {
+    const manual = 'function tick(dt)\n  debug.log("hi")\nend\n'
+    const composed = composeProjectLua({
+      manualLua: manual,
+      generatedLua: 'local __artcade_logic = {}\n',
+      projectKey: '/tmp/p',
+    }).combinedLua
+    expect(isComposedMainLua(composed)).toBe(true)
+    expect(extractManualMainLua(composed)).toBe(manual)
   })
 
-  it('preserves manual scripts byte-for-byte', () => {
-    const source = '-- manual\nfunction tick(dt) end\n'
-    expect(migrateLegacyGeneratedMainLua(source)).toEqual({
-      content: source,
-      isDirty: false,
-      migrated: false,
-    })
+  it('migrateLegacy extracts manual from composed disk main', () => {
+    const manual = 'x = 1\n'
+    const composed = composeProjectLua({
+      manualLua: manual,
+      generatedLua: '-- gen',
+      projectKey: 'k',
+    }).combinedLua
+    const migration = migrateLegacyGeneratedMainLua(composed)
+    expect(migration.migrated).toBe(false)
+    expect(migration.content).toBe(manual)
   })
 })

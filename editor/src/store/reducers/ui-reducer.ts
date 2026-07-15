@@ -154,14 +154,17 @@ export const uiReducer: DomainReducer = (state: CoreState, action: Action) => {
         }
       }
     case 'SET_MODE': {
+      // Explicit workspace change during Play cancels origin restore on Stop.
+      const clearOrigin = state.isPlaying ? { modeBeforePlay: null as const } : {}
       if (action.mode !== 'script') {
-        return { ...state, mode: action.mode }
+        return { ...state, mode: action.mode, ...clearOrigin }
       }
       const activeScriptPath = resolveScriptEditorActivationPath(state, { preferSelection: true })
       return {
         ...state,
         mode: action.mode,
         mainScriptView: 'manual',
+        ...clearOrigin,
         ...(activeScriptPath && activeScriptPath !== state.activeScriptPath
           ? { activeScriptPath }
           : {}),
@@ -259,8 +262,24 @@ export const uiReducer: DomainReducer = (state: CoreState, action: Action) => {
       return state.paintSourceNotice === null
         ? state
         : { ...state, paintSourceNotice: null }
-    case 'SET_PLAYING':
-      return { ...state, isPlaying: action.playing }
+    case 'SET_PLAYING': {
+      if (action.playing === state.isPlaying) return state
+      if (action.playing) {
+        // Capture origin workspace, then enter Scene for gameplay (paletto §13).
+        return {
+          ...state,
+          isPlaying: true,
+          modeBeforePlay: state.mode,
+          mode: 'canvas',
+        }
+      }
+      return {
+        ...state,
+        isPlaying: false,
+        mode: state.modeBeforePlay ?? state.mode,
+        modeBeforePlay: null,
+      }
+    }
     case 'EDITOR_SET_GRID_SIZE': {
       const rounded = Math.round(action.tileSize)
       const tileSize = Number.isFinite(rounded)

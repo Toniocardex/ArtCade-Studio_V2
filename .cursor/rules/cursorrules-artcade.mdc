@@ -169,32 +169,50 @@ If the answer to (1) or (2) is yes, rewrite before presenting.
 
 These rules are project-specific and outrank generic web-app guidance.
 
+**Authoritative contract (full paletti + React adaptations):**
+[`.cursor/rules/artcade-architecture-authority.mdc`](artcade-architecture-authority.mdc) — always apply. The bullets below are the operational subset used in reviews; when they conflict with convenience, the authority rule wins.
+
 ### ProjectDocument authority
 
-- `ProjectDocument` / `ProjectDoc` is the single source of truth for persisted authoring data: scenes, objects, assets, prefab/object types, components, Logic Board data, dialogs, and project settings.
+- `ProjectDocument` / `ProjectDoc` is the single source of truth for persisted authoring data: scenes, objects, assets, prefab/object types, components, Logic Board data, dialogs, script attachments, and project settings.
 - UI components may display snapshots, dispatch commands/intents, and receive updated snapshots. They must not directly mutate durable entities, scenes, assets, prefab/object types, or rulesheets.
 - Every persistent authoring change must pass through the command/intent path that handles validation, dirty state, revision, and undo/redo.
 - It is forbidden to maintain two equivalent mutable states by manual synchronization. If two representations exist, one must be derived deterministically from the other.
+- Dirty is `revision != savedRevision` (and script `bufferRevision != savedBufferRevision`) — not a hand-kept boolean second authority.
 
 ### Editor state vs game state
 
 - `ProjectDocument` / `ProjectDoc`: saved authoring data.
 - `EditorWorkspaceState`: temporary editor state such as selection, zoom, visible grid, rulers, panel layout, focus mode, active tool, and open tabs.
-- `PlaySession`: runtime state during play/test.
+- `EditorUiState` (layout prefs): splitters, console, filters — not project undo.
+- `PlaySession`: runtime state during play/test; materializes once; lost on Stop; authoring commands blocked while playing.
 - `PlaySession` must never dirty or mutate `ProjectDocument` unless the user performs an explicit authoring command.
 - UI-only toggles, zoom, selection, visible grid/rulers, panel state, and focus mode must not produce undo/redo entries or dirty the project.
 
 ### Undo/redo and dirty state
 
 - Only authoring commands that persistently change `ProjectDocument` create undo/redo history, dirty flags, and project revisions.
+- Script buffer history is separate; route Undo/Redo by focus (code editor vs rest).
 - Reducers or services must guard no-op edits so click/drag, selection churn, and replayed runtime echoes do not mark the project dirty.
 - A change that mutates saved project data without undo/redo coverage is a SHOULD-FIX; if it can cause data loss or silent persistence drift, it is a BLOCKER.
 
 ### Stable identity
 
-- Objects, scenes, assets, prefab/object types, components, dialogs, Logic Board rulesheets, and generated outputs must use stable IDs internally.
-- Names are display labels only. Using a name as an internal key is a SHOULD-FIX unless the data model explicitly documents name-keyed legacy compatibility.
+- Objects, scenes, assets, prefab/object types, components, dialogs, Logic Board rulesheets, layers, and generated outputs must use stable IDs internally.
+- Names are display labels only. Paths are location only. Using a name or path as an internal key is a SHOULD-FIX unless the data model explicitly documents name-keyed legacy compatibility.
 - Generated objects/prefabs must not create duplicate names in the same authoring scope. Block the operation or require/derive an explicit unique name.
+
+### Object Type, instances, layers
+
+- Object Type owns shared defaults; EntityInstance owns sparse overrides; one canonical resolver for Inspector, Scene View, validator, Play, and export.
+- `SceneDef.layers` is the only visual order authority; instances reference `layerId`. No parallel LayerManager as a second authority.
+
+### Logic Board & Script
+
+- Logic Board is type-owned, descriptor-driven, compiled to Lua; generated Lua is read-only and must not overwrite user scripts.
+- Behavior scripts are type-owned; project scripts are global ordered; Lua source lives on disk under the project root (relative paths only).
+- Logic and Script share one gameplay host API but remain separate programs. Editor Play and export must share semantics (feature DoD is end-to-end).
+- No automatic hot-reload MVP; deferred destroy; Lua sandbox (no Raylib/OS/FS/ProjectDocument).
 
 ### Central validation and migrations
 
@@ -208,6 +226,13 @@ These rules are project-specific and outrank generic web-app guidance.
 - Assets must be referenced through registry-backed `AssetRef` / stable asset IDs, not scattered raw paths.
 - Import, move, rename, and delete must update the asset registry atomically.
 - Before deleting an asset, check dependencies from scenes, object types, tilemaps, dialogs, Logic Board actions, and generated/runtime payloads.
+- Generated SFX recipes are authoring-only; runtime consumes AudioAssetDefs only.
+
+### Scene surface & Raylib boundary
+
+- Raylib is a backend, not the engine architecture. React hosts the surface (measure + overlays); the WASM/Raylib canvas owns pixels.
+- Prefer a long-lived connected canvas (pin-on-body binder). Detach/reparent churn that breaks presentation is a defect, not an acceptable pattern.
+- One Scene View camera for render, pick, drag, snap, overlay, and grid.
 
 ### Runtime hot-path performance
 

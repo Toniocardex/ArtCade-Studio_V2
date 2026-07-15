@@ -47,6 +47,11 @@ export interface CoreState {
   /** Active layer for canvas toolbar / tile painting (by stable LayerId). */
   editorActiveLayerId: LayerId
   mode:             EditorView
+  /**
+   * Workspace mode captured when Play starts. Restored on Stop unless the user
+   * explicitly changed mode during Play (then cleared to null).
+   */
+  modeBeforePlay:   EditorView | null
   /** True when the bottom dock is expanded and the console panel is visible. */
   consoleOpen:           boolean
   bottomPanelCollapsed:  boolean
@@ -346,6 +351,7 @@ export const initialCoreState: CoreState = {
   inspectorLayerId: null,
   editorActiveLayerId: DEFAULT_EDITOR_ACTIVE_LAYER_ID,
   mode:             'canvas',
+  modeBeforePlay:   null,
   consoleOpen:           initialDockUi.consoleOpen,
   bottomPanelCollapsed:  initialDockUi.bottomPanelCollapsed,
   dockPanelVisibility:   initialDockUi.dockPanelVisibility,

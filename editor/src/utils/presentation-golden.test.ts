@@ -59,8 +59,10 @@ describe('presentation golden (TS mirror)', () => {
       fallbackZoom: 1,
       rulerStep: 64,
       worldSize: { x: 1280, y: 640 },
+      devicePixelRatio: 1,
     })
     expect(snap.revision).toBe(55n)
+    // At DPR 1, CSS zoom equals device zoom from the snapshot.
     expect(metrics.zoom).toBe(camera.zoomDevice)
     expect(metrics.worldMaxX).toBe(snap.visibleWorldBounds.maxX)
   })

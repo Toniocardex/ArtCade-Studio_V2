@@ -70,12 +70,40 @@ vi.mock('../utils/runtime-canvas', () => ({
     if (existing instanceof HTMLCanvasElement) return existing
     const canvas = document.createElement('canvas')
     canvas.id = 'runtime-canvas'
+    document.body.appendChild(canvas)
     return canvas
   },
+  bindRuntimeSurfaceToHost: (host: HTMLElement | null | undefined, canvas: HTMLCanvasElement) => {
+    if (!host) return false
+    if (canvas.parentElement !== document.body) document.body.appendChild(canvas)
+    canvas.style.position = 'fixed'
+    canvas.style.left = '0px'
+    canvas.style.top = '0px'
+    canvas.style.width = `${window.innerWidth}px`
+    canvas.style.height = `${window.innerHeight}px`
+    canvas.style.transform = 'none'
+    return true
+  },
+  unbindRuntimeSurface: () => undefined,
+  syncRuntimeSurfaceLayout: (canvas?: HTMLCanvasElement) => {
+    const el = canvas ?? (document.getElementById('runtime-canvas') as HTMLCanvasElement | null)
+    if (!el) return false
+    el.style.position = 'fixed'
+    el.style.width = `${window.innerWidth}px`
+    el.style.height = `${window.innerHeight}px`
+    el.style.transform = 'none'
+    return true
+  },
+  parkRuntimeCanvasOnBody: (canvas: HTMLCanvasElement) => {
+    if (canvas.parentElement !== document.body) document.body.appendChild(canvas)
+  },
+  wakeRuntimeCanvasGl: () => undefined,
 }))
 
 vi.mock('../utils/wasm-bridge', () => ({
   isReady: () => true,
+  isEditorEngineWired: () => true,
+  probeEditorEngineWired: () => ({ wired: true, reason: 'ok' }),
   loadWasmRuntime: (...args: [HTMLCanvasElement, string, never]) => loadWasmRuntimeMock(...args),
   setTextureCacheEvictedCallback: (fn: unknown) => setTextureCacheEvictedCallbackMock(fn),
   editorSyncPlaySurface: vi.fn(),
@@ -139,9 +167,11 @@ describe('RuntimePreviewApp', () => {
     dispatchStart(bundle)
     await waitFor(() => expect(loadSceneMock).toHaveBeenCalled())
     const canvas = document.getElementById('runtime-canvas') as HTMLCanvasElement | null
+    expect(canvas?.parentElement).toBe(document.body)
+    expect(canvas?.style.position).toBe('fixed')
     expect(canvas?.style.width).toBe('1024px')
     expect(canvas?.style.height).toBe('768px')
-    expect(canvas?.style.transform).toBe('translate(-50%, -50%)')
+    expect(canvas?.style.transform).toBe('none')
     expect(canvas?.style.imageRendering).toBe('pixelated')
     expect(canvas?.style.visibility).toBe('hidden')
   })

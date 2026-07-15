@@ -1,7 +1,6 @@
 #include "../include/app.h"
 
 #include "app_modules.h"
-#include "logic-core.h"
 
 #include "../../modules/editor-api/include/editor-api.h"
 #include "../../modules/presentation/include/presentation_mode.h"
@@ -215,23 +214,17 @@ bool Application::loadProject(const std::string& projectPath) {
         return false;
     }
 
-    const Logic::LogicCompileResult logic = Logic::compileProjectLogic(doc);
-    if (!logic.ok()) {
-        std::cerr << "[App] Logic Board validation failed";
-        if (!logic.diagnostics.empty())
-            std::cerr << " [" << logic.diagnostics.front().code << "] "
-                      << logic.diagnostics.front().message;
-        std::cerr << "\n";
-        return false;
-    }
+    // Gameplay Logic Board authority is the editor TS compiler → composed
+    // main.lua / main.luac (project.logicBoards). Type-nested objectTypes[].logicBoard
+    // + LogicRuntime is an unfinished parallel stack and must not run alongside
+    // composed main (Play == export). Skip install until that stack is retired
+    // or becomes the sole authority.
     std::string logicError;
-    if (!mod_->logicRuntime || !mod_->logicRuntime->loadPrograms(logic.programs, &logicError)) {
-        std::cerr << "[App] Could not load Logic Board programs: " << logicError << "\n";
+    if (!mod_->logicRuntime || !mod_->logicRuntime->loadPrograms({}, &logicError)) {
+        std::cerr << "[App] Could not clear Logic Board host programs: " << logicError << "\n";
         return false;
     }
     mod_->logicObjectTypes.clear();
-    for (const Logic::LogicProgram& program : logic.programs)
-        mod_->logicObjectTypes.insert(program.objectTypeId);
 
     // Strict immutable manual-source snapshot. Resolve the authoring graph in
     // deterministic Object Type + persisted attachment order, read each linked

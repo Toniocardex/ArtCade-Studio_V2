@@ -15,6 +15,7 @@ import { starterInnkeeperScript } from './utils/dialog/dialog-file-api'
 import { DialogEditorModal } from './panels/dialog/DialogEditorModal'
 import { SpritesheetStudioModal } from './panels/spritesheet-studio/SpritesheetStudioModal'
 import { useProjectShortcuts } from './hooks/useProjectShortcuts'
+import { useUnsavedExitGuard } from './hooks/useUnsavedExitGuard'
 import { useBuildLogListener } from './hooks/useBuildLogListener'
 import { useEditorUndoRedo } from './hooks/useEditorUndoRedo'
 import { useProjectMainScriptLoad } from './hooks/useProjectMainScriptLoad'
@@ -215,6 +216,7 @@ function EditorLayout() {
   }, [])
 
   useProjectShortcuts()
+  useUnsavedExitGuard()
   useEditorUndoRedo()
   useProjectMainScriptLoad()
   useScriptEditorActivation()

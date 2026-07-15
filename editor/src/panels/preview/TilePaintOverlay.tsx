@@ -4,7 +4,7 @@ import type { TilemapLayer } from '../../types'
 import type { Action } from '../../store/editor-store'
 import { editorPaintTile, editorSurfaceToWorld } from '../../utils/wasm-bridge'
 import { ensureSourceOnLayer } from '../../utils/tilemap-layer-sources'
-import { getRuntimeCanvas } from '../../utils/runtime-canvas'
+import { getRuntimeCanvas, RUNTIME_SURFACE_OVERLAY_Z_INDEX } from '../../utils/runtime-canvas'
 import { usePresentationSnapshot } from '../../utils/runtime-sync-service'
 
 // ---------------------------------------------------------------------------
@@ -128,8 +128,9 @@ export function TilePaintOverlay({
         left: 0,
         width: size.w,
         height: size.h,
-        zIndex: 2,
+        zIndex: RUNTIME_SURFACE_OVERLAY_Z_INDEX,
         cursor: 'crosshair',
+        pointerEvents: 'auto',
         userSelect: 'none',
         touchAction: 'none',
       }}

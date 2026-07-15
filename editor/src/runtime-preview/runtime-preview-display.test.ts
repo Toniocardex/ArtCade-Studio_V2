@@ -70,23 +70,19 @@ describe('runtime-preview-display', () => {
       .toEqual({ x: 900, y: 501 })
   })
 
-  it('returns a centered compositor surface canvas style (Phase 8)', () => {
+  it('returns visual-only style; geometry is SurfaceBinder-owned', () => {
     const style = runtimePreviewCanvasStyle(makeBundle(), { x: 1024, y: 768 }, SNAPSHOT)
 
-    expect(style.width).toBe('1024px')
-    expect(style.height).toBe('768px')
-    expect(style.left).toBe('50%')
-    expect(style.top).toBe('50%')
-    expect(style.transform).toBe('translate(-50%, -50%)')
     expect(style.imageRendering).toBe('pixelated')
     expect(style.visibility).toBe('visible')
+    expect(style).not.toHaveProperty('width')
+    expect(style).not.toHaveProperty('left')
+    expect(style).not.toHaveProperty('transform')
   })
 
   it('hides the compositor canvas before the first committed snapshot', () => {
     const style = runtimePreviewCanvasStyle(makeBundle(), { x: 1024, y: 768 })
 
-    expect(style.width).toBe('1024px')
-    expect(style.height).toBe('768px')
     expect(style.visibility).toBe('hidden')
   })
 

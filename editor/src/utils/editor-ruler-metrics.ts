@@ -32,20 +32,26 @@ export type RulerTick = Readonly<{
 
 /**
  * Builds ruler metrics from the committed presentation snapshot.
+ * Ruler tick positions are in CSS pixels, so device zoom is divided by DPR.
  * @param presentationSnapshot committed frame (null before engine ready)
  * @param fallbackZoom CSS zoom when snapshot is not yet available
  * @param rulerStep base world distance between labelled ticks
  * @param worldSize scene world extent for tick upper bound
+ * @param devicePixelRatio host DPR (defaults to 1)
  */
 export function buildEditorRulerMetrics(params: Readonly<{
   presentationSnapshot: PresentationSnapshot | null
   fallbackZoom: number
   rulerStep: number
   worldSize: Readonly<{ x: number; y: number }>
+  devicePixelRatio?: number
 }>): EditorRulerMetrics {
-  const snapshotZoom = params.presentationSnapshot?.surfacePixelsPerWorldUnit
-  const zoom = snapshotZoom != null && snapshotZoom > 0
-    ? snapshotZoom
+  const dpr = params.devicePixelRatio && params.devicePixelRatio > 0
+    ? params.devicePixelRatio
+    : 1
+  const snapshotDeviceZoom = params.presentationSnapshot?.surfacePixelsPerWorldUnit
+  const zoom = snapshotDeviceZoom != null && snapshotDeviceZoom > 0
+    ? snapshotDeviceZoom / dpr
     : (params.fallbackZoom > 0 ? params.fallbackZoom : 1)
   const bounds = params.presentationSnapshot?.visibleWorldBounds
   const baseStep = params.rulerStep > 0 ? params.rulerStep : BASE_RULER_TICK_STEP
