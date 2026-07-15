@@ -22,6 +22,8 @@ vi.mock('../../utils/runtime-sync-service', () => ({
     onReadyChange: () => () => undefined,
     onEngineReadyChange: () => () => undefined,
     syncProject,
+    syncPresentationSnapshotNow: vi.fn(),
+    requestEditorSurfaceSync: vi.fn(),
   },
 }))
 

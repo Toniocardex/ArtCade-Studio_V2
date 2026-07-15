@@ -100,7 +100,6 @@ export function SceneLayersPanel() {
                     if (isRenaming) return
                     const selecting = !active
                     dispatch({ type: 'SELECT_INSPECTOR_LAYER', layerId: selecting ? layer.id : null })
-                    if (selecting) dispatch({ type: 'SET_EDITOR_ACTIVE_LAYER', layerId: layer.id })
                   }}
                   onDoubleClick={() => startRename(layer.id, layer.name)}
                   onKeyDown={(e) => {
@@ -108,7 +107,6 @@ export function SceneLayersPanel() {
                     e.preventDefault()
                     const selecting = !active
                     dispatch({ type: 'SELECT_INSPECTOR_LAYER', layerId: selecting ? layer.id : null })
-                    if (selecting) dispatch({ type: 'SET_EDITOR_ACTIVE_LAYER', layerId: layer.id })
                   }}
                 >
                   {isRenaming ? (

@@ -1,5 +1,6 @@
-import { useCallback, useState, type MouseEvent } from 'react'
+import { useCallback, useEffect, useState, type MouseEvent } from 'react'
 import type { AssetDragRef } from '../utils/asset-explorer-dnd'
+import { useEditorSelector } from '../store/editor-store'
 import {
   parseVirtualAssetRefKey,
   virtualAssetRefKey,
@@ -46,21 +47,32 @@ export function assetTreeMultiSelectReducer(
 
 /**
  * Explorer asset tree multi-select (Ctrl/Cmd+click). Scoped to one library category at a time.
+ * Highlight falls back to store `inspectorAsset` when the multi set is empty — one visual SoT.
+ * Cleared when an entity is selected so canvas selection cannot leave stale asset highlights.
  */
 export function useAssetTreeMultiSelect() {
   const [state, setState] = useState<AssetTreeMultiSelectState>({
     activeCategory: null,
     selectedKeys: new Set(),
   })
+  const inspectorAsset = useEditorSelector((s) => s.inspectorAsset)
+  const selectionEntityId = useEditorSelector((s) => s.selection.entityId)
 
   const clearMulti = useCallback(() => {
     setState({ activeCategory: null, selectedKeys: new Set() })
   }, [])
 
+  useEffect(() => {
+    if (selectionEntityId != null) clearMulti()
+  }, [selectionEntityId, clearMulti])
+
   const isSelected = useCallback(
-    (type: VirtualAssetRefType, id: string) =>
-      state.selectedKeys.has(virtualAssetRefKey(type, id)),
-    [state.selectedKeys],
+    (type: VirtualAssetRefType, id: string) => {
+      const key = virtualAssetRefKey(type, id)
+      if (state.selectedKeys.size > 0) return state.selectedKeys.has(key)
+      return inspectorAsset?.type === type && inspectorAsset.id === id
+    },
+    [state.selectedKeys, inspectorAsset],
   )
 
   const handleAssetClick = useCallback(
@@ -123,11 +135,22 @@ export function useAssetTreeMultiSelect() {
     [state.activeCategory, state.selectedKeys],
   )
 
+  const selectedRefs = useCallback((): readonly AssetDragRef[] => {
+    if (state.selectedKeys.size === 0) return []
+    const refs: AssetDragRef[] = []
+    for (const selectedKey of state.selectedKeys) {
+      const ref = parseVirtualAssetRefKey(selectedKey)
+      if (ref) refs.push(ref)
+    }
+    return refs
+  }, [state.selectedKeys])
+
   return {
     isSelected,
     handleAssetClick,
     dragRefsFor,
     batchRefsInCategory,
+    selectedRefs,
     clearMulti,
     selectionCount: state.selectedKeys.size,
   }

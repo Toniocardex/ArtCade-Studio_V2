@@ -1,7 +1,6 @@
 import { useRef, useLayoutEffect, useEffect, useCallback, useMemo, useState } from 'react'
 import { isTauri } from '@tauri-apps/api/core'
 import { useEditorDispatch, useEditorSelector } from '../store/editor-store'
-import type { ConsoleEntry } from '../types'
 import { assetOrchestrator, imageAssetDescriptor } from '../utils/asset-orchestrator'
 import { watchProjectAssets } from '../utils/asset-watcher'
 import { dirName } from '../utils/project'

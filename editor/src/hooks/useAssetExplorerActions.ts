@@ -97,7 +97,24 @@ function fileReaderDataUrl(result: string | ArrayBuffer | null): string {
   return typeof result === 'string' ? result : ''
 }
 
-export function useAssetExplorerActions() {
+export type AssetExplorerActionsOptions = Readonly<{
+  /** When false, Delete/Backspace is not bound globally (stacked scene pane must not steal it). */
+  enableDeleteShortcut?: boolean
+  /**
+   * Extra assets to delete with Delete when multi-select is active.
+   * Inspector selection remains the primary highlight; this extends the delete set.
+   */
+  resolveDeleteTargets?: () => readonly AssetExplorerSelection[]
+  /** Called after a Delete/removeSelection pass completes (e.g. clear multi-select). */
+  onSelectionRemoved?: () => void
+}>
+
+export function useAssetExplorerActions(options: AssetExplorerActionsOptions = {}) {
+  const enableDeleteShortcut = options.enableDeleteShortcut ?? true
+  const resolveDeleteTargetsRef = useRef(options.resolveDeleteTargets)
+  const onSelectionRemovedRef = useRef(options.onSelectionRemoved)
+  resolveDeleteTargetsRef.current = options.resolveDeleteTargets
+  onSelectionRemovedRef.current = options.onSelectionRemoved
   const dispatch = useEditorDispatch()
   const authoring = useAuthoringCommands()
   const store = useEditorStore()
@@ -380,9 +397,21 @@ export function useAssetExplorerActions() {
     return true
   }, [project, dispatch, authoring, showFlash])
 
-  const removeSelection = useCallback(() => {
-    if (!selection) return
-    void removeAsset(selection)
+  const removeSelection = useCallback(async () => {
+    const targets = resolveDeleteTargetsRef.current?.() ?? []
+    const unique = new Map<string, AssetExplorerSelection>()
+    for (const t of targets) {
+      unique.set(`${t.type}:${t.id}`, t)
+    }
+    if (selection) {
+      unique.set(`${selection.type}:${selection.id}`, selection)
+    }
+    if (unique.size === 0) return
+    for (const target of unique.values()) {
+      const ok = await removeAsset(target)
+      if (!ok) break
+    }
+    onSelectionRemovedRef.current?.()
   }, [selection, removeAsset])
 
   const openTilesetEditor = useCallback(
@@ -492,8 +521,11 @@ export function useAssetExplorerActions() {
   }, [])
 
   useEffect(() => {
+    if (!enableDeleteShortcut) return
     function handleKeyDown(e: KeyboardEvent) {
-      if (!selection || !project) return
+      const targets = resolveDeleteTargetsRef.current?.() ?? []
+      const hasMulti = targets.length > 0
+      if ((!selection && !hasMulti) || !project) return
       const focus = keyboardFocusElement(e)
       const el = focus ?? (e.target instanceof HTMLElement ? e.target : null)
       const inPanel =
@@ -510,11 +542,11 @@ export function useAssetExplorerActions() {
 
       if (e.key !== 'Delete' && !isBackspaceKey(e)) return
       e.preventDefault()
-      removeSelection()
+      void removeSelection()
     }
     globalThis.addEventListener('keydown', handleKeyDown)
     return () => globalThis.removeEventListener('keydown', handleKeyDown)
-  }, [selection, project, removeSelection, dispatch, openImageStudio])
+  }, [enableDeleteShortcut, selection, project, removeSelection, openImageStudio])
 
   return {
     project,

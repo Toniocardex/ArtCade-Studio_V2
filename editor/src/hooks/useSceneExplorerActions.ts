@@ -36,7 +36,13 @@ function explorerLog(message: string, level: ConsoleEntry['level']): ConsoleEntr
   }
 }
 
-export function useSceneExplorerActions() {
+export type SceneExplorerActionsOptions = Readonly<{
+  /** When false, Insert is not bound globally (stacked assets pane must not steal it). */
+  enableInsertShortcut?: boolean
+}>
+
+export function useSceneExplorerActions(options: SceneExplorerActionsOptions = {}) {
+  const enableInsertShortcut = options.enableInsertShortcut ?? true
   const dispatch = useEditorDispatch()
   const authoring = useAuthoringCommands()
   const promptText = useTextPrompt()
@@ -315,6 +321,7 @@ export function useSceneExplorerActions() {
   )
 
   useEffect(() => {
+    if (!enableInsertShortcut) return
     function handleKeyDown(e: KeyboardEvent) {
       if (mode !== 'canvas') return
       const isInsert = e.key === 'Insert'
@@ -325,7 +332,7 @@ export function useSceneExplorerActions() {
     }
     globalThis.addEventListener('keydown', handleKeyDown)
     return () => globalThis.removeEventListener('keydown', handleKeyDown)
-  }, [mode, scene, insertObject])
+  }, [enableInsertShortcut, mode, scene, insertObject])
 
   return {
     project,

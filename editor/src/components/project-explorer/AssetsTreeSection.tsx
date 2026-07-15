@@ -27,6 +27,7 @@ import { useAssetFolderMenus } from './useAssetFolderMenus'
 import { AssetImageTree } from './AssetImageTree'
 import { resolveAssetLeaf } from './resolve-asset-leaf'
 import { AssetFolderLeaves } from './AssetFolderLeaves'
+import { ExplorerEmptyState } from './ExplorerEmptyState'
 
 export type AssetsTreeSectionProps = Readonly<{
   project: ProjectDoc
@@ -97,7 +98,7 @@ export function AssetsTreeSection({
     >
       <AssetToolbar
         disabled={!project}
-        canRemove={assets.canRemove}
+        canRemove={Boolean(project) && (assets.canRemove || assetMulti.selectionCount > 0)}
         onCreateAnimatedSprite={assets.triggerCreateAnimatedSprite}
         onImportImage={assets.triggerImportImage}
         onImportTileset={assets.triggerImportTileset}
@@ -105,7 +106,7 @@ export function AssetsTreeSection({
         onImportFont={assets.triggerImportFont}
         allAssetFoldersExpanded={allAssetFoldersExpanded}
         onToggleAssetFoldersExpand={onToggleAssetFoldersExpand}
-        onRemove={assets.removeSelection}
+        onRemove={() => { void assets.removeSelection() }}
       />
       {assets.flash ? (
         <p
@@ -164,9 +165,10 @@ export function AssetsTreeSection({
               }
             >
               {folder.count === 0 ? (
-                <div className="flex flex-col items-start py-1.5 pl-4">
-                  <p className="text-[10px] text-[var(--muted)]">No assets yet.</p>
-                </div>
+                <ExplorerEmptyState
+                  title="No assets yet"
+                  detail="Drag files onto a folder or use the import toolbar above."
+                />
               ) : null}
               {libraryCategory && folderHandlers && libraryCategory !== 'images' ? (
                 <VirtualFoldersBlock

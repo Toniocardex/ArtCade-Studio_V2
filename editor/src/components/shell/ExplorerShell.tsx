@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { ChevronDown, Layers, ListTree } from 'lucide-react'
 import ProjectExplorerPanel from '../project-explorer/ProjectExplorerPanel'
+import { ExplorerExpandedProvider } from '../project-explorer/ExplorerExpandedContext'
 import { SceneLayersPanel } from '../project-explorer/SceneLayersPanel'
 import HorizontalSplitHandle from '../HorizontalSplitHandle'
 import { EditorTab } from '../ui/EditorTab'
@@ -182,7 +183,7 @@ function CompactExplorerShell({
           <ScenePane sceneSubTab={sceneSubTab} setSceneSubTab={setSceneSubTab} />
         ) : null}
         {tab === 'assets' ? <ProjectExplorerPanel explorerPane="assets" /> : null}
-        {tab === 'objects' ? <ProjectExplorerPanel explorerPane="all" /> : null}
+        {tab === 'objects' ? <ProjectExplorerPanel explorerPane="scene" /> : null}
       </div>
     </div>
   )
@@ -191,9 +192,11 @@ function CompactExplorerShell({
 export function ExplorerShell({ variant }: ExplorerShellProps) {
   const [sceneSubTab, setSceneSubTab] = useState<SceneSubTab>('hierarchy')
 
-  return variant === 'compact' ? (
+  const shell = variant === 'compact' ? (
     <CompactExplorerShell sceneSubTab={sceneSubTab} setSceneSubTab={setSceneSubTab} />
   ) : (
     <StackedExplorerShell sceneSubTab={sceneSubTab} setSceneSubTab={setSceneSubTab} />
   )
+
+  return <ExplorerExpandedProvider>{shell}</ExplorerExpandedProvider>
 }
