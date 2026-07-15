@@ -195,6 +195,18 @@ void read_project_header(const nlohmann::json& doc, ProjectDoc& out) {
     out.mainScriptPath =
         read_string_any(doc, "mainScriptPath", "main_script_path", "scripts/main.luac");
     out.formatVersion = doc.value("formatVersion", doc.value("format_version", 0));
+    out.scriptAssets.clear();
+    if (doc.contains("scriptAssets") && doc["scriptAssets"].is_array()) {
+        for (const auto& item : doc["scriptAssets"]) {
+            if (!item.is_object()) continue;
+            ScriptAssetDef asset;
+            asset.assetId = read_string_any(item, "assetId", "asset_id");
+            if (asset.assetId.empty()) asset.assetId = item.value("id", std::string{});
+            asset.name = item.value("name", asset.assetId);
+            asset.sourcePath = read_string_any(item, "sourcePath", "source_path");
+            out.scriptAssets.push_back(std::move(asset));
+        }
+    }
 }
 
 void read_global_variables(const nlohmann::json& doc, ProjectDoc& out) {

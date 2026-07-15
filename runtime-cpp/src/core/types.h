@@ -21,6 +21,7 @@ using EntityId  = uint32_t;
 using SceneId   = std::string;
 using AssetId   = std::string;
 using ObjectTypeId = std::string;
+using ScriptAttachmentId = std::string;
 
 constexpr EntityId INVALID_ENTITY = 0;
 
@@ -384,6 +385,18 @@ struct SpriteAnimatorComponent {
     float       playbackSpeed = 1.f;
 };
 
+/** One stable, ordered reference to a manual Script Asset. */
+struct ScriptAttachmentDef {
+    ScriptAttachmentId id;
+    AssetId             scriptAssetId;
+    bool                enabled = true;
+};
+
+/** Authored only on Object Types. Scene instances never override scripts. */
+struct ScriptComponent {
+    std::vector<ScriptAttachmentDef> attachments;
+};
+
 /** Sparse per-instance delta over SpriteRendererComponent. Null means inherit. */
 struct SpriteRendererOverride {
     std::optional<AssetId> imageAssetId;
@@ -417,6 +430,7 @@ struct EntityDef {
     SpriteComponent  sprite;
     std::optional<SpriteRendererComponent> spriteRenderer;
     std::optional<SpriteAnimatorComponent> spriteAnimator;
+    std::optional<ScriptComponent> scripts;
     PhysicsComponent physics;
     std::optional<CollisionBodyComponent> collisionBody;
     AnimationState   animation;
