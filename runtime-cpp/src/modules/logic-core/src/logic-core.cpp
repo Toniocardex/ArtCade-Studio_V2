@@ -96,6 +96,13 @@ const SpriteAnimationClipDef* findAnimationClip(const SpriteAnimationAssetDef& a
     return nullptr;
 }
 
+const AudioAssetDef* findAudioAsset(const ProjectDoc& project, const AssetId& assetId) {
+    for (const AudioAssetDef& asset : project.audioAssets) {
+        if (asset.assetId == assetId) return &asset;
+    }
+    return nullptr;
+}
+
 void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
                    const LogicRuleDef& rule, const LogicBlockDef& block,
                    BlockKind expected, const EntityDef* owner,
@@ -165,6 +172,11 @@ void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
                 out.push_back(makeError(objectTypeId, board, "LB_ANIMATION_SPEED",
                                         "Animation playback speed must be positive",
                                         &rule, &block, property.key));
+            } else if (block.typeId == kAudioPlaySound && property.key == "volume"
+                       && (*value < 0.0 || *value > 1.0)) {
+                out.push_back(makeError(objectTypeId, board, "LB_AUDIO_VOLUME_RANGE",
+                                        "Audio volume must be between 0 and 1",
+                                        &rule, &block, property.key));
             }
         }
         if (block.typeId == kOtherIsObjectType && property.key == "objectTypeId") {
@@ -196,6 +208,22 @@ void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
             out.push_back(makeError(objectTypeId, board, "LB_ANIMATION_CLIP_REFERENCE",
                                     "Animation action clip must belong to its animation asset",
                                     &rule, &block, "clipId"));
+        }
+    }
+    if (block.typeId == kAudioPlaySound) {
+        const LogicPropertyDef* assetProperty = findProperty(block, "audioAssetId");
+        const auto* assetRef = assetProperty
+            ? std::get_if<LogicAssetReference>(&assetProperty->value) : nullptr;
+        const AudioAssetDef* asset = nullptr;
+        if (!assetRef || assetRef->id.empty()
+            || (project && !(asset = findAudioAsset(*project, assetRef->id)))) {
+            out.push_back(makeError(objectTypeId, board, "LB_AUDIO_ASSET_REFERENCE",
+                                    "Audio action must reference an existing audio asset",
+                                    &rule, &block, "audioAssetId"));
+        } else if (project && asset && asset->loadMode != AudioLoadMode::StaticSound) {
+            out.push_back(makeError(objectTypeId, board, "LB_AUDIO_REQUIRES_STATIC",
+                                    "Play Sound requires a static audio asset",
+                                    &rule, &block, "audioAssetId"));
         }
     }
     for (const LogicPropertyDescriptor& property : descriptor->properties) {
@@ -254,6 +282,14 @@ void emitAction(std::ostringstream& lua, const LogicBlockDef& action,
         const LogicPropertyDef* p = findProperty(action, "speed");
         lua << "      context.self:set_animation_playback_speed("
             << std::get<double>(p->value) << ")\n";
+    } else if (action.typeId == kAudioPlaySound) {
+        const LogicPropertyDef* asset = findProperty(action, "audioAssetId");
+        const LogicPropertyDef* volume = findProperty(action, "volume");
+        const auto* assetRef = asset ? std::get_if<LogicAssetReference>(&asset->value) : nullptr;
+        const double volumeValue = volume ? std::get<double>(volume->value) : 1.0;
+        lua << "      context.self:play_sound(\""
+            << escapeLua(assetRef ? assetRef->id : std::string{}) << "\", "
+            << volumeValue << ")\n";
     }
     if (const LogicBlockDescriptor* descriptor = findDescriptor(action.typeId))
         if (!descriptor->requiredFeature.empty()) features.insert(descriptor->requiredFeature);
@@ -356,6 +392,11 @@ const std::vector<LogicBlockDescriptor>& registry() {
             BlockKind::Action, {{"speed", LogicValueKind::Number, 1.0}},
             {LogicRequiredComponent::SpriteAnimator}, {LogicContextCapability::Self}, {},
             "animation.set_playback_speed"},
+        {kAudioPlaySound, "audio", "Play Sound", "Plays a short audio asset.",
+            BlockKind::Action,
+            {{"audioAssetId", LogicValueKind::Asset, LogicAssetReference{}},
+             {"volume", LogicValueKind::Number, 1.0}},
+            {}, {LogicContextCapability::Self}, {}, "audio.play_sound"},
     };
     return value;
 }

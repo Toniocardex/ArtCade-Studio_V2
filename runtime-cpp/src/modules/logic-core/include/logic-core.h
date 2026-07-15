@@ -33,6 +33,7 @@ inline constexpr const char* kDestroySelf = "entity.destroy_self";
 inline constexpr const char* kAnimationPlayClip = "animation.play_clip";
 inline constexpr const char* kAnimationStop = "animation.stop";
 inline constexpr const char* kAnimationSetPlaybackSpeed = "animation.set_playback_speed";
+inline constexpr const char* kAudioPlaySound = "audio.play_sound";
 
 using LogicBlockTypeId = std::string;
 using LogicCategoryId = std::string;

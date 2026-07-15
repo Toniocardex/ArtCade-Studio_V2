@@ -53,6 +53,7 @@ const std::unordered_set<std::string>& supportedFeatures() {
         "animation.play_clip",
         "animation.stop",
         "animation.set_playback_speed",
+        "audio.play_sound",
     };
     return value;
 }
@@ -128,6 +129,10 @@ struct LogicRuntime::Impl {
         void setAnimationPlaybackSpeed(float speed) {
             if (!impl || !impl->host.setAnimationPlaybackSpeed(owner, speed))
                 throw sol::error("set_animation_playback_speed failed for owner");
+        }
+        void playSound(const std::string& audioAssetId, float volume) {
+            if (!impl || !impl->host.playSound(owner, audioAssetId, volume))
+                throw sol::error("play_sound failed for owner");
         }
     };
 
@@ -307,7 +312,8 @@ bool LogicRuntime::initialize(std::string* error) {
             "destroy_self", &Impl::SelfProxy::destroySelf,
             "play_animation_clip", &Impl::SelfProxy::playAnimationClip,
             "stop_animation", &Impl::SelfProxy::stopAnimation,
-            "set_animation_playback_speed", &Impl::SelfProxy::setAnimationPlaybackSpeed);
+            "set_animation_playback_speed", &Impl::SelfProxy::setAnimationPlaybackSpeed,
+            "play_sound", &Impl::SelfProxy::playSound);
         lua.new_usertype<Impl::ContextProxy>(
             "LogicContext", sol::no_constructor,
             "self", &Impl::ContextProxy::self,

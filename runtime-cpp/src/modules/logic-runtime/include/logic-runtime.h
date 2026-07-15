@@ -41,6 +41,7 @@ public:
                                    const std::string& clipId) = 0;
     virtual bool stopAnimation(EntityId owner) = 0;
     virtual bool setAnimationPlaybackSpeed(EntityId owner, float speed) = 0;
+    virtual bool playSound(EntityId owner, const AssetId& audioAssetId, float volume) = 0;
 };
 
 class LogicRuntime {

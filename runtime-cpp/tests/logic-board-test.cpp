@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <iostream>
+#include <limits>
 #include <string>
 #include <unordered_set>
 #include <utility>
@@ -35,6 +36,37 @@ struct Host final : ILogicRuntimeHost {
     }
     bool isGrounded(EntityId owner) override {
         return grounded.count(owner) != 0;
+    }
+    bool requestPlatformerMove(EntityId owner, float axis) override {
+        calls.push_back("platformer_move:" + std::to_string(owner) + ":" + std::to_string(axis));
+        return true;
+    }
+    bool requestPlatformerJump(EntityId owner) override {
+        calls.push_back("platformer_jump:" + std::to_string(owner));
+        return true;
+    }
+    bool isObjectType(EntityId, const ObjectTypeId&) override { return false; }
+    bool requestDestroy(EntityId owner) override {
+        calls.push_back("destroy:" + std::to_string(owner));
+        return true;
+    }
+    bool playAnimationClip(EntityId owner, const AssetId& animationAssetId,
+                           const std::string& clipId) override {
+        calls.push_back("play_clip:" + std::to_string(owner) + ":" + animationAssetId + ":" + clipId);
+        return true;
+    }
+    bool stopAnimation(EntityId owner) override {
+        calls.push_back("stop_animation:" + std::to_string(owner));
+        return true;
+    }
+    bool setAnimationPlaybackSpeed(EntityId owner, float speed) override {
+        calls.push_back("animation_speed:" + std::to_string(owner) + ":" + std::to_string(speed));
+        return true;
+    }
+    bool playSound(EntityId owner, const AssetId& audioAssetId, float volume) override {
+        calls.push_back("play_sound:" + std::to_string(owner) + ":" + audioAssetId + ":"
+                       + std::to_string(volume));
+        return true;
     }
 };
 
@@ -329,12 +361,120 @@ static void testIsGroundedCondition() {
     }
 }
 
+static void testPlaySoundAction() {
+    // Registry: Play Sound exists, is an Action, category=audio, volume default=1.
+    const LogicBlockDescriptor* descriptor = findDescriptor(kAudioPlaySound);
+    CHECK(descriptor != nullptr);
+    if (descriptor) {
+        CHECK(descriptor->kind == BlockKind::Action);
+        CHECK(descriptor->categoryId == "audio");
+        CHECK(descriptor->requiredFeature == "audio.play_sound");
+        const auto volumeIt = std::find_if(descriptor->properties.begin(), descriptor->properties.end(),
+            [](const LogicPropertyDescriptor& p) { return p.key == "volume"; });
+        CHECK(volumeIt != descriptor->properties.end());
+        CHECK(volumeIt != descriptor->properties.end() && std::get<double>(volumeIt->defaultValue) == 1.0);
+    }
+
+    LogicBlockDef action = makeDefaultBlock(kAudioPlaySound, BlockKind::Action);
+    CHECK(action.typeId == kAudioPlaySound);
+
+    ProjectDoc project;
+    AudioAssetDef staticAsset;
+    staticAsset.assetId = "jump.wav";
+    staticAsset.sourcePath = "audio/jump.wav";
+    staticAsset.loadMode = AudioLoadMode::StaticSound;
+    project.audioAssets.push_back(staticAsset);
+    AudioAssetDef streamAsset;
+    streamAsset.assetId = "theme.ogg";
+    streamAsset.sourcePath = "audio/theme.ogg";
+    streamAsset.loadMode = AudioLoadMode::Stream;
+    project.audioAssets.push_back(streamAsset);
+
+    const auto makeBoardWith = [](const std::string& assetId, double volume) {
+        LogicBoardDef board;
+        board.id = "logic:Audio";
+        LogicRuleDef rule = makeDefaultRule("rule-1");
+        LogicBlockDef play = makeDefaultBlock(kAudioPlaySound, BlockKind::Action);
+        for (LogicPropertyDef& p : play.properties) {
+            if (p.key == "audioAssetId") p.value = LogicAssetReference{assetId};
+            else if (p.key == "volume") p.value = volume;
+        }
+        rule.actions = {play};
+        board.rules.push_back(rule);
+        return board;
+    };
+    const auto hasDiagnostic = [](const std::vector<LogicDiagnostic>& diagnostics, const char* code) {
+        return std::any_of(diagnostics.begin(), diagnostics.end(),
+            [&](const LogicDiagnostic& d) { return d.code == code; });
+    };
+
+    // Valid: existing StaticSound asset, volume in range.
+    {
+        const LogicBoardDef board = makeBoardWith("jump.wav", 0.8);
+        CHECK(validateBoard("Hero", board, nullptr, &project).empty());
+        LogicCompileResult compiled = compileBoard("Hero", board, nullptr, &project);
+        CHECK(compiled.ok());
+        CHECK(compiled.programs[0].source.find("play_sound(\"jump.wav\", 0.8)") != std::string::npos);
+        const auto& features = compiled.programs[0].requiredFeatures;
+        CHECK(std::find(features.begin(), features.end(), "audio.play_sound") != features.end());
+    }
+
+    // Missing asset.
+    CHECK(hasDiagnostic(validateBoard("Hero", makeBoardWith("does-not-exist", 1.0), nullptr, &project),
+                       "LB_AUDIO_ASSET_REFERENCE"));
+
+    // Stream asset rejected — Play Sound requires StaticSound.
+    CHECK(hasDiagnostic(validateBoard("Hero", makeBoardWith("theme.ogg", 1.0), nullptr, &project),
+                       "LB_AUDIO_REQUIRES_STATIC"));
+
+    // Volume out of range (both directions) and non-finite.
+    CHECK(hasDiagnostic(validateBoard("Hero", makeBoardWith("jump.wav", 1.5), nullptr, &project),
+                       "LB_AUDIO_VOLUME_RANGE"));
+    CHECK(hasDiagnostic(validateBoard("Hero", makeBoardWith("jump.wav", -0.1), nullptr, &project),
+                       "LB_AUDIO_VOLUME_RANGE"));
+    CHECK(hasDiagnostic(
+        validateBoard("Hero", makeBoardWith("jump.wav", std::numeric_limits<double>::quiet_NaN()),
+                     nullptr, &project),
+        "LB_NON_FINITE"));
+
+    // Logic-runtime Lua binding: dispatches host.playSound exactly once.
+    {
+        LogicCompileResult compiled =
+            compileBoard("Hero", makeBoardWith("jump.wav", 0.8), nullptr, &project);
+        CHECK(compiled.ok());
+        Host host;
+        LogicRuntime runtime(host);
+        std::string error;
+        CHECK(runtime.loadPrograms(compiled.programs, &error));
+        CHECK(runtime.install("Hero", 1, &error).has_value());
+        runtime.beginFrame();
+        runtime.dispatchStart();
+        const auto playSoundCalls = std::count_if(host.calls.begin(), host.calls.end(),
+            [](const std::string& call) { return call.rfind("play_sound:", 0) == 0; });
+        CHECK(playSoundCalls == 1);
+        CHECK(!host.calls.empty() && host.calls.back().rfind("play_sound:1:jump.wav:", 0) == 0);
+    }
+
+    // Compatibility: a runtime that predates audio.play_sound rejects the
+    // program up front rather than dispatching to a nonexistent Lua method.
+    {
+        Host host;
+        LogicRuntime runtime(host);
+        LogicProgram program = customProgram("Hero", " context:on_start('r', function() end)");
+        program.requiredFeatures = {"audio.play_sound_v2_future"};
+        std::string error;
+        CHECK(!runtime.loadPrograms({program}, &error));
+        CHECK(!error.empty());
+    }
+}
+
 int main() {
     testCompilerAndJson();
     testRuntime();
     testStrictSandboxAndBudget();
     testLimitsSnapshotAndIsolation();
     testIsGroundedCondition();
+    testPlaySoundAction();
     std::cout << passed << " passed, " << failed << " failed\n";
     return failed == 0 ? 0 : 1;
 }

@@ -36,8 +36,8 @@ namespace ArtCade {
 
 class RuntimeLogicHostAdapter final : public Logic::ILogicRuntimeHost {
 public:
-    explicit RuntimeLogicHostAdapter(Modules::RuntimeEntityGateway& gateway)
-        : gateway_(gateway) {}
+    RuntimeLogicHostAdapter(Modules::RuntimeEntityGateway& gateway, Modules::Audio& audio)
+        : gateway_(gateway), audio_(audio) {}
     /** World is constructed after this adapter; wired in once available. */
     void setWorld(World* world) { world_ = world; }
     bool setVisible(EntityId owner, bool value) override {
@@ -62,8 +62,13 @@ public:
         world_->requestJump(owner);
         return true;
     }
+    bool playSound(EntityId, const AssetId& audioAssetId, float volume) override {
+        audio_.playSound(audioAssetId, volume);
+        return true;
+    }
 private:
     Modules::RuntimeEntityGateway& gateway_;
+    Modules::Audio& audio_;
     World* world_ = nullptr;
 };
 

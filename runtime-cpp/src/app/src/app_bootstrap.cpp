@@ -93,7 +93,7 @@ bool Application::initSubsystems() {
     mod_->entityGateway = std::make_unique<ArtCade::Modules::RuntimeEntityGateway>(
         *mod_->sceneManager);
     if (!boot_step("entity_gateway", mod_->entityGateway->init())) return false;
-    mod_->logicHost = std::make_unique<RuntimeLogicHostAdapter>(*mod_->entityGateway);
+    mod_->logicHost = std::make_unique<RuntimeLogicHostAdapter>(*mod_->entityGateway, *mod_->audio);
     mod_->logicRuntime = std::make_unique<ArtCade::Logic::LogicRuntime>(*mod_->logicHost);
 
     mod_->sceneLifecycle = std::make_unique<ArtCade::Modules::SceneLifecycleService>(
