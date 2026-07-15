@@ -21,4 +21,12 @@ void read_image_asset(const nlohmann::json& assetJson,
 /** Parses project.assets object map into image library definitions. */
 void read_image_assets(const nlohmann::json& doc, std::vector<ImageAssetDef>& out);
 
+/** Parses current spriteAnimationAssets array. Invalid entries remain absent. */
+void read_sprite_animation_assets(
+    const nlohmann::json& doc,
+    std::vector<SpriteAnimationAssetDef>& out);
+
+/** Parses current array and legacy object forms of audioAssets. */
+void read_audio_assets(const nlohmann::json& doc, std::vector<AudioAssetDef>& out);
+
 } // namespace ArtCade::ProjectJson

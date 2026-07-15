@@ -112,6 +112,13 @@ bool Application::initSubsystems() {
         *mod_->entityGateway, *mod_->physics, *mod_->variableManager);
     mod_->entityGateway->setPhysics(mod_->physics.get());
     mod_->logicHost->setWorld(mod_->world.get());
+    mod_->world->setSpriteAnimator(mod_->spriteAnimator.get());
+    mod_->world->setEntityDestroyedHandler([this](EntityId id) {
+        const auto it = mod_->logicScopes.find(id);
+        if (it == mod_->logicScopes.end()) return;
+        if (mod_->logicRuntime) mod_->logicRuntime->cancelScope(it->second);
+        mod_->logicScopes.erase(it);
+    });
     mod_->world->setRenderer(mod_->renderer.get());
     mod_->sceneLifecycle->set_gameplay_reset_handler([this]() {
         if (mod_->world) mod_->world->onSceneActivated();

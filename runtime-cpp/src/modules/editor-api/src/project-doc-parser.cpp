@@ -101,6 +101,18 @@ std::vector<ImageAssetDef> parseImageAssets(const json& doc) {
     return out;
 }
 
+std::vector<SpriteAnimationAssetDef> parseSpriteAnimationAssets(const json& doc) {
+    std::vector<SpriteAnimationAssetDef> out;
+    ProjectJson::read_sprite_animation_assets(doc, out);
+    return out;
+}
+
+std::vector<AudioAssetDef> parseAudioAssets(const json& doc) {
+    std::vector<AudioAssetDef> out;
+    ProjectJson::read_audio_assets(doc, out);
+    return out;
+}
+
 ArtCade::ProjectRuntimeSettings parseRuntimeSettings(const json& doc) {
     ArtCade::ProjectRuntimeSettings settings;
     ProjectJson::read_runtime_settings(doc, settings);

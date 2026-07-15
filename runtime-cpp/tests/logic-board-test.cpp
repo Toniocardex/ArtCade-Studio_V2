@@ -408,6 +408,27 @@ static void testPlaySoundAction() {
             [&](const LogicDiagnostic& d) { return d.code == code; });
     };
 
+    // Empty is a first-class authoring draft, not a missing non-empty ID.
+    // The same core policy remains strict for compiler/Play/export.
+    {
+        const LogicBoardDef draft = makeBoardWith("", 1.0);
+        const auto authoring = validateBoard(
+            "Hero", draft, nullptr, &project, ValidationMode::Authoring);
+        CHECK(hasDiagnostic(authoring, "LB_AUDIO_ASSET_REFERENCE"));
+        CHECK(std::none_of(authoring.begin(), authoring.end(),
+            [](const LogicDiagnostic& diagnostic) {
+                return diagnostic.severity == DiagnosticSeverity::Error;
+            }));
+        const auto executable = validateBoard(
+            "Hero", draft, nullptr, &project, ValidationMode::Executable);
+        CHECK(std::any_of(executable.begin(), executable.end(),
+            [](const LogicDiagnostic& diagnostic) {
+                return diagnostic.code == "LB_AUDIO_ASSET_REFERENCE"
+                    && diagnostic.severity == DiagnosticSeverity::Error;
+            }));
+        CHECK(!compileBoard("Hero", draft, nullptr, &project).ok());
+    }
+
     // Valid: existing StaticSound asset, volume in range.
     {
         const LogicBoardDef board = makeBoardWith("jump.wav", 0.8);
@@ -468,6 +489,74 @@ static void testPlaySoundAction() {
     }
 }
 
+static void testCombinedGameplaySmoke() {
+    ProjectDoc project;
+    EntityDef hero;
+    hero.className = "Hero";
+    hero.platformerController = PlatformerControllerComponent{};
+    hero.spriteRenderer = SpriteRendererComponent{{}, "hero-animation", true};
+    hero.spriteAnimator = SpriteAnimatorComponent{"jump", true, 1.f};
+
+    LogicBoardDef board;
+    board.id = "logic:Hero";
+    LogicRuleDef rule = makeDefaultRule("jump-feedback");
+    rule.trigger = makeDefaultBlock(kKeyPressed, BlockKind::Trigger);
+    for (LogicPropertyDef& property : rule.trigger.properties) {
+        if (property.key == "key") property.value = LogicKey::Space;
+    }
+    rule.conditions = {makeDefaultBlock(kIsGrounded, BlockKind::Condition)};
+    LogicBlockDef playClip = makeDefaultBlock(kAnimationPlayClip, BlockKind::Action);
+    for (LogicPropertyDef& property : playClip.properties) {
+        if (property.key == "animationAssetId")
+            property.value = LogicAssetReference{"hero-animation"};
+        else if (property.key == "clipId")
+            property.value = LogicStringValue{"jump"};
+    }
+    LogicBlockDef playSound = makeDefaultBlock(kAudioPlaySound, BlockKind::Action);
+    for (LogicPropertyDef& property : playSound.properties) {
+        if (property.key == "audioAssetId")
+            property.value = LogicAssetReference{"jump-sound"};
+        else if (property.key == "volume") property.value = 0.8;
+    }
+    rule.actions = {
+        makeDefaultBlock(kJump, BlockKind::Action),
+        std::move(playClip),
+        std::move(playSound),
+    };
+    board.rules = {rule};
+    hero.logicBoard = board;
+    project.objectTypes.emplace("Hero", hero);
+
+    SpriteAnimationAssetDef animation;
+    animation.id = "hero-animation";
+    SpriteAnimationClipDef clip;
+    clip.id = "jump";
+    clip.name = "Jump";
+    clip.imageId = "hero-sheet";
+    clip.frames = {{0, 0, 16, 16}};
+    animation.clips.push_back(clip);
+    project.spriteAnimationAssets.push_back(animation);
+    project.audioAssets.push_back(
+        AudioAssetDef{"jump-sound", "Jump", "audio/jump.wav", AudioLoadMode::StaticSound});
+
+    LogicCompileResult compiled = compileProjectLogic(project);
+    CHECK(compiled.ok());
+    Host host;
+    host.grounded.insert(42);
+    LogicRuntime runtime(host);
+    std::string error;
+    CHECK(runtime.loadPrograms(compiled.programs, &error));
+    CHECK(runtime.install("Hero", 42, &error).has_value());
+    runtime.beginFrame();
+    runtime.dispatchKeyPressed(LogicKey::Space);
+    CHECK(host.calls.size() == 3);
+    CHECK(host.calls.size() > 0 && host.calls[0] == "platformer_jump:42");
+    CHECK(host.calls.size() > 1
+        && host.calls[1] == "play_clip:42:hero-animation:jump");
+    CHECK(host.calls.size() > 2
+        && host.calls[2].rfind("play_sound:42:jump-sound:", 0) == 0);
+}
+
 int main() {
     testCompilerAndJson();
     testRuntime();
@@ -475,6 +564,7 @@ int main() {
     testLimitsSnapshotAndIsolation();
     testIsGroundedCondition();
     testPlaySoundAction();
+    testCombinedGameplaySmoke();
     std::cout << passed << " passed, " << failed << " failed\n";
     return failed == 0 ? 0 : 1;
 }

@@ -247,13 +247,22 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
         }
     }
 
-    if (j.contains("audioAssets") && j["audioAssets"].is_object()) {
-        for (auto& [key, av] : j["audioAssets"].items()) {
-            if (!av.is_object()) continue;
-            const std::string id = av.value("id", key);
-            const std::string assetPath = av.value("path", std::string{});
-            if (!assetPath.empty()) manifestIndex_.addAudioEntry(id, assetPath);
+    if (j.contains("imageAssets") && j["imageAssets"].is_array()) {
+        ProjectJson::read_image_assets(j, out.imageAssets);
+        for (const ImageAssetDef& asset : out.imageAssets) {
+            if (!asset.sourcePath.empty()) {
+                manifestIndex_.addImageEntry(asset.assetId, asset.sourcePath);
+                out.spritePathToAssetId[asset.sourcePath] = asset.assetId;
+            }
         }
+    }
+
+    ProjectJson::read_sprite_animation_assets(j, out.spriteAnimationAssets);
+
+    ProjectJson::read_audio_assets(j, out.audioAssets);
+    for (const AudioAssetDef& asset : out.audioAssets) {
+        if (!asset.sourcePath.empty())
+            manifestIndex_.addAudioEntry(asset.assetId, asset.sourcePath);
     }
 
     if (j.contains("fontAssets") && j["fontAssets"].is_object()) {

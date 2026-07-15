@@ -29,6 +29,8 @@
 #include "../../world/include/world.h"
 
 #include <memory>
+#include <type_traits>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -62,15 +64,34 @@ public:
         world_->requestJump(owner);
         return true;
     }
-    bool playSound(EntityId, const AssetId& audioAssetId, float volume) override {
-        audio_.playSound(audioAssetId, volume);
-        return true;
+    bool isObjectType(EntityId entity, const ObjectTypeId& expected) override {
+        return world_ && world_->isObjectType(entity, expected);
+    }
+    bool requestDestroy(EntityId owner) override {
+        return world_ && world_->requestDestroy(owner);
+    }
+    bool playAnimationClip(EntityId owner, const AssetId& animationAssetId,
+                           const std::string& clipId) override {
+        return world_ && world_->playAnimationClip(owner, animationAssetId, clipId);
+    }
+    bool stopAnimation(EntityId owner) override {
+        return world_ && world_->stopAnimation(owner);
+    }
+    bool setAnimationPlaybackSpeed(EntityId owner, float speed) override {
+        return world_ && world_->setAnimationPlaybackSpeed(owner, speed);
+    }
+    bool playSound(EntityId owner, const AssetId& audioAssetId, float volume) override {
+        return world_ && world_->isActiveEntity(owner)
+            && audio_.playResolvedAsset(audioAssetId, volume);
     }
 private:
     Modules::RuntimeEntityGateway& gateway_;
     Modules::Audio& audio_;
     World* world_ = nullptr;
 };
+
+static_assert(!std::is_abstract_v<RuntimeLogicHostAdapter>,
+              "RuntimeLogicHostAdapter must implement every ILogicRuntimeHost method");
 
 /** Internal ownership table shared only by Application implementation units. */
 struct Application::Modules {
@@ -82,7 +103,7 @@ struct Application::Modules {
     std::unique_ptr<ArtCade::Modules::LuaHost> luaHost;
     std::unique_ptr<RuntimeLogicHostAdapter> logicHost;
     std::unique_ptr<ArtCade::Logic::LogicRuntime> logicRuntime;
-    std::vector<ArtCade::Logic::ScopeToken> logicScopes;
+    std::unordered_map<EntityId, ArtCade::Logic::ScopeToken> logicScopes;
     std::unordered_set<ObjectTypeId> logicObjectTypes;
     std::unique_ptr<ArtCade::Modules::SceneManager> sceneManager;
     std::unique_ptr<ArtCade::Modules::SceneMutationService> sceneMutation;

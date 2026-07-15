@@ -39,6 +39,11 @@ using LogicBlockTypeId = std::string;
 using LogicCategoryId = std::string;
 
 enum class BlockKind { Trigger, Condition, Action };
+// Authoring accepts only explicitly empty asset selections as incomplete
+// drafts. Executable validation is strict and is always used by compilation,
+// Play and exported runtimes. The policy lives here so editor Commands never
+// reinterpret diagnostic codes locally.
+enum class ValidationMode { Authoring, Executable };
 enum class LogicValueKind { Bool, Integer, Number, String, Vec2, Asset, Entity, Variable, Key };
 enum class LogicRequiredComponent { PlatformerController, SpriteAnimator };
 enum class LogicContextCapability {
@@ -128,7 +133,8 @@ std::vector<LogicKey> supportedLogicKeys();
 std::vector<LogicDiagnostic> validateBoard(const ObjectTypeId& objectTypeId,
                                            const LogicBoardDef& board,
                                            const EntityDef* owner = nullptr,
-                                           const ProjectDoc* project = nullptr);
+                                           const ProjectDoc* project = nullptr,
+                                           ValidationMode mode = ValidationMode::Executable);
 LogicCompileResult compileBoard(const ObjectTypeId& objectTypeId,
                                 const LogicBoardDef& board,
                                 const EntityDef* owner = nullptr,

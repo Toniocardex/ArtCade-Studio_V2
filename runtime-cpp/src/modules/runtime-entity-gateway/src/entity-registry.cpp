@@ -373,6 +373,42 @@ bool EntityRegistry::getPhysics(EntityId id, PhysicsComponent& out) const {
     return false;
 }
 
+bool EntityRegistry::getSpriteRenderer(EntityId id, SpriteRendererComponent& out) const {
+    const entt::entity e = impl_->toEntt(id);
+    if (e == entt::null) return false;
+    const auto* value = impl_->reg.try_get<SpriteRendererComponent>(e);
+    if (!value) return false;
+    out = *value;
+    return true;
+}
+
+void EntityRegistry::setSpriteRenderer(
+    EntityId id, const std::optional<SpriteRendererComponent>& renderer) {
+    const entt::entity e = impl_->ensure(id);
+    if (renderer)
+        impl_->reg.emplace_or_replace<SpriteRendererComponent>(e, *renderer);
+    else
+        impl_->reg.remove<SpriteRendererComponent>(e);
+}
+
+bool EntityRegistry::getSpriteAnimator(EntityId id, SpriteAnimatorComponent& out) const {
+    const entt::entity e = impl_->toEntt(id);
+    if (e == entt::null) return false;
+    const auto* value = impl_->reg.try_get<SpriteAnimatorComponent>(e);
+    if (!value) return false;
+    out = *value;
+    return true;
+}
+
+void EntityRegistry::setSpriteAnimator(
+    EntityId id, const std::optional<SpriteAnimatorComponent>& animator) {
+    const entt::entity e = impl_->ensure(id);
+    if (animator)
+        impl_->reg.emplace_or_replace<SpriteAnimatorComponent>(e, *animator);
+    else
+        impl_->reg.remove<SpriteAnimatorComponent>(e);
+}
+
 void EntityRegistry::setPhysics(EntityId id, const PhysicsComponent& p) {
     const entt::entity e = impl_->toEntt(id);
     if (e == entt::null) return;

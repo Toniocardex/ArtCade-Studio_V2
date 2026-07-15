@@ -17,6 +17,32 @@ EntityDef materializeInstance(const EntityDef& typeProto,
     e.visible   = instance.visible;
     e.layerId   = instance.layerId;
     e.localVariableOverrides = instance.localVariableOverrides;
+    if (instance.spriteRendererOverride) {
+        const SpriteRendererOverride& delta = *instance.spriteRendererOverride;
+        if (delta.capabilityEnabled && !*delta.capabilityEnabled) {
+            e.spriteRenderer.reset();
+        } else if (e.spriteRenderer) {
+            if (delta.imageAssetId) e.spriteRenderer->imageAssetId = *delta.imageAssetId;
+            if (delta.animationAssetId)
+                e.spriteRenderer->animationAssetId = *delta.animationAssetId;
+            if (delta.visible) e.spriteRenderer->visible = *delta.visible;
+        }
+    }
+    if (instance.spriteAnimatorOverride) {
+        const SpriteAnimatorOverride& delta = *instance.spriteAnimatorOverride;
+        if (delta.capabilityEnabled && !*delta.capabilityEnabled) {
+            e.spriteAnimator.reset();
+        } else if (e.spriteAnimator) {
+            if (delta.initialClipId) e.spriteAnimator->initialClipId = *delta.initialClipId;
+            if (delta.autoPlay) e.spriteAnimator->autoPlay = *delta.autoPlay;
+            if (delta.playbackSpeed) e.spriteAnimator->playbackSpeed = *delta.playbackSpeed;
+        }
+    }
+    if (e.spriteRenderer) {
+        e.visible = e.visible && e.spriteRenderer->visible;
+        if (!e.spriteRenderer->imageAssetId.empty())
+            e.sprite.spriteAssetId = e.spriteRenderer->imageAssetId;
+    }
     return e;
 }
 

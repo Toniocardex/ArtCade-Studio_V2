@@ -1,6 +1,7 @@
 #include "../include/world.h"
 #include "../../modules/scene-system/include/scene-lifecycle-service.h"
 #include "../../modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
+#include "../../modules/sprite-animator/include/sprite-animator.h"
 #include "../../modules/physics/include/physics.h"
 #include "../../modules/variable-manager/include/variable-manager.h"
 #include "../../modules/renderer/include/renderer.h"
@@ -118,6 +119,7 @@ World::World(Modules::RuntimeEntityGateway& gateway,
     entityGateway_.setEntityDestroyHandler([this](EntityId id) {
         forgetEntity(id);
         variables_.destroyEntity(id);
+        if (entityDestroyedHandler_) entityDestroyedHandler_(id);
     });
     entityGateway_.setEntityCreatedHandler([this](EntityId id, const EntityDef& def) {
         variables_.createEntity(id, def.localVariables, def.localVariableOverrides);
@@ -128,10 +130,19 @@ void World::forgetEntity(EntityId id) {
     platformerRt_.erase(id);
     topDownRt_.erase(id);
     controlIntents_.erase(id);
+    if (spriteAnimator_) spriteAnimator_->removeEntity(id);
     if (cameraFollowMode_ == CameraFollowMode::Explicit
         && cameraFollowTarget_ == id) {
         useAutomaticCameraTarget();
     }
+}
+
+void World::setSpriteAnimator(Modules::SpriteAnimator* animator) {
+    spriteAnimator_ = animator;
+}
+
+void World::setEntityDestroyedHandler(std::function<void(EntityId)> handler) {
+    entityDestroyedHandler_ = std::move(handler);
 }
 
 void World::clearGameplayRuntimeState() {
@@ -196,6 +207,7 @@ void World::shutdown() {
     entityGateway_.setEntityDestroyHandler(nullptr);
     entityGateway_.setEntityCreatedHandler(nullptr);
     entityGateway_.setPhysicsTopologyHandler(nullptr);
+    entityDestroyedHandler_ = {};
 
     variables_.clear();
     clearGameplayRuntimeState();
@@ -204,6 +216,55 @@ void World::shutdown() {
     collisionEvents_.clear();
     collisionWorld_.clear();
     physicsLayers_.clear();
+}
+
+bool World::isActiveEntity(EntityId id) const {
+    return entityGateway_.isEntityActiveInScene(id);
+}
+
+bool World::isObjectType(EntityId id, const ObjectTypeId& expected) const {
+    return !expected.empty() && isActiveEntity(id)
+        && entityGateway_.className(id) == expected;
+}
+
+bool World::requestDestroy(EntityId id) {
+    if (!isActiveEntity(id)) return false;
+    entityGateway_.queueDestroy(id);
+    return true;
+}
+
+bool World::playAnimationClip(EntityId id, const AssetId& animationAssetId,
+                              const std::string& clipId) {
+    if (!spriteAnimator_ || !isActiveEntity(id) || animationAssetId.empty()
+        || clipId.empty()) return false;
+    SpriteRendererComponent renderer;
+    SpriteAnimatorComponent animator;
+    if (!entityGateway_.getSpriteRenderer(id, renderer)
+        || !entityGateway_.getSpriteAnimator(id, animator)
+        || !spriteAnimator_->isClipPlayable(animationAssetId, clipId)) {
+        return false;
+    }
+    return spriteAnimator_->play(id, animationAssetId, clipId);
+}
+
+bool World::stopAnimation(EntityId id) {
+    if (!spriteAnimator_ || !isActiveEntity(id)) return false;
+    SpriteRendererComponent renderer;
+    SpriteAnimatorComponent animator;
+    if (!entityGateway_.getSpriteRenderer(id, renderer)
+        || !entityGateway_.getSpriteAnimator(id, animator)) return false;
+    spriteAnimator_->stop(id);
+    return true;
+}
+
+bool World::setAnimationPlaybackSpeed(EntityId id, float speed) {
+    if (!spriteAnimator_ || !isActiveEntity(id) || !std::isfinite(speed) || speed <= 0.f)
+        return false;
+    SpriteRendererComponent renderer;
+    SpriteAnimatorComponent animator;
+    if (!entityGateway_.getSpriteRenderer(id, renderer)
+        || !entityGateway_.getSpriteAnimator(id, animator)) return false;
+    return spriteAnimator_->setPlaybackSpeed(id, speed);
 }
 
 void World::onSceneActivated() {

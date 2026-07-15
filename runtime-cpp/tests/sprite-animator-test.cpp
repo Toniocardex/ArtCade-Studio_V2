@@ -311,6 +311,26 @@ static void test_replay_same_clip_does_not_restart() {
     std::puts("  [ok] re-playing the same clip keeps it advancing (no freeze)");
 }
 
+static void test_asset_scoped_clip_and_playback_speed() {
+    SA sa; sa.init();
+    SA::Clip clip = makeClip("run", 4, 10.f, true);
+    clip.animationAssetId = "hero-animation";
+    clip.assetId = "hero-sheet";
+    sa.defineClip(clip);
+
+    assert(sa.hasClip("hero-animation", "run"));
+    assert(!sa.hasClip("other-animation", "run"));
+    assert(sa.isClipPlayable("hero-animation", "run"));
+    assert(sa.play(7u, "hero-animation", "run"));
+    assert(sa.setPlaybackSpeed(7u, 2.f));
+    sa.update(0.15f); // 0.30 animation seconds -> three frames.
+    assert(sa.frameIndex(7u) == 3);
+    assert(sa.playbackSpeed(7u) == 2.f);
+    assert(sa.currentClipAssetId(7u) == "hero-sheet");
+    assert(!sa.setPlaybackSpeed(7u, 0.f));
+    std::puts("  [ok] asset-scoped clips preserve per-entity playback speed");
+}
+
 int main() {
     std::puts("=== SpriteAnimator check ===");
     test_init_shutdown();
@@ -335,6 +355,7 @@ int main() {
     test_watched_kinds_gate_emission();
     test_clip_carries_sheet_asset_id();
     test_replay_same_clip_does_not_restart();
-    std::puts("=== all 22 tests passed ===");
+    test_asset_scoped_clip_and_playback_speed();
+    std::puts("=== all 23 tests passed ===");
     return 0;
 }

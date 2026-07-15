@@ -231,10 +231,12 @@ bool Application::loadProject(const std::string& projectPath) {
         mod_->logicObjectTypes.insert(program.objectTypeId);
 
     mod_->world->init(doc);
-    if (!installLogicScopesForActiveScene()) return false;
     if (mod_->spriteAnimator) {
         registerAnimationClipsFromAssets(*mod_->spriteAnimator, doc.imageAssets);
+        appendAnimationClipsFromAssets(*mod_->spriteAnimator, doc.spriteAnimationAssets);
     }
+    if (mod_->audio) mod_->audio->setRuntimeAssetCatalog(doc.audioAssets);
+    if (!installLogicScopesForActiveScene()) return false;
     applyRuntimeSettings(runtimeSettingsFromProjectDoc(doc), ViewportPolicy::NativePlay);
 
     tileColors_.clear();
@@ -276,7 +278,10 @@ bool Application::loadProject(const std::string& projectPath) {
 
 bool Application::installLogicScopesForActiveScene() {
     if (!mod_ || !mod_->logicRuntime || !mod_->entityGateway) return false;
-    for (Logic::ScopeToken token : mod_->logicScopes) mod_->logicRuntime->cancelScope(token);
+    for (const auto& [entityId, token] : mod_->logicScopes) {
+        (void)entityId;
+        mod_->logicRuntime->cancelScope(token);
+    }
     mod_->logicScopes.clear();
     std::string error;
     for (EntityId id : mod_->entityGateway->activeSceneIds()) {
@@ -287,7 +292,7 @@ bool Application::installLogicScopesForActiveScene() {
             std::cerr << "[App] Could not install Logic Board scope: " << error << "\n";
             return false;
         }
-        mod_->logicScopes.push_back(*token);
+        mod_->logicScopes.emplace(id, *token);
     }
     mod_->logicRuntime->beginFrame();
     mod_->logicRuntime->dispatchStart();

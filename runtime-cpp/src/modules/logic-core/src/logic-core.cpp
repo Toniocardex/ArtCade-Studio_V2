@@ -108,6 +108,7 @@ void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
                    BlockKind expected, const EntityDef* owner,
                    const LogicBlockDescriptor* trigger,
                    const ProjectDoc* project,
+                   ValidationMode mode,
                    std::vector<LogicDiagnostic>& out) {
     const LogicBlockDescriptor* descriptor = findDescriptor(block.typeId);
     if (!descriptor) {
@@ -197,17 +198,27 @@ void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
         const auto* clipRef = clipProperty
             ? std::get_if<LogicStringValue>(&clipProperty->value) : nullptr;
         const SpriteAnimationAssetDef* asset = nullptr;
-        if (!assetRef || assetRef->id.empty()
+        const bool emptyAssetSelection = assetRef && assetRef->id.empty();
+        if (!assetRef || emptyAssetSelection
             || (project && !(asset = findAnimationAsset(*project, assetRef->id)))) {
-            out.push_back(makeError(objectTypeId, board, "LB_ANIMATION_ASSET_REFERENCE",
-                                    "Animation action must reference an existing animation asset",
-                                    &rule, &block, "animationAssetId"));
+            LogicDiagnostic diagnostic = makeError(
+                objectTypeId, board, "LB_ANIMATION_ASSET_REFERENCE",
+                "Animation action must reference an existing animation asset",
+                &rule, &block, "animationAssetId");
+            if (mode == ValidationMode::Authoring && emptyAssetSelection)
+                diagnostic.severity = DiagnosticSeverity::Warning;
+            out.push_back(std::move(diagnostic));
         }
-        if (!clipRef || clipRef->value.empty()
+        const bool emptyClipSelection = clipRef && clipRef->value.empty();
+        if (!clipRef || emptyClipSelection
             || (project && asset && !findAnimationClip(*asset, clipRef->value))) {
-            out.push_back(makeError(objectTypeId, board, "LB_ANIMATION_CLIP_REFERENCE",
-                                    "Animation action clip must belong to its animation asset",
-                                    &rule, &block, "clipId"));
+            LogicDiagnostic diagnostic = makeError(
+                objectTypeId, board, "LB_ANIMATION_CLIP_REFERENCE",
+                "Animation action clip must belong to its animation asset",
+                &rule, &block, "clipId");
+            if (mode == ValidationMode::Authoring && emptyClipSelection)
+                diagnostic.severity = DiagnosticSeverity::Warning;
+            out.push_back(std::move(diagnostic));
         }
     }
     if (block.typeId == kAudioPlaySound) {
@@ -215,11 +226,16 @@ void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
         const auto* assetRef = assetProperty
             ? std::get_if<LogicAssetReference>(&assetProperty->value) : nullptr;
         const AudioAssetDef* asset = nullptr;
-        if (!assetRef || assetRef->id.empty()
+        const bool emptyAssetSelection = assetRef && assetRef->id.empty();
+        if (!assetRef || emptyAssetSelection
             || (project && !(asset = findAudioAsset(*project, assetRef->id)))) {
-            out.push_back(makeError(objectTypeId, board, "LB_AUDIO_ASSET_REFERENCE",
-                                    "Audio action must reference an existing audio asset",
-                                    &rule, &block, "audioAssetId"));
+            LogicDiagnostic diagnostic = makeError(
+                objectTypeId, board, "LB_AUDIO_ASSET_REFERENCE",
+                "Audio action must reference an existing audio asset",
+                &rule, &block, "audioAssetId");
+            if (mode == ValidationMode::Authoring && emptyAssetSelection)
+                diagnostic.severity = DiagnosticSeverity::Warning;
+            out.push_back(std::move(diagnostic));
         } else if (project && asset && asset->loadMode != AudioLoadMode::StaticSound) {
             out.push_back(makeError(objectTypeId, board, "LB_AUDIO_REQUIRES_STATIC",
                                     "Play Sound requires a static audio asset",
@@ -477,7 +493,8 @@ std::optional<LogicKey> logicKeyFromName(const std::string& name) {
 std::vector<LogicDiagnostic> validateBoard(const ObjectTypeId& objectTypeId,
                                            const LogicBoardDef& board,
                                            const EntityDef* owner,
-                                           const ProjectDoc* project) {
+                                           const ProjectDoc* project,
+                                           ValidationMode mode) {
     std::vector<LogicDiagnostic> out;
     if (!validId(board.id)) out.push_back(makeError(objectTypeId, board, "LB_BOARD_ID", "Invalid board id"));
     if (board.schemaVersion != kLogicBoardSchemaVersion)
@@ -499,13 +516,13 @@ std::vector<LogicDiagnostic> validateBoard(const ObjectTypeId& objectTypeId,
             out.push_back(makeError(objectTypeId, board, "LB_CONDITION_LIMIT", "Rule exceeds the condition limit", &rule));
         const LogicBlockDescriptor* trigger = findDescriptor(rule.trigger.typeId);
         validateBlock(objectTypeId, board, rule, rule.trigger, BlockKind::Trigger, owner,
-                      nullptr, project, out);
+                      nullptr, project, mode, out);
         for (const LogicBlockDef& condition : rule.conditions)
             validateBlock(objectTypeId, board, rule, condition, BlockKind::Condition, owner,
-                          trigger, project, out);
+                          trigger, project, mode, out);
         for (const LogicBlockDef& action : rule.actions)
             validateBlock(objectTypeId, board, rule, action, BlockKind::Action, owner,
-                          trigger, project, out);
+                          trigger, project, mode, out);
     }
     return out;
 }
@@ -515,7 +532,8 @@ LogicCompileResult compileBoard(const ObjectTypeId& objectTypeId,
                                 const EntityDef* owner,
                                 const ProjectDoc* project) {
     LogicCompileResult result;
-    result.diagnostics = validateBoard(objectTypeId, board, owner, project);
+    result.diagnostics = validateBoard(
+        objectTypeId, board, owner, project, ValidationMode::Executable);
     if (!result.ok()) return result;
 
     std::set<std::string> features;
@@ -593,4 +611,3 @@ LogicCompileResult compileProjectLogic(const ProjectDoc& project) {
 }
 
 } // namespace ArtCade::Logic
-

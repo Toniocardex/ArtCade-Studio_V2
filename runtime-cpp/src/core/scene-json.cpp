@@ -45,6 +45,32 @@ bool read_scene_instance(const nlohmann::json& instanceJson, SceneInstanceDef& o
     if (instanceJson.contains("visible") && instanceJson["visible"].is_boolean())
         out.visible = instanceJson["visible"].get<bool>();
     out.layerId = instanceJson.value("layerId", std::string{});
+    if (instanceJson.contains("spriteRendererOverride")
+        && instanceJson["spriteRendererOverride"].is_object()) {
+        const auto& value = instanceJson["spriteRendererOverride"];
+        SpriteRendererOverride delta;
+        if (value.contains("imageAssetId"))
+            delta.imageAssetId = value["imageAssetId"].get<std::string>();
+        if (value.contains("animationAssetId"))
+            delta.animationAssetId = value["animationAssetId"].get<std::string>();
+        if (value.contains("visible")) delta.visible = value["visible"].get<bool>();
+        if (value.contains("capabilityEnabled"))
+            delta.capabilityEnabled = value["capabilityEnabled"].get<bool>();
+        out.spriteRendererOverride = std::move(delta);
+    }
+    if (instanceJson.contains("spriteAnimatorOverride")
+        && instanceJson["spriteAnimatorOverride"].is_object()) {
+        const auto& value = instanceJson["spriteAnimatorOverride"];
+        SpriteAnimatorOverride delta;
+        if (value.contains("initialClipId"))
+            delta.initialClipId = value["initialClipId"].get<std::string>();
+        if (value.contains("autoPlay")) delta.autoPlay = value["autoPlay"].get<bool>();
+        if (value.contains("playbackSpeed"))
+            delta.playbackSpeed = value["playbackSpeed"].get<float>();
+        if (value.contains("capabilityEnabled"))
+            delta.capabilityEnabled = value["capabilityEnabled"].get<bool>();
+        out.spriteAnimatorOverride = std::move(delta);
+    }
     if (instanceJson.contains("localVariableOverrides")
         && instanceJson["localVariableOverrides"].is_object()) {
         for (auto& [key, value] : instanceJson["localVariableOverrides"].items()) {
