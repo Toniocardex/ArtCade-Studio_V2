@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../../../core/gameplay-runtime-host.h"
 #include "../../../core/types.h"
 #include "../../logic-core/include/logic-core.h"
 
@@ -24,25 +25,8 @@ struct LogicRuntimeLimits {
     uint32_t maxEventsPerDispatch = 4096;
 };
 
-class ILogicRuntimeHost {
-public:
-    virtual ~ILogicRuntimeHost() = default;
-    virtual bool setVisible(EntityId owner, bool value) = 0;
-    virtual bool setPosition(EntityId owner, Vec2 value) = 0;
-    /** Read-only query: does not mutate components or physics state. */
-    virtual bool isGrounded(EntityId owner) = 0;
-    virtual bool requestPlatformerMove(EntityId owner, float axis) = 0;
-    virtual bool requestPlatformerJump(EntityId owner) = 0;
-    /** Read-only, materialized-world query for EventOther. */
-    virtual bool isObjectType(EntityId entity, const ObjectTypeId& objectTypeId) = 0;
-    /** Queues runtime-only destruction; it is applied after the event snapshot. */
-    virtual bool requestDestroy(EntityId owner) = 0;
-    virtual bool playAnimationClip(EntityId owner, const AssetId& animationAssetId,
-                                   const std::string& clipId) = 0;
-    virtual bool stopAnimation(EntityId owner) = 0;
-    virtual bool setAnimationPlaybackSpeed(EntityId owner, float speed) = 0;
-    virtual bool playSound(EntityId owner, const AssetId& audioAssetId, float volume) = 0;
-};
+// Compatibility name while call sites migrate to the shared host contract.
+using ILogicRuntimeHost = IGameplayRuntimeHost;
 
 class LogicRuntime {
 public:

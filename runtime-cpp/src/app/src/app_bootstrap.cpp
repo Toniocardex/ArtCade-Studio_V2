@@ -115,9 +115,11 @@ bool Application::initSubsystems() {
     mod_->world->setSpriteAnimator(mod_->spriteAnimator.get());
     mod_->world->setEntityDestroyedHandler([this](EntityId id) {
         const auto it = mod_->logicScopes.find(id);
-        if (it == mod_->logicScopes.end()) return;
-        if (mod_->logicRuntime) mod_->logicRuntime->cancelScope(it->second);
-        mod_->logicScopes.erase(it);
+        if (it != mod_->logicScopes.end()) {
+            if (mod_->logicRuntime) mod_->logicRuntime->cancelScope(it->second);
+            mod_->logicScopes.erase(it);
+        }
+        if (mod_->scriptRuntime) mod_->scriptRuntime->cancelOwner(id);
     });
     mod_->world->setRenderer(mod_->renderer.get());
     mod_->sceneLifecycle->set_gameplay_reset_handler([this]() {
@@ -243,6 +245,9 @@ void Application::shutdownModules() {
     mod_->logicScopes.clear();
     mod_->logicObjectTypes.clear();
     mod_->logicHost.reset();
+    if (mod_->scriptRuntime) { mod_->scriptRuntime->shutdown(); mod_->scriptRuntime.reset(); }
+    mod_->scriptPrograms.clear();
+    mod_->scriptAttachments.clear();
     if (mod_->luaHost) { mod_->luaHost->shutdown(); mod_->luaHost.reset(); }
     if (mod_->gameAPI) { mod_->gameAPI->shutdown(); mod_->gameAPI.reset(); }
     if (mod_->dialogManager) { mod_->dialogManager->shutdown(); mod_->dialogManager.reset(); }

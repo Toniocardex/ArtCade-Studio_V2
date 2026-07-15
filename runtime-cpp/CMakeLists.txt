@@ -137,6 +137,7 @@ target_link_libraries(artcade-project-json PUBLIC artcade-core)
 # Deterministic Logic Board authoring model validation/compiler. This module is
 # core-only: no Lua, renderer, filesystem, or editor presentation dependency.
 add_subdirectory(src/modules/logic-core)
+add_subdirectory(src/modules/script-core)
 add_subdirectory(src/modules/sfx)
 
 # ============================================================================
@@ -180,6 +181,7 @@ endif()
 if(ARTCADE_HAS_LUA)
     add_subdirectory(src/modules/lua-runtime)
     add_subdirectory(src/modules/logic-runtime)
+    add_subdirectory(src/modules/script-runtime)
 endif()
 
 # ============================================================================

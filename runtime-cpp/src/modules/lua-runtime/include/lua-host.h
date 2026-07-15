@@ -1,6 +1,8 @@
 #pragma once
 
 #include "../../../core/module.h"
+#include "../../../core/types.h"
+#include "../../../core/gameplay-runtime-host.h"
 #include <string>
 #include <vector>
 #include <functional>
@@ -17,6 +19,7 @@ namespace ArtCade::Modules {
 enum class LuaSandboxProfile {
     LegacyGameplay,
     LogicBoardStrict,
+    ManualScriptStrict,
 };
 
 struct LuaHostOptions {
@@ -55,6 +58,22 @@ public:
     // "Apply & Hot-Reload". Returns false and sets lastError() on syntax/
     // runtime error, leaving the previously loaded script intact.
     bool loadLuaSource(const std::string& sourceCode);
+
+    // Strict manual-script contract. The source chunk must call
+    // artcade.require_api_version() and return a table whose optional
+    // on_start/on_update fields are functions. Calls are protected and bounded.
+    bool loadManualProgramSource(const std::string& sourceCode,
+                                 const std::string& sourcePath,
+                                 uint32_t supportedApiVersion,
+                                 uint32_t maxInstructions,
+                                 uint32_t maxCallDepth);
+    bool callManualOnStart(IGameplayRuntimeHost* host, EntityId owner,
+                           uint32_t maxInstructions,
+                           uint32_t maxCallDepth);
+    bool callManualOnUpdate(IGameplayRuntimeHost* host, EntityId owner, float dt,
+                            uint32_t maxInstructions,
+                            uint32_t maxCallDepth);
+    bool hasManualOnUpdate() const;
 
     // Execute the global "tick" function (called every fixed step)
     void tick(float dt);

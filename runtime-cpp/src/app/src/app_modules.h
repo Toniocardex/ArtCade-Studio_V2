@@ -13,6 +13,7 @@
 #include "../../modules/layer-manager/include/layer-manager.h"
 #include "../../modules/lua-runtime/include/lua-host.h"
 #include "../../modules/logic-runtime/include/logic-runtime.h"
+#include "../../modules/script-runtime/include/script-runtime.h"
 #include "../../modules/physics/include/physics.h"
 #include "../../modules/presentation/include/editor_viewport_service.h"
 #include "../../modules/renderer/include/renderer.h"
@@ -105,6 +106,9 @@ struct Application::Modules {
     std::unique_ptr<ArtCade::Logic::LogicRuntime> logicRuntime;
     std::unordered_map<EntityId, ArtCade::Logic::ScopeToken> logicScopes;
     std::unordered_set<ObjectTypeId> logicObjectTypes;
+    std::unique_ptr<ArtCade::Scripts::ScriptRuntime> scriptRuntime;
+    std::unordered_map<AssetId, ArtCade::Scripts::ScriptProgram> scriptPrograms;
+    std::unordered_map<ObjectTypeId, std::vector<ScriptAttachmentDef>> scriptAttachments;
     std::unique_ptr<ArtCade::Modules::SceneManager> sceneManager;
     std::unique_ptr<ArtCade::Modules::SceneMutationService> sceneMutation;
     std::unique_ptr<ArtCade::Modules::SceneLifecycleService> sceneLifecycle;

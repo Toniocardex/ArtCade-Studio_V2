@@ -10,6 +10,7 @@
 #endif
 
 #include <chrono>
+#include <iostream>
 
 namespace ArtCade {
 
@@ -100,6 +101,18 @@ void Application::tickFixedStep(float dt) {
         const uint32_t events = mod_->gameAPI->dispatchLifecycleEvents();
         profiler_.addLuaMs(elapsedMs(start));
         profiler_.addLuaEvents(events);
+    }
+
+    // Generated Logic/lifecycle dispatch for this fixed step is complete.
+    // Manual attachments then run in deterministic persisted order.
+    if (mod_->scriptRuntime) {
+        mod_->scriptRuntime->update(dt);
+        for (const auto& diagnostic : mod_->scriptRuntime->drainDiagnostics()) {
+            std::cerr << "[Script] " << diagnostic.sourcePath;
+            if (diagnostic.line > 0) std::cerr << ":" << diagnostic.line;
+            std::cerr << " [" << diagnostic.callback << "] entity "
+                      << diagnostic.owner << ": " << diagnostic.message << "\n";
+        }
     }
 
     mod_->eventBus->flushDeferred();

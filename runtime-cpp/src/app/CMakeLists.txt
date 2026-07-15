@@ -29,6 +29,7 @@ target_link_libraries(game PRIVATE
     artcade-lua-runtime
     artcade-logic-core
     artcade-logic-runtime
+    artcade-script-runtime
     artcade-asset-system
     artcade-renderer
     artcade-physics

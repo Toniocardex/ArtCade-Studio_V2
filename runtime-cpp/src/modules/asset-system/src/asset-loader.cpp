@@ -156,6 +156,25 @@ bool AssetLoader::loadLuaBytecode(const std::string& path,
     return !outBytes.empty();
 }
 
+bool AssetLoader::loadScriptSource(const std::string& path, std::size_t maxBytes,
+                                   std::string& outSource) {
+    outSource.clear();
+    if (maxBytes == 0) return false;
+    const auto fullPath = resolveUnderRoot(rootPath_, path);
+    if (!fullPath) return false;
+    std::ifstream file(*fullPath, std::ios::binary | std::ios::ate);
+    if (!file) return false;
+    const std::streamoff size = file.tellg();
+    if (size < 0 || static_cast<std::uintmax_t>(size) > maxBytes) return false;
+    outSource.resize(static_cast<std::size_t>(size));
+    file.seekg(0, std::ios::beg);
+    if (size > 0 && !file.read(outSource.data(), size)) {
+        outSource.clear();
+        return false;
+    }
+    return true;
+}
+
 std::string AssetLoader::resolveAssetPath(const std::string& assetId,
                                           const std::string& assetType) const {
     const auto resolved = resolveUnderRoot(

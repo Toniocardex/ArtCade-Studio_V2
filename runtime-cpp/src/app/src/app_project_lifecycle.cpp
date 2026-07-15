@@ -9,11 +9,14 @@
 #include "../../modules/sprite-animator/include/animation-clips-registry.h"
 
 #include <cmath>
+#include <algorithm>
 #include <cstring>
 #include <iostream>
 #include <memory>
 #include <string>
 #include <vector>
+#include <unordered_map>
+#include <unordered_set>
 
 namespace ArtCade {
 
@@ -230,6 +233,66 @@ bool Application::loadProject(const std::string& projectPath) {
     for (const Logic::LogicProgram& program : logic.programs)
         mod_->logicObjectTypes.insert(program.objectTypeId);
 
+    // Strict immutable manual-source snapshot. Resolve the authoring graph in
+    // deterministic Object Type + persisted attachment order, read each linked
+    // source exactly once through AssetLoader confinement, and preflight it
+    // before any gameplay world is accepted.
+    std::unordered_map<AssetId, Scripts::ScriptProgram> nextScriptPrograms;
+    std::unordered_map<ObjectTypeId, std::vector<ScriptAttachmentDef>>
+        nextScriptAttachments;
+    std::vector<ObjectTypeId> scriptTypeIds;
+    scriptTypeIds.reserve(doc.objectTypes.size());
+    for (const auto& [typeId, unused] : doc.objectTypes) {
+        (void)unused;
+        scriptTypeIds.push_back(typeId);
+    }
+    std::sort(scriptTypeIds.begin(), scriptTypeIds.end());
+    std::vector<AssetId> linkedScriptIds;
+    std::unordered_set<AssetId> seenScriptIds;
+    for (const ObjectTypeId& typeId : scriptTypeIds) {
+        const EntityDef& type = doc.objectTypes.at(typeId);
+        if (!type.scripts) continue;
+        nextScriptAttachments.emplace(typeId, type.scripts->attachments);
+        for (const ScriptAttachmentDef& attachment : type.scripts->attachments) {
+            if (attachment.enabled && seenScriptIds.insert(attachment.scriptAssetId).second)
+                linkedScriptIds.push_back(attachment.scriptAssetId);
+        }
+    }
+    std::unordered_map<AssetId, const ScriptAssetDef*> scriptAssets;
+    for (const ScriptAssetDef& asset : doc.scriptAssets) {
+        if (!scriptAssets.emplace(asset.assetId, &asset).second) {
+            std::cerr << "[App] Duplicate Script Asset id: " << asset.assetId << "\n";
+            return false;
+        }
+    }
+    const Scripts::ScriptRuntimeLimits scriptLimits;
+    Scripts::ScriptRuntime scriptValidator{scriptLimits};
+    for (const AssetId& assetId : linkedScriptIds) {
+        const auto asset = scriptAssets.find(assetId);
+        if (asset == scriptAssets.end()) {
+            std::cerr << "[App] Attached Script Asset is missing: " << assetId << "\n";
+            return false;
+        }
+        std::string source;
+        if (!mod_->assetLoader->loadScriptSource(
+                asset->second->sourcePath, scriptLimits.maxSourceBytes, source)) {
+            std::cerr << "[App] Could not read attached script: "
+                      << asset->second->sourcePath << "\n";
+            return false;
+        }
+        Scripts::ScriptProgram program{
+            assetId, asset->second->sourcePath, std::move(source)};
+        std::string scriptError;
+        if (!scriptValidator.validateProgram(program, &scriptError)) {
+            std::cerr << "[App] Invalid attached script " << program.sourcePath
+                      << ": " << scriptError << "\n";
+            return false;
+        }
+        nextScriptPrograms.emplace(assetId, std::move(program));
+    }
+    mod_->scriptPrograms = std::move(nextScriptPrograms);
+    mod_->scriptAttachments = std::move(nextScriptAttachments);
+
     mod_->world->init(doc);
     if (mod_->spriteAnimator) {
         registerAnimationClipsFromAssets(*mod_->spriteAnimator, doc.imageAssets);
@@ -237,6 +300,7 @@ bool Application::loadProject(const std::string& projectPath) {
     }
     if (mod_->audio) mod_->audio->setRuntimeAssetCatalog(doc.audioAssets);
     if (!installLogicScopesForActiveScene()) return false;
+    if (!installScriptScopesForActiveScene()) return false;
     applyRuntimeSettings(runtimeSettingsFromProjectDoc(doc), ViewportPolicy::NativePlay);
 
     tileColors_.clear();
@@ -296,6 +360,31 @@ bool Application::installLogicScopesForActiveScene() {
     }
     mod_->logicRuntime->beginFrame();
     mod_->logicRuntime->dispatchStart();
+    return true;
+}
+
+bool Application::installScriptScopesForActiveScene() {
+    if (!mod_ || !mod_->entityGateway) return false;
+    if (!mod_->logicHost) return false;
+    mod_->scriptRuntime = std::make_unique<Scripts::ScriptRuntime>(*mod_->logicHost);
+    std::string error;
+    for (EntityId id : mod_->entityGateway->activeSceneIds()) {
+        const ObjectTypeId typeId = mod_->entityGateway->className(id);
+        const auto attachments = mod_->scriptAttachments.find(typeId);
+        if (attachments == mod_->scriptAttachments.end()) continue;
+        for (const ScriptAttachmentDef& attachment : attachments->second) {
+            if (!attachment.enabled) continue;
+            const auto program = mod_->scriptPrograms.find(attachment.scriptAssetId);
+            if (program == mod_->scriptPrograms.end()
+                || !mod_->scriptRuntime->install(
+                    program->second, id, attachment.id, &error)) {
+                std::cerr << "[App] Could not install Script scope: " << error << "\n";
+                mod_->scriptRuntime.reset();
+                return false;
+            }
+        }
+    }
+    mod_->scriptRuntime->dispatchStart();
     return true;
 }
 
