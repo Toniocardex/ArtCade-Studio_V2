@@ -84,6 +84,7 @@ set(ARTCADE_QML_FILES
     ../../qml/ArtCade/Controls/AcLogicRuleCard.qml
     ../../qml/ArtCade/Controls/AcLogicPropertyEditor.qml
     ../../qml/ArtCade/Controls/AcLogicKeyCapture.qml
+    ../../qml/ArtCade/Controls/AcLogicCatalogItem.qml
     ../../qml/ArtCade/Controls/AcNumberField.qml
     ../../qml/ArtCade/Controls/AcInspectorRow.qml
     ../../qml/ArtCade/Controls/AcIcon.qml
@@ -130,6 +131,7 @@ set_source_files_properties(../../qml/ArtCade/Controls/AcLogicColumn.qml PROPERT
 set_source_files_properties(../../qml/ArtCade/Controls/AcLogicRuleCard.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcLogicRuleCard.qml")
 set_source_files_properties(../../qml/ArtCade/Controls/AcLogicPropertyEditor.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcLogicPropertyEditor.qml")
 set_source_files_properties(../../qml/ArtCade/Controls/AcLogicKeyCapture.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcLogicKeyCapture.qml")
+set_source_files_properties(../../qml/ArtCade/Controls/AcLogicCatalogItem.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcLogicCatalogItem.qml")
 set_source_files_properties(../../qml/ArtCade/Controls/AcNumberField.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcNumberField.qml")
 set_source_files_properties(../../qml/ArtCade/Controls/AcInspectorRow.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcInspectorRow.qml")
 set_source_files_properties(../../qml/ArtCade/Controls/AcIcon.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcIcon.qml")
@@ -229,6 +231,7 @@ set(ARTCADE_QML_LINT_FILES
     ${ARTCADE_QML_ROOT}/Controls/AcLogicRuleCard.qml
     ${ARTCADE_QML_ROOT}/Controls/AcLogicPropertyEditor.qml
     ${ARTCADE_QML_ROOT}/Controls/AcLogicKeyCapture.qml
+    ${ARTCADE_QML_ROOT}/Controls/AcLogicCatalogItem.qml
     ${ARTCADE_QML_ROOT}/Controls/AcNumberField.qml
     ${ARTCADE_QML_ROOT}/Controls/AcInspectorRow.qml
     ${ARTCADE_QML_ROOT}/Controls/AcIcon.qml

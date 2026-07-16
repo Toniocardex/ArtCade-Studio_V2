@@ -47,6 +47,12 @@ Item {
         return EditorSession.logicBlockDisplayName(typeId)
     }
 
+    function descriptionForTypeId(typeId) {
+        if (!typeId || typeId.length === 0)
+            return "Always true — no extra check required"
+        return EditorSession.logicBlockDescription(typeId)
+    }
+
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: Metrics.spacingMd
@@ -144,6 +150,15 @@ Item {
                     visible: root.editable && root.comboModel.length > 0 && root.boardHasRules
                     model: root.comboModel
                     enabled: !EditorSession.playing
+                    // Suppress Fusion/system highlight blue; row chrome is custom.
+                    palette.mid: Theme.panel
+                    palette.window: Theme.panel
+                    palette.base: Theme.panel
+                    palette.button: Theme.panelRaised
+                    palette.highlight: Theme.controlHover
+                    palette.highlightedText: Theme.textPrimary
+                    palette.text: Theme.textPrimary
+                    palette.buttonText: Theme.textPrimary
 
                     contentItem: Text {
                         leftPadding: Metrics.spacingSm
@@ -159,44 +174,45 @@ Item {
                     background: Rectangle {
                         implicitHeight: Metrics.controlHeight
                         radius: Metrics.radiusSmall
-                        color: Theme.panelRaised
-                        border.color: Theme.borderSubtle
+                        color: catalogBox.hovered ? Theme.controlHover : Theme.panelRaised
+                        border.color: catalogBox.popup.visible ? Theme.accent : Theme.borderSubtle
                         border.width: 1
                     }
 
                     popup: Popup {
-                        y: catalogBox.height
-                        width: catalogBox.width
-                        implicitHeight: Math.min(contentItem.implicitHeight, 220)
-                        padding: 1
+                        y: catalogBox.height + 2
+                        width: Math.max(catalogBox.width, 220)
+                        implicitHeight: Math.min(contentItem.implicitHeight + 8, 300)
+                        padding: 4
+                        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutsideParent
+
                         contentItem: ListView {
                             clip: true
                             implicitHeight: contentHeight
+                            boundsBehavior: Flickable.StopAtBounds
                             model: catalogBox.popup.visible ? catalogBox.delegateModel : null
                             currentIndex: catalogBox.highlightedIndex
                             ScrollIndicator.vertical: ScrollIndicator {}
+                            spacing: 2
                         }
+
                         background: Rectangle {
-                            color: Theme.panel
-                            border.color: Theme.borderSubtle
+                            color: Theme.panelRaised
+                            border.color: Theme.border
+                            border.width: 1
                             radius: Metrics.radiusSmall
                         }
                     }
 
-                    delegate: ItemDelegate {
+                    delegate: AcLogicCatalogItem {
                         required property string modelData
-                        width: catalogBox.width
+                        required property int index
+                        width: ListView.view ? ListView.view.width : catalogBox.width
+                        typeId: modelData
+                        title: root.labelForTypeId(modelData)
+                        description: root.descriptionForTypeId(modelData)
+                        isCurrent: (modelData || "") === (root.currentTypeId || "")
                         highlighted: catalogBox.highlightedIndex === index
-                        contentItem: Text {
-                            text: root.labelForTypeId(modelData)
-                            color: Theme.textPrimary
-                            font.family: Typography.family
-                            font.pixelSize: Typography.sizeXs
-                            elide: Text.ElideRight
-                        }
-                        background: Rectangle {
-                            color: parent.highlighted ? Theme.selection : "transparent"
-                        }
                     }
 
                     Component.onCompleted: syncIndex()

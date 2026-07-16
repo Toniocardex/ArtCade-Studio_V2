@@ -173,6 +173,8 @@ public:
                                                const QString &propertyKey,
                                                const QString &valueText);
     [[nodiscard]] Q_INVOKABLE QString logicBlockDisplayName(const QString &blockTypeId) const;
+    /** Short registry description for catalog pickers (empty if unknown). */
+    [[nodiscard]] Q_INVOKABLE QString logicBlockDescription(const QString &blockTypeId) const;
     /**
      * Maps a Qt key code to a Logic key name ("Space", "W", …), or empty if unsupported.
      * Used by the Logic Board key detector (single source with logicKeyFromName).

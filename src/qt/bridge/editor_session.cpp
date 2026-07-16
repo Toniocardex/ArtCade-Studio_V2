@@ -224,6 +224,19 @@ QString EditorSession::logicBlockDisplayName(const QString &blockTypeId) const
     return QString::fromStdString(desc->displayName);
 }
 
+QString EditorSession::logicBlockDescription(const QString &blockTypeId) const
+{
+    if (blockTypeId.isEmpty()) {
+        return {};
+    }
+    const ArtCade::Logic::LogicBlockDescriptor *desc =
+        ArtCade::Logic::findDescriptor(blockTypeId.toStdString());
+    if (!desc) {
+        return {};
+    }
+    return QString::fromStdString(desc->description);
+}
+
 QString EditorSession::logicKeyFromQtKey(int qtKey) const
 {
     using ArtCade::LogicKey;
