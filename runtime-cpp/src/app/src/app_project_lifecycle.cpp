@@ -6,6 +6,7 @@
 #include "../../modules/presentation/include/presentation_mode.h"
 #include "../../modules/game-state/include/splash-state.h"
 #include "../../modules/sprite-animator/include/animation-clips-registry.h"
+#include "../../modules/logic-core/include/logic-core.h"
 
 #include <cmath>
 #include <algorithm>
@@ -214,17 +215,34 @@ bool Application::loadProject(const std::string& projectPath) {
         return false;
     }
 
-    // Gameplay Logic Board authority is the editor TS compiler → composed
-    // main.lua / main.luac (project.logicBoards). Type-nested objectTypes[].logicBoard
-    // + LogicRuntime is an unfinished parallel stack and must not run alongside
-    // composed main (Play == export). Skip install until that stack is retired
-    // or becomes the sole authority.
+    // Sole Logic Board host (post-React): compile objectTypes[].logicBoard into
+    // LogicRuntime programs at load. scripts/main.lua remains My Script / GameAPI
+    // only — generated Logic Lua never overwrites it.
+    const ArtCade::Logic::LogicCompileResult compiled =
+        ArtCade::Logic::compileProjectLogic(doc);
+    if (!compiled.ok()) {
+        std::cerr << "[App] Logic Board compile failed:\n";
+        for (const ArtCade::Logic::LogicDiagnostic &d : compiled.diagnostics) {
+            if (d.severity != ArtCade::Logic::DiagnosticSeverity::Error) {
+                continue;
+            }
+            std::cerr << "  [" << d.code << "] ";
+            if (!d.objectTypeId.empty()) {
+                std::cerr << d.objectTypeId << ": ";
+            }
+            std::cerr << d.message << "\n";
+        }
+        return false;
+    }
     std::string logicError;
-    if (!mod_->logicRuntime || !mod_->logicRuntime->loadPrograms({}, &logicError)) {
-        std::cerr << "[App] Could not clear Logic Board host programs: " << logicError << "\n";
+    if (!mod_->logicRuntime || !mod_->logicRuntime->loadPrograms(compiled.programs, &logicError)) {
+        std::cerr << "[App] Could not load Logic Board programs: " << logicError << "\n";
         return false;
     }
     mod_->logicObjectTypes.clear();
+    for (const ArtCade::Logic::LogicProgram &program : compiled.programs) {
+        mod_->logicObjectTypes.insert(program.objectTypeId);
+    }
 
     // Strict immutable manual-source snapshot. Resolve the authoring graph in
     // deterministic Object Type + persisted attachment order, read each linked

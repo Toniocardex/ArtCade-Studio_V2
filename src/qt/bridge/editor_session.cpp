@@ -1001,6 +1001,16 @@ void EditorSession::startPlay()
         return;
     }
 
+    // Same Executable compile gate as game.exe load (LogicRuntime host).
+    std::string logic_error;
+    if (!m_coordinator->validateLogicForPlay(logic_error)) {
+        const QString msg = QStringLiteral("Logic Board: %1")
+                                .arg(QString::fromStdString(logic_error));
+        setStatus(msg, false);
+        emit errorOccurred(msg);
+        return;
+    }
+
     const QString game_exe = resolveGameExecutable();
     if (game_exe.isEmpty()) {
         const QString msg = QStringLiteral(

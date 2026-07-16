@@ -64,7 +64,7 @@ Forbidden: panels, Scene View, Logic/Script UI, asset editors, or Play mutating 
 5. Play materializes **once** from ProjectDocument; runtime does not continuously re-read the document or use authoring assets as live authority.
 6. Gameplay focus is explicit (enter Play / explicit lose) — not “mouse hovered viewport”.
 7. Stop returns to origin workspace (Logic→Play→Scene→Stop→Logic) unless user changed workspace during Play.
-8. Logic Board is **type-targeted** via `project.logicBoards` (React stack). Shipping authority is **TS compile → composed main.lua → GameAPI**. Generated Lua is read-only and never overwrites the My Script buffer. Parallel C++ `objectTypes[].logicBoard` / LogicRuntime must not run alongside composed main until that stack becomes the sole host.
+8. Logic Board is **type-targeted** via `objectTypes[].logicBoard`. Shipping authority is **C++ `compileProjectLogic` → LogicRuntime** at Play/export load. `scripts/main.lua` is My Script / GameAPI only — generated Logic Lua never overwrites it. Do not revive a parallel TS compose-to-main path alongside LogicRuntime.
 9. Behavior scripts type-owned; project scripts global ordered; Lua source on disk under project root (relative paths only). `.luac` is derived export output only. Composed main on disk is the Play/export entry; Script editor loads/extracts the MANUAL_BEGIN/END body only.
 10. Logic + Script share one gameplay host API; remain separate programs. Adapters are thin forwards — no duplicated system logic.
 11. Runtime destroy is **deferred**. No automatic hot reload in MVP.

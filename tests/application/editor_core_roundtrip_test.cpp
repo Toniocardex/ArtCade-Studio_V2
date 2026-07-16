@@ -215,6 +215,20 @@ int main()
     expect(coord.revision() == rev_before_enable_noop,
            "no-op disable does not bump revision");
 
+    // Default On Start + Set Visible compiles for Play (LogicRuntime host).
+    expect(coord.validateLogicForPlay(error), "default rule validates for Play");
+    expect(coord.setLogicRulePrimaryCondition("Player",
+                                              deleted_id,
+                                              ArtCade::Logic::kIsGrounded,
+                                              error),
+           "set grounded condition");
+    expect(!coord.validateLogicForPlay(error),
+           "grounded without Platformer fails Play validate");
+    expect(!error.empty(), "Play validate reports error text");
+    expect(coord.clearLogicRuleConditions("Player", deleted_id, error),
+           "clear bad condition for save");
+    expect(coord.validateLogicForPlay(error), "cleared board validates again");
+
     expect(coord.saveProjectAs(out_path.string(), error), "save roundtrip file");
     expect(!coord.isDirty(), "clean after save");
 

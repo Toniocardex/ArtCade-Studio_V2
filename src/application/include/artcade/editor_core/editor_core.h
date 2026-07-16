@@ -325,6 +325,13 @@ public:
                                   const LogicRuleId &rule_id,
                                   std::string &error_message);
 
+    /**
+     * Compiles all objectTypes[].logicBoard with Executable validation.
+     * Used before Play so editor and game.exe share the same gate.
+     * Does not mutate ProjectDoc or scripts/main.lua.
+     */
+    bool validateLogicForPlay(std::string &error_message) const;
+
     [[nodiscard]] bool layerVisible(const std::string &layer_id) const;
     [[nodiscard]] bool layerLocked(const std::string &layer_id) const;
 

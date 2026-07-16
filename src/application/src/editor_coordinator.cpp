@@ -626,6 +626,38 @@ bool EditorCoordinator::clearLogicRuleConditions(const ObjectTypeId &object_type
     return true;
 }
 
+bool EditorCoordinator::validateLogicForPlay(std::string &error_message) const
+{
+    if (!m_has_project) {
+        error_message = "No project open";
+        return false;
+    }
+    const ArtCade::Logic::LogicCompileResult compiled =
+        ArtCade::Logic::compileProjectLogic(m_doc);
+    if (compiled.ok()) {
+        return true;
+    }
+    for (const ArtCade::Logic::LogicDiagnostic &d : compiled.diagnostics) {
+        if (d.severity != ArtCade::Logic::DiagnosticSeverity::Error) {
+            continue;
+        }
+        error_message.clear();
+        if (!d.objectTypeId.empty()) {
+            error_message += d.objectTypeId;
+            error_message += ": ";
+        }
+        error_message += d.message;
+        if (!d.code.empty()) {
+            error_message += " [";
+            error_message += d.code;
+            error_message += "]";
+        }
+        return false;
+    }
+    error_message = "Logic Board compile failed";
+    return false;
+}
+
 bool EditorCoordinator::renameSelected(const std::string &new_name, std::string &error_message)
 {
     if (m_selected_entity_id == 0) {

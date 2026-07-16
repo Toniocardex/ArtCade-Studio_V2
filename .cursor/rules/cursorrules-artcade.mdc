@@ -218,7 +218,8 @@ These rules are project-specific and outrank generic web-app guidance.
 
 ### Logic Board & Script
 
-- Logic Board is type-owned, descriptor-driven, compiled to Lua; generated Lua is read-only and must not overwrite user scripts.
+- Logic Board is type-owned (`objectTypes[].logicBoard`), descriptor-driven, compiled via C++ `compileProjectLogic` into **LogicRuntime** at Play/load; generated Logic Lua must not overwrite `scripts/main.lua` (My Script).
+- Script attachments remain separate programs on the same gameplay host; adapters stay thin.
 - Behavior scripts are type-owned; project scripts are global ordered; Lua source lives on disk under the project root (relative paths only).
 - Logic and Script share one gameplay host API but remain separate programs. Editor Play and export must share semantics (feature DoD is end-to-end).
 - No automatic hot-reload MVP; deferred destroy; Lua sandbox (no Raylib/OS/FS/ProjectDocument).
