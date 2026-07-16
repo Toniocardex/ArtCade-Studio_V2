@@ -26,10 +26,18 @@ Rectangle {
     signal triggerChosen(string typeId)
     signal conditionChosen(string typeId)
     signal actionChosen(string typeId)
+    signal propertyEdited(string slot, string propertyKey, string valueText)
 
     readonly property bool ruleEnabled: rule.enabled === true
     readonly property var conditionIds: rule.conditionTypeIds || []
     readonly property var actionIds: rule.actionTypeIds || []
+    readonly property var triggerProperties: rule.triggerProperties || []
+    readonly property var conditionProperties: rule.conditionProperties || []
+    readonly property var actionProperties: rule.actionProperties || []
+    readonly property int maxPropertyCount: Math.max(
+        triggerProperties.length,
+        conditionProperties.length,
+        actionProperties.length)
     readonly property real summaryOpacity: ruleEnabled ? 1.0 : 0.45
 
     /** Joins display names, capping at @p max entries plus a "+N more" tail. */
@@ -209,7 +217,7 @@ Rectangle {
 
         RowLayout {
             Layout.fillWidth: true
-            Layout.preferredHeight: 190
+            Layout.preferredHeight: 190 + root.maxPropertyCount * 44
             Layout.leftMargin: Metrics.spacingXs
             Layout.rightMargin: Metrics.spacingXs
             Layout.bottomMargin: Metrics.spacingXs
@@ -229,7 +237,11 @@ Rectangle {
                 editable: true
                 catalogTypeIds: EditorSession.logicTriggerCatalog
                 currentTypeId: root.rule.triggerTypeId || ""
+                propertyRows: root.triggerProperties
                 onTypeChosen: function(typeId) { root.triggerChosen(typeId) }
+                onPropertyEdited: function(key, value) {
+                    root.propertyEdited("trigger", key, value)
+                }
             }
 
             Rectangle {
@@ -251,7 +263,11 @@ Rectangle {
                 allowNone: true
                 catalogTypeIds: EditorSession.logicConditionCatalog
                 currentTypeId: root.conditionIds.length > 0 ? root.conditionIds[0] : ""
+                propertyRows: root.conditionProperties
                 onTypeChosen: function(typeId) { root.conditionChosen(typeId) }
+                onPropertyEdited: function(key, value) {
+                    root.propertyEdited("condition", key, value)
+                }
             }
 
             Rectangle {
@@ -272,7 +288,11 @@ Rectangle {
                 editable: true
                 catalogTypeIds: EditorSession.logicActionCatalog
                 currentTypeId: root.actionIds.length > 0 ? root.actionIds[0] : ""
+                propertyRows: root.actionProperties
                 onTypeChosen: function(typeId) { root.actionChosen(typeId) }
+                onPropertyEdited: function(key, value) {
+                    root.propertyEdited("action", key, value)
+                }
             }
         }
     }

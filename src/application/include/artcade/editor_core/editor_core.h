@@ -1,5 +1,6 @@
 #pragma once
 
+#include "logic-core.h"
 #include "types.h"
 
 #include <cstdint>
@@ -222,6 +223,50 @@ private:
     bool m_applied = false;
 };
 
+/** Which primary block on a rule owns a property edit. */
+enum class LogicRuleBlockSlot { Trigger, PrimaryCondition, PrimaryAction };
+
+/**
+ * Sets one authorable property on a rule's primary trigger / condition / action.
+ * Authorable kinds: Bool, Integer, Number, String, Key.
+ */
+class SetLogicRuleBlockPropertyCommand final : public ICommand {
+public:
+    SetLogicRuleBlockPropertyCommand(ObjectTypeId object_type_id,
+                                     LogicRuleId rule_id,
+                                     LogicRuleBlockSlot slot,
+                                     std::string property_key,
+                                     LogicValue new_value);
+    void execute(ProjectDoc &doc) override;
+    void undo(ProjectDoc &doc) override;
+
+private:
+    ObjectTypeId m_object_type_id;
+    LogicRuleId m_rule_id;
+    LogicRuleBlockSlot m_slot = LogicRuleBlockSlot::Trigger;
+    std::string m_property_key;
+    LogicValue m_old_value = false;
+    LogicValue m_new_value = false;
+    bool m_had_property = false;
+    bool m_captured = false;
+    bool m_applied = false;
+};
+
+/** Summary row for QML property editors (text-encoded values). */
+struct LogicPropertySummary {
+    std::string key;
+    std::string kind;
+    std::string value;
+};
+
+[[nodiscard]] bool logic_values_equal(const LogicValue &a, const LogicValue &b);
+bool logic_value_parse(ArtCade::Logic::LogicValueKind kind,
+                       const std::string &text,
+                       LogicValue &out,
+                       std::string &error_message);
+[[nodiscard]] std::vector<LogicPropertySummary> logic_block_authorable_properties(
+    const LogicBlockDef &block);
+
 /** C++-owned editor project format. */
 inline constexpr int kCurrentProjectFormatVersion = 5;
 
@@ -324,6 +369,17 @@ public:
     bool clearLogicRuleConditions(const ObjectTypeId &object_type_id,
                                   const LogicRuleId &rule_id,
                                   std::string &error_message);
+
+    /**
+     * Sets one authorable property on a rule block (Bool / Integer / Number / String / Key).
+     * Same value is a no-op (does not dirty).
+     */
+    bool setLogicRuleBlockProperty(const ObjectTypeId &object_type_id,
+                                   const LogicRuleId &rule_id,
+                                   LogicRuleBlockSlot slot,
+                                   const std::string &property_key,
+                                   const std::string &value_text,
+                                   std::string &error_message);
 
     /**
      * Compiles all objectTypes[].logicBoard with Executable validation.

@@ -54,7 +54,9 @@ class EditorSession : public QObject
     Q_PROPERTY(int logicRuleCount READ logicRuleCount NOTIFY logicRulesChanged)
     /**
      * Per-rule summaries for the selected type's board, in execution order.
-     * Each entry: { id, enabled, triggerTypeId, conditionTypeIds, actionTypeIds }.
+     * Each entry: { id, enabled, triggerTypeId, conditionTypeIds, actionTypeIds,
+     *               triggerProperties, conditionProperties, actionProperties }.
+     * Property rows: { key, kind, value } for Bool/Integer/Number/String/Key.
      */
     Q_PROPERTY(QVariantList logicRules READ logicRules NOTIFY logicRulesChanged)
     /** Workspace: which rule is focused in Logic Board (does not dirty). */
@@ -64,6 +66,8 @@ class EditorSession : public QObject
     Q_PROPERTY(QStringList logicTriggerCatalog READ logicTriggerCatalog CONSTANT)
     Q_PROPERTY(QStringList logicConditionCatalog READ logicConditionCatalog CONSTANT)
     Q_PROPERTY(QStringList logicActionCatalog READ logicActionCatalog CONSTANT)
+    /** Supported LogicKey display names for Key property editors. */
+    Q_PROPERTY(QStringList logicKeyCatalog READ logicKeyCatalog CONSTANT)
     Q_PROPERTY(QString activeLayerId READ activeLayerId NOTIFY activeLayerChanged)
     Q_PROPERTY(QString activeSceneName READ activeSceneName NOTIFY projectChanged)
     Q_PROPERTY(double activeSceneWidth READ activeSceneWidth NOTIFY projectChanged)
@@ -104,6 +108,7 @@ public:
     [[nodiscard]] QStringList logicTriggerCatalog() const;
     [[nodiscard]] QStringList logicConditionCatalog() const;
     [[nodiscard]] QStringList logicActionCatalog() const;
+    [[nodiscard]] QStringList logicKeyCatalog() const;
     void setSelectedLogicRuleId(const QString &ruleId);
     [[nodiscard]] QString activeLayerId() const;
     [[nodiscard]] QString activeSceneName() const;
@@ -161,6 +166,15 @@ public:
      * Disabled rules persist but are skipped by compile/Play. Undoable.
      */
     Q_INVOKABLE void setLogicRuleEnabled(const QString &ruleId, bool enabled);
+    /**
+     * Sets a property on a primary block of @p ruleId.
+     * @p slot is "trigger" | "condition" | "action".
+     * @p valueText is kind-specific ("true", "Space", "1.0", …). Undoable.
+     */
+    Q_INVOKABLE void setLogicRuleBlockProperty(const QString &ruleId,
+                                               const QString &slot,
+                                               const QString &propertyKey,
+                                               const QString &valueText);
     [[nodiscard]] Q_INVOKABLE QString logicBlockDisplayName(const QString &blockTypeId) const;
     Q_INVOKABLE quint32 pickEntityAt(double worldX, double worldY);
     /**

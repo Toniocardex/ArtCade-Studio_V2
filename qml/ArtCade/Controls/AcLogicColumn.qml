@@ -23,6 +23,11 @@ Item {
     /** When true, ComboBox includes an empty entry meaning “no condition”. */
     property bool allowNone: false
     property string noneLabel: "None (always)"
+    /**
+     * Authorable property rows for the primary block:
+     * [{ key, kind, value }, ...] from EditorSession.logicRules.
+     */
+    property var propertyRows: []
 
     readonly property var comboModel: {
         if (!root.allowNone)
@@ -34,6 +39,7 @@ Item {
     }
 
     signal typeChosen(string typeId)
+    signal propertyEdited(string propertyKey, string valueText)
 
     function labelForTypeId(typeId) {
         if (!typeId || typeId.length === 0)
@@ -208,6 +214,20 @@ Item {
                             catalogBox.currentIndex = i
                         else if (root.allowNone && current.length === 0)
                             catalogBox.currentIndex = 0
+                    }
+                }
+
+                Repeater {
+                    model: root.editable ? root.propertyRows : []
+                    delegate: AcLogicPropertyEditor {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        propertyKey: modelData.key || ""
+                        kind: modelData.kind || "string"
+                        valueText: modelData.value || ""
+                        onEdited: function(valueText) {
+                            root.propertyEdited(propertyKey, valueText)
+                        }
                     }
                 }
             }

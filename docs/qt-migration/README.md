@@ -54,7 +54,7 @@ Override: `$env:ARTCADE_GAME_EXE = "D:\path\to\game.exe"`.
 
 Open / Fixture → Hierarchy → Select → Rename / SetPosition → Layers/Assets → Scene View (pick/drag/snap/rect) → Save → **Play** (`game.exe`) → unsaved close guard.
 
-**Logic Board:** CRUD + When/Also/Then pickers + **Play compile gate** (`compileProjectLogic` → LogicRuntime in `game.exe`; editor preflight before Play). `main.lua` untouched.
+**Logic Board:** CRUD + When/Also/Then pickers + **block property editing** (Bool / Key / Number / String; e.g. key, visible) + **Play compile gate** (`compileProjectLogic` → LogicRuntime in `game.exe`; editor preflight before Play). `main.lua` untouched.
 
 Next (Qt only): Script editor, packaging/LGPL notices.  
 Done: shell + Hierarchy + Layers/Assets + Scene View + Play + Logic Board authoring + LogicRuntime Play path.

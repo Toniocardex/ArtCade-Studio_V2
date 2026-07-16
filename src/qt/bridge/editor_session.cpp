@@ -34,6 +34,20 @@ QColor instance_fill(quint32 entity_id, bool selected)
     return QColor::fromHsv(hue, 110, 170, 150);
 }
 
+QVariantList logic_property_rows(const ArtCade::LogicBlockDef &block)
+{
+    QVariantList rows;
+    for (const ArtCade::EditorCore::LogicPropertySummary &row :
+         ArtCade::EditorCore::logic_block_authorable_properties(block)) {
+        rows.append(QVariantMap{
+            {QStringLiteral("key"), QString::fromStdString(row.key)},
+            {QStringLiteral("kind"), QString::fromStdString(row.kind)},
+            {QStringLiteral("value"), QString::fromStdString(row.value)},
+        });
+    }
+    return rows;
+}
+
 } // namespace
 
 EditorSession::EditorSession(QObject *parent)
@@ -196,6 +210,15 @@ QStringList EditorSession::logicActionCatalog() const
         }
     }
     return ids;
+}
+
+QStringList EditorSession::logicKeyCatalog() const
+{
+    QStringList names;
+    for (const ArtCade::LogicKey key : ArtCade::Logic::supportedLogicKeys()) {
+        names.append(QString::fromStdString(ArtCade::Logic::logicKeyName(key)));
+    }
+    return names;
 }
 
 QString EditorSession::logicBlockDisplayName(const QString &blockTypeId) const
@@ -415,6 +438,13 @@ void EditorSession::refreshSelectionCache()
                             for (const ArtCade::LogicBlockDef &block : rule.actions) {
                                 action_ids.append(QString::fromStdString(block.typeId));
                             }
+                            const QVariantList condition_props =
+                                rule.conditions.empty()
+                                    ? QVariantList{}
+                                    : logic_property_rows(rule.conditions.front());
+                            const QVariantList action_props =
+                                rule.actions.empty() ? QVariantList{}
+                                                     : logic_property_rows(rule.actions.front());
                             m_logicRules.append(QVariantMap{
                                 {QStringLiteral("id"), QString::fromStdString(rule.id)},
                                 {QStringLiteral("enabled"), rule.enabled},
@@ -422,6 +452,10 @@ void EditorSession::refreshSelectionCache()
                                  QString::fromStdString(rule.trigger.typeId)},
                                 {QStringLiteral("conditionTypeIds"), condition_ids},
                                 {QStringLiteral("actionTypeIds"), action_ids},
+                                {QStringLiteral("triggerProperties"),
+                                 logic_property_rows(rule.trigger)},
+                                {QStringLiteral("conditionProperties"), condition_props},
+                                {QStringLiteral("actionProperties"), action_props},
                             });
                         }
                     }
@@ -796,6 +830,54 @@ void EditorSession::setLogicRulePrimaryCondition(const QString &blockTypeId)
     refreshSelectionCache();
     emit dirtyChanged();
     setStatus(QStringLiteral("Also require…: %1").arg(logicBlockDisplayName(blockTypeId)));
+}
+
+void EditorSession::setLogicRuleBlockProperty(const QString &ruleId,
+                                              const QString &slot,
+                                              const QString &propertyKey,
+                                              const QString &valueText)
+{
+    QString guard_error;
+    if (!guardAuthoring(&guard_error)) {
+        setStatus(guard_error, false);
+        emit errorOccurred(guard_error);
+        return;
+    }
+    if (m_selectedObjectTypeId.isEmpty() || ruleId.isEmpty() || propertyKey.isEmpty()) {
+        const QString msg = QStringLiteral("Select a Logic rule to edit block properties");
+        setStatus(msg, false);
+        emit errorOccurred(msg);
+        return;
+    }
+    ArtCade::EditorCore::LogicRuleBlockSlot block_slot =
+        ArtCade::EditorCore::LogicRuleBlockSlot::Trigger;
+    if (slot == QLatin1String("condition")) {
+        block_slot = ArtCade::EditorCore::LogicRuleBlockSlot::PrimaryCondition;
+    } else if (slot == QLatin1String("action")) {
+        block_slot = ArtCade::EditorCore::LogicRuleBlockSlot::PrimaryAction;
+    } else if (slot != QLatin1String("trigger")) {
+        const QString msg = QStringLiteral("Unknown Logic property slot");
+        setStatus(msg, false);
+        emit errorOccurred(msg);
+        return;
+    }
+    if (m_selectedLogicRuleId != ruleId) {
+        setSelectedLogicRuleId(ruleId);
+    }
+    std::string error;
+    if (!m_coordinator->setLogicRuleBlockProperty(m_selectedObjectTypeId.toStdString(),
+                                                  ruleId.toStdString(),
+                                                  block_slot,
+                                                  propertyKey.toStdString(),
+                                                  valueText.toStdString(),
+                                                  error)) {
+        setStatus(QString::fromStdString(error));
+        emit errorOccurred(QString::fromStdString(error));
+        return;
+    }
+    refreshSelectionCache();
+    emit dirtyChanged();
+    setStatus(QStringLiteral("%1 = %2").arg(propertyKey, valueText));
 }
 
 void EditorSession::setLogicRuleEnabled(const QString &ruleId, bool enabled)

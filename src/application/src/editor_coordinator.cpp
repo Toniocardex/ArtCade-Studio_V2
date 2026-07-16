@@ -626,6 +626,100 @@ bool EditorCoordinator::clearLogicRuleConditions(const ObjectTypeId &object_type
     return true;
 }
 
+bool EditorCoordinator::setLogicRuleBlockProperty(const ObjectTypeId &object_type_id,
+                                                  const LogicRuleId &rule_id,
+                                                  LogicRuleBlockSlot slot,
+                                                  const std::string &property_key,
+                                                  const std::string &value_text,
+                                                  std::string &error_message)
+{
+    if (!m_has_project) {
+        error_message = "No project open";
+        return false;
+    }
+    if (object_type_id.empty() || rule_id.empty() || property_key.empty()) {
+        error_message = "Missing Logic Board property target";
+        return false;
+    }
+    auto type_it = m_doc.objectTypes.find(object_type_id);
+    if (type_it == m_doc.objectTypes.end() || !type_it->second.logicBoard) {
+        error_message = "Logic Board not found";
+        return false;
+    }
+    LogicRuleDef *rule = nullptr;
+    for (LogicRuleDef &r : type_it->second.logicBoard->rules) {
+        if (r.id == rule_id) {
+            rule = &r;
+            break;
+        }
+    }
+    if (!rule) {
+        error_message = "Logic rule not found";
+        return false;
+    }
+    const LogicBlockDef *block = nullptr;
+    switch (slot) {
+    case LogicRuleBlockSlot::Trigger:
+        block = &rule->trigger;
+        break;
+    case LogicRuleBlockSlot::PrimaryCondition:
+        if (rule->conditions.empty()) {
+            error_message = "No condition block to edit";
+            return false;
+        }
+        block = &rule->conditions.front();
+        break;
+    case LogicRuleBlockSlot::PrimaryAction:
+        if (rule->actions.empty()) {
+            error_message = "No action block to edit";
+            return false;
+        }
+        block = &rule->actions.front();
+        break;
+    }
+    if (!block || block->typeId.empty()) {
+        error_message = "Logic block not found";
+        return false;
+    }
+    const ArtCade::Logic::LogicBlockDescriptor *desc =
+        ArtCade::Logic::findDescriptor(block->typeId);
+    if (!desc) {
+        error_message = "Unknown Logic block type";
+        return false;
+    }
+    const ArtCade::Logic::LogicPropertyDescriptor *prop_desc = nullptr;
+    for (const ArtCade::Logic::LogicPropertyDescriptor &candidate : desc->properties) {
+        if (candidate.key == property_key) {
+            prop_desc = &candidate;
+            break;
+        }
+    }
+    if (!prop_desc) {
+        error_message = "Unknown property on this block";
+        return false;
+    }
+    LogicValue parsed;
+    if (!logic_value_parse(prop_desc->valueKind, value_text, parsed, error_message)) {
+        return false;
+    }
+    if (const LogicPropertyDef *current = ArtCade::Logic::findProperty(*block, property_key)) {
+        if (logic_values_equal(current->value, parsed)) {
+            return true; // no-op — do not dirty
+        }
+    }
+    auto command = std::make_unique<SetLogicRuleBlockPropertyCommand>(
+        object_type_id, rule_id, slot, property_key, parsed);
+    command->execute(m_doc);
+    const LogicPropertyDef *after = ArtCade::Logic::findProperty(*block, property_key);
+    if (!after || !logic_values_equal(after->value, parsed)) {
+        error_message = "Failed to set property";
+        return false;
+    }
+    m_commands.pushExecuted(std::move(command));
+    bumpRevision();
+    return true;
+}
+
 bool EditorCoordinator::validateLogicForPlay(std::string &error_message) const
 {
     if (!m_has_project) {

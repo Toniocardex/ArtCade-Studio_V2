@@ -226,6 +226,9 @@ Rectangle {
                 onActionChosen: function(typeId) {
                     EditorSession.setLogicRulePrimaryAction(typeId)
                 }
+                onPropertyEdited: function(slot, key, value) {
+                    EditorSession.setLogicRuleBlockProperty(modelData.id, slot, key, value)
+                }
             }
 
             AcEmptyHint {

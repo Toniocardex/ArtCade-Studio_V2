@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <string>
+#include <variant>
 
 #ifndef ARTCADE_QT_SLICE_FIXTURE_DIR
 #error ARTCADE_QT_SLICE_FIXTURE_DIR must be defined
@@ -129,6 +130,39 @@ int main()
     expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].trigger.typeId
                == ArtCade::Logic::kKeyPressed,
            "trigger updated");
+    expect(coord.setLogicRuleBlockProperty("Player",
+                                           rule_id,
+                                           ArtCade::EditorCore::LogicRuleBlockSlot::Trigger,
+                                           "key",
+                                           "W",
+                                           error),
+           "set key property to W");
+    {
+        const ArtCade::LogicPropertyDef *key_prop = ArtCade::Logic::findProperty(
+            coord.document().objectTypes.at("Player").logicBoard->rules[0].trigger, "key");
+        expect(key_prop != nullptr, "key property present");
+        expect(std::holds_alternative<ArtCade::LogicKey>(key_prop->value)
+                   && std::get<ArtCade::LogicKey>(key_prop->value) == ArtCade::LogicKey::W,
+               "key is W");
+    }
+    const std::uint64_t rev_before_key_noop = coord.revision();
+    expect(coord.setLogicRuleBlockProperty("Player",
+                                           rule_id,
+                                           ArtCade::EditorCore::LogicRuleBlockSlot::Trigger,
+                                           "key",
+                                           "W",
+                                           error),
+           "no-op key set succeeds");
+    expect(coord.revision() == rev_before_key_noop, "no-op key does not bump revision");
+    coord.undo();
+    {
+        const ArtCade::LogicPropertyDef *key_prop = ArtCade::Logic::findProperty(
+            coord.document().objectTypes.at("Player").logicBoard->rules[0].trigger, "key");
+        expect(key_prop != nullptr, "key after undo");
+        expect(std::holds_alternative<ArtCade::LogicKey>(key_prop->value)
+                   && std::get<ArtCade::LogicKey>(key_prop->value) == ArtCade::LogicKey::Space,
+               "undo restores default Space key");
+    }
     coord.undo();
     expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].trigger.typeId
                == ArtCade::Logic::kOnStart,
@@ -142,6 +176,22 @@ int main()
     expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].actions.front().typeId
                == ArtCade::Logic::kDestroySelf,
            "action updated");
+    coord.undo();
+    expect(coord.setLogicRuleBlockProperty("Player",
+                                           rule_id,
+                                           ArtCade::EditorCore::LogicRuleBlockSlot::PrimaryAction,
+                                           "visible",
+                                           "false",
+                                           error),
+           "set visible false on default Set Visible");
+    {
+        const ArtCade::LogicPropertyDef *vis = ArtCade::Logic::findProperty(
+            coord.document().objectTypes.at("Player").logicBoard->rules[0].actions.front(),
+            "visible");
+        expect(vis != nullptr && std::holds_alternative<bool>(vis->value)
+                   && std::get<bool>(vis->value) == false,
+               "visible is false");
+    }
     coord.undo();
 
     expect(coord.setLogicRulePrimaryCondition("Player",
