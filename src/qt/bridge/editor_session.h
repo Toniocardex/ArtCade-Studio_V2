@@ -56,7 +56,9 @@ class EditorSession : public QObject
      * Per-rule summaries for the selected type's board, in execution order.
      * Each entry: { id, enabled, triggerTypeId, conditionTypeIds, actionTypeIds,
      *               triggerProperties, conditionProperties, actionProperties }.
-     * Property rows: { key, kind, value } for Bool/Integer/Number/String/Key.
+     * Property rows: { key, kind, value, valueLabel, choices } for
+     * Bool/Integer/Number/String/Key/Vec2/Asset; choices ({value,label}) are
+     * project-backed pickers (assets, clips, object types), empty = free-form.
      */
     Q_PROPERTY(QVariantList logicRules READ logicRules NOTIFY logicRulesChanged)
     /** Workspace: which rule is focused in Logic Board (does not dirty). */

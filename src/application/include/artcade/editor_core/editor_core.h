@@ -228,7 +228,7 @@ enum class LogicRuleBlockSlot { Trigger, PrimaryCondition, PrimaryAction };
 
 /**
  * Sets one authorable property on a rule's primary trigger / condition / action.
- * Authorable kinds: Bool, Integer, Number, String, Key.
+ * Authorable kinds: Bool, Integer, Number, String, Key, Vec2 ("x,y"), Asset (id).
  */
 class SetLogicRuleBlockPropertyCommand final : public ICommand {
 public:
@@ -371,7 +371,8 @@ public:
                                   std::string &error_message);
 
     /**
-     * Sets one authorable property on a rule block (Bool / Integer / Number / String / Key).
+     * Sets one authorable property on a rule block
+     * (Bool / Integer / Number / String / Key / Vec2 / Asset).
      * Same value is a no-op (does not dirty).
      */
     bool setLogicRuleBlockProperty(const ObjectTypeId &object_type_id,

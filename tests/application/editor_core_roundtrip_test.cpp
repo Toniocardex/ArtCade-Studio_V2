@@ -194,6 +194,82 @@ int main()
     }
     coord.undo();
 
+    expect(coord.setLogicRulePrimaryAction("Player",
+                                           rule_id,
+                                           ArtCade::Logic::kSetPosition,
+                                           error),
+           "set action to Set Position");
+    expect(coord.setLogicRuleBlockProperty("Player",
+                                           rule_id,
+                                           ArtCade::EditorCore::LogicRuleBlockSlot::PrimaryAction,
+                                           "position",
+                                           "12, 34.5",
+                                           error),
+           "set position vec2 property");
+    {
+        const ArtCade::LogicPropertyDef *pos = ArtCade::Logic::findProperty(
+            coord.document().objectTypes.at("Player").logicBoard->rules[0].actions.front(),
+            "position");
+        expect(pos != nullptr && std::holds_alternative<ArtCade::Vec2>(pos->value)
+                   && std::get<ArtCade::Vec2>(pos->value).x == 12.f
+                   && std::get<ArtCade::Vec2>(pos->value).y == 34.5f,
+               "position is 12,34.5");
+    }
+    expect(!coord.setLogicRuleBlockProperty("Player",
+                                            rule_id,
+                                            ArtCade::EditorCore::LogicRuleBlockSlot::PrimaryAction,
+                                            "position",
+                                            "12",
+                                            error),
+           "vec2 without comma is rejected");
+    coord.undo();
+    {
+        const ArtCade::LogicPropertyDef *pos = ArtCade::Logic::findProperty(
+            coord.document().objectTypes.at("Player").logicBoard->rules[0].actions.front(),
+            "position");
+        expect(pos != nullptr && std::holds_alternative<ArtCade::Vec2>(pos->value)
+                   && std::get<ArtCade::Vec2>(pos->value).x == 0.f
+                   && std::get<ArtCade::Vec2>(pos->value).y == 0.f,
+               "undo restores default position");
+    }
+
+    expect(coord.setLogicRulePrimaryAction("Player",
+                                           rule_id,
+                                           ArtCade::Logic::kAudioPlaySound,
+                                           error),
+           "set action to Play Sound");
+    expect(coord.setLogicRuleBlockProperty("Player",
+                                           rule_id,
+                                           ArtCade::EditorCore::LogicRuleBlockSlot::PrimaryAction,
+                                           "audioAssetId",
+                                           "sfx-coin",
+                                           error),
+           "set audio asset id");
+    {
+        const ArtCade::LogicPropertyDef *asset = ArtCade::Logic::findProperty(
+            coord.document().objectTypes.at("Player").logicBoard->rules[0].actions.front(),
+            "audioAssetId");
+        expect(asset != nullptr
+                   && std::holds_alternative<ArtCade::LogicAssetReference>(asset->value)
+                   && std::get<ArtCade::LogicAssetReference>(asset->value).id == "sfx-coin",
+               "audio asset id set");
+    }
+    coord.undo();
+    {
+        const ArtCade::LogicPropertyDef *asset = ArtCade::Logic::findProperty(
+            coord.document().objectTypes.at("Player").logicBoard->rules[0].actions.front(),
+            "audioAssetId");
+        expect(asset != nullptr
+                   && std::holds_alternative<ArtCade::LogicAssetReference>(asset->value)
+                   && std::get<ArtCade::LogicAssetReference>(asset->value).id.empty(),
+               "undo clears audio asset id");
+    }
+    coord.undo();
+    coord.undo();
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].actions.front().typeId
+               == ArtCade::Logic::kSetVisible,
+           "undo chain restores default Set Visible action");
+
     expect(coord.setLogicRulePrimaryCondition("Player",
                                               rule_id,
                                               ArtCade::Logic::kIsGrounded,

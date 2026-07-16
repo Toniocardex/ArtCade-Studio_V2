@@ -65,6 +65,8 @@ bool is_authorable_kind(ArtCade::Logic::LogicValueKind kind)
     case LogicValueKind::Number:
     case LogicValueKind::String:
     case LogicValueKind::Key:
+    case LogicValueKind::Vec2:
+    case LogicValueKind::Asset:
         return true;
     default:
         return false;
@@ -85,6 +87,10 @@ std::string logic_value_kind_id(ArtCade::Logic::LogicValueKind kind)
         return "string";
     case LogicValueKind::Key:
         return "key";
+    case LogicValueKind::Vec2:
+        return "vec2";
+    case LogicValueKind::Asset:
+        return "asset";
     default:
         return "unknown";
     }
@@ -108,6 +114,15 @@ std::string logic_value_to_text(const LogicValue &value)
     }
     if (std::holds_alternative<LogicKey>(value)) {
         return ArtCade::Logic::logicKeyName(std::get<LogicKey>(value));
+    }
+    if (std::holds_alternative<Vec2>(value)) {
+        const Vec2 &v = std::get<Vec2>(value);
+        std::ostringstream oss;
+        oss << v.x << "," << v.y;
+        return oss.str();
+    }
+    if (std::holds_alternative<LogicAssetReference>(value)) {
+        return std::get<LogicAssetReference>(value).id;
     }
     return {};
 }
@@ -133,6 +148,14 @@ bool logic_values_equal(const LogicValue &a, const LogicValue &b)
     }
     if (std::holds_alternative<LogicKey>(a)) {
         return std::get<LogicKey>(a) == std::get<LogicKey>(b);
+    }
+    if (std::holds_alternative<Vec2>(a)) {
+        const Vec2 &va = std::get<Vec2>(a);
+        const Vec2 &vb = std::get<Vec2>(b);
+        return va.x == vb.x && va.y == vb.y;
+    }
+    if (std::holds_alternative<LogicAssetReference>(a)) {
+        return std::get<LogicAssetReference>(a).id == std::get<LogicAssetReference>(b).id;
     }
     return false;
 }
@@ -198,6 +221,39 @@ bool logic_value_parse(ArtCade::Logic::LogicValueKind kind,
         out = *key;
         return true;
     }
+    case LogicValueKind::Vec2: {
+        const std::size_t comma = text.find(',');
+        if (comma == std::string::npos) {
+            error_message = "Expected \"x,y\"";
+            return false;
+        }
+        try {
+            size_t used_x = 0;
+            size_t used_y = 0;
+            const std::string x_text = text.substr(0, comma);
+            const std::string y_text = text.substr(comma + 1);
+            const float x = std::stof(x_text, &used_x);
+            const float y = std::stof(y_text, &used_y);
+            // Allow surrounding whitespace ("12, 34"), reject trailing garbage.
+            const auto rest_blank = [](const std::string &s, size_t from) {
+                return s.find_first_not_of(" \t", from) == std::string::npos;
+            };
+            if (!rest_blank(x_text, used_x) || !rest_blank(y_text, used_y)
+                || !std::isfinite(x) || !std::isfinite(y)) {
+                error_message = "Expected \"x,y\"";
+                return false;
+            }
+            out = Vec2{x, y};
+            return true;
+        } catch (...) {
+            error_message = "Expected \"x,y\"";
+            return false;
+        }
+    }
+    case LogicValueKind::Asset:
+        // Empty id is a valid authoring draft; Executable validation gates Play.
+        out = LogicAssetReference{text};
+        return true;
     default:
         error_message = "Property kind is not editable yet";
         return false;

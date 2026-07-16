@@ -19,6 +19,7 @@
 #include <QUrl>
 #include <Qt>
 #include <QtGlobal>
+#include <algorithm>
 #include <cmath>
 
 #ifndef ARTCADE_QT_SLICE_FIXTURE_PATH
@@ -36,15 +37,84 @@ QColor instance_fill(quint32 entity_id, bool selected)
     return QColor::fromHsv(hue, 110, 170, 150);
 }
 
-QVariantList logic_property_rows(const ArtCade::LogicBlockDef &block)
+QVariantMap logic_choice_entry(const std::string &value, const std::string &label)
+{
+    return QVariantMap{
+        {QStringLiteral("value"), QString::fromStdString(value)},
+        {QStringLiteral("label"), QString::fromStdString(label.empty() ? value : label)},
+    };
+}
+
+/**
+ * Project-backed choices for one block property (empty when free-form).
+ * Values are stable ids; labels are display names only.
+ */
+QVariantList logic_property_choices(const ArtCade::ProjectDoc &doc,
+                                    const ArtCade::LogicBlockDef &block,
+                                    const std::string &key)
+{
+    QVariantList choices;
+    if (block.typeId == ArtCade::Logic::kAudioPlaySound && key == "audioAssetId") {
+        for (const ArtCade::AudioAssetDef &asset : doc.audioAssets) {
+            choices.append(logic_choice_entry(asset.assetId, asset.name));
+        }
+    } else if (block.typeId == ArtCade::Logic::kAnimationPlayClip
+               && key == "animationAssetId") {
+        for (const ArtCade::SpriteAnimationAssetDef &asset : doc.spriteAnimationAssets) {
+            choices.append(logic_choice_entry(asset.id, asset.name));
+        }
+    } else if (block.typeId == ArtCade::Logic::kAnimationPlayClip && key == "clipId") {
+        const ArtCade::LogicPropertyDef *asset_prop =
+            ArtCade::Logic::findProperty(block, "animationAssetId");
+        const auto *asset_ref = asset_prop
+            ? std::get_if<ArtCade::LogicAssetReference>(&asset_prop->value)
+            : nullptr;
+        if (asset_ref && !asset_ref->id.empty()) {
+            for (const ArtCade::SpriteAnimationAssetDef &asset : doc.spriteAnimationAssets) {
+                if (asset.id != asset_ref->id) {
+                    continue;
+                }
+                for (const ArtCade::SpriteAnimationClipDef &clip : asset.clips) {
+                    choices.append(logic_choice_entry(clip.id, clip.name));
+                }
+                break;
+            }
+        }
+    } else if (block.typeId == ArtCade::Logic::kOtherIsObjectType && key == "objectTypeId") {
+        for (const auto &[type_id, type] : doc.objectTypes) {
+            choices.append(logic_choice_entry(type_id, type.name));
+        }
+        // objectTypes is unordered — sort by label so the picker is stable.
+        std::sort(choices.begin(), choices.end(), [](const QVariant &a, const QVariant &b) {
+            return a.toMap().value(QStringLiteral("label")).toString()
+                       .localeAwareCompare(
+                           b.toMap().value(QStringLiteral("label")).toString()) < 0;
+        });
+    }
+    return choices;
+}
+
+QVariantList logic_property_rows(const ArtCade::ProjectDoc &doc,
+                                 const ArtCade::LogicBlockDef &block)
 {
     QVariantList rows;
     for (const ArtCade::EditorCore::LogicPropertySummary &row :
          ArtCade::EditorCore::logic_block_authorable_properties(block)) {
+        const QVariantList choices = logic_property_choices(doc, block, row.key);
+        QString value_label = QString::fromStdString(row.value);
+        for (const QVariant &entry : choices) {
+            const QVariantMap map = entry.toMap();
+            if (map.value(QStringLiteral("value")).toString() == value_label) {
+                value_label = map.value(QStringLiteral("label")).toString();
+                break;
+            }
+        }
         rows.append(QVariantMap{
             {QStringLiteral("key"), QString::fromStdString(row.key)},
             {QStringLiteral("kind"), QString::fromStdString(row.kind)},
             {QStringLiteral("value"), QString::fromStdString(row.value)},
+            {QStringLiteral("valueLabel"), value_label},
+            {QStringLiteral("choices"), choices},
         });
     }
     return rows;
@@ -492,10 +562,11 @@ void EditorSession::refreshSelectionCache()
                             const QVariantList condition_props =
                                 rule.conditions.empty()
                                     ? QVariantList{}
-                                    : logic_property_rows(rule.conditions.front());
+                                    : logic_property_rows(doc, rule.conditions.front());
                             const QVariantList action_props =
-                                rule.actions.empty() ? QVariantList{}
-                                                     : logic_property_rows(rule.actions.front());
+                                rule.actions.empty()
+                                    ? QVariantList{}
+                                    : logic_property_rows(doc, rule.actions.front());
                             m_logicRules.append(QVariantMap{
                                 {QStringLiteral("id"), QString::fromStdString(rule.id)},
                                 {QStringLiteral("enabled"), rule.enabled},
@@ -504,7 +575,7 @@ void EditorSession::refreshSelectionCache()
                                 {QStringLiteral("conditionTypeIds"), condition_ids},
                                 {QStringLiteral("actionTypeIds"), action_ids},
                                 {QStringLiteral("triggerProperties"),
-                                 logic_property_rows(rule.trigger)},
+                                 logic_property_rows(doc, rule.trigger)},
                                 {QStringLiteral("conditionProperties"), condition_props},
                                 {QStringLiteral("actionProperties"), action_props},
                             });

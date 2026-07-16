@@ -40,12 +40,28 @@ Rectangle {
         actionProperties.length)
     readonly property real summaryOpacity: ruleEnabled ? 1.0 : 0.45
 
-    /** Joins display names, capping at @p max entries plus a "+N more" tail. */
-    function blockSummary(ids, max) {
+    /** " · <value>" suffix from the primary block's first authorable property. */
+    function primaryDetail(props) {
+        if (!props || props.length === 0)
+            return ""
+        const row = props[0]
+        const label = String(row.valueLabel !== undefined ? row.valueLabel : row.value)
+        return label.length > 0 ? " · " + label : ""
+    }
+
+    /**
+     * Joins display names, capping at @p max entries plus a "+N more" tail.
+     * The first (primary) entry carries its leading property value.
+     */
+    function blockSummary(ids, max, primaryProps) {
         const shown = Math.min(ids.length, max)
         const parts = []
-        for (let i = 0; i < shown; ++i)
-            parts.push(EditorSession.logicBlockDisplayName(ids[i]))
+        for (let i = 0; i < shown; ++i) {
+            let name = EditorSession.logicBlockDisplayName(ids[i])
+            if (i === 0)
+                name += primaryDetail(primaryProps)
+            parts.push(name)
+        }
         if (ids.length > shown)
             parts.push("+" + (ids.length - shown) + " more")
         return parts.join(" · ")
@@ -136,30 +152,31 @@ Rectangle {
 
             Text {
                 text: EditorSession.logicBlockDisplayName(root.rule.triggerTypeId || "")
+                      + root.primaryDetail(root.triggerProperties)
                 color: Theme.textPrimary
                 font.family: Typography.family
                 font.pixelSize: Typography.sizeSm
                 font.weight: Font.DemiBold
                 elide: Text.ElideRight
-                Layout.maximumWidth: 220
+                Layout.maximumWidth: 260
                 opacity: root.summaryOpacity
             }
 
             Text {
                 visible: !root.comfortable && !root.expanded && root.conditionIds.length > 0
-                text: "IF " + root.blockSummary(root.conditionIds, 2)
+                text: "IF " + root.blockSummary(root.conditionIds, 2, root.conditionProperties)
                 color: Theme.textSecondary
                 font.family: Typography.family
                 font.pixelSize: Typography.sizeXs
                 elide: Text.ElideRight
-                Layout.maximumWidth: 240
+                Layout.maximumWidth: 260
                 opacity: root.summaryOpacity
             }
 
             Text {
                 visible: !root.comfortable && !root.expanded && root.actionIds.length > 0
                 Layout.fillWidth: true
-                text: "DO " + root.blockSummary(root.actionIds, 3)
+                text: "DO " + root.blockSummary(root.actionIds, 3, root.actionProperties)
                 color: Theme.textSecondary
                 font.family: Typography.family
                 font.pixelSize: Typography.sizeXs
@@ -196,7 +213,7 @@ Rectangle {
             Text {
                 visible: root.conditionIds.length > 0
                 Layout.fillWidth: true
-                text: "IF " + root.blockSummary(root.conditionIds, 3)
+                text: "IF " + root.blockSummary(root.conditionIds, 3, root.conditionProperties)
                 color: Theme.textSecondary
                 font.family: Typography.family
                 font.pixelSize: Typography.sizeXs
@@ -206,7 +223,7 @@ Rectangle {
             Text {
                 visible: root.actionIds.length > 0
                 Layout.fillWidth: true
-                text: "DO " + root.blockSummary(root.actionIds, 3)
+                text: "DO " + root.blockSummary(root.actionIds, 3, root.actionProperties)
                 color: Theme.textSecondary
                 font.family: Typography.family
                 font.pixelSize: Typography.sizeXs

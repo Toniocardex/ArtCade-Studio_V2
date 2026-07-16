@@ -241,6 +241,7 @@ Item {
                         propertyKey: modelData.key || ""
                         kind: modelData.kind || "string"
                         valueText: modelData.value || ""
+                        choices: modelData.choices || []
                         onEdited: function(valueText) {
                             root.propertyEdited(propertyKey, valueText)
                         }
