@@ -67,13 +67,19 @@ qt_add_qml_module(artcade-editor-style
 )
 target_link_libraries(artcade-editor-qt PRIVATE artcade-editor-styleplugin)
 
-# Bake absolute path to W2 fixture for one-click open in the shell.
-set(_artcade_qt_slice_fixture "${CMAKE_SOURCE_DIR}/tests/fixtures/qt-slice/project.json")
-file(TO_CMAKE_PATH "${_artcade_qt_slice_fixture}" _artcade_qt_slice_fixture)
-target_compile_definitions(artcade-editor-qt
-    PRIVATE
-        "ARTCADE_QT_SLICE_FIXTURE_PATH=\"${_artcade_qt_slice_fixture}\""
-)
+# Bake absolute path to W2 fixture for one-click open (developer builds only).
+option(ARTCADE_DEV_TOOLS "Expose Load Fixture and technical console logs" ON)
+if(ARTCADE_DEV_TOOLS)
+    set(_artcade_qt_slice_fixture "${CMAKE_SOURCE_DIR}/tests/fixtures/qt-slice/project.json")
+    file(TO_CMAKE_PATH "${_artcade_qt_slice_fixture}" _artcade_qt_slice_fixture)
+    target_compile_definitions(artcade-editor-qt
+        PRIVATE
+            ARTCADE_DEV_TOOLS=1
+            "ARTCADE_QT_SLICE_FIXTURE_PATH=\"${_artcade_qt_slice_fixture}\""
+    )
+else()
+    target_compile_definitions(artcade-editor-qt PRIVATE ARTCADE_DEV_TOOLS=0)
+endif()
 
 set(ARTCADE_QML_ROOT "${CMAKE_SOURCE_DIR}/qml/ArtCade")
 
@@ -114,6 +120,7 @@ set(ARTCADE_QML_FILES
     ../../qml/ArtCade/Shell/WorkspaceBar.qml
     ../../qml/ArtCade/Shell/EditorActions.qml
     ../../qml/ArtCade/Shell/LeftSidebar.qml
+    ../../qml/ArtCade/Shell/ProjectHome.qml
     ../../qml/ArtCade/Shell/ViewportPlaceholder.qml
     ../../qml/ArtCade/Shell/LogicBoardView.qml
     ../../qml/ArtCade/Shell/InspectorPane.qml
@@ -165,6 +172,7 @@ set_source_files_properties(../../qml/ArtCade/Shell/ModeBar.qml PROPERTIES QT_RE
 set_source_files_properties(../../qml/ArtCade/Shell/WorkspaceBar.qml PROPERTIES QT_RESOURCE_ALIAS "Shell/WorkspaceBar.qml")
 set_source_files_properties(../../qml/ArtCade/Shell/EditorActions.qml PROPERTIES QT_RESOURCE_ALIAS "Shell/EditorActions.qml")
 set_source_files_properties(../../qml/ArtCade/Shell/LeftSidebar.qml PROPERTIES QT_RESOURCE_ALIAS "Shell/LeftSidebar.qml")
+set_source_files_properties(../../qml/ArtCade/Shell/ProjectHome.qml PROPERTIES QT_RESOURCE_ALIAS "Shell/ProjectHome.qml")
 set_source_files_properties(../../qml/ArtCade/Shell/ViewportPlaceholder.qml PROPERTIES QT_RESOURCE_ALIAS "Shell/ViewportPlaceholder.qml")
 set_source_files_properties(../../qml/ArtCade/Shell/LogicBoardView.qml PROPERTIES QT_RESOURCE_ALIAS "Shell/LogicBoardView.qml")
 set_source_files_properties(../../qml/ArtCade/Shell/InspectorPane.qml PROPERTIES QT_RESOURCE_ALIAS "Shell/InspectorPane.qml")
@@ -269,6 +277,7 @@ set(ARTCADE_QML_LINT_FILES
     ${ARTCADE_QML_ROOT}/Shell/WorkspaceBar.qml
     ${ARTCADE_QML_ROOT}/Shell/EditorActions.qml
     ${ARTCADE_QML_ROOT}/Shell/LeftSidebar.qml
+    ${ARTCADE_QML_ROOT}/Shell/ProjectHome.qml
     ${ARTCADE_QML_ROOT}/Shell/ViewportPlaceholder.qml
     ${ARTCADE_QML_ROOT}/Shell/LogicBoardView.qml
     ${ARTCADE_QML_ROOT}/Shell/InspectorPane.qml

@@ -37,10 +37,17 @@ Rectangle {
                 AcIconButton {
                     text: "Open"
                     onClicked: openDialog.open()
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 400
+                    ToolTip.text: "Open project.json"
                 }
                 AcIconButton {
+                    visible: EditorSession.developerMode
                     text: "Fixture"
                     onClicked: EditorSession.openSliceFixture()
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 400
+                    ToolTip.text: "Developer: load Qt slice fixture"
                 }
             }
         }
@@ -129,8 +136,8 @@ Rectangle {
 
                 AcEmptyHint {
                     visible: !EditorSession.hasProject
-                    message: "No hierarchy yet"
-                    hint: "Open a project or load Fixture"
+                    message: "No project"
+                    hint: "Create or open a project from the home screen"
                 }
             }
 
@@ -158,8 +165,8 @@ Rectangle {
 
                 AcEmptyHint {
                     visible: !EditorSession.hasProject
-                    message: "No layers yet"
-                    hint: "Open a project or load Fixture"
+                    message: "No project"
+                    hint: "Create or open a project from the home screen"
                 }
             }
 
@@ -218,8 +225,8 @@ Rectangle {
 
                 AcEmptyHint {
                     visible: !EditorSession.hasProject
-                    message: "No assets yet"
-                    hint: "Open a project or load Fixture"
+                    message: "No project"
+                    hint: "Create or open a project from the home screen"
                 }
             }
         }

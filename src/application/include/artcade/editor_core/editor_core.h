@@ -431,6 +431,13 @@ bool project_doc_locate_instance(const ProjectDoc &doc,
 class EditorCoordinator {
 public:
     bool openProject(const std::string &project_json_path, std::string &error_message);
+    /**
+     * Creates a minimal formatVersion-5 project at @p project_json_path and
+     * loads it as the active document. Does not record undo history.
+     */
+    bool createNewProject(const std::string &project_json_path,
+                          const std::string &project_name,
+                          std::string &error_message);
     bool saveProject(std::string &error_message);
     bool saveProjectAs(const std::string &project_json_path, std::string &error_message);
 

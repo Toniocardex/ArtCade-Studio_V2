@@ -501,6 +501,21 @@ int main()
     std::error_code ec;
     fs::remove(out_path, ec);
 
+    const fs::path created_path = fixture_dir / "created_blank.json";
+    EditorCoordinator blank;
+    expect(blank.createNewProject(created_path.string(), "Blank Project", error),
+           "createNewProject writes and opens");
+    expect(blank.hasProject(), "blank project open");
+    expect(blank.document().projectName == "Blank Project", "blank project name");
+    expect(blank.document().formatVersion == kCurrentProjectFormatVersion,
+           "blank formatVersion");
+    expect(blank.document().scenes.size() == 1, "blank has one scene");
+    expect(blank.document().layers.size() == 1, "blank has one layer");
+    expect(blank.document().scenes.begin()->second.instances.empty(),
+           "blank scene has no instances");
+    expect(!blank.isDirty(), "fresh create is clean");
+    fs::remove(created_path, ec);
+
     std::printf("artcade_editor_core_roundtrip_test: PASS\n");
     return 0;
 }

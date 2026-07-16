@@ -106,7 +106,7 @@ Rectangle {
                     text: "No project"
                     color: Theme.textMuted
                     font.family: Typography.family
-                    font.pixelSize: Typography.sizeSm
+                    font.pixelSize: Typography.sizeBody
                 }
 
                 Text {
@@ -114,10 +114,10 @@ Rectangle {
                     Layout.fillWidth: true
                     Layout.leftMargin: Metrics.spacingMd
                     Layout.topMargin: Metrics.spacingMd
-                    text: "No Selection"
+                    text: "Nothing selected"
                     color: Theme.textMuted
                     font.family: Typography.family
-                    font.pixelSize: Typography.sizeSm
+                    font.pixelSize: Typography.sizeBody
                 }
 
                 AcPanelHeader {

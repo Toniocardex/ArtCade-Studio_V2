@@ -16,7 +16,9 @@
 #include <QPainter>
 #include <QPen>
 #include <QQmlEngine>
+#include <QSettings>
 #include <QUrl>
+#include <QVariantMap>
 #include <Qt>
 #include <QtGlobal>
 #include <algorithm>
@@ -24,6 +26,10 @@
 
 #ifndef ARTCADE_QT_SLICE_FIXTURE_PATH
 #define ARTCADE_QT_SLICE_FIXTURE_PATH ""
+#endif
+
+#ifndef ARTCADE_DEV_TOOLS
+#define ARTCADE_DEV_TOOLS 0
 #endif
 
 namespace {
@@ -131,12 +137,37 @@ EditorSession::EditorSession(QObject *parent)
     , m_console(new ConsoleModel(this))
     , m_play(new PlayProcessHost(this))
     , m_activeMode(QStringLiteral("canvas"))
-    , m_statusMessage(QStringLiteral("Open formatVersion 5 project.json, or use Fixture"))
+    , m_statusMessage(QStringLiteral("Create a new project or open an existing one"))
 {
     m_hierarchy->setCoordinator(m_coordinator.get());
     m_layers->setCoordinator(m_coordinator.get());
     m_assets->setCoordinator(m_coordinator.get());
     connect(m_play, &PlayProcessHost::stopped, this, &EditorSession::onPlayProcessStopped);
+
+    QSettings settings;
+    const QVariantList stored = settings.value(QStringLiteral("recentProjects")).toList();
+    for (const QVariant &entry : stored) {
+        const QVariantMap map = entry.toMap();
+        const QString path = map.value(QStringLiteral("path")).toString();
+        if (path.isEmpty() || !QFileInfo::exists(path)) {
+            continue;
+        }
+        QVariantMap row;
+        row.insert(QStringLiteral("path"), path);
+        row.insert(QStringLiteral("name"),
+                   map.value(QStringLiteral("name")).toString().isEmpty()
+                       ? QFileInfo(path).completeBaseName()
+                       : map.value(QStringLiteral("name")).toString());
+        m_recentProjects.append(row);
+        if (m_recentProjects.size() >= 8) {
+            break;
+        }
+    }
+
+    if (developerMode() && m_console) {
+        m_console->appendInfo(
+            QStringLiteral("Developer mode — fixture load and technical logs enabled."));
+    }
 }
 
 EditorSession::~EditorSession() = default;
@@ -199,6 +230,26 @@ ConsoleModel *EditorSession::consoleModel() const
 bool EditorSession::hasProject() const
 {
     return m_coordinator->hasProject();
+}
+
+bool EditorSession::developerMode() const
+{
+    return ARTCADE_DEV_TOOLS != 0;
+}
+
+int EditorSession::sceneCount() const
+{
+    return m_sceneCount;
+}
+
+int EditorSession::activeSceneInstanceCount() const
+{
+    return m_activeSceneInstanceCount;
+}
+
+QVariantList EditorSession::recentProjects() const
+{
+    return m_recentProjects;
 }
 
 quint32 EditorSession::selectedEntityId() const
@@ -538,6 +589,52 @@ void EditorSession::reloadDerivedModels()
     m_hierarchy->reload();
     m_layers->reload();
     m_assets->reload();
+    refreshProjectCounts();
+}
+
+void EditorSession::refreshProjectCounts()
+{
+    m_sceneCount = 0;
+    m_activeSceneInstanceCount = 0;
+    if (!m_coordinator->hasProject()) {
+        return;
+    }
+    const ArtCade::ProjectDoc &doc = m_coordinator->document();
+    m_sceneCount = static_cast<int>(doc.scenes.size());
+    const auto sceneIt = doc.scenes.find(doc.activeSceneId);
+    if (sceneIt != doc.scenes.end()) {
+        m_activeSceneInstanceCount = static_cast<int>(sceneIt->second.instances.size());
+    }
+}
+
+void EditorSession::rememberRecentProject(const QString &path, const QString &name)
+{
+    if (path.isEmpty()) {
+        return;
+    }
+    QVariantList next;
+    QVariantMap head;
+    head.insert(QStringLiteral("path"), path);
+    head.insert(QStringLiteral("name"),
+                name.isEmpty() ? QFileInfo(path).completeBaseName() : name);
+    next.append(head);
+    for (const QVariant &entry : m_recentProjects) {
+        const QVariantMap map = entry.toMap();
+        if (map.value(QStringLiteral("path")).toString() == path) {
+            continue;
+        }
+        next.append(map);
+        if (next.size() >= 8) {
+            break;
+        }
+    }
+    if (next == m_recentProjects) {
+        return;
+    }
+    m_recentProjects = next;
+    QSettings settings;
+    settings.setValue(QStringLiteral("recentProjects"), m_recentProjects);
+    emit recentProjectsChanged();
 }
 
 void EditorSession::refreshSelectionCache()
@@ -668,20 +765,38 @@ void EditorSession::refreshSelectionCache()
 
 QString EditorSession::sliceFixturePath() const
 {
+    if (!developerMode()) {
+        return {};
+    }
     return QString::fromUtf8(ARTCADE_QT_SLICE_FIXTURE_PATH);
 }
 
 void EditorSession::openSliceFixture()
 {
+    if (!developerMode()) {
+        setStatus(QStringLiteral("Fixture load is only available in developer builds"), false);
+        return;
+    }
     const QString path = sliceFixturePath();
     if (path.isEmpty() || !QFileInfo::exists(path)) {
         const QString msg =
-            QStringLiteral("Slice fixture not found. Rebuild with ARTCADE_QT_SLICE_FIXTURE_PATH.");
+            QStringLiteral("Slice fixture not found. Rebuild with ARTCADE_DEV_TOOLS and ARTCADE_QT_SLICE_FIXTURE_PATH.");
         setStatus(msg, false);
         emit errorOccurred(msg);
         return;
     }
     openProject(path);
+}
+
+void EditorSession::clearRecentProjects()
+{
+    if (m_recentProjects.isEmpty()) {
+        return;
+    }
+    m_recentProjects.clear();
+    QSettings settings;
+    settings.remove(QStringLiteral("recentProjects"));
+    emit recentProjectsChanged();
 }
 
 bool EditorSession::requestClose()
@@ -723,7 +838,38 @@ void EditorSession::openProject(const QString &pathOrUrl)
     reloadDerivedModels();
     refreshSelectionCache();
     emitProjectSignals();
-    setStatus(QStringLiteral("Opened %1").arg(path));
+    rememberRecentProject(path, QString::fromStdString(m_coordinator->document().projectName));
+    const QString name = QString::fromStdString(m_coordinator->document().projectName);
+    if (developerMode()) {
+        setStatus(QStringLiteral("Opened %1").arg(path));
+    } else {
+        setStatus(QStringLiteral("Opened “%1”").arg(name), false);
+    }
+}
+
+void EditorSession::createProject(const QString &pathOrUrl, const QString &projectName)
+{
+    stopPlay();
+    const QString path = normalizePath(pathOrUrl);
+    QString name = projectName.trimmed();
+    if (name.isEmpty()) {
+        name = QFileInfo(path).completeBaseName();
+    }
+    if (name.isEmpty()) {
+        name = QStringLiteral("Untitled");
+    }
+    std::string error;
+    if (!m_coordinator->createNewProject(path.toStdString(), name.toStdString(), error)) {
+        const QString msg = QString::fromStdString(error);
+        setStatus(msg, false);
+        emit errorOccurred(msg);
+        return;
+    }
+    reloadDerivedModels();
+    refreshSelectionCache();
+    emitProjectSignals();
+    rememberRecentProject(path, name);
+    setStatus(QStringLiteral("Created “%1”").arg(name), false);
 }
 
 void EditorSession::undo()

@@ -49,19 +49,22 @@ Button {
             anchors.verticalCenter: parent.verticalCenter
             source: root.iconSource
             size: Metrics.iconSize
-            color: root.active ? Theme.textPrimary : Theme.textSecondary
+            color: !root.enabled ? Theme.textDisabled
+                 : root.active ? Theme.textPrimary : Theme.textSecondary
         }
         Text {
             visible: root.glyph.length > 0 && root.iconSource.toString().length === 0
             text: root.glyph
-            color: root.active ? Theme.textPrimary : Theme.textSecondary
+            color: !root.enabled ? Theme.textDisabled
+                 : root.active ? Theme.textPrimary : Theme.textSecondary
             font.family: Typography.family
             font.pixelSize: Typography.sizeWorkspace
             anchors.verticalCenter: parent.verticalCenter
         }
         Text {
             text: root.text
-            color: root.active ? Theme.textPrimary : Theme.textSecondary
+            color: !root.enabled ? Theme.textDisabled
+                 : root.active ? Theme.textPrimary : Theme.textSecondary
             font.family: Typography.family
             font.pixelSize: Typography.sizeWorkspace
             font.weight: Font.DemiBold

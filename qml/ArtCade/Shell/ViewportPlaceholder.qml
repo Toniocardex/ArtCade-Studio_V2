@@ -13,12 +13,12 @@ Rectangle {
         anchors.fill: parent
         spacing: 0
 
-        // Scene document tabs (Canvas only)
+        // Scene document tabs (Canvas only — hidden on Project Home)
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: Metrics.panelHeaderHeight
             color: Theme.chrome
-            visible: EditorSession.activeMode === "canvas"
+            visible: EditorSession.activeMode === "canvas" && EditorSession.hasProject
 
             RowLayout {
                 anchors.fill: parent
@@ -29,7 +29,7 @@ Rectangle {
                     Layout.preferredHeight: parent.height - 6
                     Layout.preferredWidth: sceneTabLabel.implicitWidth + Metrics.spacingLg * 2
                     Layout.alignment: Qt.AlignVCenter
-                    radius: Metrics.radiusSmall
+                    radius: Metrics.radiusControl
                     color: Theme.panelRaised
                     border.color: Theme.borderSubtle
                     border.width: 1
@@ -37,11 +37,12 @@ Rectangle {
                     Text {
                         id: sceneTabLabel
                         anchors.centerIn: parent
-                        text: EditorSession.hasProject ? (EditorSession.projectName + " · scene")
-                                                       : "No scene"
+                        text: EditorSession.activeSceneName.length > 0
+                              ? EditorSession.activeSceneName
+                              : (EditorSession.projectName + " · scene")
                         color: Theme.textPrimary
                         font.family: Typography.family
-                        font.pixelSize: Typography.sizeXs
+                        font.pixelSize: Typography.sizeMeta
                     }
                 }
 
@@ -67,12 +68,12 @@ Rectangle {
             }
         }
 
-        // Scene toolbar (Canvas only)
+        // Scene toolbar (Canvas only — hidden on Project Home)
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: Metrics.toolbarHeight
             color: Theme.chrome
-            visible: EditorSession.activeMode === "canvas"
+            visible: EditorSession.activeMode === "canvas" && EditorSession.hasProject
 
             RowLayout {
                 anchors.fill: parent
@@ -207,16 +208,57 @@ Rectangle {
             SceneViewItem {
                 id: sceneView
                 anchors.fill: parent
-                visible: EditorSession.activeMode === "canvas" && EditorSession.hasProject
+                visible: EditorSession.activeMode === "canvas"
+                         && EditorSession.hasProject
+                         && EditorSession.sceneCount > 0
                 session: EditorSession
             }
 
-            // Empty / mode placeholders
+            // Project Home — true no-project landing
+            ProjectHome {
+                anchors.fill: parent
+                visible: !EditorSession.hasProject
+            }
+
+            // Project open, but no scenes authored yet
             Column {
                 anchors.centerIn: parent
                 spacing: Metrics.spacingMd
-                visible: EditorSession.activeMode === "canvas" && !EditorSession.hasProject
-                width: parent.width * 0.6
+                visible: EditorSession.activeMode === "canvas"
+                         && EditorSession.hasProject
+                         && EditorSession.sceneCount === 0
+                width: Math.min(parent.width * 0.6, 360)
+
+                Text {
+                    width: parent.width
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.WordWrap
+                    text: "No scenes yet"
+                    color: Theme.textPrimary
+                    font.family: Typography.family
+                    font.pixelSize: Typography.sizeObjectTitle
+                    font.weight: Font.DemiBold
+                }
+                Text {
+                    width: parent.width
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.WordWrap
+                    text: "This project has no scenes. Add a scene to start laying out objects."
+                    color: Theme.textSecondary
+                    font.family: Typography.family
+                    font.pixelSize: Typography.sizeBody
+                }
+            }
+
+            // Active scene without objects
+            Column {
+                anchors.centerIn: parent
+                spacing: Metrics.spacingMd
+                visible: EditorSession.activeMode === "canvas"
+                         && EditorSession.hasProject
+                         && EditorSession.sceneCount > 0
+                         && EditorSession.activeSceneInstanceCount === 0
+                width: Math.min(parent.width * 0.6, 360)
 
                 AcIcon {
                     anchors.horizontalCenter: parent.horizontalCenter
@@ -225,59 +267,59 @@ Rectangle {
                     color: Theme.textMuted
                 }
                 Text {
-                    anchors.horizontalCenter: parent.horizontalCenter
                     width: parent.width
                     horizontalAlignment: Text.AlignHCenter
                     wrapMode: Text.WordWrap
-                    text: "Your scene is empty. Open a project or load the Fixture to start editing."
+                    text: "Scene is empty"
+                    color: Theme.textPrimary
+                    font.family: Typography.family
+                    font.pixelSize: Typography.sizeObjectTitle
+                    font.weight: Font.DemiBold
+                }
+                Text {
+                    width: parent.width
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.WordWrap
+                    text: "Add an object to the scene to start editing."
                     color: Theme.textSecondary
                     font.family: Typography.family
-                    font.pixelSize: Typography.sizeSm
+                    font.pixelSize: Typography.sizeBody
                 }
-                Row {
+                AcButton {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    spacing: Metrics.spacingSm
-                    AcButton {
-                        text: "+ Add Object"
-                        primary: true
-                        enabled: false
-                        ToolTip.visible: hovered
-                        ToolTip.delay: 400
-                        ToolTip.text: "Add object — coming next"
-                    }
-                    AcButton {
-                        text: "Load Fixture"
-                        onClicked: EditorSession.openSliceFixture()
-                        ToolTip.visible: hovered
-                        ToolTip.delay: 400
-                        ToolTip.text: "Load the Qt slice fixture project (Ctrl+Shift+F)"
-                    }
+                    text: "+ Add Object"
+                    primary: true
+                    enabled: false
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 400
+                    ToolTip.text: "Add object — coming next"
                 }
             }
 
             LogicBoardView {
                 anchors.fill: parent
-                visible: EditorSession.activeMode === "logic"
+                visible: EditorSession.hasProject && EditorSession.activeMode === "logic"
             }
 
             Column {
                 anchors.centerIn: parent
                 spacing: Metrics.spacingSm
-                visible: EditorSession.activeMode === "script"
+                visible: EditorSession.hasProject && EditorSession.activeMode === "script"
 
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    text: "Script Editor"
+                    text: "No scripts yet"
                     color: Theme.textPrimary
                     font.family: Typography.family
-                    font.pixelSize: Typography.sizeXl
+                    font.pixelSize: Typography.sizeObjectTitle
+                    font.weight: Font.DemiBold
                 }
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    text: "Coming next on the Qt roadmap"
+                    text: "Script Editor is next on the Qt roadmap."
                     color: Theme.textSecondary
                     font.family: Typography.family
-                    font.pixelSize: Typography.sizeSm
+                    font.pixelSize: Typography.sizeBody
                 }
             }
         }

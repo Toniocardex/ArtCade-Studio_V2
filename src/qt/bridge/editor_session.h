@@ -42,6 +42,17 @@ class EditorSession : public QObject
     Q_PROPERTY(AssetsModel *assetsModel READ assetsModel CONSTANT)
     Q_PROPERTY(ConsoleModel *consoleModel READ consoleModel CONSTANT)
     Q_PROPERTY(bool hasProject READ hasProject NOTIFY hasProjectChanged)
+    /** True when built with ARTCADE_DEV_TOOLS (Load Fixture, tech console logs). */
+    Q_PROPERTY(bool developerMode READ developerMode CONSTANT)
+    /** Scene count in the open ProjectDoc (0 when no project). */
+    Q_PROPERTY(int sceneCount READ sceneCount NOTIFY projectChanged)
+    /** Instance count in the active scene (0 when no project / empty scene). */
+    Q_PROPERTY(int activeSceneInstanceCount READ activeSceneInstanceCount NOTIFY projectChanged)
+    /**
+     * Recent project entries: [{ path, name }]. Workspace preference (QSettings),
+     * not ProjectDoc data.
+     */
+    Q_PROPERTY(QVariantList recentProjects READ recentProjects NOTIFY recentProjectsChanged)
     Q_PROPERTY(quint32 selectedEntityId READ selectedEntityId NOTIFY selectionChanged)
     Q_PROPERTY(QString selectedName READ selectedName NOTIFY selectionChanged)
     Q_PROPERTY(double selectedX READ selectedX NOTIFY selectionChanged)
@@ -105,6 +116,10 @@ public:
     [[nodiscard]] AssetsModel *assetsModel() const;
     [[nodiscard]] ConsoleModel *consoleModel() const;
     [[nodiscard]] bool hasProject() const;
+    [[nodiscard]] bool developerMode() const;
+    [[nodiscard]] int sceneCount() const;
+    [[nodiscard]] int activeSceneInstanceCount() const;
+    [[nodiscard]] QVariantList recentProjects() const;
     [[nodiscard]] quint32 selectedEntityId() const;
     [[nodiscard]] QString selectedName() const;
     [[nodiscard]] double selectedX() const;
@@ -137,9 +152,15 @@ public:
     void setSnapEnabled(bool enabled);
 
     Q_INVOKABLE void openProject(const QString &pathOrUrl);
-    /** Opens the W2 slice fixture (formatVersion 5). No-ops with status if missing. */
+    /**
+     * Creates a new empty project at @p pathOrUrl (Save dialog path) and opens it.
+     * @p projectName may be empty — derived from the file stem.
+     */
+    Q_INVOKABLE void createProject(const QString &pathOrUrl, const QString &projectName = QString());
+    /** Opens the W2 slice fixture. No-ops unless developerMode is enabled. */
     Q_INVOKABLE void openSliceFixture();
     [[nodiscard]] Q_INVOKABLE QString sliceFixturePath() const;
+    Q_INVOKABLE void clearRecentProjects();
     /**
      * Returns true if the window may close now.
      * If dirty, emits closeBlockedByDirty so QML can show Save/Discard/Cancel.
@@ -241,6 +262,7 @@ signals:
     void activeModeChanged();
     void statusMessageChanged();
     void hasProjectChanged();
+    void recentProjectsChanged();
     void selectionChanged();
     /** Emitted when any projected Transform field changes (position/scale/rotation). */
     void selectedTransformChanged();
@@ -260,6 +282,8 @@ private:
     void emitProjectSignals();
     void refreshSelectionCache();
     void reloadDerivedModels();
+    void refreshProjectCounts();
+    void rememberRecentProject(const QString &path, const QString &name);
     void onPlayProcessStopped(int exit_code, const QString &status_message);
     [[nodiscard]] QString normalizePath(const QString &pathOrUrl) const;
     [[nodiscard]] QString resolveGameExecutable() const;
@@ -285,6 +309,9 @@ private:
     QString m_selectedObjectTypeId;
     QString m_selectedObjectTypeName;
     int m_logicRuleCount = 0;
+    int m_sceneCount = 0;
+    int m_activeSceneInstanceCount = 0;
+    QVariantList m_recentProjects;
     QStringList m_logicRuleIds;
     QVariantList m_logicRules;
     QVariantList m_logicSections;

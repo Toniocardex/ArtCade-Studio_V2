@@ -327,8 +327,8 @@ Rectangle {
             AcEmptyHint {
                 visible: EditorSession.logicRuleCount === 0
                          && EditorSession.logicSections.length === 0
-                message: "This board has no rules yet"
-                hint: "Click + Add Rule — a rule runs its Then actions when the When trigger fires"
+                message: "No logic yet"
+                hint: "Add your first logic block — When something happens, Then perform actions"
             }
         }
 
@@ -338,11 +338,11 @@ Rectangle {
             visible: !EditorSession.hasProject || !root.hasTypeTarget
 
             AcEmptyHint {
-                message: !EditorSession.hasProject ? "No project open"
+                message: !EditorSession.hasProject ? "No project"
                                                    : "No object type selected"
                 hint: !EditorSession.hasProject
-                      ? "Open a project or load Fixture, then switch back to Logic Board"
-                      : "Pick an object in Hierarchy or on the Canvas — rules belong to the type"
+                      ? "Create or open a project, then select an object"
+                      : "Pick an object in Hierarchy or on the Canvas — logic belongs to the type"
             }
         }
     }

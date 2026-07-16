@@ -36,29 +36,38 @@ Rectangle {
         AcTabButton {
             text: "Canvas"
             iconSource: Icons.canvas
-            active: EditorSession.activeMode === "canvas"
+            enabled: EditorSession.hasProject
+            active: EditorSession.hasProject && EditorSession.activeMode === "canvas"
             onClicked: EditorSession.activeMode = "canvas"
             ToolTip.visible: hovered
             ToolTip.delay: 400
-            ToolTip.text: "Canvas — scene view (Ctrl+1)"
+            ToolTip.text: EditorSession.hasProject
+                          ? "Canvas — scene view (Ctrl+1)"
+                          : "Open a project to use Canvas"
         }
         AcTabButton {
             text: "Logic Board"
             iconSource: Icons.logic
-            active: EditorSession.activeMode === "logic"
+            enabled: EditorSession.hasProject
+            active: EditorSession.hasProject && EditorSession.activeMode === "logic"
             onClicked: EditorSession.activeMode = "logic"
             ToolTip.visible: hovered
             ToolTip.delay: 400
-            ToolTip.text: "Logic Board — visual gameplay rules (Ctrl+2)"
+            ToolTip.text: EditorSession.hasProject
+                          ? "Logic Board — visual gameplay rules (Ctrl+2)"
+                          : "Open a project to use Logic Board"
         }
         AcTabButton {
             text: "Script Editor"
             iconSource: Icons.script
-            active: EditorSession.activeMode === "script"
+            enabled: EditorSession.hasProject
+            active: EditorSession.hasProject && EditorSession.activeMode === "script"
             onClicked: EditorSession.activeMode = "script"
             ToolTip.visible: hovered
             ToolTip.delay: 400
-            ToolTip.text: "Script Editor — Lua scripts (Ctrl+3)"
+            ToolTip.text: EditorSession.hasProject
+                          ? "Script Editor — Lua scripts (Ctrl+3)"
+                          : "Open a project to use Script Editor"
         }
     }
 
@@ -93,10 +102,13 @@ Rectangle {
         AcButton {
             text: "Save"
             iconSource: Icons.save
+            enabled: EditorSession.hasProject && !EditorSession.playing
             action: root.actions ? root.actions.save : null
             ToolTip.visible: hovered
             ToolTip.delay: 400
-            ToolTip.text: "Save project to disk (Ctrl+S)"
+            ToolTip.text: EditorSession.hasProject
+                          ? "Save project to disk (Ctrl+S)"
+                          : "Open a project to save"
         }
         AcButton {
             text: "Build"
@@ -110,10 +122,13 @@ Rectangle {
             text: EditorSession.playing ? "Stop" : "Play"
             iconSource: EditorSession.playing ? Icons.stop : Icons.play
             primary: true
+            enabled: EditorSession.hasProject
             action: root.actions ? root.actions.playStop : null
             ToolTip.visible: hovered
             ToolTip.delay: 400
-            ToolTip.text: EditorSession.playing
+            ToolTip.text: !EditorSession.hasProject
+                         ? "Open a project to Play"
+                         : EditorSession.playing
                          ? "Stop Play (F5 or Esc)"
                          : "Play in game.exe — save first (F5)"
         }

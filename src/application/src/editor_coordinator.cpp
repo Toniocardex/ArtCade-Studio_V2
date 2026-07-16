@@ -26,6 +26,40 @@ bool EditorCoordinator::openProject(const std::string &project_json_path, std::s
     return true;
 }
 
+bool EditorCoordinator::createNewProject(const std::string &project_json_path,
+                                         const std::string &project_name,
+                                         std::string &error_message)
+{
+    if (project_json_path.empty()) {
+        error_message = "Project path is empty";
+        return false;
+    }
+
+    ProjectDoc doc;
+    doc.formatVersion = kCurrentProjectFormatVersion;
+    doc.projectName = project_name.empty() ? "Untitled" : project_name;
+    doc.version = "1.0.0";
+    doc.targetFPS = 60.f;
+    doc.mainScriptPath = "scripts/main.lua";
+    doc.activeSceneId = "scene_main";
+
+    SceneLayerDef layer;
+    layer.id = "layer_main";
+    layer.name = "Main";
+    doc.layers.push_back(layer);
+
+    SceneDef scene;
+    scene.id = "scene_main";
+    scene.name = "Main Scene";
+    scene.backgroundColor = {0.082f, 0.09f, 0.11f, 1.f};
+    doc.scenes[scene.id] = std::move(scene);
+
+    if (!project_file_io_save(project_json_path, doc, error_message)) {
+        return false;
+    }
+    return openProject(project_json_path, error_message);
+}
+
 bool EditorCoordinator::saveProject(std::string &error_message)
 {
     if (!m_has_project) {

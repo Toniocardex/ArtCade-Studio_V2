@@ -5,7 +5,6 @@
 ConsoleModel::ConsoleModel(QObject *parent)
     : QAbstractListModel(parent)
 {
-    appendInfo(QStringLiteral("ArtCade Studio — Qt editor, single ProjectDoc (C++)."));
 }
 
 int ConsoleModel::infoCount() const

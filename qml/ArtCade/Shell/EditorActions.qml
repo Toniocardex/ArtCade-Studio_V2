@@ -42,50 +42,56 @@ Item {
         id: undoAction
         text: qsTr("Undo")
         shortcut: StandardKey.Undo
-        enabled: !root.textInputFocused
+        enabled: EditorSession.hasProject && !EditorSession.playing && !root.textInputFocused
         onTriggered: EditorSession.undo()
     }
     Action {
         id: redoAction
         text: qsTr("Redo")
         shortcut: StandardKey.Redo
-        enabled: !root.textInputFocused
+        enabled: EditorSession.hasProject && !EditorSession.playing && !root.textInputFocused
         onTriggered: EditorSession.redo()
     }
     Action {
         id: saveAction
         text: qsTr("Save")
         shortcut: StandardKey.Save
+        enabled: EditorSession.hasProject && !EditorSession.playing
         onTriggered: EditorSession.saveProject()
     }
     Action {
         id: playStopAction
         text: EditorSession.playing ? qsTr("Stop") : qsTr("Play")
         shortcut: "F5"
+        enabled: EditorSession.hasProject
         onTriggered: EditorSession.playing ? EditorSession.stopPlay() : EditorSession.startPlay()
     }
     Action {
         id: openFixtureAction
         text: qsTr("Load Fixture")
         shortcut: "Ctrl+Shift+F"
+        enabled: EditorSession.developerMode
         onTriggered: EditorSession.openSliceFixture()
     }
     Action {
         id: modeCanvasAction
         text: qsTr("Canvas")
         shortcut: "Ctrl+1"
+        enabled: EditorSession.hasProject
         onTriggered: EditorSession.activeMode = "canvas"
     }
     Action {
         id: modeLogicAction
         text: qsTr("Logic Board")
         shortcut: "Ctrl+2"
+        enabled: EditorSession.hasProject
         onTriggered: EditorSession.activeMode = "logic"
     }
     Action {
         id: modeScriptAction
         text: qsTr("Script Editor")
         shortcut: "Ctrl+3"
+        enabled: EditorSession.hasProject
         onTriggered: EditorSession.activeMode = "script"
     }
 

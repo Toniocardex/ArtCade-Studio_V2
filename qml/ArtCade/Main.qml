@@ -114,8 +114,10 @@ ApplicationWindow {
                 }
 
                 ConsolePane {
-                    SplitView.preferredHeight: Metrics.consoleDefaultHeight
-                    SplitView.minimumHeight: 100
+                    SplitView.preferredHeight: EditorSession.hasProject
+                                              ? Metrics.consoleDefaultHeight
+                                              : Metrics.panelHeaderHeight
+                    SplitView.minimumHeight: Metrics.panelHeaderHeight
                     SplitView.fillWidth: true
                 }
             }
