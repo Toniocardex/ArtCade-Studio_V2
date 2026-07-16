@@ -14,8 +14,10 @@ int main(int argc, char *argv[])
     QGuiApplication::setOrganizationName(QStringLiteral("ArtCade"));
     QGuiApplication::setApplicationVersion(QStringLiteral("2.0.0-qt-shell"));
 
-    // Basic style: ArtCade Ac* controls own the visual look.
-    QQuickStyle::setStyle(QStringLiteral("Basic"));
+    // ArtCadeStyle overrides shared controls (themed ToolTip); Basic backs
+    // everything else — the Ac* controls own the visual look.
+    QQuickStyle::setStyle(QStringLiteral("ArtCadeStyle"));
+    QQuickStyle::setFallbackStyle(QStringLiteral("Basic"));
 
     QQmlApplicationEngine engine;
     const QUrl url(QStringLiteral("qrc:/qt/qml/ArtCade/Ui/Main.qml"));

@@ -2,6 +2,10 @@ import QtQuick
 import QtQuick.Controls
 import ArtCade.Ui
 
+/**
+ * Workspace tab — no accent fill: active = elevated neutral surface,
+ * primary text, thin accent underline. Inactive = transparent + secondary.
+ */
 Button {
     id: root
 
@@ -17,11 +21,25 @@ Button {
     focusPolicy: Qt.StrongFocus
 
     background: Rectangle {
-        radius: Metrics.radiusSmall
-        color: root.active ? Theme.accent
+        radius: 2
+        color: root.active ? Theme.selection
              : root.down ? Theme.controlPressed
              : root.hovered ? Theme.controlHover
              : "transparent"
+        border.width: root.activeFocus ? 1 : 0
+        border.color: Theme.accent
+
+        Rectangle {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            anchors.leftMargin: Metrics.spacingMd
+            anchors.rightMargin: Metrics.spacingMd
+            height: 2
+            radius: 1
+            color: Theme.accent
+            visible: root.active
+        }
     }
 
     contentItem: Row {
@@ -31,22 +49,22 @@ Button {
             anchors.verticalCenter: parent.verticalCenter
             source: root.iconSource
             size: Metrics.iconSize
-            color: root.active ? "#FFFFFF" : Theme.textPrimary
+            color: root.active ? Theme.textPrimary : Theme.textSecondary
         }
         Text {
             visible: root.glyph.length > 0 && root.iconSource.toString().length === 0
             text: root.glyph
-            color: root.active ? "#FFFFFF" : Theme.textPrimary
+            color: root.active ? Theme.textPrimary : Theme.textSecondary
             font.family: Typography.family
-            font.pixelSize: Typography.sizeSm
+            font.pixelSize: Typography.sizeMd
             anchors.verticalCenter: parent.verticalCenter
         }
         Text {
             text: root.text
-            color: root.active ? "#FFFFFF" : Theme.textPrimary
+            color: root.active ? Theme.textPrimary : Theme.textSecondary
             font.family: Typography.family
-            font.pixelSize: Typography.sizeSm
-            font.weight: root.active ? Font.DemiBold : Font.Normal
+            font.pixelSize: Typography.sizeMd
+            font.weight: Font.DemiBold
             anchors.verticalCenter: parent.verticalCenter
         }
     }

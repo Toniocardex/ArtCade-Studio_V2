@@ -50,6 +50,17 @@ target_link_libraries(artcade-editor-qt
         artcade_editor_core
 )
 
+# Style module: QQuickStyle("ArtCadeStyle") control overrides (themed ToolTip).
+qt_add_qml_module(artcade-editor-style
+    STATIC
+    URI ArtCadeStyle
+    VERSION 1.0
+    QML_FILES
+        ../../qml/ArtCadeStyle/ToolTip.qml
+)
+set_source_files_properties(../../qml/ArtCadeStyle/ToolTip.qml PROPERTIES QT_RESOURCE_ALIAS "ToolTip.qml")
+target_link_libraries(artcade-editor-qt PRIVATE artcade-editor-styleplugin)
+
 # Bake absolute path to W2 fixture for one-click open in the shell.
 set(_artcade_qt_slice_fixture "${CMAKE_SOURCE_DIR}/tests/fixtures/qt-slice/project.json")
 file(TO_CMAKE_PATH "${_artcade_qt_slice_fixture}" _artcade_qt_slice_fixture)

@@ -48,7 +48,9 @@ ToolButton {
                 return Theme.controlHover
             return "transparent"
         }
-        border.width: (root.checked || root.active) ? 1 : 0
+        // Accent is reserved for focus — active tools sit on the neutral
+        // selected surface only.
+        border.width: root.activeFocus ? 1 : 0
         border.color: Theme.accent
     }
 }

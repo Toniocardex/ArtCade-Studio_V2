@@ -12,10 +12,11 @@ Rectangle {
     color: Theme.chrome
     height: Metrics.workspaceBarHeight
 
-    RowLayout {
-        anchors.fill: parent
-        anchors.leftMargin: Metrics.spacingMd
-        anchors.rightMargin: Metrics.spacingMd
+    // Centre zone: the three main workspaces, truly centred in the bar
+    // (independent of the left/right zones widths).
+    Row {
+        id: workspaceTabs
+        anchors.centerIn: parent
         spacing: Metrics.spacingSm
 
         // Mode tabs: click sets mode; matching Action owns the shortcut only
@@ -47,14 +48,14 @@ Rectangle {
             ToolTip.delay: 400
             ToolTip.text: "Script Editor — Lua scripts (Ctrl+3)"
         }
+    }
 
-        Item { Layout.fillWidth: true }
-
-        Rectangle {
-            Layout.preferredWidth: 1
-            Layout.preferredHeight: 22
-            color: Theme.borderSubtle
-        }
+    // Right zone: global commands.
+    RowLayout {
+        anchors.right: parent.right
+        anchors.rightMargin: Metrics.spacingMd
+        anchors.verticalCenter: parent.verticalCenter
+        spacing: Metrics.spacingSm
 
         AcToolButton {
             iconSource: Icons.undo
