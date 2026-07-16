@@ -77,7 +77,8 @@ Rectangle {
             Layout.fillWidth: true
             Layout.leftMargin: Metrics.spacingSm
             Layout.rightMargin: Metrics.spacingSm
-            Layout.topMargin: Metrics.spacingXs
+            Layout.topMargin: Metrics.spacingSm
+            Layout.bottomMargin: Metrics.spacingXs
             placeholderText: root.sceneTab === 0 ? "Search hierarchy"
                            : root.sceneTab === 1 ? "Search layers"
                            : "Search assets"
@@ -89,117 +90,130 @@ Rectangle {
             Layout.fillHeight: true
             currentIndex: root.sceneTab
 
-            TreeView {
-                id: hierarchyTree
-                clip: true
-                model: EditorSession.hierarchyModel
-                boundsBehavior: Flickable.StopAtBounds
-                delegate: AcTreeDelegate {}
+            // Hierarchy
+            Item {
+                TreeView {
+                    id: hierarchyTree
+                    anchors.fill: parent
+                    clip: true
+                    model: EditorSession.hierarchyModel
+                    boundsBehavior: Flickable.StopAtBounds
+                    delegate: AcTreeDelegate {}
+                    visible: EditorSession.hasProject
 
-                function expandScenes() {
-                    for (let r = 0; r < rows; ++r)
-                        expand(r)
-                }
-
-                Connections {
-                    target: EditorSession
-                    function onProjectChanged() {
-                        Qt.callLater(hierarchyTree.expandScenes)
+                    function expandScenes() {
+                        for (let r = 0; r < rows; ++r)
+                            expand(r)
                     }
-                    function onHasProjectChanged() {
-                        if (EditorSession.hasProject)
+
+                    Connections {
+                        target: EditorSession
+                        function onProjectChanged() {
                             Qt.callLater(hierarchyTree.expandScenes)
+                        }
+                        function onHasProjectChanged() {
+                            if (EditorSession.hasProject)
+                                Qt.callLater(hierarchyTree.expandScenes)
+                        }
                     }
-                }
-                Connections {
-                    target: EditorSession.hierarchyModel
-                    function onModelReset() {
-                        Qt.callLater(hierarchyTree.expandScenes)
+                    Connections {
+                        target: EditorSession.hierarchyModel
+                        function onModelReset() {
+                            Qt.callLater(hierarchyTree.expandScenes)
+                        }
                     }
                 }
 
-                Text {
-                    anchors.centerIn: parent
+                AcEmptyHint {
                     visible: !EditorSession.hasProject
-                    text: "Open or load Fixture"
-                    color: Theme.textMuted
-                    font.family: Typography.family
-                    font.pixelSize: Typography.sizeSm
-                    z: 1
+                    message: "No hierarchy yet"
+                    hint: "Open a project or load Fixture"
                 }
             }
 
-            ListView {
-                id: layersList
-                clip: true
-                model: EditorSession.layersModel
-                spacing: 1
-                boundsBehavior: Flickable.StopAtBounds
+            // Layers
+            Item {
+                ListView {
+                    id: layersList
+                    anchors.fill: parent
+                    clip: true
+                    model: EditorSession.layersModel
+                    spacing: 1
+                    boundsBehavior: Flickable.StopAtBounds
+                    visible: EditorSession.hasProject
 
-                delegate: AcLayerRow {
-                    onActivateRequested: function(id) { EditorSession.setActiveLayer(id) }
-                    onVisibilityToggled: function(id, visible) {
-                        EditorSession.setLayerVisible(id, visible)
+                    delegate: AcLayerRow {
+                        onActivateRequested: function(id) { EditorSession.setActiveLayer(id) }
+                        onVisibilityToggled: function(id, visible) {
+                            EditorSession.setLayerVisible(id, visible)
+                        }
                     }
                 }
 
-                Text {
-                    anchors.centerIn: parent
+                AcEmptyHint {
                     visible: !EditorSession.hasProject
-                    text: "Open or load Fixture"
-                    color: Theme.textMuted
-                    font.family: Typography.family
-                    font.pixelSize: Typography.sizeSm
-                    z: 1
+                    message: "No layers yet"
+                    hint: "Open a project or load Fixture"
                 }
             }
 
-            ListView {
-                id: assetsTabList
-                clip: true
-                model: EditorSession.assetsModel
+            // Assets (project registry list)
+            Item {
+                ListView {
+                    id: assetsTabList
+                    anchors.fill: parent
+                    clip: true
+                    model: EditorSession.assetsModel
+                    visible: EditorSession.hasProject
 
-                delegate: Rectangle {
-                    width: assetsTabList.width
-                    height: Metrics.controlHeight + 6
-                    required property string display
-                    required property string assetId
-                    required property string sourcePath
-                    required property string kind
+                    delegate: Rectangle {
+                        width: assetsTabList.width
+                        height: Metrics.controlHeight + 6
+                        required property string display
+                        required property string assetId
+                        required property string sourcePath
+                        required property string kind
 
-                    color: assetMa.containsMouse ? Theme.controlHover : "transparent"
+                        color: assetMa.containsMouse ? Theme.controlHover : "transparent"
 
-                    Column {
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        anchors.leftMargin: Metrics.spacingMd
-                        anchors.rightMargin: Metrics.spacingMd
-                        spacing: 2
+                        Column {
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.leftMargin: Metrics.spacingMd
+                            anchors.rightMargin: Metrics.spacingMd
+                            spacing: 2
 
-                        Text {
-                            width: parent.width
-                            text: display
-                            color: Theme.textPrimary
-                            font.family: Typography.family
-                            font.pixelSize: Typography.sizeSm
-                            elide: Text.ElideRight
+                            Text {
+                                width: parent.width
+                                text: display
+                                color: Theme.textPrimary
+                                font.family: Typography.family
+                                font.pixelSize: Typography.sizeSm
+                                elide: Text.ElideRight
+                            }
+                            Text {
+                                width: parent.width
+                                text: sourcePath.length > 0 ? sourcePath : assetId
+                                color: Theme.textMuted
+                                font.family: Typography.family
+                                font.pixelSize: Typography.sizeXs
+                                elide: Text.ElideMiddle
+                            }
                         }
-                        Text {
-                            width: parent.width
-                            text: sourcePath.length > 0 ? sourcePath : assetId
-                            color: Theme.textMuted
-                            font.family: Typography.family
-                            font.pixelSize: Typography.sizeXs
-                            elide: Text.ElideMiddle
+
+                        MouseArea {
+                            id: assetMa
+                            anchors.fill: parent
+                            hoverEnabled: true
                         }
                     }
+                }
 
-                    MouseArea {
-                        id: assetMa
-                        anchors.fill: parent
-                        hoverEnabled: true
-                    }
+                AcEmptyHint {
+                    visible: !EditorSession.hasProject
+                    message: "No assets yet"
+                    hint: "Open a project or load Fixture"
                 }
             }
         }
