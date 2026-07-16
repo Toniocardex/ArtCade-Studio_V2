@@ -643,11 +643,16 @@ Rectangle {
         }
     }
 
-    Dialog {
+    Popup {
         id: renameLogicDialog
         parent: Overlay.overlay
         modal: true
-        title: "Rename Logic"
+        focus: true
+        padding: Metrics.spacingMd
+        width: 380
+        anchors.centerIn: parent
+        closePolicy: Popup.CloseOnEscape
+
         property string targetRuleId: ""
         property string validationError: ""
 
@@ -676,9 +681,27 @@ Rectangle {
             renameNameField.selectAll()
         }
 
+        background: Rectangle {
+            color: Theme.panelRaised
+            border.color: Theme.borderStrong
+            border.width: 1
+            radius: Metrics.radiusCard
+        }
+
+        Overlay.modal: Rectangle {
+            color: "#B3000000"
+        }
+
         contentItem: ColumnLayout {
-            implicitWidth: 360
             spacing: Metrics.spacingSm
+
+            Text {
+                text: "Rename Logic"
+                color: Theme.textPrimary
+                font.family: Typography.family
+                font.pixelSize: Typography.sizeObjectTitle
+                font.weight: Font.DemiBold
+            }
 
             Text {
                 text: "Name"
@@ -707,6 +730,7 @@ Rectangle {
 
             RowLayout {
                 Layout.alignment: Qt.AlignRight
+                Layout.topMargin: Metrics.spacingXs
                 spacing: Metrics.spacingSm
 
                 AcButton {
