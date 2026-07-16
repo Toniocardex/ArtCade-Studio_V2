@@ -84,6 +84,7 @@ set(ARTCADE_QML_FILES
     ../../qml/ArtCade/Controls/AcLogicRuleCard.qml
     ../../qml/ArtCade/Controls/AcLogicPropertyEditor.qml
     ../../qml/ArtCade/Controls/AcLogicKeyCapture.qml
+    ../../qml/ArtCade/Controls/AcLogicSearch.qml
     ../../qml/ArtCade/Controls/AcLogicSectionHeader.qml
     ../../qml/ArtCade/Controls/AcMenu.qml
     ../../qml/ArtCade/Controls/AcMenuItem.qml
@@ -134,6 +135,7 @@ set_source_files_properties(../../qml/ArtCade/Controls/AcLogicColumn.qml PROPERT
 set_source_files_properties(../../qml/ArtCade/Controls/AcLogicRuleCard.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcLogicRuleCard.qml")
 set_source_files_properties(../../qml/ArtCade/Controls/AcLogicPropertyEditor.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcLogicPropertyEditor.qml")
 set_source_files_properties(../../qml/ArtCade/Controls/AcLogicKeyCapture.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcLogicKeyCapture.qml")
+set_source_files_properties(../../qml/ArtCade/Controls/AcLogicSearch.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcLogicSearch.qml")
 set_source_files_properties(../../qml/ArtCade/Controls/AcLogicSectionHeader.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcLogicSectionHeader.qml")
 set_source_files_properties(../../qml/ArtCade/Controls/AcMenu.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcMenu.qml")
 set_source_files_properties(../../qml/ArtCade/Controls/AcMenuItem.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcMenuItem.qml")
@@ -237,6 +239,7 @@ set(ARTCADE_QML_LINT_FILES
     ${ARTCADE_QML_ROOT}/Controls/AcLogicRuleCard.qml
     ${ARTCADE_QML_ROOT}/Controls/AcLogicPropertyEditor.qml
     ${ARTCADE_QML_ROOT}/Controls/AcLogicKeyCapture.qml
+    ${ARTCADE_QML_ROOT}/Controls/AcLogicSearch.qml
     ${ARTCADE_QML_ROOT}/Controls/AcLogicSectionHeader.qml
     ${ARTCADE_QML_ROOT}/Controls/AcMenu.qml
     ${ARTCADE_QML_ROOT}/Controls/AcMenuItem.qml

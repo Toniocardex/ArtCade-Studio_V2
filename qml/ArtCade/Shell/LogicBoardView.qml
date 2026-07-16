@@ -18,6 +18,23 @@ Rectangle {
     property bool comfortable: false
     /** View state: collapsed section ids ({id: true}) — never dirties the project. */
     property var collapsedSections: ({})
+    /** View state: rule search query (operators: trigger: condition: action: uses: is:). */
+    property string searchText: ""
+
+    readonly property var searchTokens: logicSearch.parse(searchText)
+    readonly property bool filtering: searchTokens.length > 0
+    readonly property var searchHighlightTerms: logicSearch.highlightTerms(searchTokens)
+    readonly property int matchCount: {
+        if (!filtering)
+            return 0
+        const rules = EditorSession.logicRules
+        let n = 0
+        for (let i = 0; i < rules.length; ++i) {
+            if (logicSearch.ruleMatches(rules[i], searchTokens))
+                n += 1
+        }
+        return n
+    }
 
     function toggleSectionCollapsed(sectionId) {
         const next = {}
@@ -30,7 +47,9 @@ Rectangle {
     /**
      * Flattened display list in execution order: contiguous runs of rules
      * sharing a sectionId become a header + its rules; empty sections render
-     * as headers at the end so they stay renamable/removable.
+     * as headers at the end so they stay renamable/removable. While a search
+     * is active only matching rules render, collapse is ignored (matches stay
+     * visible) and empty sections are hidden.
      */
     readonly property var displayItems: {
         const rules = EditorSession.logicRules
@@ -41,34 +60,40 @@ Rectangle {
         const items = []
         let started = false
         let openSection = ""
+        let headerAt = -1
         for (let i = 0; i < rules.length; ++i) {
             const rule = rules[i]
+            if (filtering && !logicSearch.ruleMatches(rule, searchTokens))
+                continue
             const sid = (rule.sectionId && nameById[rule.sectionId] !== undefined)
                         ? rule.sectionId : ""
             if (!started || sid !== openSection) {
                 started = true
                 openSection = sid
                 if (sid !== "") {
-                    let count = 0
-                    for (let j = i; j < rules.length; ++j) {
-                        if (rules[j].sectionId === sid) { count += 1 } else { break }
-                    }
                     items.push({ kind: "header", sectionId: sid,
-                                 name: nameById[sid], count: count })
+                                 name: nameById[sid], count: 0 })
+                    headerAt = items.length - 1
+                } else {
+                    headerAt = -1
                 }
             }
-            if (sid === "" || !collapsedSections[sid])
+            if (headerAt >= 0)
+                items[headerAt].count += 1
+            if (sid === "" || filtering || !collapsedSections[sid])
                 items.push({ kind: "rule", rule: rule, ruleIndex: i })
         }
-        for (let s = 0; s < sections.length; ++s) {
-            const id = sections[s].id
-            let used = false
-            for (let i = 0; i < rules.length; ++i) {
-                if (rules[i].sectionId === id) { used = true; break }
+        if (!filtering) {
+            for (let s = 0; s < sections.length; ++s) {
+                const id = sections[s].id
+                let used = false
+                for (let i = 0; i < rules.length; ++i) {
+                    if (rules[i].sectionId === id) { used = true; break }
+                }
+                if (!used)
+                    items.push({ kind: "header", sectionId: id,
+                                 name: sections[s].name, count: 0 })
             }
-            if (!used)
-                items.push({ kind: "header", sectionId: id,
-                             name: sections[s].name, count: 0 })
         }
         return items
     }
@@ -143,6 +168,8 @@ Rectangle {
                             if (!root.hasTypeTarget)
                                 return "Select a scene object — rules apply to its object type"
                             const rules = EditorSession.logicRuleCount
+                            if (root.filtering)
+                                return root.matchCount + " of " + rules + " rules match"
                             const ruleLabel = rules === 1 ? "1 rule" : (rules + " rules")
                             return "Applies to all " + EditorSession.selectedObjectTypeName
                                    + " instances  ·  " + ruleLabel
@@ -227,6 +254,22 @@ Rectangle {
                     }
                 }
 
+                AcTextField {
+                    id: searchField
+                    visible: root.hasTypeTarget
+                    Layout.preferredWidth: 230
+                    placeholderText: "Search rules…"
+                    font.pixelSize: Typography.sizeXs
+                    onTextChanged: root.searchText = text
+                    Keys.onEscapePressed: text = ""
+                    ToolTip.visible: hovered && !activeFocus
+                    ToolTip.delay: 600
+                    ToolTip.text: "Filters rules as you type. Operators: trigger:x  "
+                                  + "condition:x  action:\"Play Sound\"  uses:value  "
+                                  + "is:disabled|enabled|error|warning. "
+                                  + "Terms are ANDed; Esc clears."
+                }
+
                 AcButton {
                     text: "+ Section"
                     enabled: EditorSession.hasProject && root.hasTypeTarget
@@ -301,6 +344,10 @@ Rectangle {
         }
     }
 
+    AcLogicSearch {
+        id: logicSearch
+    }
+
     Component {
         id: sectionHeaderComponent
 
@@ -327,6 +374,7 @@ Rectangle {
             orderIndex: displayLoader.modelData.ruleIndex
             expanded: ruleId === EditorSession.selectedLogicRuleId
             comfortable: root.comfortable
+            searchTerms: root.searchHighlightTerms
             onSelectRequested: EditorSession.selectedLogicRuleId = ruleId
             onEnabledToggled: function(enabled) {
                 EditorSession.setLogicRuleEnabled(ruleId, enabled)

@@ -19,6 +19,8 @@ Rectangle {
     property bool expanded: false
     /** Comfortable density: conditions and actions on their own lines. */
     property bool comfortable: false
+    /** Active search terms — matches inside summaries render accent-colored. */
+    property var searchTerms: []
 
     signal selectRequested()
     signal deleteRequested()
@@ -40,6 +42,31 @@ Rectangle {
         conditionProperties.length,
         actionProperties.length)
     readonly property real summaryOpacity: ruleEnabled ? 1.0 : 0.45
+
+    readonly property bool highlighting: searchTerms && searchTerms.length > 0
+
+    /**
+     * HTML-escapes @p text and wraps search-term matches in accent color.
+     * Used with Text.StyledText only while a search is active (elide needs
+     * plain text, so idle summaries stay plain).
+     */
+    function highlightText(text) {
+        if (!highlighting)
+            return text
+        let out = String(text).replace(/&/g, "&amp;")
+                              .replace(/</g, "&lt;")
+                              .replace(/>/g, "&gt;")
+        const escaped = []
+        for (let i = 0; i < searchTerms.length; ++i) {
+            const term = String(searchTerms[i])
+            if (term.length > 0)
+                escaped.push(term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+        }
+        if (escaped.length === 0)
+            return out
+        const re = new RegExp("(" + escaped.join("|") + ")", "gi")
+        return out.replace(re, "<font color=\"" + Theme.accent + "\">$1</font>")
+    }
 
     /** " · <value>" suffix from the primary block's first authorable property. */
     function primaryDetail(props) {
@@ -157,8 +184,33 @@ Rectangle {
             }
 
             Text {
-                text: EditorSession.logicBlockDisplayName(root.rule.triggerTypeId || "")
-                      + root.primaryDetail(root.triggerProperties)
+                visible: (root.rule.errorCount || 0) > 0 || (root.rule.warningCount || 0) > 0
+                text: "⚠"
+                color: (root.rule.errorCount || 0) > 0 ? Theme.error : Theme.warning
+                font.pixelSize: Typography.sizeXs
+                ToolTip.visible: diagMa.containsMouse
+                ToolTip.delay: 200
+                ToolTip.text: {
+                    const rows = root.rule.diagnostics || []
+                    const parts = []
+                    for (let i = 0; i < rows.length; ++i)
+                        parts.push(rows[i].severity + ": " + rows[i].message)
+                    return parts.join("\n")
+                }
+
+                MouseArea {
+                    id: diagMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    acceptedButtons: Qt.NoButton
+                }
+            }
+
+            Text {
+                text: root.highlightText(
+                          EditorSession.logicBlockDisplayName(root.rule.triggerTypeId || "")
+                          + root.primaryDetail(root.triggerProperties))
+                textFormat: root.highlighting ? Text.StyledText : Text.PlainText
                 color: Theme.textPrimary
                 font.family: Typography.family
                 font.pixelSize: Typography.sizeSm
@@ -170,7 +222,10 @@ Rectangle {
 
             Text {
                 visible: !root.comfortable && !root.expanded && root.conditionIds.length > 0
-                text: "IF " + root.blockSummary(root.conditionIds, 2, root.conditionProperties)
+                text: root.highlightText(
+                          "IF " + root.blockSummary(root.conditionIds, 2,
+                                                    root.conditionProperties))
+                textFormat: root.highlighting ? Text.StyledText : Text.PlainText
                 color: Theme.textSecondary
                 font.family: Typography.family
                 font.pixelSize: Typography.sizeXs
@@ -182,7 +237,10 @@ Rectangle {
             Text {
                 visible: !root.comfortable && !root.expanded && root.actionIds.length > 0
                 Layout.fillWidth: true
-                text: "DO " + root.blockSummary(root.actionIds, 3, root.actionProperties)
+                text: root.highlightText(
+                          "DO " + root.blockSummary(root.actionIds, 3,
+                                                    root.actionProperties))
+                textFormat: root.highlighting ? Text.StyledText : Text.PlainText
                 color: Theme.textSecondary
                 font.family: Typography.family
                 font.pixelSize: Typography.sizeXs
@@ -219,7 +277,10 @@ Rectangle {
             Text {
                 visible: root.conditionIds.length > 0
                 Layout.fillWidth: true
-                text: "IF " + root.blockSummary(root.conditionIds, 3, root.conditionProperties)
+                text: root.highlightText(
+                          "IF " + root.blockSummary(root.conditionIds, 3,
+                                                    root.conditionProperties))
+                textFormat: root.highlighting ? Text.StyledText : Text.PlainText
                 color: Theme.textSecondary
                 font.family: Typography.family
                 font.pixelSize: Typography.sizeXs
@@ -229,7 +290,10 @@ Rectangle {
             Text {
                 visible: root.actionIds.length > 0
                 Layout.fillWidth: true
-                text: "DO " + root.blockSummary(root.actionIds, 3, root.actionProperties)
+                text: root.highlightText(
+                          "DO " + root.blockSummary(root.actionIds, 3,
+                                                    root.actionProperties))
+                textFormat: root.highlighting ? Text.StyledText : Text.PlainText
                 color: Theme.textSecondary
                 font.family: Typography.family
                 font.pixelSize: Typography.sizeXs

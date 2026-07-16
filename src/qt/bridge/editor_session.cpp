@@ -583,6 +583,12 @@ void EditorSession::refreshSelectionCache()
                                 {QStringLiteral("name"), QString::fromStdString(section.name)},
                             });
                         }
+                        // Authoring-mode diagnostics: draft-friendly, same validator
+                        // the Play gate uses in Executable mode.
+                        const std::vector<ArtCade::Logic::LogicDiagnostic> board_diags =
+                            ArtCade::Logic::validateBoard(
+                                inst->objectTypeId, *type.logicBoard, &type, &doc,
+                                ArtCade::Logic::ValidationMode::Authoring);
                         m_logicRuleCount = static_cast<int>(type.logicBoard->rules.size());
                         for (const ArtCade::LogicRuleDef &rule : type.logicBoard->rules) {
                             m_logicRuleIds.append(QString::fromStdString(rule.id));
@@ -602,11 +608,36 @@ void EditorSession::refreshSelectionCache()
                                 rule.actions.empty()
                                     ? QVariantList{}
                                     : logic_property_rows(doc, rule.actions.front());
+                            int error_count = 0;
+                            int warning_count = 0;
+                            QVariantList rule_diags;
+                            for (const ArtCade::Logic::LogicDiagnostic &diag : board_diags) {
+                                if (diag.ruleId != rule.id) {
+                                    continue;
+                                }
+                                const bool is_error = diag.severity
+                                    == ArtCade::Logic::DiagnosticSeverity::Error;
+                                if (is_error) {
+                                    ++error_count;
+                                } else {
+                                    ++warning_count;
+                                }
+                                rule_diags.append(QVariantMap{
+                                    {QStringLiteral("severity"),
+                                     is_error ? QStringLiteral("error")
+                                              : QStringLiteral("warning")},
+                                    {QStringLiteral("message"),
+                                     QString::fromStdString(diag.message)},
+                                });
+                            }
                             m_logicRules.append(QVariantMap{
                                 {QStringLiteral("id"), QString::fromStdString(rule.id)},
                                 {QStringLiteral("enabled"), rule.enabled},
                                 {QStringLiteral("sectionId"),
                                  QString::fromStdString(rule.sectionId)},
+                                {QStringLiteral("errorCount"), error_count},
+                                {QStringLiteral("warningCount"), warning_count},
+                                {QStringLiteral("diagnostics"), rule_diags},
                                 {QStringLiteral("triggerTypeId"),
                                  QString::fromStdString(rule.trigger.typeId)},
                                 {QStringLiteral("conditionTypeIds"), condition_ids},

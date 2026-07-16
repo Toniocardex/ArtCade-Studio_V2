@@ -62,6 +62,8 @@ class EditorSession : public QObject
      * Property rows: { key, kind, value, valueLabel, choices } for
      * Bool/Integer/Number/String/Key/Vec2/Asset; choices ({value,label}) are
      * project-backed pickers (assets, clips, object types), empty = free-form.
+     * Diagnostics per rule (Authoring-mode validateBoard): errorCount,
+     * warningCount, diagnostics [{severity, message}].
      */
     Q_PROPERTY(QVariantList logicRules READ logicRules NOTIFY logicRulesChanged)
     /**
