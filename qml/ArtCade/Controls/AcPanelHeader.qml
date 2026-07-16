@@ -36,10 +36,10 @@ ColumnLayout {
                 Layout.fillWidth: true
             }
 
-            Text {
-                text: Icons.chevron
+            AcIcon {
+                source: Icons.chevron
+                size: 12
                 color: Theme.textMuted
-                font.pixelSize: Typography.sizeXs
                 rotation: root.expanded ? 0 : -90
             }
         }

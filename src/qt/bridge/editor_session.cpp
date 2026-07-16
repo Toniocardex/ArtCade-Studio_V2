@@ -9,10 +9,13 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QJSEngine>
+#include <QFont>
 #include <QPainter>
 #include <QPen>
 #include <QQmlEngine>
 #include <QUrl>
+#include <QtGlobal>
+#include <cmath>
 
 #ifndef ARTCADE_QT_SLICE_FIXTURE_PATH
 #define ARTCADE_QT_SLICE_FIXTURE_PATH ""
@@ -37,6 +40,7 @@ EditorSession::EditorSession(QObject *parent)
     , m_hierarchy(new HierarchyModel(this))
     , m_layers(new LayersModel(this))
     , m_assets(new AssetsModel(this))
+    , m_console(new ConsoleModel(this))
     , m_play(new PlayProcessHost(this))
     , m_activeMode(QStringLiteral("canvas"))
     , m_statusMessage(QStringLiteral("Open formatVersion 5 project.json, or use Fixture"))
@@ -99,6 +103,11 @@ AssetsModel *EditorSession::assetsModel() const
     return m_assets;
 }
 
+ConsoleModel *EditorSession::consoleModel() const
+{
+    return m_console;
+}
+
 bool EditorSession::hasProject() const
 {
     return m_coordinator->hasProject();
@@ -134,6 +143,63 @@ QString EditorSession::activeLayerId() const
     return QString::fromStdString(m_coordinator->activeLayerId());
 }
 
+namespace {
+
+const ArtCade::SceneDef *session_active_scene(const ArtCade::EditorCore::EditorCoordinator &coord)
+{
+    if (!coord.hasProject()) {
+        return nullptr;
+    }
+    const ArtCade::ProjectDoc &doc = coord.document();
+    auto it = doc.scenes.find(doc.activeSceneId);
+    if (it != doc.scenes.end()) {
+        return &it->second;
+    }
+    if (!doc.scenes.empty()) {
+        return &doc.scenes.begin()->second;
+    }
+    return nullptr;
+}
+
+} // namespace
+
+QString EditorSession::activeSceneName() const
+{
+    const ArtCade::SceneDef *scene = session_active_scene(*m_coordinator);
+    if (!scene) {
+        return {};
+    }
+    return QString::fromStdString(scene->name.empty() ? scene->id : scene->name);
+}
+
+double EditorSession::activeSceneWidth() const
+{
+    const ArtCade::SceneDef *scene = session_active_scene(*m_coordinator);
+    return scene ? scene->worldSize.x : 0.0;
+}
+
+double EditorSession::activeSceneHeight() const
+{
+    const ArtCade::SceneDef *scene = session_active_scene(*m_coordinator);
+    return scene ? scene->worldSize.y : 0.0;
+}
+
+double EditorSession::worldGravity() const
+{
+    if (!m_coordinator->hasProject()) {
+        return 0.0;
+    }
+    return m_coordinator->document().world.gravity;
+}
+
+double EditorSession::worldPixelsPerMeter() const
+{
+    if (!m_coordinator->hasProject()) {
+        return 0.0;
+    }
+    return m_coordinator->document().world.pixelsPerMeter;
+}
+
 void EditorSession::setActiveMode(const QString &mode)
 {
     if (m_activeMode == mode) {
@@ -152,13 +218,26 @@ QString EditorSession::normalizePath(const QString &pathOrUrl) const
     return pathOrUrl;
 }
 
-void EditorSession::setStatus(const QString &message)
+void EditorSession::setStatus(const QString &message, bool logToConsole)
 {
-    if (m_statusMessage == message) {
-        return;
+    if (m_statusMessage != message) {
+        m_statusMessage = message;
+        emit statusMessageChanged();
     }
-    m_statusMessage = message;
-    emit statusMessageChanged();
+    if (logToConsole && m_console) {
+        m_console->appendInfo(message);
+    }
+}
+
+bool EditorSession::guardAuthoring(QString *errorOut) const
+{
+    if (m_playing || (m_play && m_play->isRunning())) {
+        if (errorOut) {
+            *errorOut = QStringLiteral("Stop Play before editing");
+        }
+        return false;
+    }
+    return true;
 }
 
 void EditorSession::emitProjectSignals()
@@ -205,7 +284,7 @@ void EditorSession::openSliceFixture()
     if (path.isEmpty() || !QFileInfo::exists(path)) {
         const QString msg =
             QStringLiteral("Slice fixture not found. Rebuild with ARTCADE_QT_SLICE_FIXTURE_PATH.");
-        setStatus(msg);
+        setStatus(msg, false);
         emit errorOccurred(msg);
         return;
     }
@@ -239,11 +318,13 @@ void EditorSession::discardAndClose()
 
 void EditorSession::openProject(const QString &pathOrUrl)
 {
+    stopPlay();
     const QString path = normalizePath(pathOrUrl);
     std::string error;
     if (!m_coordinator->openProject(path.toStdString(), error)) {
-        setStatus(QString::fromStdString(error));
-        emit errorOccurred(QString::fromStdString(error));
+        const QString msg = QString::fromStdString(error);
+        setStatus(msg, false);
+        emit errorOccurred(msg);
         return;
     }
     reloadDerivedModels();
@@ -254,6 +335,12 @@ void EditorSession::openProject(const QString &pathOrUrl)
 
 void EditorSession::undo()
 {
+    QString guard_error;
+    if (!guardAuthoring(&guard_error)) {
+        setStatus(guard_error, false);
+        emit errorOccurred(guard_error);
+        return;
+    }
     if (!m_coordinator->canUndo()) {
         setStatus(QStringLiteral("Nothing to undo"));
         return;
@@ -267,6 +354,12 @@ void EditorSession::undo()
 
 void EditorSession::redo()
 {
+    QString guard_error;
+    if (!guardAuthoring(&guard_error)) {
+        setStatus(guard_error, false);
+        emit errorOccurred(guard_error);
+        return;
+    }
     if (!m_coordinator->canRedo()) {
         setStatus(QStringLiteral("Nothing to redo"));
         return;
@@ -282,8 +375,9 @@ void EditorSession::saveProject()
 {
     std::string error;
     if (!m_coordinator->saveProject(error)) {
-        setStatus(QString::fromStdString(error));
-        emit errorOccurred(QString::fromStdString(error));
+        const QString msg = QString::fromStdString(error);
+        setStatus(msg, false);
+        emit errorOccurred(msg);
         return;
     }
     emit dirtyChanged();
@@ -304,6 +398,15 @@ void EditorSession::clearSelection()
 
 void EditorSession::commitRename(const QString &newName)
 {
+    QString guard_error;
+    if (!guardAuthoring(&guard_error)) {
+        setStatus(guard_error, false);
+        emit errorOccurred(guard_error);
+        return;
+    }
+    if (newName == m_selectedName) {
+        return;
+    }
     std::string error;
     if (!m_coordinator->renameSelected(newName.toStdString(), error)) {
         setStatus(QString::fromStdString(error));
@@ -317,6 +420,16 @@ void EditorSession::commitRename(const QString &newName)
 
 void EditorSession::commitPosition(double x, double y)
 {
+    QString guard_error;
+    if (!guardAuthoring(&guard_error)) {
+        setStatus(guard_error, false);
+        emit errorOccurred(guard_error);
+        return;
+    }
+    if (qFuzzyCompare(static_cast<float>(x), static_cast<float>(m_selectedX))
+        && qFuzzyCompare(static_cast<float>(y), static_cast<float>(m_selectedY))) {
+        return;
+    }
     std::string error;
     if (!m_coordinator->setSelectedPosition(static_cast<float>(x), static_cast<float>(y), error)) {
         setStatus(QString::fromStdString(error));
@@ -341,6 +454,12 @@ void EditorSession::setActiveLayer(const QString &layerId)
 
 void EditorSession::setLayerVisible(const QString &layerId, bool visible)
 {
+    QString guard_error;
+    if (!guardAuthoring(&guard_error)) {
+        setStatus(guard_error, false);
+        emit errorOccurred(guard_error);
+        return;
+    }
     std::string error;
     if (!m_coordinator->setLayerVisible(layerId.toStdString(), visible, error)) {
         setStatus(QString::fromStdString(error));
@@ -389,6 +508,46 @@ void EditorSession::paintSceneView(QPainter *painter, const SceneViewItem *view)
     }
     const ArtCade::SceneDef &scene = it->second;
 
+    const qreal ruler = view->rulerSize();
+    if (ruler > 0.0) {
+        painter->fillRect(QRectF(0, 0, view->width(), ruler), QColor(0x13, 0x19, 0x22));
+        painter->fillRect(QRectF(0, 0, ruler, view->height()), QColor(0x13, 0x19, 0x22));
+        painter->fillRect(QRectF(0, 0, ruler, ruler), QColor(0x11, 0x16, 0x1e));
+        painter->setPen(QPen(QColor(0x29, 0x32, 0x40), 1));
+        painter->drawLine(QPointF(ruler, 0), QPointF(ruler, view->height()));
+        painter->drawLine(QPointF(0, ruler), QPointF(view->width(), ruler));
+
+        painter->setPen(QColor(0x68, 0x74, 0x86));
+        painter->setFont(QFont(QStringLiteral("Consolas"), 8));
+        const qreal world_left = view->screenToWorld(QPointF(ruler, ruler)).x();
+        const qreal world_top = view->screenToWorld(QPointF(ruler, ruler)).y();
+        const qreal world_right = view->screenToWorld(QPointF(view->width(), ruler)).x();
+        const qreal world_bottom = view->screenToWorld(QPointF(ruler, view->height())).y();
+        const qreal step = 32.0;
+        const qreal start_x = std::floor(world_left / step) * step;
+        for (qreal wx = start_x; wx <= world_right; wx += step) {
+            const qreal sx = view->worldToScreen(QPointF(wx, 0)).x();
+            if (sx < ruler) {
+                continue;
+            }
+            painter->drawLine(QPointF(sx, ruler - 4), QPointF(sx, ruler));
+            if (std::fmod(std::abs(wx), 128.0) < 0.01) {
+                painter->drawText(QPointF(sx + 2, ruler - 6), QString::number(static_cast<int>(wx)));
+            }
+        }
+        const qreal start_y = std::floor(world_top / step) * step;
+        for (qreal wy = start_y; wy <= world_bottom; wy += step) {
+            const qreal sy = view->worldToScreen(QPointF(0, wy)).y();
+            if (sy < ruler) {
+                continue;
+            }
+            painter->drawLine(QPointF(ruler - 4, sy), QPointF(ruler, sy));
+            if (std::fmod(std::abs(wy), 128.0) < 0.01) {
+                painter->drawText(QPointF(2, sy - 2), QString::number(static_cast<int>(wy)));
+            }
+        }
+    }
+
     const QRectF world_rect(0.0, 0.0, scene.worldSize.x, scene.worldSize.y);
     const QPointF tl = view->worldToScreen(world_rect.topLeft());
     const QPointF br = view->worldToScreen(world_rect.bottomRight());
@@ -402,18 +561,19 @@ void EditorSession::paintSceneView(QPainter *painter, const SceneViewItem *view)
     painter->setPen(QPen(QColor(0x29, 0x2d, 0x35), 1));
     painter->drawRect(screen_world);
 
-    // Light grid every 32 world units
-    painter->setPen(QPen(QColor(0x1e, 0x22, 0x29), 1));
-    const float step = 32.f;
-    for (float x = 0.f; x <= scene.worldSize.x + 0.01f; x += step) {
-        const QPointF a = view->worldToScreen(QPointF(x, 0.0));
-        const QPointF b = view->worldToScreen(QPointF(x, scene.worldSize.y));
-        painter->drawLine(a, b);
-    }
-    for (float y = 0.f; y <= scene.worldSize.y + 0.01f; y += step) {
-        const QPointF a = view->worldToScreen(QPointF(0.0, y));
-        const QPointF b = view->worldToScreen(QPointF(scene.worldSize.x, y));
-        painter->drawLine(a, b);
+    if (view->gridVisible()) {
+        painter->setPen(QPen(QColor(0x1e, 0x22, 0x29), 1));
+        const float step = 32.f;
+        for (float x = 0.f; x <= scene.worldSize.x + 0.01f; x += step) {
+            const QPointF a = view->worldToScreen(QPointF(x, 0.0));
+            const QPointF b = view->worldToScreen(QPointF(x, scene.worldSize.y));
+            painter->drawLine(a, b);
+        }
+        for (float y = 0.f; y <= scene.worldSize.y + 0.01f; y += step) {
+            const QPointF a = view->worldToScreen(QPointF(0.0, y));
+            const QPointF b = view->worldToScreen(QPointF(scene.worldSize.x, y));
+            painter->drawLine(a, b);
+        }
     }
 
     const quint32 selected = m_coordinator->selectedEntityId();
@@ -459,14 +619,14 @@ void EditorSession::startPlay()
     }
     if (!m_coordinator->hasProject()) {
         const QString msg = QStringLiteral("Open a project before Play");
-        setStatus(msg);
+        setStatus(msg, false);
         emit errorOccurred(msg);
         return;
     }
     // Play reads on-disk files only — never a live ProjectDoc mutation path.
     if (m_coordinator->isDirty()) {
         const QString msg = QStringLiteral("Save the project before Play");
-        setStatus(msg);
+        setStatus(msg, false);
         emit errorOccurred(msg);
         return;
     }
@@ -475,7 +635,7 @@ void EditorSession::startPlay()
     if (game_exe.isEmpty()) {
         const QString msg = QStringLiteral(
             "game.exe not found. Build target `game`, or set ARTCADE_GAME_EXE.");
-        setStatus(msg);
+        setStatus(msg, false);
         emit errorOccurred(msg);
         return;
     }
@@ -483,7 +643,7 @@ void EditorSession::startPlay()
     const QString project_dir = projectDirectory();
     QString error;
     if (!m_play->start(game_exe, project_dir, error)) {
-        setStatus(error);
+        setStatus(error, false);
         emit errorOccurred(error);
         return;
     }

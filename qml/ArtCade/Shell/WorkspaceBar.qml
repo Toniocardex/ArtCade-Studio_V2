@@ -6,6 +6,9 @@ import ArtCade.Ui
 Rectangle {
     id: root
 
+    /** EditorActions instance from Main — shared Action objects for shortcuts. */
+    property var actions: null
+
     color: Theme.chrome
     height: Metrics.workspaceBarHeight
 
@@ -15,21 +18,23 @@ Rectangle {
         anchors.rightMargin: Metrics.spacingMd
         spacing: Metrics.spacingSm
 
+        // Mode tabs: click sets mode; matching Action owns the shortcut only
+        // (do not bind action: here — that would also rewrite button text).
         AcTabButton {
             text: "Canvas"
-            glyph: Icons.canvas
+            iconSource: Icons.canvas
             active: EditorSession.activeMode === "canvas"
             onClicked: EditorSession.activeMode = "canvas"
         }
         AcTabButton {
             text: "Logic Board"
-            glyph: Icons.logic
+            iconSource: Icons.logic
             active: EditorSession.activeMode === "logic"
             onClicked: EditorSession.activeMode = "logic"
         }
         AcTabButton {
             text: "Script Editor"
-            glyph: Icons.script
+            iconSource: Icons.script
             active: EditorSession.activeMode === "script"
             onClicked: EditorSession.activeMode = "script"
         }
@@ -43,16 +48,16 @@ Rectangle {
         }
 
         AcToolButton {
-            glyph: Icons.undo
+            iconSource: Icons.undo
+            action: root.actions ? root.actions.undo : null
             ToolTip.visible: hovered
-            ToolTip.text: "Undo"
-            onClicked: EditorSession.undo()
+            ToolTip.text: "Undo (Ctrl+Z)"
         }
         AcToolButton {
-            glyph: Icons.redo
+            iconSource: Icons.redo
+            action: root.actions ? root.actions.redo : null
             ToolTip.visible: hovered
-            ToolTip.text: "Redo"
-            onClicked: EditorSession.redo()
+            ToolTip.text: "Redo (Ctrl+Y)"
         }
 
         Rectangle {
@@ -63,18 +68,21 @@ Rectangle {
 
         AcButton {
             text: "Save"
-            onClicked: EditorSession.saveProject()
+            iconSource: Icons.save
+            action: root.actions ? root.actions.save : null
         }
         AcButton {
             text: "Build"
+            iconSource: Icons.build
             enabled: false
             ToolTip.visible: hovered
             ToolTip.text: "Build — coming next"
         }
         AcButton {
             text: EditorSession.playing ? "Stop" : "Play"
+            iconSource: EditorSession.playing ? Icons.stop : Icons.play
             primary: true
-            onClicked: EditorSession.playing ? EditorSession.stopPlay() : EditorSession.startPlay()
+            action: root.actions ? root.actions.playStop : null
         }
 
         Text {

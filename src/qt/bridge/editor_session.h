@@ -5,6 +5,7 @@
 #pragma once
 
 #include "bridge/assets_model.h"
+#include "bridge/console_model.h"
 #include "bridge/hierarchy_model.h"
 #include "bridge/layers_model.h"
 
@@ -37,6 +38,7 @@ class EditorSession : public QObject
     Q_PROPERTY(HierarchyModel *hierarchyModel READ hierarchyModel CONSTANT)
     Q_PROPERTY(LayersModel *layersModel READ layersModel CONSTANT)
     Q_PROPERTY(AssetsModel *assetsModel READ assetsModel CONSTANT)
+    Q_PROPERTY(ConsoleModel *consoleModel READ consoleModel CONSTANT)
     Q_PROPERTY(bool hasProject READ hasProject NOTIFY hasProjectChanged)
     Q_PROPERTY(quint32 selectedEntityId READ selectedEntityId NOTIFY selectionChanged)
     Q_PROPERTY(QString selectedName READ selectedName NOTIFY selectionChanged)
@@ -44,6 +46,11 @@ class EditorSession : public QObject
     Q_PROPERTY(double selectedY READ selectedY NOTIFY selectionChanged)
     Q_PROPERTY(bool hasSelection READ hasSelection NOTIFY selectionChanged)
     Q_PROPERTY(QString activeLayerId READ activeLayerId NOTIFY activeLayerChanged)
+    Q_PROPERTY(QString activeSceneName READ activeSceneName NOTIFY projectChanged)
+    Q_PROPERTY(double activeSceneWidth READ activeSceneWidth NOTIFY projectChanged)
+    Q_PROPERTY(double activeSceneHeight READ activeSceneHeight NOTIFY projectChanged)
+    Q_PROPERTY(double worldGravity READ worldGravity NOTIFY projectChanged)
+    Q_PROPERTY(double worldPixelsPerMeter READ worldPixelsPerMeter NOTIFY projectChanged)
 
 public:
     explicit EditorSession(QObject *parent = nullptr);
@@ -59,6 +66,7 @@ public:
     [[nodiscard]] HierarchyModel *hierarchyModel() const;
     [[nodiscard]] LayersModel *layersModel() const;
     [[nodiscard]] AssetsModel *assetsModel() const;
+    [[nodiscard]] ConsoleModel *consoleModel() const;
     [[nodiscard]] bool hasProject() const;
     [[nodiscard]] quint32 selectedEntityId() const;
     [[nodiscard]] QString selectedName() const;
@@ -66,6 +74,11 @@ public:
     [[nodiscard]] double selectedY() const;
     [[nodiscard]] bool hasSelection() const;
     [[nodiscard]] QString activeLayerId() const;
+    [[nodiscard]] QString activeSceneName() const;
+    [[nodiscard]] double activeSceneWidth() const;
+    [[nodiscard]] double activeSceneHeight() const;
+    [[nodiscard]] double worldGravity() const;
+    [[nodiscard]] double worldPixelsPerMeter() const;
 
     void setActiveMode(const QString &mode);
 
@@ -112,7 +125,8 @@ signals:
     void closeAccepted();
 
 private:
-    void setStatus(const QString &message);
+    void setStatus(const QString &message, bool logToConsole = true);
+    [[nodiscard]] bool guardAuthoring(QString *errorOut = nullptr) const;
     void emitProjectSignals();
     void refreshSelectionCache();
     void reloadDerivedModels();
@@ -125,6 +139,7 @@ private:
     HierarchyModel *m_hierarchy = nullptr;
     LayersModel *m_layers = nullptr;
     AssetsModel *m_assets = nullptr;
+    ConsoleModel *m_console = nullptr;
     PlayProcessHost *m_play = nullptr;
     QString m_activeMode;
     QString m_statusMessage;

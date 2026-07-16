@@ -196,9 +196,13 @@ bool EditorCoordinator::renameEntity(EntityId entity_id,
         error_message = "No project open";
         return false;
     }
-    if (!project_doc_find_instance(m_doc, entity_id)) {
+    SceneInstanceDef *inst = project_doc_find_instance(m_doc, entity_id);
+    if (!inst) {
         error_message = "Entity not found";
         return false;
+    }
+    if (inst->instanceName == new_name) {
+        return true; // no-op — do not dirty or push undo
     }
     m_commands.execute(std::make_unique<RenameEntityCommand>(entity_id, new_name), m_doc);
     bumpRevision();
@@ -214,9 +218,13 @@ bool EditorCoordinator::setEntityPosition(EntityId entity_id,
         error_message = "No project open";
         return false;
     }
-    if (!project_doc_find_instance(m_doc, entity_id)) {
+    SceneInstanceDef *inst = project_doc_find_instance(m_doc, entity_id);
+    if (!inst) {
         error_message = "Entity not found";
         return false;
+    }
+    if (inst->transform.position.x == x && inst->transform.position.y == y) {
+        return true; // no-op — do not dirty or push undo
     }
     m_commands.execute(std::make_unique<SetEntityPositionCommand>(entity_id, x, y), m_doc);
     bumpRevision();
@@ -256,6 +264,9 @@ bool EditorCoordinator::setLayerVisible(const std::string &layer_id,
         scene_id = scene_it->first;
     } else {
         scene_id = m_doc.scenes.begin()->first;
+    }
+    if (layerVisible(layer_id) == visible) {
+        return true; // no-op — do not dirty or push undo
     }
     m_commands.execute(
         std::make_unique<SetLayerVisibleCommand>(scene_id, layer_id, visible), m_doc);

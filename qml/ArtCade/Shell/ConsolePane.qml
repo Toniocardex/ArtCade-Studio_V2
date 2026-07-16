@@ -44,11 +44,13 @@ Rectangle {
 
                 AcIconButton {
                     text: "Clear"
-                    onClicked: logModel.clear()
+                    onClicked: EditorSession.consoleModel.clear()
                 }
 
                 Text {
-                    text: "0 Err  ·  0 Warn  ·  " + logModel.count + " Info"
+                    text: EditorSession.consoleModel.errorCount + " Err  ·  "
+                          + EditorSession.consoleModel.warnCount + " Warn  ·  "
+                          + EditorSession.consoleModel.infoCount + " Info"
                     color: Theme.info
                     font.family: Typography.family
                     font.pixelSize: Typography.sizeXs
@@ -70,7 +72,6 @@ Rectangle {
             Layout.leftMargin: Metrics.spacingSm
             Layout.rightMargin: Metrics.spacingSm
             Layout.topMargin: Metrics.spacingXs
-            spacing: Metrics.spacingSm
 
             AcTextField {
                 Layout.fillWidth: true
@@ -84,21 +85,15 @@ Rectangle {
             Layout.fillHeight: true
             clip: true
             visible: root.consoleTab === 0
-            model: ListModel {
-                id: logModel
-                ListElement {
-                    timestamp: "00:00:00"
-                    level: "Info"
-                    message: "ArtCade Studio — Qt editor, single ProjectDoc (C++)."
-                }
-            }
+            model: EditorSession.consoleModel
 
             delegate: RowLayout {
                 width: logView.width
                 spacing: Metrics.spacingSm
                 required property string timestamp
-                required property string level
+                required property string levelLabel
                 required property string message
+                required property int level
 
                 Text {
                     text: "[" + timestamp + "]"
@@ -108,9 +103,9 @@ Rectangle {
                     leftPadding: Metrics.spacingMd
                 }
                 Text {
-                    text: "[" + level + "]"
-                    color: level === "Error" ? Theme.error
-                         : level === "Warn" ? Theme.warning
+                    text: "[" + levelLabel + "]"
+                    color: level === 2 ? Theme.error
+                         : level === 1 ? Theme.warning
                          : Theme.info
                     font.family: Typography.familyMono
                     font.pixelSize: Typography.sizeXs
@@ -127,27 +122,8 @@ Rectangle {
             }
 
             Connections {
-                target: EditorSession
-                function onStatusMessageChanged() {
-                    const d = new Date()
-                    const ts = Qt.formatTime(d, "hh:mm:ss")
-                    logModel.append({
-                        timestamp: ts,
-                        level: "Info",
-                        message: EditorSession.statusMessage
-                    })
-                    logView.positionViewAtEnd()
-                }
-                function onErrorOccurred(message) {
-                    const d = new Date()
-                    const ts = Qt.formatTime(d, "hh:mm:ss")
-                    logModel.append({
-                        timestamp: ts,
-                        level: "Error",
-                        message: message
-                    })
-                    logView.positionViewAtEnd()
-                }
+                target: EditorSession.consoleModel
+                function onRowsInserted() { logView.positionViewAtEnd() }
             }
         }
 
@@ -161,6 +137,13 @@ Rectangle {
             color: Theme.textMuted
             font.family: Typography.family
             font.pixelSize: Typography.sizeSm
+        }
+    }
+
+    Connections {
+        target: EditorSession
+        function onErrorOccurred(message) {
+            EditorSession.consoleModel.appendError(message)
         }
     }
 

@@ -9,13 +9,12 @@ Rectangle {
     color: Theme.panel
 
     function commitPos() {
-        const x = Number(xField.text)
-        const y = Number(yField.text)
-        if (isNaN(x) || isNaN(y))
+        if (!EditorSession.hasSelection)
             return
-        if (x === EditorSession.selectedX && y === EditorSession.selectedY)
+        if (xField.value === EditorSession.selectedX
+                && yField.value === EditorSession.selectedY)
             return
-        EditorSession.commitPosition(x, y)
+        EditorSession.commitPosition(xField.value, yField.value)
     }
 
     ColumnLayout {
@@ -57,31 +56,53 @@ Rectangle {
                 spacing: 0
 
                 Text {
-                    visible: !EditorSession.hasSelection
+                    visible: !EditorSession.hasSelection && !EditorSession.hasProject
                     Layout.fillWidth: true
                     Layout.leftMargin: Metrics.spacingMd
                     Layout.topMargin: Metrics.spacingMd
-                    text: EditorSession.hasProject ? "No Selection" : "No project"
+                    text: "No project"
+                    color: Theme.textMuted
+                    font.family: Typography.family
+                    font.pixelSize: Typography.sizeSm
+                }
+
+                Text {
+                    visible: EditorSession.hasProject && !EditorSession.hasSelection
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Metrics.spacingMd
+                    Layout.topMargin: Metrics.spacingMd
+                    text: "No Selection"
                     color: Theme.textMuted
                     font.family: Typography.family
                     font.pixelSize: Typography.sizeSm
                 }
 
                 AcPanelHeader {
-                    title: "Name"
+                    title: "Object"
                     Layout.fillWidth: true
                     visible: EditorSession.hasSelection
 
-                    AcTextField {
-                        id: nameField
+                    RowLayout {
                         Layout.fillWidth: true
                         Layout.leftMargin: Metrics.spacingMd
                         Layout.rightMargin: Metrics.spacingMd
-                        Layout.bottomMargin: Metrics.spacingSm
-                        text: EditorSession.selectedName
-                        onEditingFinished: {
-                            if (text !== EditorSession.selectedName)
-                                EditorSession.commitRename(text)
+                        Layout.bottomMargin: Metrics.spacingXs
+                        spacing: Metrics.spacingSm
+
+                        Text {
+                            text: "Name"
+                            color: Theme.textSecondary
+                            font.pixelSize: Typography.sizeXs
+                            Layout.preferredWidth: Metrics.labelColumnWidth
+                        }
+                        AcTextField {
+                            id: nameField
+                            Layout.fillWidth: true
+                            text: EditorSession.selectedName
+                            onEditingFinished: {
+                                if (text !== EditorSession.selectedName)
+                                    EditorSession.commitRename(text)
+                            }
                         }
                     }
                 }
@@ -95,34 +116,53 @@ Rectangle {
                         Layout.fillWidth: true
                         Layout.leftMargin: Metrics.spacingMd
                         Layout.rightMargin: Metrics.spacingMd
+                        Layout.bottomMargin: Metrics.spacingXs
+                        spacing: Metrics.spacingSm
+
+                        Text {
+                            text: "Position X"
+                            color: Theme.textSecondary
+                            font.pixelSize: Typography.sizeXs
+                            Layout.preferredWidth: Metrics.labelColumnWidth
+                        }
+                        AcNumberField {
+                            id: xField
+                            Layout.fillWidth: true
+                            value: EditorSession.selectedX
+                            decimals: 3
+                            onEditingFinished: commitPos()
+                        }
+                        Text {
+                            text: "px"
+                            color: Theme.textMuted
+                            font.pixelSize: Typography.sizeXs
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: Metrics.spacingMd
+                        Layout.rightMargin: Metrics.spacingMd
                         Layout.bottomMargin: Metrics.spacingSm
                         spacing: Metrics.spacingSm
 
                         Text {
-                            text: "X"
+                            text: "Position Y"
                             color: Theme.textSecondary
                             font.pixelSize: Typography.sizeXs
-                            Layout.preferredWidth: 14
+                            Layout.preferredWidth: Metrics.labelColumnWidth
                         }
-                        AcTextField {
-                            id: xField
+                        AcNumberField {
+                            id: yField
                             Layout.fillWidth: true
-                            text: EditorSession.selectedX.toFixed(2)
-                            font.family: Typography.familyMono
+                            value: EditorSession.selectedY
+                            decimals: 3
                             onEditingFinished: commitPos()
                         }
                         Text {
-                            text: "Y"
-                            color: Theme.textSecondary
+                            text: "px"
+                            color: Theme.textMuted
                             font.pixelSize: Typography.sizeXs
-                            Layout.preferredWidth: 14
-                        }
-                        AcTextField {
-                            id: yField
-                            Layout.fillWidth: true
-                            text: EditorSession.selectedY.toFixed(2)
-                            font.family: Typography.familyMono
-                            onEditingFinished: commitPos()
                         }
                     }
                 }
@@ -130,28 +170,110 @@ Rectangle {
                 AcPanelHeader {
                     title: "Canvas"
                     Layout.fillWidth: true
-                    expanded: false
+                    visible: EditorSession.hasProject
+                    expanded: true
 
-                    Text {
+                    RowLayout {
+                        Layout.fillWidth: true
                         Layout.leftMargin: Metrics.spacingMd
+                        Layout.rightMargin: Metrics.spacingMd
+                        Layout.bottomMargin: Metrics.spacingXs
+                        Text {
+                            text: "Scene Name"
+                            color: Theme.textSecondary
+                            font.pixelSize: Typography.sizeXs
+                            Layout.preferredWidth: Metrics.labelColumnWidth
+                        }
+                        Text {
+                            text: EditorSession.activeSceneName
+                            color: Theme.textPrimary
+                            font.pixelSize: Typography.sizeSm
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
+                        }
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: Metrics.spacingMd
+                        Layout.rightMargin: Metrics.spacingMd
+                        Layout.bottomMargin: Metrics.spacingXs
+                        Text {
+                            text: "Size"
+                            color: Theme.textSecondary
+                            font.pixelSize: Typography.sizeXs
+                            Layout.preferredWidth: Metrics.labelColumnWidth
+                        }
+                        Text {
+                            text: Math.round(EditorSession.activeSceneWidth) + " × "
+                                  + Math.round(EditorSession.activeSceneHeight)
+                            color: Theme.textPrimary
+                            font.family: Typography.familyMono
+                            font.pixelSize: Typography.sizeXs
+                            Layout.fillWidth: true
+                        }
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: Metrics.spacingMd
+                        Layout.rightMargin: Metrics.spacingMd
                         Layout.bottomMargin: Metrics.spacingSm
-                        text: "Scene settings — coming next"
-                        color: Theme.textMuted
-                        font.pixelSize: Typography.sizeXs
+                        Text {
+                            text: "Active Layer"
+                            color: Theme.textSecondary
+                            font.pixelSize: Typography.sizeXs
+                            Layout.preferredWidth: Metrics.labelColumnWidth
+                        }
+                        Text {
+                            text: EditorSession.activeLayerId.length
+                                  ? EditorSession.activeLayerId : "—"
+                            color: Theme.textPrimary
+                            font.pixelSize: Typography.sizeXs
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
+                        }
                     }
                 }
 
                 AcPanelHeader {
                     title: "World Settings"
                     Layout.fillWidth: true
-                    expanded: false
+                    visible: EditorSession.hasProject
 
-                    Text {
+                    RowLayout {
+                        Layout.fillWidth: true
                         Layout.leftMargin: Metrics.spacingMd
+                        Layout.rightMargin: Metrics.spacingMd
+                        Layout.bottomMargin: Metrics.spacingXs
+                        Text {
+                            text: "Gravity"
+                            color: Theme.textSecondary
+                            font.pixelSize: Typography.sizeXs
+                            Layout.preferredWidth: Metrics.labelColumnWidth
+                        }
+                        Text {
+                            text: EditorSession.worldGravity.toFixed(2)
+                            color: Theme.textPrimary
+                            font.family: Typography.familyMono
+                            font.pixelSize: Typography.sizeXs
+                        }
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: Metrics.spacingMd
+                        Layout.rightMargin: Metrics.spacingMd
                         Layout.bottomMargin: Metrics.spacingSm
-                        text: "Physics / tile size — coming next"
-                        color: Theme.textMuted
-                        font.pixelSize: Typography.sizeXs
+                        Text {
+                            text: "Pixels / Meter"
+                            color: Theme.textSecondary
+                            font.pixelSize: Typography.sizeXs
+                            Layout.preferredWidth: Metrics.labelColumnWidth
+                        }
+                        Text {
+                            text: EditorSession.worldPixelsPerMeter.toFixed(0)
+                            color: Theme.textPrimary
+                            font.family: Typography.familyMono
+                            font.pixelSize: Typography.sizeXs
+                        }
                     }
                 }
 
@@ -159,6 +281,7 @@ Rectangle {
                     title: "Output"
                     Layout.fillWidth: true
                     expanded: false
+                    visible: EditorSession.hasProject
 
                     Text {
                         Layout.leftMargin: Metrics.spacingMd
@@ -173,6 +296,7 @@ Rectangle {
                     title: "Debug / Time"
                     Layout.fillWidth: true
                     expanded: false
+                    visible: EditorSession.hasProject
 
                     Text {
                         Layout.leftMargin: Metrics.spacingMd
@@ -192,8 +316,8 @@ Rectangle {
         target: EditorSession
         function onSelectionChanged() {
             nameField.text = EditorSession.selectedName
-            xField.text = EditorSession.selectedX.toFixed(2)
-            yField.text = EditorSession.selectedY.toFixed(2)
+            xField.value = EditorSession.selectedX
+            yField.value = EditorSession.selectedY
         }
     }
 

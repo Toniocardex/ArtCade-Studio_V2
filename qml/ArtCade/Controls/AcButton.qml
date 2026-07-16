@@ -4,19 +4,31 @@ import ArtCade.Ui
 
 /**
  * Primary / secondary text button (Save, Build, Add Object).
+ * Optional iconSource shows a tinted AcIcon beside the label.
  */
 Button {
     id: root
 
     property bool primary: false
     property bool destructive: false
+    property url iconSource
 
     implicitHeight: Metrics.controlHeight
-    implicitWidth: Math.max(72, contentItem.implicitWidth + Metrics.spacingLg * 2)
+    implicitWidth: Math.max(72, contentItem.implicitWidth + leftPadding + rightPadding)
     padding: Metrics.spacingSm
     leftPadding: Metrics.spacingMd
     rightPadding: Metrics.spacingMd
     focusPolicy: Qt.StrongFocus
+
+    readonly property color _labelColor: {
+        if (!root.enabled)
+            return Theme.textMuted
+        if (root.primary)
+            return "#FFFFFF"
+        if (root.destructive)
+            return Theme.error
+        return Theme.textPrimary
+    }
 
     background: Rectangle {
         radius: Metrics.radiusSmall
@@ -42,22 +54,29 @@ Button {
                      : Theme.border
     }
 
-    contentItem: Text {
-        text: root.text
-        color: {
-            if (!root.enabled)
-                return Theme.textMuted
-            if (root.primary)
-                return "#FFFFFF"
-            if (root.destructive)
-                return Theme.error
-            return Theme.textPrimary
+    contentItem: Row {
+        spacing: Metrics.spacingXs
+        implicitHeight: Math.max(iconItem.implicitHeight, labelItem.implicitHeight)
+        implicitWidth: (iconItem.visible ? iconItem.implicitWidth + spacing : 0) + labelItem.implicitWidth
+
+        AcIcon {
+            id: iconItem
+            visible: root.iconSource.toString().length > 0
+            source: root.iconSource
+            size: Metrics.iconSize
+            color: root._labelColor
+            anchors.verticalCenter: parent.verticalCenter
         }
-        font.family: Typography.family
-        font.pixelSize: Typography.sizeSm
-        font.weight: root.primary ? Font.DemiBold : Font.Normal
-        horizontalAlignment: Text.AlignHCenter
-        verticalAlignment: Text.AlignVCenter
-        elide: Text.ElideRight
+        Text {
+            id: labelItem
+            text: root.text
+            color: root._labelColor
+            font.family: Typography.family
+            font.pixelSize: Typography.sizeSm
+            font.weight: root.primary ? Font.DemiBold : Font.Normal
+            verticalAlignment: Text.AlignVCenter
+            elide: Text.ElideRight
+            anchors.verticalCenter: parent.verticalCenter
+        }
     }
 }

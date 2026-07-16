@@ -6,6 +6,7 @@
 
 #include <QPointF>
 #include <QQuickPaintedItem>
+#include <QString>
 #include <QtQml/qqmlregistration.h>
 
 class EditorSession;
@@ -19,6 +20,9 @@ class SceneViewItem : public QQuickPaintedItem
     Q_PROPERTY(qreal panX READ panX WRITE setPanX NOTIFY viewChanged)
     Q_PROPERTY(qreal panY READ panY WRITE setPanY NOTIFY viewChanged)
     Q_PROPERTY(qreal zoom READ zoom WRITE setZoom NOTIFY viewChanged)
+    Q_PROPERTY(bool gridVisible READ gridVisible WRITE setGridVisible NOTIFY viewChanged)
+    Q_PROPERTY(bool rulersVisible READ rulersVisible WRITE setRulersVisible NOTIFY viewChanged)
+    Q_PROPERTY(QString interactionTool READ interactionTool WRITE setInteractionTool NOTIFY interactionToolChanged)
 
 public:
     explicit SceneViewItem(QQuickItem *parent = nullptr);
@@ -32,6 +36,15 @@ public:
     void setPanY(qreal value);
     [[nodiscard]] qreal zoom() const;
     void setZoom(qreal value);
+    [[nodiscard]] bool gridVisible() const;
+    void setGridVisible(bool visible);
+    [[nodiscard]] bool rulersVisible() const;
+    void setRulersVisible(bool visible);
+    [[nodiscard]] QString interactionTool() const;
+    void setInteractionTool(const QString &tool);
+
+    /** Screen-space ruler thickness (0 when rulers hidden). */
+    [[nodiscard]] qreal rulerSize() const;
 
     /** Applies pan/zoom so the active scene world rect fits the item. */
     void applyFit(qreal world_w, qreal world_h);
@@ -51,6 +64,7 @@ public:
 signals:
     void sessionChanged();
     void viewChanged();
+    void interactionToolChanged();
 
 protected:
     void mousePressEvent(QMouseEvent *event) override;
@@ -66,6 +80,9 @@ private:
     qreal m_pan_x = 0.0;
     qreal m_pan_y = 0.0;
     qreal m_zoom = 1.0;
+    bool m_grid_visible = true;
+    bool m_rulers_visible = true;
+    QString m_interaction_tool{QStringLiteral("select")};
 
     bool m_panning = false;
     bool m_dragging = false;

@@ -2,14 +2,12 @@ import QtQuick
 import QtQuick.Controls
 import ArtCade.Ui
 
-/**
- * Workspace mode / segmented tab.
- */
 Button {
     id: root
 
-    property bool active: false
+    property url iconSource
     property string glyph: ""
+    property bool active: false
 
     implicitHeight: Metrics.controlHeight + 4
     implicitWidth: Math.max(88, contentItem.implicitWidth + Metrics.spacingLg * 2)
@@ -28,8 +26,15 @@ Button {
 
     contentItem: Row {
         spacing: Metrics.spacingSm
+        AcIcon {
+            visible: root.iconSource.toString().length > 0
+            anchors.verticalCenter: parent.verticalCenter
+            source: root.iconSource
+            size: Metrics.iconSize
+            color: root.active ? "#FFFFFF" : Theme.textSecondary
+        }
         Text {
-            visible: root.glyph.length > 0
+            visible: root.glyph.length > 0 && root.iconSource.toString().length === 0
             text: root.glyph
             color: root.active ? "#FFFFFF" : Theme.textSecondary
             font.family: Typography.family

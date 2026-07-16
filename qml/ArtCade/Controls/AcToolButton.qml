@@ -1,28 +1,40 @@
 import QtQuick
 import QtQuick.Controls
-import QtQuick.Layouts
 import ArtCade.Ui
 
 ToolButton {
     id: root
 
-    property string glyph: ""
+    property url iconSource
     property bool active: false
+    /** @deprecated Prefer iconSource — kept empty for API compatibility. */
+    property string glyph: ""
 
     implicitWidth: Metrics.toolButtonSize
     implicitHeight: Metrics.toolButtonSize
     padding: 0
     focusPolicy: Qt.StrongFocus
 
-    contentItem: Text {
-        text: root.glyph.length > 0 ? root.glyph : root.text
-        color: !root.enabled ? Theme.textMuted
-             : (root.checked || root.active) ? Theme.textPrimary
-             : Theme.textSecondary
-        font.family: Typography.family
-        font.pixelSize: Typography.sizeSm
-        horizontalAlignment: Text.AlignHCenter
-        verticalAlignment: Text.AlignVCenter
+    contentItem: Item {
+        AcIcon {
+            anchors.centerIn: parent
+            source: root.iconSource
+            size: Metrics.iconSize
+            color: !root.enabled ? Theme.textMuted
+                 : (root.checked || root.active) ? Theme.textPrimary
+                 : Theme.textSecondary
+            visible: root.iconSource.toString().length > 0
+        }
+        Text {
+            anchors.centerIn: parent
+            visible: root.iconSource.toString().length === 0
+            text: root.glyph.length > 0 ? root.glyph : root.text
+            color: !root.enabled ? Theme.textMuted
+                 : (root.checked || root.active) ? Theme.textPrimary
+                 : Theme.textSecondary
+            font.family: Typography.family
+            font.pixelSize: Typography.sizeSm
+        }
     }
 
     background: Rectangle {

@@ -89,39 +89,32 @@ Rectangle {
             Layout.fillHeight: true
             currentIndex: root.sceneTab
 
-            ListView {
-                id: hierarchyList
+            TreeView {
+                id: hierarchyTree
                 clip: true
                 model: EditorSession.hierarchyModel
+                boundsBehavior: Flickable.StopAtBounds
+                delegate: AcTreeDelegate {}
 
-                delegate: Rectangle {
-                    width: hierarchyList.width
-                    height: Metrics.controlHeight
-                    required property string display
-                    required property string nodeKind
-                    required property var stableId
+                function expandScenes() {
+                    for (let r = 0; r < rows; ++r)
+                        expand(r)
+                }
 
-                    color: nodeKind === "instance" && EditorSession.selectedEntityId === stableId
-                           ? Theme.selection
-                           : (hierarchyMa.containsMouse ? Theme.controlHover : "transparent")
-
-                    Text {
-                        anchors.left: parent.left
-                        anchors.leftMargin: nodeKind === "scene" ? Metrics.spacingMd : Metrics.spacingXl
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: display
-                        color: nodeKind === "scene" ? Theme.textSecondary : Theme.textPrimary
-                        font.family: Typography.family
-                        font.pixelSize: Typography.sizeSm
-                        font.weight: nodeKind === "scene" ? Font.DemiBold : Font.Normal
+                Connections {
+                    target: EditorSession
+                    function onProjectChanged() {
+                        Qt.callLater(hierarchyTree.expandScenes)
                     }
-
-                    MouseArea {
-                        id: hierarchyMa
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        enabled: nodeKind === "instance"
-                        onClicked: EditorSession.selectEntity(stableId)
+                    function onHasProjectChanged() {
+                        if (EditorSession.hasProject)
+                            Qt.callLater(hierarchyTree.expandScenes)
+                    }
+                }
+                Connections {
+                    target: EditorSession.hierarchyModel
+                    function onModelReset() {
+                        Qt.callLater(hierarchyTree.expandScenes)
                     }
                 }
 
@@ -132,6 +125,7 @@ Rectangle {
                     color: Theme.textMuted
                     font.family: Typography.family
                     font.pixelSize: Typography.sizeSm
+                    z: 1
                 }
             }
 
@@ -172,11 +166,11 @@ Rectangle {
                             elide: Text.ElideRight
                         }
 
-                        Text {
+                        AcIcon {
                             visible: locked
-                            text: Icons.lock
+                            source: Icons.lock
+                            size: 12
                             color: Theme.textMuted
-                            font.pixelSize: Typography.sizeXs
                         }
                     }
 
@@ -267,12 +261,12 @@ Rectangle {
                 }
 
                 AcToolButton {
-                    glyph: Icons.search
+                    iconSource: Icons.search
                     implicitWidth: 26
                     implicitHeight: 26
                 }
                 AcToolButton {
-                    glyph: Icons.add
+                    iconSource: Icons.add
                     implicitWidth: 26
                     implicitHeight: 26
                 }
@@ -308,16 +302,18 @@ Rectangle {
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: Metrics.spacingSm
 
-                    Text {
-                        text: Icons.folder
+                    AcIcon {
+                        source: Icons.folder
+                        size: Metrics.iconSize
                         color: Theme.textMuted
-                        font.pixelSize: Typography.sizeSm
+                        anchors.verticalCenter: parent.verticalCenter
                     }
                     Text {
                         text: name
                         color: Theme.textPrimary
                         font.family: Typography.family
                         font.pixelSize: Typography.sizeSm
+                        anchors.verticalCenter: parent.verticalCenter
                     }
                 }
 

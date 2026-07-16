@@ -1,6 +1,8 @@
 # Qt editor (optional) — ArtCade Studio
 # Enabled with: cmake -DARTCADE_BUILD_QT_EDITOR=ON ...
 # Requires Qt 6.8 LTS (Core Gui Qml Quick QuickControls2 QuickLayouts).
+# QtQuick.Effects (MultiEffect) is loaded at runtime via the QML plugin; the
+# public Qt6::QuickEffects CMake target is not always shipped by aqt installs.
 
 cmake_minimum_required(VERSION 3.21)
 
@@ -74,9 +76,15 @@ set(ARTCADE_QML_FILES
     ../../qml/ArtCade/Controls/AcWindowButton.qml
     ../../qml/ArtCade/Controls/AcPanelHeader.qml
     ../../qml/ArtCade/Controls/AcSplitterHandle.qml
+    ../../qml/ArtCade/Controls/AcWindowResizeFrame.qml
+    ../../qml/ArtCade/Controls/AcTreeDelegate.qml
+    ../../qml/ArtCade/Controls/AcNumberField.qml
+    ../../qml/ArtCade/Controls/AcInspectorRow.qml
+    ../../qml/ArtCade/Controls/AcIcon.qml
     ../../qml/ArtCade/Shell/TitleBar.qml
     ../../qml/ArtCade/Shell/ModeBar.qml
     ../../qml/ArtCade/Shell/WorkspaceBar.qml
+    ../../qml/ArtCade/Shell/EditorActions.qml
     ../../qml/ArtCade/Shell/LeftSidebar.qml
     ../../qml/ArtCade/Shell/ViewportPlaceholder.qml
     ../../qml/ArtCade/Shell/InspectorPane.qml
@@ -107,20 +115,63 @@ set_source_files_properties(../../qml/ArtCade/Controls/AcTextField.qml PROPERTIE
 set_source_files_properties(../../qml/ArtCade/Controls/AcWindowButton.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcWindowButton.qml")
 set_source_files_properties(../../qml/ArtCade/Controls/AcPanelHeader.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcPanelHeader.qml")
 set_source_files_properties(../../qml/ArtCade/Controls/AcSplitterHandle.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcSplitterHandle.qml")
+set_source_files_properties(../../qml/ArtCade/Controls/AcWindowResizeFrame.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcWindowResizeFrame.qml")
+set_source_files_properties(../../qml/ArtCade/Controls/AcTreeDelegate.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcTreeDelegate.qml")
+set_source_files_properties(../../qml/ArtCade/Controls/AcNumberField.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcNumberField.qml")
+set_source_files_properties(../../qml/ArtCade/Controls/AcInspectorRow.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcInspectorRow.qml")
+set_source_files_properties(../../qml/ArtCade/Controls/AcIcon.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcIcon.qml")
 set_source_files_properties(../../qml/ArtCade/Shell/TitleBar.qml PROPERTIES QT_RESOURCE_ALIAS "Shell/TitleBar.qml")
 set_source_files_properties(../../qml/ArtCade/Shell/ModeBar.qml PROPERTIES QT_RESOURCE_ALIAS "Shell/ModeBar.qml")
 set_source_files_properties(../../qml/ArtCade/Shell/WorkspaceBar.qml PROPERTIES QT_RESOURCE_ALIAS "Shell/WorkspaceBar.qml")
+set_source_files_properties(../../qml/ArtCade/Shell/EditorActions.qml PROPERTIES QT_RESOURCE_ALIAS "Shell/EditorActions.qml")
 set_source_files_properties(../../qml/ArtCade/Shell/LeftSidebar.qml PROPERTIES QT_RESOURCE_ALIAS "Shell/LeftSidebar.qml")
 set_source_files_properties(../../qml/ArtCade/Shell/ViewportPlaceholder.qml PROPERTIES QT_RESOURCE_ALIAS "Shell/ViewportPlaceholder.qml")
 set_source_files_properties(../../qml/ArtCade/Shell/InspectorPane.qml PROPERTIES QT_RESOURCE_ALIAS "Shell/InspectorPane.qml")
 set_source_files_properties(../../qml/ArtCade/Shell/ConsolePane.qml PROPERTIES QT_RESOURCE_ALIAS "Shell/ConsolePane.qml")
 set_source_files_properties(../../qml/ArtCade/Shell/StatusBar.qml PROPERTIES QT_RESOURCE_ALIAS "Shell/StatusBar.qml")
 
+# Monochrome SVGs — aliased under icons/ for Icons.qml qrc URLs.
+set(ARTCADE_ICON_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../qml/ArtCade/assets/icons)
+set(ARTCADE_ICON_SVGS
+    ${ARTCADE_ICON_DIR}/app.svg
+    ${ARTCADE_ICON_DIR}/canvas.svg
+    ${ARTCADE_ICON_DIR}/logic.svg
+    ${ARTCADE_ICON_DIR}/script.svg
+    ${ARTCADE_ICON_DIR}/undo.svg
+    ${ARTCADE_ICON_DIR}/redo.svg
+    ${ARTCADE_ICON_DIR}/save.svg
+    ${ARTCADE_ICON_DIR}/build.svg
+    ${ARTCADE_ICON_DIR}/play.svg
+    ${ARTCADE_ICON_DIR}/stop.svg
+    ${ARTCADE_ICON_DIR}/minimize.svg
+    ${ARTCADE_ICON_DIR}/maximize.svg
+    ${ARTCADE_ICON_DIR}/restore.svg
+    ${ARTCADE_ICON_DIR}/close.svg
+    ${ARTCADE_ICON_DIR}/search.svg
+    ${ARTCADE_ICON_DIR}/add.svg
+    ${ARTCADE_ICON_DIR}/eye.svg
+    ${ARTCADE_ICON_DIR}/lock.svg
+    ${ARTCADE_ICON_DIR}/select.svg
+    ${ARTCADE_ICON_DIR}/pan.svg
+    ${ARTCADE_ICON_DIR}/move.svg
+    ${ARTCADE_ICON_DIR}/rect.svg
+    ${ARTCADE_ICON_DIR}/grid.svg
+    ${ARTCADE_ICON_DIR}/snap.svg
+    ${ARTCADE_ICON_DIR}/chevron.svg
+    ${ARTCADE_ICON_DIR}/folder.svg
+    ${ARTCADE_ICON_DIR}/sceneEmpty.svg
+)
+foreach(_icon ${ARTCADE_ICON_SVGS})
+    get_filename_component(_icon_name ${_icon} NAME)
+    set_source_files_properties(${_icon} PROPERTIES QT_RESOURCE_ALIAS "icons/${_icon_name}")
+endforeach()
+
 qt_add_qml_module(artcade-editor-qt
     URI ArtCade.Ui
     VERSION 1.0
     RESOURCE_PREFIX /qt/qml
     QML_FILES ${ARTCADE_QML_FILES}
+    RESOURCES ${ARTCADE_ICON_SVGS}
     SOURCES
         bridge/editor_session.h
         bridge/editor_session.cpp
@@ -134,6 +185,8 @@ qt_add_qml_module(artcade-editor-qt
         bridge/scene_view_item.cpp
         bridge/play_process_host.h
         bridge/play_process_host.cpp
+        bridge/console_model.h
+        bridge/console_model.cpp
 )
 
 set(ARTCADE_QML_LINT_FILES
@@ -152,9 +205,15 @@ set(ARTCADE_QML_LINT_FILES
     ${ARTCADE_QML_ROOT}/Controls/AcWindowButton.qml
     ${ARTCADE_QML_ROOT}/Controls/AcPanelHeader.qml
     ${ARTCADE_QML_ROOT}/Controls/AcSplitterHandle.qml
+    ${ARTCADE_QML_ROOT}/Controls/AcWindowResizeFrame.qml
+    ${ARTCADE_QML_ROOT}/Controls/AcTreeDelegate.qml
+    ${ARTCADE_QML_ROOT}/Controls/AcNumberField.qml
+    ${ARTCADE_QML_ROOT}/Controls/AcInspectorRow.qml
+    ${ARTCADE_QML_ROOT}/Controls/AcIcon.qml
     ${ARTCADE_QML_ROOT}/Shell/TitleBar.qml
     ${ARTCADE_QML_ROOT}/Shell/ModeBar.qml
     ${ARTCADE_QML_ROOT}/Shell/WorkspaceBar.qml
+    ${ARTCADE_QML_ROOT}/Shell/EditorActions.qml
     ${ARTCADE_QML_ROOT}/Shell/LeftSidebar.qml
     ${ARTCADE_QML_ROOT}/Shell/ViewportPlaceholder.qml
     ${ARTCADE_QML_ROOT}/Shell/InspectorPane.qml

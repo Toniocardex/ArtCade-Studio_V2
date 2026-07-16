@@ -7,7 +7,6 @@ Rectangle {
 
     color: Theme.viewport
     property string activeTool: "select"
-    property bool gridOn: true
     property bool snapOn: false
 
     ColumnLayout {
@@ -46,7 +45,7 @@ Rectangle {
                 }
 
                 AcToolButton {
-                    glyph: Icons.add
+                    iconSource: Icons.add
                     implicitWidth: 26
                     implicitHeight: 26
                     enabled: false
@@ -77,25 +76,25 @@ Rectangle {
                 spacing: Metrics.spacingXs
 
                 AcToolButton {
-                    glyph: Icons.select
+                    iconSource: Icons.select
                     checkable: true
                     checked: root.activeTool === "select"
                     onClicked: root.activeTool = "select"
                 }
                 AcToolButton {
-                    glyph: Icons.pan
+                    iconSource: Icons.pan
                     checkable: true
                     checked: root.activeTool === "pan"
                     onClicked: root.activeTool = "pan"
                 }
                 AcToolButton {
-                    glyph: Icons.move
+                    iconSource: Icons.move
                     checkable: true
                     checked: root.activeTool === "move"
                     onClicked: root.activeTool = "move"
                 }
                 AcToolButton {
-                    glyph: Icons.rect
+                    iconSource: Icons.rect
                     checkable: true
                     checked: root.activeTool === "rect"
                     onClicked: root.activeTool = "rect"
@@ -134,13 +133,13 @@ Rectangle {
                 Item { Layout.fillWidth: true }
 
                 AcToolButton {
-                    glyph: Icons.grid
+                    iconSource: Icons.grid
                     checkable: true
-                    checked: root.gridOn
-                    onClicked: root.gridOn = !root.gridOn
+                    checked: sceneView.gridVisible
+                    onClicked: sceneView.gridVisible = !sceneView.gridVisible
                 }
                 AcToolButton {
-                    glyph: Icons.snap
+                    iconSource: Icons.snap
                     checkable: true
                     checked: root.snapOn
                     onClicked: root.snapOn = !root.snapOn
@@ -170,6 +169,7 @@ Rectangle {
                 anchors.fill: parent
                 visible: EditorSession.activeMode === "canvas" && EditorSession.hasProject
                 session: EditorSession
+                interactionTool: root.activeTool
             }
 
             // Empty / mode placeholders
@@ -179,11 +179,11 @@ Rectangle {
                 visible: EditorSession.activeMode === "canvas" && !EditorSession.hasProject
                 width: parent.width * 0.6
 
-                Text {
+                AcIcon {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    text: Icons.sceneEmpty
+                    source: Icons.sceneEmpty
+                    size: 36
                     color: Theme.textMuted
-                    font.pixelSize: 36
                 }
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter

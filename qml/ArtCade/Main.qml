@@ -66,6 +66,10 @@ ApplicationWindow {
         }
     }
 
+    EditorActions {
+        id: editorActions
+    }
+
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
@@ -79,6 +83,7 @@ ApplicationWindow {
         WorkspaceBar {
             Layout.fillWidth: true
             Layout.preferredHeight: Metrics.workspaceBarHeight
+            actions: editorActions
         }
 
         SplitView {
@@ -127,5 +132,12 @@ ApplicationWindow {
             Layout.fillWidth: true
             Layout.preferredHeight: Metrics.statusBarHeight
         }
+    }
+
+    // Native OS resize (snapping / animations) — above content, not ProjectDoc.
+    AcWindowResizeFrame {
+        anchors.fill: parent
+        z: 1000
+        windowTarget: window
     }
 }

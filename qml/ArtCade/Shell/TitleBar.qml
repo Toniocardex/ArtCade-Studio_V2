@@ -23,13 +23,11 @@ Rectangle {
             color: Theme.accent
             Layout.alignment: Qt.AlignVCenter
 
-            Text {
+            AcIcon {
                 anchors.centerIn: parent
-                text: Icons.app
+                source: Icons.app
+                size: 12
                 color: "#FFFFFF"
-                font.family: Typography.family
-                font.pixelSize: 11
-                font.weight: Font.DemiBold
             }
         }
 
@@ -78,13 +76,13 @@ Rectangle {
         }
 
         AcWindowButton {
-            glyph: Icons.minimize
+            iconSource: Icons.minimize
             onClicked: if (root.windowTarget) root.windowTarget.showMinimized()
         }
         AcWindowButton {
-            glyph: root.windowTarget
-                   && root.windowTarget.visibility === Window.Maximized
-                   ? Icons.restore : Icons.maximize
+            iconSource: root.windowTarget
+                        && root.windowTarget.visibility === Window.Maximized
+                        ? Icons.restore : Icons.maximize
             onClicked: {
                 if (!root.windowTarget)
                     return
@@ -96,7 +94,7 @@ Rectangle {
         }
         AcWindowButton {
             destructive: true
-            glyph: Icons.close
+            iconSource: Icons.close
             onClicked: if (root.windowTarget) root.windowTarget.close()
         }
     }

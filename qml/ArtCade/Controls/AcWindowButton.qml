@@ -2,12 +2,10 @@ import QtQuick
 import QtQuick.Controls
 import ArtCade.Ui
 
-/**
- * Title-bar window control (minimize / maximize / close).
- */
 Button {
     id: root
 
+    property url iconSource
     property string glyph: ""
     property bool destructive: false
 
@@ -28,13 +26,23 @@ Button {
         }
     }
 
-    contentItem: Text {
-        text: root.glyph.length > 0 ? root.glyph : root.text
-        color: root.destructive && root.hovered ? "#FFFFFF"
-             : root.enabled ? Theme.textSecondary : Theme.textMuted
-        font.family: Typography.family
-        font.pixelSize: Typography.sizeMd
-        horizontalAlignment: Text.AlignHCenter
-        verticalAlignment: Text.AlignVCenter
+    contentItem: Item {
+        AcIcon {
+            anchors.centerIn: parent
+            source: root.iconSource
+            size: Metrics.iconSize
+            color: root.destructive && root.hovered ? "#FFFFFF"
+                 : root.enabled ? Theme.textSecondary : Theme.textMuted
+            visible: root.iconSource.toString().length > 0
+        }
+        Text {
+            anchors.centerIn: parent
+            visible: root.iconSource.toString().length === 0
+            text: root.glyph.length > 0 ? root.glyph : root.text
+            color: root.destructive && root.hovered ? "#FFFFFF"
+                 : root.enabled ? Theme.textSecondary : Theme.textMuted
+            font.family: Typography.family
+            font.pixelSize: Typography.sizeMd
+        }
     }
 }
