@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import ArtCade.Ui
 
@@ -49,6 +50,9 @@ Rectangle {
                     implicitWidth: 26
                     implicitHeight: 26
                     enabled: false
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 400
+                    ToolTip.text: "Add scene tab — coming next"
                 }
 
                 Item { Layout.fillWidth: true }
@@ -80,24 +84,36 @@ Rectangle {
                     checkable: true
                     checked: root.activeTool === "select"
                     onClicked: root.activeTool = "select"
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 400
+                    ToolTip.text: "Select — click objects to pick them"
                 }
                 AcToolButton {
                     iconSource: Icons.pan
                     checkable: true
                     checked: root.activeTool === "pan"
                     onClicked: root.activeTool = "pan"
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 400
+                    ToolTip.text: "Pan — drag to move the view\n(also Middle mouse or Alt+Left)"
                 }
                 AcToolButton {
                     iconSource: Icons.move
                     checkable: true
                     checked: root.activeTool === "move"
                     onClicked: root.activeTool = "move"
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 400
+                    ToolTip.text: "Move — drag objects to change position"
                 }
                 AcToolButton {
                     iconSource: Icons.rect
                     checkable: true
                     checked: root.activeTool === "rect"
                     onClicked: root.activeTool = "rect"
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 400
+                    ToolTip.text: "Rectangle select — coming next"
                 }
 
                 Rectangle {
@@ -111,6 +127,10 @@ Rectangle {
                     color: Theme.textSecondary
                     font.family: Typography.family
                     font.pixelSize: Typography.sizeXs
+                    ToolTip.visible: localSpaceHover.hovered
+                    ToolTip.delay: 400
+                    ToolTip.text: "Transform space: Local (World coming next)"
+                    HoverHandler { id: localSpaceHover }
                 }
 
                 Text {
@@ -118,6 +138,10 @@ Rectangle {
                     color: Theme.textPrimary
                     font.family: Typography.familyMono
                     font.pixelSize: Typography.sizeXs
+                    ToolTip.visible: zoomHover.hovered
+                    ToolTip.delay: 400
+                    ToolTip.text: "Zoom — scroll the mouse wheel to zoom"
+                    HoverHandler { id: zoomHover }
                 }
 
                 Text {
@@ -128,6 +152,10 @@ Rectangle {
                     font.pixelSize: Typography.sizeXs
                     elide: Text.ElideRight
                     Layout.maximumWidth: 120
+                    ToolTip.visible: layerHover.hovered && EditorSession.activeLayerId.length > 0
+                    ToolTip.delay: 400
+                    ToolTip.text: "Active layer: " + EditorSession.activeLayerId
+                    HoverHandler { id: layerHover }
                 }
 
                 Item { Layout.fillWidth: true }
@@ -137,16 +165,25 @@ Rectangle {
                     checkable: true
                     checked: sceneView.gridVisible
                     onClicked: sceneView.gridVisible = !sceneView.gridVisible
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 400
+                    ToolTip.text: sceneView.gridVisible ? "Hide scene grid" : "Show scene grid"
                 }
                 AcToolButton {
                     iconSource: Icons.snap
                     checkable: true
                     checked: root.snapOn
                     onClicked: root.snapOn = !root.snapOn
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 400
+                    ToolTip.text: "Snap to grid — coming next"
                 }
                 AcButton {
                     text: "Fit"
                     onClicked: sceneView.fitActiveScene()
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 400
+                    ToolTip.text: "Fit active scene into the view"
                 }
             }
 
@@ -202,10 +239,16 @@ Rectangle {
                         text: "+ Add Object"
                         primary: true
                         enabled: false
+                        ToolTip.visible: hovered
+                        ToolTip.delay: 400
+                        ToolTip.text: "Add object — coming next"
                     }
                     AcButton {
                         text: "Load Fixture"
                         onClicked: EditorSession.openSliceFixture()
+                        ToolTip.visible: hovered
+                        ToolTip.delay: 400
+                        ToolTip.text: "Load the Qt slice fixture project (Ctrl+Shift+F)"
                     }
                 }
             }

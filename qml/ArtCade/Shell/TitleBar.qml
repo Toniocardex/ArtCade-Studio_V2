@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Window
 import ArtCade.Ui
@@ -78,6 +79,9 @@ Rectangle {
         AcWindowButton {
             iconSource: Icons.minimize
             onClicked: if (root.windowTarget) root.windowTarget.showMinimized()
+            ToolTip.visible: hovered
+            ToolTip.delay: 400
+            ToolTip.text: "Minimize"
         }
         AcWindowButton {
             iconSource: root.windowTarget
@@ -91,11 +95,19 @@ Rectangle {
                 else
                     root.windowTarget.showMaximized()
             }
+            ToolTip.visible: hovered
+            ToolTip.delay: 400
+            ToolTip.text: root.windowTarget
+                          && root.windowTarget.visibility === Window.Maximized
+                          ? "Restore" : "Maximize"
         }
         AcWindowButton {
             destructive: true
             iconSource: Icons.close
             onClicked: if (root.windowTarget) root.windowTarget.close()
+            ToolTip.visible: hovered
+            ToolTip.delay: 400
+            ToolTip.text: "Close"
         }
     }
 

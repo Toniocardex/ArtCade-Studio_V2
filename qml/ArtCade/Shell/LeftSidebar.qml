@@ -264,11 +264,17 @@ Rectangle {
                     iconSource: Icons.search
                     implicitWidth: 26
                     implicitHeight: 26
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 400
+                    ToolTip.text: "Search assets — coming next"
                 }
                 AcToolButton {
                     iconSource: Icons.add
                     implicitWidth: 26
                     implicitHeight: 26
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 400
+                    ToolTip.text: "Import asset — coming next"
                 }
             }
         }

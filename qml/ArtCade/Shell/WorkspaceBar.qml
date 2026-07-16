@@ -25,18 +25,27 @@ Rectangle {
             iconSource: Icons.canvas
             active: EditorSession.activeMode === "canvas"
             onClicked: EditorSession.activeMode = "canvas"
+            ToolTip.visible: hovered
+            ToolTip.delay: 400
+            ToolTip.text: "Canvas — scene view (Ctrl+1)"
         }
         AcTabButton {
             text: "Logic Board"
             iconSource: Icons.logic
             active: EditorSession.activeMode === "logic"
             onClicked: EditorSession.activeMode = "logic"
+            ToolTip.visible: hovered
+            ToolTip.delay: 400
+            ToolTip.text: "Logic Board — visual gameplay rules (Ctrl+2)"
         }
         AcTabButton {
             text: "Script Editor"
             iconSource: Icons.script
             active: EditorSession.activeMode === "script"
             onClicked: EditorSession.activeMode = "script"
+            ToolTip.visible: hovered
+            ToolTip.delay: 400
+            ToolTip.text: "Script Editor — Lua scripts (Ctrl+3)"
         }
 
         Item { Layout.fillWidth: true }
@@ -51,13 +60,15 @@ Rectangle {
             iconSource: Icons.undo
             action: root.actions ? root.actions.undo : null
             ToolTip.visible: hovered
-            ToolTip.text: "Undo (Ctrl+Z)"
+            ToolTip.delay: 400
+            ToolTip.text: "Undo last authoring change (Ctrl+Z)"
         }
         AcToolButton {
             iconSource: Icons.redo
             action: root.actions ? root.actions.redo : null
             ToolTip.visible: hovered
-            ToolTip.text: "Redo (Ctrl+Y)"
+            ToolTip.delay: 400
+            ToolTip.text: "Redo last undone change (Ctrl+Y)"
         }
 
         Rectangle {
@@ -70,12 +81,16 @@ Rectangle {
             text: "Save"
             iconSource: Icons.save
             action: root.actions ? root.actions.save : null
+            ToolTip.visible: hovered
+            ToolTip.delay: 400
+            ToolTip.text: "Save project to disk (Ctrl+S)"
         }
         AcButton {
             text: "Build"
             iconSource: Icons.build
             enabled: false
             ToolTip.visible: hovered
+            ToolTip.delay: 400
             ToolTip.text: "Build — coming next"
         }
         AcButton {
@@ -83,6 +98,11 @@ Rectangle {
             iconSource: EditorSession.playing ? Icons.stop : Icons.play
             primary: true
             action: root.actions ? root.actions.playStop : null
+            ToolTip.visible: hovered
+            ToolTip.delay: 400
+            ToolTip.text: EditorSession.playing
+                         ? "Stop Play (F5 or Esc)"
+                         : "Play in game.exe — save first (F5)"
         }
 
         Text {
