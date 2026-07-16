@@ -12,10 +12,12 @@
 #include <QFileInfo>
 #include <QJSEngine>
 #include <QFont>
+#include <QKeyEvent>
 #include <QPainter>
 #include <QPen>
 #include <QQmlEngine>
 #include <QUrl>
+#include <Qt>
 #include <QtGlobal>
 #include <cmath>
 
@@ -212,15 +214,6 @@ QStringList EditorSession::logicActionCatalog() const
     return ids;
 }
 
-QStringList EditorSession::logicKeyCatalog() const
-{
-    QStringList names;
-    for (const ArtCade::LogicKey key : ArtCade::Logic::supportedLogicKeys()) {
-        names.append(QString::fromStdString(ArtCade::Logic::logicKeyName(key)));
-    }
-    return names;
-}
-
 QString EditorSession::logicBlockDisplayName(const QString &blockTypeId) const
 {
     const ArtCade::Logic::LogicBlockDescriptor *desc =
@@ -229,6 +222,51 @@ QString EditorSession::logicBlockDisplayName(const QString &blockTypeId) const
         return blockTypeId;
     }
     return QString::fromStdString(desc->displayName);
+}
+
+QString EditorSession::logicKeyFromQtKey(int qtKey) const
+{
+    using ArtCade::LogicKey;
+    LogicKey mapped = LogicKey::Space;
+    bool ok = true;
+    if (qtKey >= Qt::Key_A && qtKey <= Qt::Key_Z) {
+        mapped = static_cast<LogicKey>(static_cast<int>(LogicKey::A) + (qtKey - Qt::Key_A));
+    } else if (qtKey >= Qt::Key_0 && qtKey <= Qt::Key_9) {
+        mapped = static_cast<LogicKey>(static_cast<int>(LogicKey::Num0) + (qtKey - Qt::Key_0));
+    } else {
+        switch (qtKey) {
+        case Qt::Key_Left:
+            mapped = LogicKey::ArrowLeft;
+            break;
+        case Qt::Key_Right:
+            mapped = LogicKey::ArrowRight;
+            break;
+        case Qt::Key_Up:
+            mapped = LogicKey::ArrowUp;
+            break;
+        case Qt::Key_Down:
+            mapped = LogicKey::ArrowDown;
+            break;
+        case Qt::Key_Space:
+            mapped = LogicKey::Space;
+            break;
+        case Qt::Key_Return:
+        case Qt::Key_Enter:
+            mapped = LogicKey::Enter;
+            break;
+        default:
+            ok = false;
+            break;
+        }
+    }
+    if (!ok) {
+        return {};
+    }
+    const std::string name = ArtCade::Logic::logicKeyName(mapped);
+    if (name.empty() || !ArtCade::Logic::logicKeyFromName(name)) {
+        return {};
+    }
+    return QString::fromStdString(name);
 }
 
 void EditorSession::setSelectedLogicRuleId(const QString &ruleId)

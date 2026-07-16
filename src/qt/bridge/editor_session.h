@@ -66,8 +66,6 @@ class EditorSession : public QObject
     Q_PROPERTY(QStringList logicTriggerCatalog READ logicTriggerCatalog CONSTANT)
     Q_PROPERTY(QStringList logicConditionCatalog READ logicConditionCatalog CONSTANT)
     Q_PROPERTY(QStringList logicActionCatalog READ logicActionCatalog CONSTANT)
-    /** Supported LogicKey display names for Key property editors. */
-    Q_PROPERTY(QStringList logicKeyCatalog READ logicKeyCatalog CONSTANT)
     Q_PROPERTY(QString activeLayerId READ activeLayerId NOTIFY activeLayerChanged)
     Q_PROPERTY(QString activeSceneName READ activeSceneName NOTIFY projectChanged)
     Q_PROPERTY(double activeSceneWidth READ activeSceneWidth NOTIFY projectChanged)
@@ -108,7 +106,6 @@ public:
     [[nodiscard]] QStringList logicTriggerCatalog() const;
     [[nodiscard]] QStringList logicConditionCatalog() const;
     [[nodiscard]] QStringList logicActionCatalog() const;
-    [[nodiscard]] QStringList logicKeyCatalog() const;
     void setSelectedLogicRuleId(const QString &ruleId);
     [[nodiscard]] QString activeLayerId() const;
     [[nodiscard]] QString activeSceneName() const;
@@ -176,6 +173,11 @@ public:
                                                const QString &propertyKey,
                                                const QString &valueText);
     [[nodiscard]] Q_INVOKABLE QString logicBlockDisplayName(const QString &blockTypeId) const;
+    /**
+     * Maps a Qt key code to a Logic key name ("Space", "W", …), or empty if unsupported.
+     * Used by the Logic Board key detector (single source with logicKeyFromName).
+     */
+    [[nodiscard]] Q_INVOKABLE QString logicKeyFromQtKey(int qtKey) const;
     Q_INVOKABLE quint32 pickEntityAt(double worldX, double worldY);
     /**
      * Selects the topmost instance whose placeholder AABB intersects the world rect.

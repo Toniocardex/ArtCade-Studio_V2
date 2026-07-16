@@ -74,67 +74,10 @@ ColumnLayout {
 
     Component {
         id: keyEditor
-        ComboBox {
-            id: keyBox
-            model: EditorSession.logicKeyCatalog
-            enabled: !EditorSession.playing
-            Component.onCompleted: {
-                const i = model.indexOf(root.valueText)
-                currentIndex = i >= 0 ? i : 0
-            }
-            onActivated: function(index) {
-                const next = model[index]
-                if (next !== root.valueText)
-                    root.edited(next)
-            }
-            contentItem: Text {
-                leftPadding: Metrics.spacingSm
-                text: keyBox.displayText
-                color: Theme.textPrimary
-                font.family: Typography.family
-                font.pixelSize: Typography.sizeXs
-                verticalAlignment: Text.AlignVCenter
-                elide: Text.ElideRight
-            }
-            background: Rectangle {
-                implicitHeight: Metrics.controlHeight - 4
-                radius: Metrics.radiusSmall
-                color: Theme.panelRaised
-                border.color: Theme.borderSubtle
-                border.width: 1
-            }
-            popup: Popup {
-                y: keyBox.height
-                width: keyBox.width
-                implicitHeight: Math.min(contentItem.implicitHeight, 200)
-                padding: 1
-                contentItem: ListView {
-                    clip: true
-                    implicitHeight: contentHeight
-                    model: keyBox.popup.visible ? keyBox.delegateModel : null
-                    currentIndex: keyBox.highlightedIndex
-                    ScrollIndicator.vertical: ScrollIndicator {}
-                }
-                background: Rectangle {
-                    color: Theme.panel
-                    border.color: Theme.borderSubtle
-                    radius: Metrics.radiusSmall
-                }
-            }
-            delegate: ItemDelegate {
-                required property string modelData
-                width: keyBox.width
-                highlighted: keyBox.highlightedIndex === index
-                contentItem: Text {
-                    text: modelData
-                    color: Theme.textPrimary
-                    font.family: Typography.family
-                    font.pixelSize: Typography.sizeXs
-                }
-                background: Rectangle {
-                    color: parent.highlighted ? Theme.selection : "transparent"
-                }
-            }
+        AcLogicKeyCapture {
+            width: editorLoader.width
+            keyName: root.valueText
+            onKeyChosen: function(name) { root.edited(name) }
         }
     }
 
