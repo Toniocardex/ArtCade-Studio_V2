@@ -17,15 +17,17 @@ ApplicationWindow {
     minimumWidth: 1100
     minimumHeight: 700
     visible: true
-    visibility: Window.Maximized
     title: EditorSession.hasProject
            ? ("ArtCade Studio — " + EditorSession.projectName
               + (EditorSession.dirty ? " *" : ""))
            : "ArtCade Studio"
     color: Theme.window
+    // Frameless: binding visibility: Maximized is ignored on Windows — maximize after show.
     flags: Qt.Window | Qt.FramelessWindowHint
 
     property bool allowClose: false
+
+    Component.onCompleted: Qt.callLater(function() { window.showMaximized() })
 
     onClosing: function(close) {
         if (allowClose) {

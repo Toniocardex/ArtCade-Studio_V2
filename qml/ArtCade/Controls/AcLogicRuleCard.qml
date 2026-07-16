@@ -13,7 +13,9 @@ Rectangle {
 
     property var rule: ({})
     property int orderIndex: 0
+    /** Local expand state — cards start collapsed; not tied to selection. */
     property bool expanded: false
+    property bool selected: false
     property bool comfortable: false
     property var searchTerms: []
 
@@ -73,10 +75,10 @@ Rectangle {
 
     implicitHeight: cardColumn.implicitHeight
     radius: Metrics.radiusCard
-    color: expanded ? Theme.panelRaised
+    color: root.expanded || root.selected ? Theme.panelRaised
                     : (cardMa.containsMouse ? Theme.controlHover : Theme.control)
     border.width: 1
-    border.color: expanded ? Theme.border : Theme.borderSubtle
+    border.color: root.expanded || root.selected ? Theme.border : Theme.borderSubtle
     clip: true
 
     MouseArea {
@@ -89,6 +91,10 @@ Rectangle {
             if (mouse.button === Qt.RightButton)
                 root.contextMenuRequested()
         }
+        onDoubleClicked: function(mouse) {
+            if (mouse.button === Qt.LeftButton)
+                root.expanded = !root.expanded
+        }
     }
 
     Rectangle {
@@ -97,7 +103,7 @@ Rectangle {
         anchors.bottom: parent.bottom
         width: 2
         color: Theme.accent
-        visible: root.expanded
+        visible: root.selected || root.expanded
     }
 
     ColumnLayout {
@@ -106,75 +112,50 @@ Rectangle {
         anchors.right: parent.right
         spacing: 0
 
-        // —— Header ——
+        // —— Header: title · Enabled · ⋯ ——
         RowLayout {
             Layout.fillWidth: true
             Layout.preferredHeight: 36
-            Layout.leftMargin: root.logicOuterPadding
+            Layout.leftMargin: root.logicOuterPadding + 4
             Layout.rightMargin: Metrics.spacingXs
             spacing: Metrics.spacingSm
 
-            Item {
-                Layout.preferredWidth: 16
-                Layout.preferredHeight: 16
-                ToolTip.visible: toggleMa.containsMouse
-                ToolTip.delay: 400
-                ToolTip.text: root.ruleEnabled
-                              ? "Enabled — runs during Play. Click to disable."
-                              : "Disabled — skipped during Play. Click to enable."
-
-                Rectangle {
-                    anchors.centerIn: parent
-                    width: 14
-                    height: 14
-                    radius: Metrics.radiusControl
-                    color: "transparent"
-                    border.width: 1
-                    border.color: toggleMa.containsMouse ? Theme.accent : Theme.border
-
-                    Rectangle {
-                        anchors.centerIn: parent
-                        width: 8
-                        height: 8
-                        radius: 2
-                        color: Theme.accent
-                        visible: root.ruleEnabled
-                    }
-                }
-
-                MouseArea {
-                    id: toggleMa
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    enabled: !EditorSession.playing
-                    onClicked: root.enabledToggled(!root.ruleEnabled)
-                }
-            }
-
-            Text {
+            // No emoji / Canvas: ⚠ tofu + Canvas opaque buffer both showed a grey square.
+            Rectangle {
+                id: warnBadge
                 visible: (root.rule.errorCount || 0) > 0 || (root.rule.warningCount || 0) > 0
-                text: "⚠"
+                Layout.preferredWidth: 14
+                Layout.preferredHeight: 14
+                Layout.alignment: Qt.AlignVCenter
+                radius: 2
                 color: (root.rule.errorCount || 0) > 0 ? Theme.error : Theme.warning
-                font.pixelSize: Typography.sizeXs
-                ToolTip.visible: diagMa.containsMouse
+                ToolTip.visible: warnHover.hovered
                 ToolTip.delay: 200
                 ToolTip.text: {
                     const rows = root.rule.diagnostics || []
                     const parts = []
                     for (let i = 0; i < rows.length; ++i)
                         parts.push(rows[i].severity + ": " + rows[i].message)
-                    return parts.join("\n")
+                    return parts.length > 0 ? parts.join("\n") : "Validation warning"
                 }
-                MouseArea {
-                    id: diagMa
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    acceptedButtons: Qt.NoButton
+                HoverHandler { id: warnHover }
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "!"
+                    color: Theme.window
+                    font.family: Typography.family
+                    font.pixelSize: 10
+                    font.weight: Font.Bold
                 }
             }
 
             Text {
+                id: titleLabel
                 Layout.fillWidth: true
+                Layout.alignment: Qt.AlignVCenter
+                Layout.minimumWidth: 80
+                height: Typography.sizeBody + 4
                 text: root.highlightText(
                           root.expanded ? root.logicLabel : root.collapsedSummary)
                 textFormat: root.highlighting ? Text.StyledText : Text.PlainText
@@ -184,31 +165,73 @@ Rectangle {
                 font.weight: Font.DemiBold
                 elide: Text.ElideRight
                 opacity: root.summaryOpacity
+                verticalAlignment: Text.AlignVCenter
             }
 
-            // Overflow — Delete Logic wired; Duplicate/Move coming next
-            Button {
-                id: overflowBtn
-                flat: true
-                text: "⋯"
-                implicitWidth: 28
-                implicitHeight: 28
-                enabled: !EditorSession.playing
-                onClicked: {
-                    root.selectRequested()
-                    overflowMenu.open()
+            // Plain Item chrome — Qt Button can leave an empty indicator square.
+            Rectangle {
+                id: enabledBtn
+                Layout.alignment: Qt.AlignVCenter
+                Layout.preferredHeight: 26
+                Layout.preferredWidth: enabledLabel.implicitWidth + Metrics.spacingMd * 2
+                radius: Metrics.radiusControl
+                color: enabledMa.containsMouse ? Theme.controlHover : Theme.control
+                border.width: 1
+                border.color: root.ruleEnabled ? Theme.accent : Theme.border
+                opacity: EditorSession.playing ? 0.5 : 1.0
+
+                Text {
+                    id: enabledLabel
+                    anchors.centerIn: parent
+                    text: root.ruleEnabled ? "Enabled" : "Disabled"
+                    color: root.ruleEnabled ? Theme.textPrimary : Theme.textMuted
+                    font.family: Typography.family
+                    font.pixelSize: Typography.sizeToolbar
+                    font.weight: Font.DemiBold
                 }
 
-                contentItem: Text {
-                    text: overflowBtn.text
+                MouseArea {
+                    id: enabledMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    enabled: !EditorSession.playing
+                    onClicked: {
+                        root.selectRequested()
+                        root.enabledToggled(!root.ruleEnabled)
+                    }
+                }
+                ToolTip.visible: enabledMa.containsMouse
+                ToolTip.delay: 400
+                ToolTip.text: root.ruleEnabled
+                              ? "Enabled — runs during Play. Click to disable."
+                              : "Disabled — skipped during Play. Click to enable."
+            }
+
+            Rectangle {
+                id: overflowBtn
+                Layout.alignment: Qt.AlignVCenter
+                Layout.preferredWidth: 28
+                Layout.preferredHeight: 28
+                radius: Metrics.radiusControl
+                color: overflowMa.containsMouse ? Theme.controlHover : "transparent"
+                opacity: EditorSession.playing ? 0.5 : 1.0
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "⋯"
                     color: Theme.textSecondary
                     font.pixelSize: Typography.sizeObjectTitle
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
                 }
-                background: Rectangle {
-                    radius: Metrics.radiusControl
-                    color: overflowBtn.hovered ? Theme.controlHover : "transparent"
+
+                MouseArea {
+                    id: overflowMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    enabled: !EditorSession.playing
+                    onClicked: {
+                        root.selectRequested()
+                        overflowMenu.open()
+                    }
                 }
 
                 AcMenu {
@@ -216,20 +239,14 @@ Rectangle {
                     AcMenuItem {
                         text: "Duplicate Logic"
                         enabled: false
-                        ToolTip.visible: hovered
-                        ToolTip.text: "Coming next"
                     }
                     AcMenuItem {
                         text: "Move Up"
                         enabled: false
-                        ToolTip.visible: hovered
-                        ToolTip.text: "Coming next"
                     }
                     AcMenuItem {
                         text: "Move Down"
                         enabled: false
-                        ToolTip.visible: hovered
-                        ToolTip.text: "Coming next"
                     }
                     AcMenuItem {
                         text: "Delete Logic"

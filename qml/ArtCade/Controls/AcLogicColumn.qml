@@ -134,8 +134,12 @@ Item {
             contentItem: Text {
                 leftPadding: Metrics.spacingSm
                 rightPadding: catalogBox.indicator.width + Metrics.spacingSm
-                text: root.labelForTypeId(catalogBox.displayText)
-                color: Theme.textPrimary
+                text: catalogBox.currentIndex >= 0
+                      ? root.labelForTypeId(String(root.comboModel[catalogBox.currentIndex] || ""))
+                      : (root.isTrigger ? "Select trigger…"
+                         : root.isAction ? "Select action…"
+                         : "Select condition…")
+                color: catalogBox.currentIndex >= 0 ? Theme.textPrimary : Theme.textMuted
                 font.family: Typography.family
                 font.pixelSize: Typography.sizeBody
                 verticalAlignment: Text.AlignVCenter
@@ -198,10 +202,9 @@ Item {
             function syncIndex() {
                 const current = root.currentTypeId || ""
                 const i = root.comboModel.indexOf(current)
-                if (i >= 0)
-                    catalogBox.currentIndex = i
-                else if (root.pickingCondition)
-                    catalogBox.currentIndex = -1
+                // Never leave ComboBox on a default first item when unset —
+                // that falsely showed "On Start" beside "No trigger".
+                catalogBox.currentIndex = i
             }
         }
 
@@ -251,15 +254,7 @@ Item {
             }
         }
 
-        // Trigger with no type yet
-        Text {
-            Layout.fillWidth: true
-            visible: root.isTrigger && !root.hasBlocks && root.editable
-            text: "No trigger"
-            color: Theme.textMuted
-            font.family: Typography.family
-            font.pixelSize: Typography.sizeMeta
-        }
+        // (empty trigger uses ComboBox placeholder — no duplicate "No trigger" label)
     }
 
     onCurrentTypeIdChanged: {

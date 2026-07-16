@@ -510,7 +510,8 @@ Rectangle {
 
             rule: displayLoader.modelData.rule
             orderIndex: displayLoader.modelData.ruleIndex
-            expanded: ruleId === EditorSession.selectedLogicRuleId
+            selected: ruleId === EditorSession.selectedLogicRuleId
+            // expanded stays local (default collapsed); double-click toggles
             comfortable: root.comfortable
             searchTerms: root.searchHighlightTerms
             onSelectRequested: EditorSession.selectedLogicRuleId = ruleId
