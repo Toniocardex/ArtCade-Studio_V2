@@ -36,6 +36,10 @@ public:
     // Load raw Lua bytecode
     bool loadLuaBytecode(const std::string& scriptPath,
                          std::vector<uint8_t>& outBytes);
+    // Confined source read for immutable manual-script snapshots. Works for
+    // loose projects and extracted .artcade packages; never exposes a path to Lua.
+    bool loadScriptSource(const std::string& scriptPath, std::size_t maxBytes,
+                          std::string& outSource);
 
     // Resolve asset file path (works in both dev and packed mode)
     std::string resolveAssetPath(const std::string& assetId,

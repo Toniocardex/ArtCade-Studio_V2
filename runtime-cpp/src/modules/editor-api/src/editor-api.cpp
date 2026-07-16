@@ -121,6 +121,15 @@ std::string resolveImageLoadKeyFromDoc(const json& doc, const std::string& raw) 
 
 void rebuildEditorAssetManifest(const json& doc) {
     s_editorAssetManifest.clear();
+    if (doc.contains("imageAssets") && doc["imageAssets"].is_array()) {
+        for (const auto& av : doc["imageAssets"]) {
+            if (!av.is_object()) continue;
+            const std::string id = av.value("assetId", av.value("id", std::string{}));
+            const std::string path = av.value(
+                "sourcePath", av.value("relativePath", av.value("path", std::string{})));
+            if (!id.empty() && !path.empty()) s_editorAssetManifest.addImageEntry(id, path);
+        }
+    }
     if (doc.contains("assets") && doc["assets"].is_object()) {
         for (auto& [key, av] : doc["assets"].items()) {
             if (!av.is_object()) continue;
@@ -144,6 +153,15 @@ void rebuildEditorAssetManifest(const json& doc) {
             const std::string id   = av.value("id", key);
             const std::string path = av.value("path", std::string{});
             if (!path.empty()) s_editorAssetManifest.addAudioEntry(id, path);
+        }
+    }
+    if (doc.contains("audioAssets") && doc["audioAssets"].is_array()) {
+        for (const auto& av : doc["audioAssets"]) {
+            if (!av.is_object()) continue;
+            const std::string id = av.value("assetId", av.value("id", std::string{}));
+            const std::string path = av.value(
+                "sourcePath", av.value("relativePath", av.value("path", std::string{})));
+            if (!id.empty() && !path.empty()) s_editorAssetManifest.addAudioEntry(id, path);
         }
     }
     if (doc.contains("fontAssets") && doc["fontAssets"].is_object()) {
@@ -698,6 +716,10 @@ EMSCRIPTEN_KEEPALIVE void editor_set_mode(int mode) {
             ? ArtCade::Presentation::PresentationMode::SceneEdit
             : ArtCade::s_playPresentationMode);
     }
+    if (auto* r = ArtCade::EditorAPI::s_renderer) {
+        // Play uses the game-view compositor; edit draws directly to the surface.
+        r->setGameViewCompositorEnabled(mode != 0);
+    }
     if (auto* gw = ArtCade::EditorAPI::s_entityGateway) {
         if (mode == 1) gw->applyDesignVisibilityForPlay();
         else           gw->restoreDesignVisibilityForEdit();
@@ -1202,7 +1224,9 @@ EMSCRIPTEN_KEEPALIVE int editor_reregister_animation_clips(const char* json_utf8
     try {
         const json doc = json::parse(json_utf8);
         auto imageAssets = ArtCade::ProjectDocParser::parseImageAssets(doc);
-        replaceAnimationClipsFromAssets(*anim, imageAssets);
+        auto animationAssets = ArtCade::ProjectDocParser::parseSpriteAnimationAssets(doc);
+        registerAnimationClipsFromAssets(*anim, imageAssets);
+        appendAnimationClipsFromAssets(*anim, animationAssets);
         return 0;
     } catch (const std::exception&) {
         return -2;
@@ -1297,12 +1321,19 @@ ArtCade::EditorApiResult loadProjectFromJson(const char* json_utf8, ProjectLoadK
         auto tilesets    = Parser::parseTilesets(doc);
         auto tilePalette = Parser::parseTilePalette(doc);
         auto imageAssets = Parser::parseImageAssets(doc);
+        auto animationAssets = Parser::parseSpriteAnimationAssets(doc);
+        auto audioAssets = Parser::parseAudioAssets(doc);
 
         Parser::materializeV2Project(entityDefs, sceneDefs, objectTypes);
 
-        if (ArtCade::EditorAPI::s_spriteAnimator)
+        if (ArtCade::EditorAPI::s_spriteAnimator) {
             registerAnimationClipsFromAssets(
                 *ArtCade::EditorAPI::s_spriteAnimator, imageAssets);
+            appendAnimationClipsFromAssets(
+                *ArtCade::EditorAPI::s_spriteAnimator, animationAssets);
+        }
+        if (ArtCade::EditorAPI::s_audio)
+            ArtCade::EditorAPI::s_audio->setRuntimeAssetCatalog(audioAssets);
 
         std::string activeId = doc.value("activeSceneId",
                                doc.value("active_scene_id", std::string{}));
@@ -1410,6 +1441,8 @@ EMSCRIPTEN_KEEPALIVE int editor_enter_play_mode(
     ArtCade::EditorAPI::s_mode = 1;
     if (auto* vp = ArtCade::EditorAPI::s_viewport)
         vp->set_presentation_mode(ArtCade::s_playPresentationMode);
+    if (auto* r = ArtCade::EditorAPI::s_renderer)
+        r->setGameViewCompositorEnabled(true);
     if (auto* gw = ArtCade::EditorAPI::s_entityGateway)
         gw->applyDesignVisibilityForPlay();
     ArtCade::EditorAPI::notifyConsoleLine("[EditorAPI] Mode: PLAY", "info");
@@ -1434,6 +1467,8 @@ EMSCRIPTEN_KEEPALIVE int editor_exit_play_mode(
         vp->set_presentation_mode(
             ArtCade::Presentation::PresentationMode::SceneEdit);
     }
+    if (auto* r = ArtCade::EditorAPI::s_renderer)
+        r->setGameViewCompositorEnabled(false);
     if (auto* gw = ArtCade::EditorAPI::s_entityGateway)
         gw->restoreDesignVisibilityForEdit();
 

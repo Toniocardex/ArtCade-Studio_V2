@@ -2,6 +2,7 @@
 
 #include "../../../core/module.h"
 #include "../../../core/engine-context.h"
+#include "../../sprite-animator/include/sprite-animator.h"
 #include <cstdint>
 #include <vector>
 
@@ -52,7 +53,15 @@ public:
      *  in arrival order. No-op when the Lua state has not been bound yet. */
     uint32_t dispatchLifecycleEvents();
     uint32_t dispatchInputEvents();
+    /** Polls animator buffers then dispatches to Lua animation handlers. */
     uint32_t dispatchAnimationEvents();
+    /**
+     * Dispatches already-drained animation events to Lua (no poll).
+     * Refreshes the animator watched-kinds mask from registered handlers.
+     */
+    uint32_t dispatchAnimationEvents(
+        const std::vector<SpriteAnimator::FinishEvent>& finished,
+        const std::vector<SpriteAnimator::AnimEvent>& events);
 
 private:
     const EngineContext& ctx_;

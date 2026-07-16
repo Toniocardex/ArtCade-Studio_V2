@@ -105,20 +105,34 @@ void RuntimeEntityGateway::setSpriteAnimator(SpriteAnimator* animator) {
     spriteAnimator_ = animator;
 }
 
-void RuntimeEntityGateway::maybePlaySpawnClip(EntityId id, const SpriteComponent& sprite) {
-    if (!spriteAnimator_ || !sprite.playClipOnSpawn || sprite.defaultClip.empty())
+void RuntimeEntityGateway::maybePlaySpawnClip(EntityId id) {
+    if (!spriteAnimator_) return;
+
+    SpriteRendererComponent renderer;
+    SpriteAnimatorComponent animator;
+    if (registry_->getSpriteRenderer(id, renderer)
+        && registry_->getSpriteAnimator(id, animator)) {
+        if (!std::isfinite(animator.playbackSpeed) || animator.playbackSpeed <= 0.f)
+            return;
+        spriteAnimator_->setPlaybackSpeed(id, animator.playbackSpeed);
+        if (animator.autoPlay && !renderer.animationAssetId.empty()
+            && !animator.initialClipId.empty()) {
+            spriteAnimator_->play(id, renderer.animationAssetId, animator.initialClipId);
+        }
         return;
-    if (spriteAnimator_->hasClip(sprite.defaultClip))
-        spriteAnimator_->play(id, sprite.defaultClip);
+    }
+
+    SpriteComponent sprite;
+    if (!getSprite(id, sprite) || !sprite.playClipOnSpawn || sprite.defaultClip.empty())
+        return;
+    if (spriteAnimator_->hasClip(sprite.defaultClip)) spriteAnimator_->play(id, sprite.defaultClip);
 }
 
 void RuntimeEntityGateway::replayActiveSpawnClips() {
     if (!spriteAnimator_) return;
     for (EntityId id : registry_->allIds()) {
         if (!registry_->sceneActive(id)) continue;
-        SpriteComponent sprite;
-        if (getSprite(id, sprite))
-            maybePlaySpawnClip(id, sprite);
+        maybePlaySpawnClip(id);
     }
 }
 
@@ -190,7 +204,7 @@ EntityId RuntimeEntityGateway::createAuthoredEntityForScene(
 
     if (registry_->sceneActive(runtimeId)) {
         ensurePhysicsBody(runtimeId);
-        maybePlaySpawnClip(runtimeId, copy.sprite);
+        maybePlaySpawnClip(runtimeId);
     }
     return runtimeId;
 }
@@ -295,9 +309,7 @@ void RuntimeEntityGateway::activateEntity(EntityId id) {
     registry_->setSceneActive(id, true);
     ensurePhysicsBody(id);
     if (!wasActive) {
-        SpriteComponent sprite;
-        if (getSprite(id, sprite))
-            maybePlaySpawnClip(id, sprite);
+        maybePlaySpawnClip(id);
     }
 }
 
@@ -331,6 +343,8 @@ void RuntimeEntityGateway::applyEntityDefToRegistry(
     if (!def.visible)
         sprite.alpha = 0.f;
     registry_->setSprite(id, sprite);
+    registry_->setSpriteRenderer(id, def.spriteRenderer);
+    registry_->setSpriteAnimator(id, def.spriteAnimator);
     registry_->setPhysics(id, def.physics);
     registry_->setCollisionBody(id, def.collisionBody);
     registry_->setPlatformer(id, def.platformerController);
@@ -400,7 +414,7 @@ EntityId RuntimeEntityGateway::create(const EntityDef& def) {
 
     if (registry_->sceneActive(id)) {
         ensurePhysicsBody(id);
-        maybePlaySpawnClip(id, copy.sprite);
+        maybePlaySpawnClip(id);
     }
     return id;
 }
@@ -593,6 +607,14 @@ bool RuntimeEntityGateway::setSprite(EntityId id, const SpriteComponent& sprite)
     if (!registry_->contains(id)) return false;
     registry_->setSprite(id, sprite);
     return true;
+}
+
+bool RuntimeEntityGateway::getSpriteRenderer(EntityId id, SpriteRendererComponent& out) const {
+    return registry_->getSpriteRenderer(id, out);
+}
+
+bool RuntimeEntityGateway::getSpriteAnimator(EntityId id, SpriteAnimatorComponent& out) const {
+    return registry_->getSpriteAnimator(id, out);
 }
 
 bool RuntimeEntityGateway::getPhysicsComponent(EntityId id, PhysicsComponent& out) const {

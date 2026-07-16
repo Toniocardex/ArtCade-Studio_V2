@@ -183,6 +183,28 @@ static void test_local_variables_and_persistent_snapshot() {
     std::puts("  [ok] local variables + persistent game snapshot");
 }
 
+static void test_ensure_number_and_restore_with_dynamic_keys() {
+    VM vm; vm.init(); configure(vm);
+    assert(vm.ensureNumber("logicScore"));
+    vm.setFloat("logicScore", 42.f);
+    assert(vm.getFloat("logicScore") == 42.f);
+    // Existing non-Number key cannot be force-converted.
+    assert(!vm.ensureNumber("dead"));
+
+    const auto snapshot = vm.takeGameSnapshot({});
+    assert(snapshot.globals.count("logicScore") == 1);
+    assert(snapshot.globals.count("score") == 1);
+
+    VM restored; restored.init(); configure(restored);
+    // Project defs only — dynamic key absent until restore merges it.
+    assert(!restored.exists("logicScore"));
+    assert(restored.restoreGameSnapshot(snapshot, {}));
+    assert(restored.exists("logicScore"));
+    assert(restored.getFloat("logicScore") == 42.f);
+    assert(restored.getInt("score") == 0);
+    std::puts("  [ok] ensureNumber + restoreGameSnapshot dynamic Number keys");
+}
+
 int main() {
     std::puts("=== VariableManager check ===");
     test_init_shutdown();
@@ -201,6 +223,7 @@ int main() {
     test_stop_observing();
     test_snapshot_restore();
     test_local_variables_and_persistent_snapshot();
-    std::puts("=== all 16 tests passed ===");
+    test_ensure_number_and_restore_with_dynamic_keys();
+    std::puts("=== all 17 tests passed ===");
     return 0;
 }

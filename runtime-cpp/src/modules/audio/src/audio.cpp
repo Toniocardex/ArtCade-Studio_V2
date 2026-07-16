@@ -1,6 +1,7 @@
 #include "../include/audio.h"
 #include <raylib.h>
 #include <memory>
+#include <cmath>
 #include <unordered_map>
 #include <string>
 #include <vector>
@@ -32,6 +33,7 @@ struct Audio::Impl {
 
     std::unordered_map<std::string, Sound> soundCache;
     std::unordered_map<std::string, MemoryAudio> memoryAudio;
+    std::unordered_map<AssetId, AudioAssetDef> runtimeAssets;
     std::function<std::string(const std::string&)> assetPathResolver;
 };
 
@@ -58,6 +60,7 @@ void Audio::shutdown() {
         impl_->musicLoaded = false;
     }
     impl_->memoryAudio.clear();
+    impl_->runtimeAssets.clear();
     CloseAudioDevice();
     impl_->deviceOpen = false;
 }
@@ -118,22 +121,47 @@ void Audio::evictSoundCache() {
     impl_->memoryAudio.clear();
 }
 
-void Audio::playSound(const std::string& path, float volume, float pitch) {
-    if (!impl_->deviceOpen) return;
+bool Audio::playSound(const std::string& path, float volume, float pitch) {
+    if (!impl_->deviceOpen || path.empty() || !std::isfinite(volume)
+        || volume < 0.f || volume > 1.f || !std::isfinite(pitch) || pitch <= 0.f) {
+        return false;
+    }
 
     auto it = impl_->soundCache.find(path);
     if (it == impl_->soundCache.end()) {
         const std::string resolved = impl_->assetPathResolver
             ? impl_->assetPathResolver(path)
             : path;
-        if (resolved.empty() || !FileExists(resolved.c_str())) return;
-        impl_->soundCache[path] = LoadSound(resolved.c_str());
+        if (resolved.empty() || !FileExists(resolved.c_str())) return false;
+        Sound loaded = LoadSound(resolved.c_str());
+        if (loaded.frameCount <= 0) {
+            UnloadSound(loaded);
+            return false;
+        }
+        impl_->soundCache[path] = loaded;
         it = impl_->soundCache.find(path);
     }
     Sound& snd = it->second;
     SetSoundVolume(snd, volume * impl_->sfxVolume);
     SetSoundPitch (snd, pitch);
     PlaySound(snd);
+    return true;
+}
+
+void Audio::setRuntimeAssetCatalog(const std::vector<AudioAssetDef>& assets) {
+    impl_->runtimeAssets.clear();
+    for (const AudioAssetDef& asset : assets) {
+        if (!asset.assetId.empty()) impl_->runtimeAssets[asset.assetId] = asset;
+    }
+}
+
+bool Audio::playResolvedAsset(const AssetId& audioAssetId, float volume) {
+    if (audioAssetId.empty() || !std::isfinite(volume) || volume < 0.f || volume > 1.f)
+        return false;
+    const auto it = impl_->runtimeAssets.find(audioAssetId);
+    if (it == impl_->runtimeAssets.end() || it->second.sourcePath.empty()
+        || it->second.loadMode != AudioLoadMode::StaticSound) return false;
+    return playSound(it->second.sourcePath, volume);
 }
 
 // ------------------------------------------------------------------ Music

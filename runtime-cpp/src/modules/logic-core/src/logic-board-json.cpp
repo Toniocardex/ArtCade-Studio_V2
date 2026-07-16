@@ -113,19 +113,29 @@ nlohmann::json logicBoardToJson(const LogicBoardDef& board) {
         for (const LogicBlockDef& block : rule.conditions) conditions.push_back(blockToJson(block));
         nlohmann::json actions = nlohmann::json::array();
         for (const LogicBlockDef& block : rule.actions) actions.push_back(blockToJson(block));
-        rules.push_back({
+        nlohmann::json ruleJson = {
             {"id", rule.id}, {"enabled", rule.enabled},
             {"trigger", blockToJson(rule.trigger)},
             {"conditions", std::move(conditions)},
             {"actions", std::move(actions)},
-        });
+        };
+        // Optional display grouping — omitted when unsectioned (format stays additive).
+        if (!rule.sectionId.empty()) ruleJson["sectionId"] = rule.sectionId;
+        rules.push_back(std::move(ruleJson));
     }
-    return {
+    nlohmann::json boardJson = {
         {"id", board.id},
         {"schemaVersion", board.schemaVersion},
         {"apiVersion", board.apiVersion},
         {"rules", std::move(rules)},
     };
+    if (!board.sections.empty()) {
+        nlohmann::json sections = nlohmann::json::array();
+        for (const LogicSectionDef& section : board.sections)
+            sections.push_back({{"id", section.id}, {"name", section.name}});
+        boardJson["sections"] = std::move(sections);
+    }
+    return boardJson;
 }
 
 LogicJsonResult logicBoardFromJson(const nlohmann::json& json, LogicBoardDef& out) {
@@ -142,6 +152,26 @@ LogicJsonResult logicBoardFromJson(const nlohmann::json& json, LogicBoardDef& ou
         if (!json.contains("rules") || !json["rules"].is_array())
             return {false, "Logic Board rules must be an array"};
 
+        // Optional display sections (older saves have none).
+        if (json.contains("sections")) {
+            if (!json["sections"].is_array())
+                return {false, "Logic Board sections must be an array"};
+            std::unordered_set<std::string> sectionIds;
+            for (const auto& item : json["sections"]) {
+                if (!item.is_object()) return {false, "Logic section must be an object"};
+                LogicSectionDef section;
+                if (!readString(item, "id", section.id))
+                    return {false, "Logic section id is missing"};
+                if (!readString(item, "name", section.name))
+                    return {false, "Logic section name is missing"};
+                if (!sectionIds.insert(section.id).second)
+                    return {false, "Duplicate Logic section id"};
+                parsed.sections.push_back(std::move(section));
+            }
+            if (parsed.sections.size() > kMaxSectionsPerBoard)
+                return {false, "Logic Board section limit exceeded"};
+        }
+
         std::unordered_set<std::string> ruleIds;
         for (const auto& item : json["rules"]) {
             if (!item.is_object()) return {false, "Logic rule must be an object"};
@@ -151,6 +181,11 @@ LogicJsonResult logicBoardFromJson(const nlohmann::json& json, LogicBoardDef& ou
             if (!item.contains("enabled") || !item["enabled"].is_boolean())
                 return {false, "Logic rule enabled is invalid"};
             rule.enabled = item["enabled"].get<bool>();
+            if (item.contains("sectionId")) {
+                if (!item["sectionId"].is_string())
+                    return {false, "Logic rule sectionId is invalid"};
+                rule.sectionId = item["sectionId"].get<std::string>();
+            }
             std::string error;
             if (!item.contains("trigger") || !blockFromJson(item["trigger"], rule.trigger, error))
                 return {false, error.empty() ? "Logic rule trigger is missing" : error};

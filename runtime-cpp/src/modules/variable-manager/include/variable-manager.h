@@ -78,6 +78,13 @@ public:
                      std::optional<float>   min = {}, std::optional<float>   max = {});
     std::optional<double> addEntity(EntityId id, const std::string& key, double delta);
 
+    /**
+     * Ensures @p key is a Number global (registers type + 0 initial if absent).
+     * No-op if the key already exists with a compatible Number type.
+     * @return false if the key exists as a non-Number type
+     */
+    bool ensureNumber(const std::string& key);
+
     // Toggle a bool variable (false → true → false …)
     bool toggle(const std::string& key);
 

@@ -1,6 +1,7 @@
 #include "../include/animation-clips-registry.h"
 #include "../include/sprite-animator.h"
 
+#include <cmath>
 #include <unordered_set>
 
 namespace ArtCade {
@@ -49,6 +50,36 @@ void registerAnimationClipsFromAssets(
 {
     animator.clearClips();
     defineClipsFromAssets(animator, imageAssets);
+}
+
+void appendAnimationClipsFromAssets(
+    Modules::SpriteAnimator& animator,
+    const std::vector<SpriteAnimationAssetDef>& animationAssets)
+{
+    for (const SpriteAnimationAssetDef& asset : animationAssets) {
+        if (asset.id.empty()) continue;
+        for (const SpriteAnimationClipDef& def : asset.clips) {
+            if (def.id.empty() || def.imageId.empty() || def.frames.empty()
+                || !std::isfinite(def.framesPerSecond) || def.framesPerSecond <= 0.f) {
+                continue;
+            }
+            Modules::SpriteAnimator::Clip clip;
+            clip.name = def.id;
+            clip.animationAssetId = asset.id;
+            clip.assetId = def.imageId;
+            clip.fps = def.framesPerSecond;
+            clip.loop = def.playbackMode == AnimationPlaybackMode::Loop;
+            clip.frames.reserve(def.frames.size());
+            for (const SpriteAnimationFrameDef& frame : def.frames) {
+                if (frame.width <= 0 || frame.height <= 0) continue;
+                clip.frames.push_back({frame.x, frame.y, frame.width, frame.height});
+            }
+            if (clip.frames.empty()) continue;
+            if (animator.firstFrameForAsset(def.imageId).w <= 0)
+                animator.setFirstFrameForAsset(def.imageId, clip.frames.front());
+            animator.defineClip(clip);
+        }
+    }
 }
 
 void replaceAnimationClipsFromAssets(

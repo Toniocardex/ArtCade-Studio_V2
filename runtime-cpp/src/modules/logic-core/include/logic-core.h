@@ -12,17 +12,23 @@ namespace ArtCade::Logic {
 inline constexpr uint32_t kLogicBoardSchemaVersion = 1;
 inline constexpr uint32_t kLogicApiVersion = 2;
 inline constexpr std::size_t kMaxRulesPerBoard = 128;
+inline constexpr std::size_t kMaxSectionsPerBoard = 64;
 inline constexpr std::size_t kMaxConditionsPerRule = 16;
 inline constexpr std::size_t kMaxActionsPerRule = 16;
 inline constexpr std::size_t kMaxBlocksPerProject = 8192;
 inline constexpr std::size_t kMaxLogicIdLength = 128;
 
 inline constexpr const char* kOnStart = "event.on_start";
+inline constexpr const char* kEveryFrame = "event.on_update";
+inline constexpr const char* kEverySeconds = "event.every_seconds";
 inline constexpr const char* kKeyPressed = "input.key_pressed";
 inline constexpr const char* kKeyReleased = "input.key_released";
 inline constexpr const char* kKeyHeld = "input.key_held";
+inline constexpr const char* kKeyDown = "input.key_down";
 inline constexpr const char* kSetVisible = "entity.set_visible";
 inline constexpr const char* kSetPosition = "entity.set_position";
+inline constexpr const char* kSetVelocity = "physics.set_velocity";
+inline constexpr const char* kSpawnObject = "entity.spawn";
 inline constexpr const char* kIsGrounded = "platformer.is_grounded";
 inline constexpr const char* kMoveHorizontal = "platformer.move_horizontal";
 inline constexpr const char* kJump = "platformer.jump";
@@ -30,13 +36,29 @@ inline constexpr const char* kCollisionEnter = "collision.enter";
 inline constexpr const char* kCollisionExit = "collision.exit";
 inline constexpr const char* kOtherIsObjectType = "collision.other_is_object_type";
 inline constexpr const char* kDestroySelf = "entity.destroy_self";
+inline constexpr const char* kAnimationPlayClip = "animation.play_clip";
+inline constexpr const char* kAnimationStop = "animation.stop";
+inline constexpr const char* kAnimationSetPlaybackSpeed = "animation.set_playback_speed";
+inline constexpr const char* kAnimationStarted = "animation.on_started";
+inline constexpr const char* kAnimationFinished = "animation.on_finished";
+inline constexpr const char* kAudioPlaySound = "audio.play_sound";
+inline constexpr const char* kWait = "flow.wait";
+inline constexpr const char* kStateSet = "state.set";
+inline constexpr const char* kStateAdd = "state.add";
+inline constexpr const char* kStateSubtract = "state.subtract";
+inline constexpr const char* kStateCompare = "state.compare";
 
 using LogicBlockTypeId = std::string;
 using LogicCategoryId = std::string;
 
 enum class BlockKind { Trigger, Condition, Action };
+// Authoring accepts only explicitly empty asset selections as incomplete
+// drafts. Executable validation is strict and is always used by compilation,
+// Play and exported runtimes. The policy lives here so editor Commands never
+// reinterpret diagnostic codes locally.
+enum class ValidationMode { Authoring, Executable };
 enum class LogicValueKind { Bool, Integer, Number, String, Vec2, Asset, Entity, Variable, Key };
-enum class LogicRequiredComponent { PlatformerController };
+enum class LogicRequiredComponent { PlatformerController, SpriteAnimator };
 enum class LogicContextCapability {
     Self,
     EventOther,
@@ -120,11 +142,17 @@ LogicRuleDef makeDefaultRule(LogicRuleId id);
 std::string logicKeyName(LogicKey key);
 std::optional<LogicKey> logicKeyFromName(const std::string& name);
 std::vector<LogicKey> supportedLogicKeys();
+/**
+ * Maps a LogicKey to the Input module key code ("KeyA", "Digit0", "Space", …).
+ * Single source for app loop dispatch and Logic host isKeyDown.
+ */
+std::string logicInputCode(LogicKey key);
 
 std::vector<LogicDiagnostic> validateBoard(const ObjectTypeId& objectTypeId,
                                            const LogicBoardDef& board,
                                            const EntityDef* owner = nullptr,
-                                           const ProjectDoc* project = nullptr);
+                                           const ProjectDoc* project = nullptr,
+                                           ValidationMode mode = ValidationMode::Executable);
 LogicCompileResult compileBoard(const ObjectTypeId& objectTypeId,
                                 const LogicBoardDef& board,
                                 const EntityDef* owner = nullptr,

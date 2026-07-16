@@ -3,6 +3,7 @@
 #include "../../core/types.h"
 #include "../../modules/collision/include/collision_world.h"
 #include <string>
+#include <functional>
 #include <unordered_map>
 #include <vector>
 
@@ -12,6 +13,7 @@ namespace ArtCade::Modules {
     class Physics;
     class VariableManager;
     class Renderer;
+    class SpriteAnimator;
 }
 
 namespace ArtCade {
@@ -47,6 +49,8 @@ public:
     void setSceneLifecycleService(Modules::SceneLifecycleService* lifecycle);
 
     void setRenderer(Modules::Renderer* renderer);
+    void setSpriteAnimator(Modules::SpriteAnimator* animator);
+    void setEntityDestroyedHandler(std::function<void(EntityId)> handler);
 
     void init(const ProjectDoc& doc);
     /** After editor_load_project: refresh tile collisions + gameplay runtime maps. */
@@ -123,6 +127,15 @@ public:
     /** True when entity has PlatformerController and its feet touch solid collision. */
     bool isPlatformerGrounded(EntityId id) const;
 
+    /** Canonical Logic Runtime operations over materialized world state. */
+    bool isActiveEntity(EntityId id) const;
+    bool isObjectType(EntityId id, const ObjectTypeId& expected) const;
+    bool requestDestroy(EntityId id);
+    bool playAnimationClip(EntityId id, const AssetId& animationAssetId,
+                           const std::string& clipId);
+    bool stopAnimation(EntityId id);
+    bool setAnimationPlaybackSpeed(EntityId id, float speed);
+
     void setMovementIntent(EntityId id, float directionX, float directionY);
     void clearMovementIntent(EntityId id);
     void requestJump(EntityId id);
@@ -193,6 +206,8 @@ private:
     EntityId cameraFollowTarget_ = INVALID_ENTITY;
 
     Modules::Renderer* renderer_ = nullptr;
+    Modules::SpriteAnimator* spriteAnimator_ = nullptr;
+    std::function<void(EntityId)> entityDestroyedHandler_;
     Modules::SceneLifecycleService* lifecycle_ = nullptr;
 };
 

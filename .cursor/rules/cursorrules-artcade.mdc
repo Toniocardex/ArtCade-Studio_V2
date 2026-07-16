@@ -11,7 +11,7 @@ Follow these rules for implementation work and when the user asks for a code rev
 
 ## Modular architecture
 
-**A file = a module = a domain.** These rules apply to every layer: editor TS, Tauri Rust, runtime C++, WASM, schema.
+**A file = a module = a domain.** These rules apply to every layer: Qt QML, Qt/C++ adapter, `artcade_editor_core`, runtime C++, WASM, schema.
 
 - Organize files by **domain/feature**, never by technical type (`utils/`, `helpers/` are warning signs).
 - No monolithic files: a file exceeding ~300 lines is a signal it needs to be split.
@@ -169,32 +169,60 @@ If the answer to (1) or (2) is yes, rewrite before presenting.
 
 These rules are project-specific and outrank generic web-app guidance.
 
+**Authoritative contract (full paletti + React adaptations):**
+[`.cursor/rules/artcade-architecture-authority.mdc`](artcade-architecture-authority.mdc) — always apply. The bullets below are the operational subset used in reviews; when they conflict with convenience, the authority rule wins.
+
 ### ProjectDocument authority
 
-- `ProjectDocument` / `ProjectDoc` is the single source of truth for persisted authoring data: scenes, objects, assets, prefab/object types, components, Logic Board data, dialogs, and project settings.
+- `ProjectDocument` / `ProjectDoc` is the single source of truth for persisted authoring data: scenes, objects, assets, prefab/object types, components, Logic Board data, dialogs, script attachments, and project settings.
 - UI components may display snapshots, dispatch commands/intents, and receive updated snapshots. They must not directly mutate durable entities, scenes, assets, prefab/object types, or rulesheets.
 - Every persistent authoring change must pass through the command/intent path that handles validation, dirty state, revision, and undo/redo.
 - It is forbidden to maintain two equivalent mutable states by manual synchronization. If two representations exist, one must be derived deterministically from the other.
+- Dirty is `revision != savedRevision` (and script `bufferRevision != savedBufferRevision`) — not a hand-kept boolean second authority.
 
 ### Editor state vs game state
 
 - `ProjectDocument` / `ProjectDoc`: saved authoring data.
-- `EditorWorkspaceState`: temporary editor state such as selection, zoom, visible grid, rulers, panel layout, focus mode, active tool, and open tabs.
-- `PlaySession`: runtime state during play/test.
+- `EditorWorkspaceState`: temporary editor state such as selection, zoom, visible grid, rulers, panel layout, focus mode, active tool, snap, and open tabs.
+- `EditorUiState` (layout prefs): splitters, console, filters — not project undo.
+- `PlaySession`: runtime state during play/test; materializes once; lost on Stop; authoring commands blocked while playing.
 - `PlaySession` must never dirty or mutate `ProjectDocument` unless the user performs an explicit authoring command.
 - UI-only toggles, zoom, selection, visible grid/rulers, panel state, and focus mode must not produce undo/redo entries or dirty the project.
+
+### Single voice (no dual paths)
+
+**One control surface → one authority → one write path.** Applies to Qt QML, C++ bridge, and `artcade_editor_core`.
+
+- Toolbar buttons, shortcuts, and Scene View gestures that mean the same action must call the **same** `EditorSession` / coordinator API — never a parallel QML-local copy of tool/snap/selection that is manually synced.
+- Workspace fields (`activeTool`, `snapEnabled`, selection, active layer) live in **one** place (`EditorSession` / coordinator workspace). Views bind and display; they do not own a second mutable mirror.
+- Ephemeral gesture state (drag preview, marquee in progress) may live on the Scene View surface, but the **result** (select, commit position) always goes through the session intent path.
+- Forbidden: two buttons or two code paths that both mutate the same authoring/workspace fact through different stacks.
 
 ### Undo/redo and dirty state
 
 - Only authoring commands that persistently change `ProjectDocument` create undo/redo history, dirty flags, and project revisions.
+- Script buffer history is separate; route Undo/Redo by focus (code editor vs rest).
 - Reducers or services must guard no-op edits so click/drag, selection churn, and replayed runtime echoes do not mark the project dirty.
 - A change that mutates saved project data without undo/redo coverage is a SHOULD-FIX; if it can cause data loss or silent persistence drift, it is a BLOCKER.
 
 ### Stable identity
 
-- Objects, scenes, assets, prefab/object types, components, dialogs, Logic Board rulesheets, and generated outputs must use stable IDs internally.
-- Names are display labels only. Using a name as an internal key is a SHOULD-FIX unless the data model explicitly documents name-keyed legacy compatibility.
+- Objects, scenes, assets, prefab/object types, components, dialogs, Logic Board rulesheets, layers, and generated outputs must use stable IDs internally.
+- Names are display labels only. Paths are location only. Using a name or path as an internal key is a SHOULD-FIX unless the data model explicitly documents name-keyed legacy compatibility.
 - Generated objects/prefabs must not create duplicate names in the same authoring scope. Block the operation or require/derive an explicit unique name.
+
+### Object Type, instances, layers
+
+- Object Type owns shared defaults; EntityInstance owns sparse overrides; one canonical resolver for Inspector, Scene View, validator, Play, and export.
+- `SceneDef.layers` is the only visual order authority; instances reference `layerId`. No parallel LayerManager as a second authority.
+
+### Logic Board & Script
+
+- Logic Board is type-owned (`objectTypes[].logicBoard`), descriptor-driven, compiled via C++ `compileProjectLogic` into **LogicRuntime** at Play/load; generated Logic Lua must not overwrite `scripts/main.lua` (My Script).
+- Script attachments remain separate programs on the same gameplay host; adapters stay thin.
+- Behavior scripts are type-owned; project scripts are global ordered; Lua source lives on disk under the project root (relative paths only).
+- Logic and Script share one gameplay host API but remain separate programs. Editor Play and export must share semantics (feature DoD is end-to-end).
+- No automatic hot-reload MVP; deferred destroy; Lua sandbox (no Raylib/OS/FS/ProjectDocument).
 
 ### Central validation and migrations
 
@@ -208,6 +236,13 @@ These rules are project-specific and outrank generic web-app guidance.
 - Assets must be referenced through registry-backed `AssetRef` / stable asset IDs, not scattered raw paths.
 - Import, move, rename, and delete must update the asset registry atomically.
 - Before deleting an asset, check dependencies from scenes, object types, tilemaps, dialogs, Logic Board actions, and generated/runtime payloads.
+- Generated SFX recipes are authoring-only; runtime consumes AudioAssetDefs only.
+
+### Scene surface & Raylib boundary
+
+- Raylib is a backend, not the engine architecture. React hosts the surface (measure + overlays); the WASM/Raylib canvas owns pixels.
+- Prefer a long-lived connected canvas (pin-on-body binder). Detach/reparent churn that breaks presentation is a defect, not an acceptable pattern.
+- One Scene View camera for render, pick, drag, snap, overlay, and grid.
 
 ### Runtime hot-path performance
 
@@ -232,11 +267,13 @@ Follow this sequence for implementation tasks unless the user asks for a subset 
 Before commit, run what the change touches:
 
 ```powershell
-cd editor; npm test -- --run
+cmake --build build-qt --config Release --target artcade_editor_core_roundtrip_test
+# run the exe under build-qt/src/application/Release/
+cmake --build build-qt --config Release --target artcade-editor-qt
 ```
 
 - If `runtime-cpp/` changed: run relevant C++ tests / build as appropriate.
-- Fix failures before proceeding. **Exception:** if a test was already failing before your change (confirm with `git stash; npm test -- --run; git stash pop`), flag it as a pre-existing failure — do not block the commit, but note it explicitly in the summary.
+- Fix failures before proceeding.
 
 ### 3. Diff audit (required before every commit)
 
@@ -268,16 +305,13 @@ Run `git status` and `git diff --stat`. Review explicitly:
 
 | Check | Action |
 |-------|--------|
-| Scope | Only intended files staged. Tauri FS permissions: edit `editor/src-tauri/capabilities/default.json` only, then `npm run tauri:sync-schemas` in `editor/` (do not hand-edit `gen/schemas/`). |
+| Scope | Only intended files staged. |
 | Regressions | Related tests still pass; behavior of adjacent features unchanged. |
-| Logic Board | `wait` / control-flow actions, hot reload, `emit-action-sequence` semantics. |
 | Secrets | Never stage `.env`, keys, credentials. |
-| Generated files | Include `validators.generated.ts` when schemas change. |
-| Breaking changes | If the diff touches a public contract (TypeScript types, Lua API, JSON schema, Tauri IPC, saved project format), flag it explicitly. Silent backward-incompatible changes are always a BLOCKER. |
+| Breaking changes | If the diff touches a public contract (Lua API, saved project format, Qt IPC), flag it explicitly. Silent backward-incompatible changes are always a BLOCKER. |
 | Native-first | Flag any workaround introduced by this diff. If present, it must carry a `// TEMPORARY:` comment or be converted to the native solution before the commit is allowed. |
 | Project authority | Persistent project mutations go through command/intent plus centralized validation; UI-only state does not dirty the project. |
-| Saved format | `schemaVersion` and migrations are updated for breaking saved-format changes; fixtures/round-trip tests cover the migration. |
-| Assets | AssetRef/id registry stays atomic; referenced asset deletion is guarded by dependency checks. |
+| Saved format | `formatVersion` (C++-owned, currently 5) updated for breaking saved-format changes; fixtures cover the change. |
 | Naming & structure | New symbols follow naming conventions; no new file over ~300 lines without justification; no circular imports introduced. |
 | Dead code | Confirm no orphaned exports, unreachable branches, or unused imports survived the diff. |
 | Documentation | New public functions documented in header; no untracked TODO/FIXME introduced. |
@@ -321,14 +355,10 @@ cd editor; npm run desktop:release
 
 ### Quick reference (this repo)
 
-- **Editor tests:** `cd editor; npm test -- --run`
-- **WASM preview:** `cd runtime-cpp; .\build_wasm.bat`
-- **Desktop build:** `npm run desktop:build` (exe only). **Installers:** `npm run desktop:release` (release only). Close `artcade-editor.exe` first — Windows file-locks the binary on rebuild.
-- **Logic Board timing:**
-  - Periodic gameplay → **When: Timer**
-  - Finite burst, then continue → **When: Timer** + **Then: Repeat** (Times + Every seconds; `0` = instant loop)
-- **Hot reload:** reloads frontend TS/assets without a full Tauri rebuild. Does *not* pick up changes in `src-tauri/` Rust code or native WASM — those require a full rebuild.
-- **emit-action-sequence:** fires a named sequence of Logic Board actions in order. Execution is deterministic but not blocking — the next action does not wait for the previous one to complete unless a `wait` action is explicitly inserted between them.
+- **Editor core tests:** build + run `artcade_editor_core_roundtrip_test`
+- **Qt editor:** `scripts/run-artcade-editor-qt.ps1` (after `cmake --build build-qt --config Release --target artcade-editor-qt`)
+- **WASM runtime:** `cd runtime-cpp; .\build_wasm.bat` → `dist/wasm/`
+- **Desktop native game:** `npm run build:cpp`
 
 ---
 

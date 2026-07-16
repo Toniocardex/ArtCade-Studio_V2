@@ -93,7 +93,7 @@ bool Application::initSubsystems() {
     mod_->entityGateway = std::make_unique<ArtCade::Modules::RuntimeEntityGateway>(
         *mod_->sceneManager);
     if (!boot_step("entity_gateway", mod_->entityGateway->init())) return false;
-    mod_->logicHost = std::make_unique<RuntimeLogicHostAdapter>(*mod_->entityGateway);
+    mod_->logicHost = std::make_unique<RuntimeLogicHostAdapter>(*mod_->entityGateway, *mod_->audio);
     mod_->logicRuntime = std::make_unique<ArtCade::Logic::LogicRuntime>(*mod_->logicHost);
 
     mod_->sceneLifecycle = std::make_unique<ArtCade::Modules::SceneLifecycleService>(
@@ -112,6 +112,21 @@ bool Application::initSubsystems() {
         *mod_->entityGateway, *mod_->physics, *mod_->variableManager);
     mod_->entityGateway->setPhysics(mod_->physics.get());
     mod_->logicHost->setWorld(mod_->world.get());
+    mod_->logicHost->setVariableManager(mod_->variableManager.get());
+    mod_->logicHost->setInput(mod_->input.get());
+    mod_->logicHost->setPhysics(mod_->physics.get());
+    mod_->logicHost->setSpawnInstaller([this](EntityId id) {
+        return installLogicScopeForEntity(id);
+    });
+    mod_->world->setSpriteAnimator(mod_->spriteAnimator.get());
+    mod_->world->setEntityDestroyedHandler([this](EntityId id) {
+        const auto it = mod_->logicScopes.find(id);
+        if (it != mod_->logicScopes.end()) {
+            if (mod_->logicRuntime) mod_->logicRuntime->cancelScope(it->second);
+            mod_->logicScopes.erase(it);
+        }
+        if (mod_->scriptRuntime) mod_->scriptRuntime->cancelOwner(id);
+    });
     mod_->world->setRenderer(mod_->renderer.get());
     mod_->sceneLifecycle->set_gameplay_reset_handler([this]() {
         if (mod_->world) mod_->world->onSceneActivated();
@@ -236,6 +251,10 @@ void Application::shutdownModules() {
     mod_->logicScopes.clear();
     mod_->logicObjectTypes.clear();
     mod_->logicHost.reset();
+    if (mod_->scriptRuntime) { mod_->scriptRuntime->shutdown(); mod_->scriptRuntime.reset(); }
+    mod_->scriptPrograms.clear();
+    mod_->scriptAttachments.clear();
+    mod_->activeGameplayCollisionPairs.clear();
     if (mod_->luaHost) { mod_->luaHost->shutdown(); mod_->luaHost.reset(); }
     if (mod_->gameAPI) { mod_->gameAPI->shutdown(); mod_->gameAPI.reset(); }
     if (mod_->dialogManager) { mod_->dialogManager->shutdown(); mod_->dialogManager.reset(); }

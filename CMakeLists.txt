@@ -2,20 +2,14 @@ cmake_minimum_required(VERSION 3.20)
 
 project(ArtCade VERSION 2.0.0 LANGUAGES C CXX)
 
-# ============================================================================
-# Build Configuration
-# ============================================================================
-
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# Detect build type
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
-# Detect if building for Emscripten/WASM
 if(EMSCRIPTEN)
     message(STATUS "Building for Emscripten (WASM target)")
     set(BUILD_FOR_WASM TRUE)
@@ -24,28 +18,28 @@ else()
     set(BUILD_FOR_WASM FALSE)
 endif()
 
-# ============================================================================
-# Project Options
-# ============================================================================
-
-option(ARTCADE_BUILD_EDITOR "Build React editor (requires Node.js)" OFF)
+# Qt editor is the product UI (React/Tauri removed). Default ON for native Windows.
+if(WIN32 AND NOT BUILD_FOR_WASM)
+    option(ARTCADE_BUILD_QT_EDITOR "Build ArtCade Qt editor (requires Qt 6.8 LTS)" ON)
+else()
+    option(ARTCADE_BUILD_QT_EDITOR "Build ArtCade Qt editor (requires Qt 6.8 LTS)" OFF)
+endif()
 option(ARTCADE_WITH_STEAM "Include Steam SDK integration" OFF)
 option(ARTCADE_ENABLE_DEBUG_UI "Enable ImGui debug visualizer" OFF)
 
-# ============================================================================
-# Add Subdirectories
-# ============================================================================
-
 add_subdirectory(runtime-cpp)
 
-# Optional: Editor setup instructions
-if(ARTCADE_BUILD_EDITOR)
-    message(STATUS "Editor build: npm install && npm run build in editor/")
+if(NOT BUILD_FOR_WASM)
+    enable_testing()
+    add_subdirectory(src/application)
 endif()
 
-# ============================================================================
-# Summary
-# ============================================================================
+if(ARTCADE_BUILD_QT_EDITOR)
+    if(BUILD_FOR_WASM)
+        message(FATAL_ERROR "ARTCADE_BUILD_QT_EDITOR is not supported for Emscripten/WASM builds")
+    endif()
+    add_subdirectory(src/qt)
+endif()
 
 message("
 =============================================================================
@@ -55,18 +49,12 @@ message("
   Platform:             ${CMAKE_SYSTEM_NAME}
   Compiler:             ${CMAKE_CXX_COMPILER}
   C++ Standard:         ${CMAKE_CXX_STANDARD}
-
-  Target:               ${CMAKE_BUILD_TYPE}
   WASM Build:           ${BUILD_FOR_WASM}
+  Qt Editor:            ${ARTCADE_BUILD_QT_EDITOR}
   Steam Integration:    ${ARTCADE_WITH_STEAM}
   Debug UI:             ${ARTCADE_ENABLE_DEBUG_UI}
 
-=============================================================================
-  Next Steps:
-    cmake --build . --config ${CMAKE_BUILD_TYPE}
-
-  For Emscripten (WASM):
-    emcmake cmake .. -DCMAKE_BUILD_TYPE=Release
-    cmake --build .
+  Editor: artcade-editor-qt (Qt 6.8) — React/Tauri removed
+  Run:    scripts/run-artcade-editor-qt.ps1
 =============================================================================
 ")

@@ -15,6 +15,7 @@ void read_image_asset(const nlohmann::json& assetJson,
     const std::string libPath = assetJson.value("path", std::string{});
     out.assetId = libPath.empty() ? libId : libPath;
     out.name = assetJson.value("name", libId);
+    out.sourcePath = libPath;
 
     if (assetJson.contains("imagePoints") && assetJson["imagePoints"].is_array()) {
         for (const auto& pt : assetJson["imagePoints"]) {
@@ -61,6 +62,18 @@ void read_image_asset(const nlohmann::json& assetJson,
 
 void read_image_assets(const nlohmann::json& doc, std::vector<ImageAssetDef>& out) {
     out.clear();
+    if (doc.contains("imageAssets") && doc["imageAssets"].is_array()) {
+        for (const auto& item : doc["imageAssets"]) {
+            if (!item.is_object()) continue;
+            ImageAssetDef asset;
+            asset.assetId = item.value("assetId", item.value("id", std::string{}));
+            asset.name = item.value("name", asset.assetId);
+            asset.sourcePath = item.value(
+                "sourcePath", item.value("relativePath", item.value("path", std::string{})));
+            if (!asset.assetId.empty()) out.push_back(std::move(asset));
+        }
+        return;
+    }
     if (!doc.contains("assets") || !doc["assets"].is_object())
         return;
 
@@ -70,6 +83,80 @@ void read_image_assets(const nlohmann::json& doc, std::vector<ImageAssetDef>& ou
         ImageAssetDef asset;
         read_image_asset(av, key, asset);
         out.push_back(std::move(asset));
+    }
+}
+
+void read_sprite_animation_assets(
+    const nlohmann::json& doc,
+    std::vector<SpriteAnimationAssetDef>& out) {
+    out.clear();
+    if (!doc.contains("spriteAnimationAssets")
+        || !doc["spriteAnimationAssets"].is_array()) return;
+    for (const auto& item : doc["spriteAnimationAssets"]) {
+        if (!item.is_object()) continue;
+        SpriteAnimationAssetDef asset;
+        asset.id = item.value("id", std::string{});
+        asset.name = item.value("name", asset.id);
+        asset.defaultClipId = item.value("defaultClipId", std::string{});
+        if (item.contains("clips") && item["clips"].is_array()) {
+            for (const auto& clipJson : item["clips"]) {
+                if (!clipJson.is_object()) continue;
+                SpriteAnimationClipDef clip;
+                clip.id = clipJson.value("id", std::string{});
+                clip.name = clipJson.value("name", clip.id);
+                clip.imageId = clipJson.value("imageId", std::string{});
+                clip.framesPerSecond = clipJson.value("framesPerSecond", 8.f);
+                const std::string mode = clipJson.value("playbackMode", std::string("loop"));
+                if (mode != "loop" && mode != "once") continue;
+                clip.playbackMode = mode == "once"
+                    ? AnimationPlaybackMode::Once : AnimationPlaybackMode::Loop;
+                if (clipJson.contains("frames") && clipJson["frames"].is_array()) {
+                    for (const auto& frameJson : clipJson["frames"]) {
+                        if (!frameJson.is_object()) continue;
+                        SpriteAnimationFrameDef frame;
+                        frame.x = frameJson.value("x", 0);
+                        frame.y = frameJson.value("y", 0);
+                        frame.width = frameJson.value("width", frameJson.value("w", 0));
+                        frame.height = frameJson.value("height", frameJson.value("h", 0));
+                        clip.frames.push_back(frame);
+                    }
+                }
+                if (!clip.id.empty()) asset.clips.push_back(std::move(clip));
+            }
+        }
+        if (!asset.id.empty()) out.push_back(std::move(asset));
+    }
+}
+
+void read_audio_assets(const nlohmann::json& doc, std::vector<AudioAssetDef>& out) {
+    out.clear();
+    if (!doc.contains("audioAssets")) return;
+    const auto parseOne = [](const nlohmann::json& item,
+                             const std::string& fallbackId,
+                             AudioAssetDef& asset) {
+        if (!item.is_object()) return false;
+        asset.assetId = item.value("assetId", item.value("id", fallbackId));
+        asset.name = item.value("name", asset.assetId);
+        asset.sourcePath = item.value(
+            "sourcePath", item.value("relativePath", item.value("path", std::string{})));
+        const std::string mode = item.value("loadMode", std::string("static"));
+        if (mode != "static" && mode != "static_sound" && mode != "stream")
+            return false;
+        asset.loadMode = mode == "stream" ? AudioLoadMode::Stream
+                                           : AudioLoadMode::StaticSound;
+        return !asset.assetId.empty();
+    };
+    const auto& assets = doc["audioAssets"];
+    if (assets.is_array()) {
+        for (const auto& item : assets) {
+            AudioAssetDef asset;
+            if (parseOne(item, {}, asset)) out.push_back(std::move(asset));
+        }
+    } else if (assets.is_object()) {
+        for (auto& [key, item] : assets.items()) {
+            AudioAssetDef asset;
+            if (parseOne(item, key, asset)) out.push_back(std::move(asset));
+        }
     }
 }
 

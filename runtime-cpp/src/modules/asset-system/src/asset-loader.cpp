@@ -156,6 +156,25 @@ bool AssetLoader::loadLuaBytecode(const std::string& path,
     return !outBytes.empty();
 }
 
+bool AssetLoader::loadScriptSource(const std::string& path, std::size_t maxBytes,
+                                   std::string& outSource) {
+    outSource.clear();
+    if (maxBytes == 0) return false;
+    const auto fullPath = resolveUnderRoot(rootPath_, path);
+    if (!fullPath) return false;
+    std::ifstream file(*fullPath, std::ios::binary | std::ios::ate);
+    if (!file) return false;
+    const std::streamoff size = file.tellg();
+    if (size < 0 || static_cast<std::uintmax_t>(size) > maxBytes) return false;
+    outSource.resize(static_cast<std::size_t>(size));
+    file.seekg(0, std::ios::beg);
+    if (size > 0 && !file.read(outSource.data(), size)) {
+        outSource.clear();
+        return false;
+    }
+    return true;
+}
+
 std::string AssetLoader::resolveAssetPath(const std::string& assetId,
                                           const std::string& assetType) const {
     const auto resolved = resolveUnderRoot(
@@ -247,13 +266,22 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
         }
     }
 
-    if (j.contains("audioAssets") && j["audioAssets"].is_object()) {
-        for (auto& [key, av] : j["audioAssets"].items()) {
-            if (!av.is_object()) continue;
-            const std::string id = av.value("id", key);
-            const std::string assetPath = av.value("path", std::string{});
-            if (!assetPath.empty()) manifestIndex_.addAudioEntry(id, assetPath);
+    if (j.contains("imageAssets") && j["imageAssets"].is_array()) {
+        ProjectJson::read_image_assets(j, out.imageAssets);
+        for (const ImageAssetDef& asset : out.imageAssets) {
+            if (!asset.sourcePath.empty()) {
+                manifestIndex_.addImageEntry(asset.assetId, asset.sourcePath);
+                out.spritePathToAssetId[asset.sourcePath] = asset.assetId;
+            }
         }
+    }
+
+    ProjectJson::read_sprite_animation_assets(j, out.spriteAnimationAssets);
+
+    ProjectJson::read_audio_assets(j, out.audioAssets);
+    for (const AudioAssetDef& asset : out.audioAssets) {
+        if (!asset.sourcePath.empty())
+            manifestIndex_.addAudioEntry(asset.assetId, asset.sourcePath);
     }
 
     if (j.contains("fontAssets") && j["fontAssets"].is_object()) {

@@ -21,6 +21,8 @@ Riferimento unico allineato al report struttura ArtCade, con sezione **Come diff
 
 **Migrazione editor React -> RmlUi:** [`RMLUI_MIGRATION_CONTRACT.md`](RMLUI_MIGRATION_CONTRACT.md) — contratto breve e vincolante: se una feature React esistente confligge con il contratto, durante il porting vince il contratto.
 
+**Editor:** [`qt-migration/README.md`](qt-migration/README.md) — Qt-only Studio (`artcade-editor-qt`), formatVersion 5, LGPL notes in [`qt-migration/qt-lgpl-compliance.md`](qt-migration/qt-lgpl-compliance.md). React/Tauri removed.
+
 **Matrice migrazione editor nativo:** [`NATIVE_EDITOR_MIGRATION.md`](NATIVE_EDITOR_MIGRATION.md) — tracking per feature/caso d'uso, con vecchia autorità, nuova autorità, stato e rimozione del vecchio percorso.
 Documento operativo collegato: **`AUTHORING_COMMAND_ARCHITECTURE.md`** (~10 min) — UI solo UI, singolo entry point per i comandi authoring, domini piccoli, niente sincronizzazioni nascoste.
 

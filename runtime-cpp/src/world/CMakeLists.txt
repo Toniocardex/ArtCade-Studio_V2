@@ -19,4 +19,5 @@ target_link_libraries(artcade-world
         artcade-variable-manager
         artcade-input
         artcade-renderer
+        artcade-sprite-animator
 )

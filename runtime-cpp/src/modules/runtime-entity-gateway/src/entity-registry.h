@@ -87,6 +87,14 @@ public:
     bool getSprite(EntityId id, SpriteComponent& out) const;
     void setSprite(EntityId id, const SpriteComponent& s);
 
+    bool getSpriteRenderer(EntityId id, SpriteRendererComponent& out) const;
+    void setSpriteRenderer(EntityId id,
+                           const std::optional<SpriteRendererComponent>& renderer);
+
+    bool getSpriteAnimator(EntityId id, SpriteAnimatorComponent& out) const;
+    void setSpriteAnimator(EntityId id,
+                           const std::optional<SpriteAnimatorComponent>& animator);
+
     bool getPhysics(EntityId id, PhysicsComponent& out) const;
     void setPhysics(EntityId id, const PhysicsComponent& p);
 

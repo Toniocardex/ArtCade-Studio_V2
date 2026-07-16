@@ -68,6 +68,12 @@ parseGlobalVariables(const nlohmann::json& doc);
 std::vector<ArtCade::ImageAssetDef>
 parseImageAssets(const nlohmann::json& doc);
 
+std::vector<ArtCade::SpriteAnimationAssetDef>
+parseSpriteAnimationAssets(const nlohmann::json& doc);
+
+std::vector<ArtCade::AudioAssetDef>
+parseAudioAssets(const nlohmann::json& doc);
+
 std::vector<ArtCade::PhysicsLayerDef>
 parsePhysicsLayers(const nlohmann::json& doc);
 

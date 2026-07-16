@@ -100,6 +100,13 @@ private:
     // Layer 5: load project data, initialize the world, and load Lua bytecode.
     bool loadProject(const std::string& projectPath);
     bool installLogicScopesForActiveScene();
+    /**
+     * Installs Logic Board scope for one entity without clearing others.
+     * Fires On Start only for that owner (does not re-dispatch scene-wide Start).
+     */
+    bool installLogicScopeForEntity(EntityId entityId);
+    bool installScriptScopesForActiveScene();
+    void dispatchGameplayCollisionTransitions();
 
     void shutdownModules();
     void mainLoop();

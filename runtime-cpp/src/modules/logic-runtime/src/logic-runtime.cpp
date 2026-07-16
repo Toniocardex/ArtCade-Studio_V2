@@ -38,11 +38,16 @@ std::string callbackError(const std::string& ruleId, EntityId owner, const std::
 const std::unordered_set<std::string>& supportedFeatures() {
     static const std::unordered_set<std::string> value{
         "event.start",
+        "event.on_update",
+        "event.every_seconds",
         "input.key_pressed",
         "input.key_released",
         "input.key_held",
+        "input.key_down",
         "entity.visibility",
         "entity.transform",
+        "entity.spawn",
+        "physics.set_velocity",
         "platformer.grounded",
         "platformer.move",
         "platformer.jump",
@@ -50,6 +55,17 @@ const std::unordered_set<std::string>& supportedFeatures() {
         "collision.exit",
         "collision.other_type",
         "entity.destroy",
+        "animation.play_clip",
+        "animation.stop",
+        "animation.set_playback_speed",
+        "animation.on_started",
+        "animation.on_finished",
+        "audio.play_sound",
+        "flow.wait",
+        "state.set",
+        "state.add",
+        "state.subtract",
+        "state.compare",
     };
     return value;
 }
@@ -57,7 +73,18 @@ const std::unordered_set<std::string>& supportedFeatures() {
 } // namespace
 
 struct LogicRuntime::Impl {
-    enum class EventKind { Start, KeyPressed, KeyReleased, KeyHeld, CollisionEnter, CollisionExit };
+    enum class EventKind {
+        Start,
+        Update,
+        EverySeconds,
+        KeyPressed,
+        KeyReleased,
+        KeyHeld,
+        CollisionEnter,
+        CollisionExit,
+        AnimationStarted,
+        AnimationFinished,
+    };
 
     struct ContextProxy;
 
@@ -78,6 +105,17 @@ struct LogicRuntime::Impl {
         LogicRuleId ruleId;
         EventKind kind = EventKind::Start;
         LogicKey key = LogicKey::Space;
+        float intervalSeconds = 0.f;
+        float accumulated = 0.f;
+        sol::protected_function callback;
+        bool active = true;
+    };
+
+    struct DelayedCallback {
+        uint64_t token = 0;
+        ScopeToken scope = 0;
+        EntityId owner = INVALID_ENTITY;
+        float remaining = 0.f;
         sol::protected_function callback;
         bool active = true;
     };
@@ -99,6 +137,14 @@ struct LogicRuntime::Impl {
             if (!impl || !impl->host.setPosition(owner, Vec2{x, y}))
                 throw sol::error("set_position failed for owner");
         }
+        void setVelocity(float x, float y) {
+            if (!impl || !impl->host.setVelocity(owner, Vec2{x, y}))
+                throw sol::error("set_velocity failed for owner");
+        }
+        void spawn(const std::string& objectTypeId, float x, float y) {
+            if (!impl || impl->host.spawnObjectType(owner, objectTypeId, x, y) == INVALID_ENTITY)
+                throw sol::error("spawn failed for owner");
+        }
         bool isGrounded() {
             return impl && impl->host.isGrounded(owner);
         }
@@ -114,6 +160,22 @@ struct LogicRuntime::Impl {
             if (!impl || !impl->host.requestDestroy(owner))
                 throw sol::error("destroy_self failed for owner");
         }
+        void playAnimationClip(const std::string& animationAssetId, const std::string& clipId) {
+            if (!impl || !impl->host.playAnimationClip(owner, animationAssetId, clipId))
+                throw sol::error("play_animation_clip failed for owner");
+        }
+        void stopAnimation() {
+            if (!impl || !impl->host.stopAnimation(owner))
+                throw sol::error("stop_animation failed for owner");
+        }
+        void setAnimationPlaybackSpeed(float speed) {
+            if (!impl || !impl->host.setAnimationPlaybackSpeed(owner, speed))
+                throw sol::error("set_animation_playback_speed failed for owner");
+        }
+        void playSound(const std::string& audioAssetId, float volume) {
+            if (!impl || !impl->host.playSound(owner, audioAssetId, volume))
+                throw sol::error("play_sound failed for owner");
+        }
     };
 
     struct ContextProxy {
@@ -124,6 +186,24 @@ struct LogicRuntime::Impl {
 
         void onStart(const std::string& ruleId, sol::protected_function callback) {
             impl->addSubscription(scope, owner, ruleId, EventKind::Start,
+                                  LogicKey::Space, std::move(callback));
+        }
+        void onUpdate(const std::string& ruleId, sol::protected_function callback) {
+            impl->addSubscription(scope, owner, ruleId, EventKind::Update,
+                                  LogicKey::Space, std::move(callback));
+        }
+        void onEverySeconds(const std::string& ruleId, double seconds,
+                            sol::protected_function callback) {
+            const float interval = seconds > 0.0 ? static_cast<float>(seconds) : 0.f;
+            impl->addSubscription(scope, owner, ruleId, EventKind::EverySeconds,
+                                  LogicKey::Space, std::move(callback), interval);
+        }
+        void onAnimationStarted(const std::string& ruleId, sol::protected_function callback) {
+            impl->addSubscription(scope, owner, ruleId, EventKind::AnimationStarted,
+                                  LogicKey::Space, std::move(callback));
+        }
+        void onAnimationFinished(const std::string& ruleId, sol::protected_function callback) {
+            impl->addSubscription(scope, owner, ruleId, EventKind::AnimationFinished,
                                   LogicKey::Space, std::move(callback));
         }
         void onKeyPressed(const std::string& ruleId, const std::string& keyName,
@@ -153,6 +233,39 @@ struct LogicRuntime::Impl {
             impl->addSubscription(scope, owner, ruleId, EventKind::CollisionExit,
                                   LogicKey::Space, std::move(callback));
         }
+        void wait(double seconds, sol::protected_function callback) {
+            if (!impl) throw sol::error("Logic context is inactive");
+            if (!callback.valid()) throw sol::error("Logic wait callback is invalid");
+            Scope* activeScope = impl->findScope(scope);
+            if (!activeScope || !activeScope->active) throw sol::error("Logic scope is inactive");
+            const float remaining = seconds > 0.0 ? static_cast<float>(seconds) : 0.f;
+            impl->delayedCallbacks.push_back(DelayedCallback{
+                impl->nextDelayed++, scope, owner, remaining, std::move(callback), true});
+        }
+        void stateSet(const std::string& key, double value) {
+            if (!impl || !impl->host.setStateNumber(key, value))
+                throw sol::error("state_set failed");
+        }
+        void stateAdd(const std::string& key, double delta) {
+            if (!impl || !impl->host.addStateNumber(key, delta))
+                throw sol::error("state_add failed");
+        }
+        bool stateCompare(const std::string& key, const std::string& op, double value) {
+            if (!impl) return false;
+            const double current = impl->host.getStateNumber(key, 0.0);
+            if (op == "==") return current == value;
+            if (op == "!=") return current != value;
+            if (op == "<") return current < value;
+            if (op == "<=") return current <= value;
+            if (op == ">") return current > value;
+            if (op == ">=") return current >= value;
+            throw sol::error("Unsupported state_compare operator: " + op);
+        }
+        bool isKeyDown(const std::string& keyName) {
+            const std::optional<LogicKey> key = logicKeyFromName(keyName);
+            if (!key) throw sol::error("Unsupported Logic key: " + keyName);
+            return impl && impl->host.isKeyDown(*key);
+        }
         bool otherIsObjectType(EntityId other, const std::string& objectTypeId) {
             return impl && other != INVALID_ENTITY && !objectTypeId.empty()
                 && impl->host.isObjectType(other, objectTypeId);
@@ -171,15 +284,18 @@ struct LogicRuntime::Impl {
     std::unordered_map<ObjectTypeId, Factory> factories;
     std::vector<Scope> scopes;
     std::vector<Subscription> subscriptions;
+    std::vector<DelayedCallback> delayedCallbacks;
     std::vector<std::string> diagnosticLog;
     ScopeToken nextScope = 1;
     uint64_t nextSubscription = 1;
+    uint64_t nextDelayed = 1;
     uint32_t dispatchDepth = 0;
     uint32_t eventsThisFrame = 0;
     bool eventBudgetLogged = false;
     bool initialized = false;
     bool enabled = true;
     bool apiVersionAccepted = false;
+    bool programsRequireTick = false;
 
     Scope* findScope(ScopeToken token) {
         const auto it = std::find_if(scopes.begin(), scopes.end(),
@@ -193,9 +309,15 @@ struct LogicRuntime::Impl {
         return it == subscriptions.end() ? nullptr : &*it;
     }
 
+    DelayedCallback* findDelayed(uint64_t token) {
+        const auto it = std::find_if(delayedCallbacks.begin(), delayedCallbacks.end(),
+            [&](const DelayedCallback& cb) { return cb.token == token; });
+        return it == delayedCallbacks.end() ? nullptr : &*it;
+    }
+
     void addSubscription(ScopeToken scopeToken, EntityId owner,
                          const std::string& ruleId, EventKind kind, LogicKey key,
-                         sol::protected_function callback) {
+                         sol::protected_function callback, float intervalSeconds = 0.f) {
         Scope* scope = findScope(scopeToken);
         if (!scope || !scope->active) throw sol::error("Logic scope is inactive");
         if (!callback.valid()) throw sol::error("Logic callback is invalid");
@@ -209,32 +331,27 @@ struct LogicRuntime::Impl {
             throw sol::error("Logic session subscription limit exceeded");
         subscriptions.push_back(Subscription{
             nextSubscription++, scopeToken, owner, ruleId, kind, key,
-            std::move(callback), true});
+            intervalSeconds, 0.f, std::move(callback), true});
     }
 
-    bool callSubscription(uint64_t token, std::optional<EntityId> other = std::nullopt) {
-        Subscription* sub = findSubscription(token);
-        if (!sub || !sub->active || !enabled) return true;
+    bool callProtected(sol::protected_function& callback, EntityId owner,
+                       const std::string& ruleId,
+                       std::optional<EntityId> other = std::nullopt) {
+        if (!enabled) return true;
         if (dispatchDepth >= limits.maxEventDepth) {
-            sub->active = false;
-            diagnosticLog.push_back(callbackError(sub->ruleId, sub->owner,
-                                                   "event depth limit exceeded"));
+            diagnosticLog.push_back(callbackError(ruleId, owner, "event depth limit exceeded"));
             return false;
         }
         ++dispatchDepth;
-        lua_State* state = sub->callback.lua_state();
+        lua_State* state = callback.lua_state();
         g_instructionBudget = limits.maxInstructionsPerCallback;
         lua_sethook(state, instructionHook, LUA_MASKCOUNT, 1000);
-        sol::protected_function_result result = other ? sub->callback(*other) : sub->callback();
+        sol::protected_function_result result = other ? callback(*other) : callback();
         lua_sethook(state, nullptr, 0, 0);
         --dispatchDepth;
         if (!result.valid()) {
             sol::error err = result;
-            sub = findSubscription(token);
-            if (sub) sub->active = false;
-            diagnosticLog.push_back(callbackError(
-                sub ? sub->ruleId : std::string("unknown"),
-                sub ? sub->owner : INVALID_ENTITY, err.what()));
+            diagnosticLog.push_back(callbackError(ruleId, owner, err.what()));
             if (lua.memoryLimitExceeded()) {
                 enabled = false;
                 diagnosticLog.push_back("Logic Runtime disabled: memory limit exceeded");
@@ -244,9 +361,41 @@ struct LogicRuntime::Impl {
         return true;
     }
 
+    bool callSubscription(uint64_t token, std::optional<EntityId> other = std::nullopt) {
+        Subscription* sub = findSubscription(token);
+        if (!sub || !sub->active || !enabled) return true;
+        const LogicRuleId ruleId = sub->ruleId;
+        const EntityId owner = sub->owner;
+        const bool ok = callProtected(sub->callback, owner, ruleId, other);
+        if (!ok) {
+            sub = findSubscription(token);
+            if (sub) sub->active = false;
+        }
+        return ok;
+    }
+
+    bool callDelayed(uint64_t token) {
+        DelayedCallback* cb = findDelayed(token);
+        if (!cb || !cb->active || !enabled) return true;
+        const EntityId owner = cb->owner;
+        const bool ok = callProtected(cb->callback, owner, "wait");
+        cb = findDelayed(token);
+        if (cb) cb->active = false;
+        return ok;
+    }
+
     void dispatch(EventKind kind, LogicKey key, EntityId owner = INVALID_ENTITY,
-                  std::optional<EntityId> other = std::nullopt) {
-        if (!enabled || dispatchDepth != 0) return;
+                  std::optional<EntityId> other = std::nullopt,
+                  bool allowNested = false) {
+        if (!enabled || (!allowNested && dispatchDepth != 0)) return;
+        const bool matchOwner = kind == EventKind::CollisionEnter
+            || kind == EventKind::CollisionExit
+            || kind == EventKind::AnimationStarted
+            || kind == EventKind::AnimationFinished
+            || (kind == EventKind::Start && owner != INVALID_ENTITY);
+        const bool matchKey = kind == EventKind::KeyPressed
+            || kind == EventKind::KeyReleased
+            || kind == EventKind::KeyHeld;
         std::vector<uint64_t> snapshot;
         snapshot.reserve(subscriptions.size());
         for (const Subscription& sub : subscriptions) {
@@ -254,11 +403,10 @@ struct LogicRuntime::Impl {
             const auto it = std::find_if(scopes.begin(), scopes.end(),
                 [&](const Scope& value) { return value.token == sub.scope; });
             if (it != scopes.end()) scope = &*it;
-            const bool isCollision = kind == EventKind::CollisionEnter || kind == EventKind::CollisionExit;
-            if (sub.active && scope && scope->active && sub.kind == kind
-                && (isCollision ? sub.owner == owner : kind == EventKind::Start || sub.key == key)) {
-                snapshot.push_back(sub.token);
-            }
+            if (!sub.active || !scope || !scope->active || sub.kind != kind) continue;
+            if (matchOwner && sub.owner != owner) continue;
+            if (matchKey && sub.key != key) continue;
+            snapshot.push_back(sub.token);
         }
         const uint32_t available = eventsThisFrame >= limits.maxEventsPerDispatch
             ? 0 : limits.maxEventsPerDispatch - eventsThisFrame;
@@ -271,6 +419,74 @@ struct LogicRuntime::Impl {
         }
         eventsThisFrame += static_cast<uint32_t>(snapshot.size());
         for (uint64_t token : snapshot) callSubscription(token, other);
+    }
+
+    void tickEverySeconds(float dt) {
+        if (!enabled || dispatchDepth != 0) return;
+        std::vector<uint64_t> due;
+        for (Subscription& sub : subscriptions) {
+            if (!sub.active || sub.kind != EventKind::EverySeconds) continue;
+            const Scope* scope = findScope(sub.scope);
+            if (!scope || !scope->active) continue;
+            if (sub.intervalSeconds <= 0.f) {
+                due.push_back(sub.token);
+                continue;
+            }
+            sub.accumulated += dt;
+            while (sub.accumulated >= sub.intervalSeconds) {
+                sub.accumulated -= sub.intervalSeconds;
+                due.push_back(sub.token);
+            }
+        }
+        const uint32_t available = eventsThisFrame >= limits.maxEventsPerDispatch
+            ? 0 : limits.maxEventsPerDispatch - eventsThisFrame;
+        if (due.size() > available) {
+            due.resize(available);
+            if (!eventBudgetLogged) {
+                diagnosticLog.push_back("Logic dispatch truncated at the per-frame event budget");
+                eventBudgetLogged = true;
+            }
+        }
+        eventsThisFrame += static_cast<uint32_t>(due.size());
+        for (uint64_t token : due) callSubscription(token);
+    }
+
+    void tickDelayed(float dt) {
+        if (!enabled || dispatchDepth != 0) return;
+        std::vector<uint64_t> due;
+        for (DelayedCallback& cb : delayedCallbacks) {
+            if (!cb.active) continue;
+            const Scope* scope = findScope(cb.scope);
+            if (!scope || !scope->active) {
+                cb.active = false;
+                continue;
+            }
+            cb.remaining -= dt;
+            if (cb.remaining <= 0.f) due.push_back(cb.token);
+        }
+        const uint32_t available = eventsThisFrame >= limits.maxEventsPerDispatch
+            ? 0 : limits.maxEventsPerDispatch - eventsThisFrame;
+        if (due.size() > available) {
+            due.resize(available);
+            if (!eventBudgetLogged) {
+                diagnosticLog.push_back("Logic dispatch truncated at the per-frame event budget");
+                eventBudgetLogged = true;
+            }
+        }
+        eventsThisFrame += static_cast<uint32_t>(due.size());
+        for (uint64_t token : due) callDelayed(token);
+    }
+
+    bool hasActiveTickWork() const {
+        for (const Subscription& sub : subscriptions) {
+            if (!sub.active) continue;
+            if (sub.kind == EventKind::Update || sub.kind == EventKind::EverySeconds)
+                return true;
+        }
+        for (const DelayedCallback& cb : delayedCallbacks) {
+            if (cb.active) return true;
+        }
+        return false;
     }
 };
 
@@ -286,19 +502,34 @@ bool LogicRuntime::initialize(std::string* error) {
             "LogicSelf", sol::no_constructor,
             "set_visible", &Impl::SelfProxy::setVisible,
             "set_position", &Impl::SelfProxy::setPosition,
+            "set_velocity", &Impl::SelfProxy::setVelocity,
+            "spawn", &Impl::SelfProxy::spawn,
             "is_grounded", &Impl::SelfProxy::isGrounded,
             "platformer_move", &Impl::SelfProxy::platformerMove,
             "platformer_jump", &Impl::SelfProxy::platformerJump,
-            "destroy_self", &Impl::SelfProxy::destroySelf);
+            "destroy_self", &Impl::SelfProxy::destroySelf,
+            "play_animation_clip", &Impl::SelfProxy::playAnimationClip,
+            "stop_animation", &Impl::SelfProxy::stopAnimation,
+            "set_animation_playback_speed", &Impl::SelfProxy::setAnimationPlaybackSpeed,
+            "play_sound", &Impl::SelfProxy::playSound);
         lua.new_usertype<Impl::ContextProxy>(
             "LogicContext", sol::no_constructor,
             "self", &Impl::ContextProxy::self,
             "on_start", &Impl::ContextProxy::onStart,
+            "on_update", &Impl::ContextProxy::onUpdate,
+            "on_every_seconds", &Impl::ContextProxy::onEverySeconds,
+            "on_animation_started", &Impl::ContextProxy::onAnimationStarted,
+            "on_animation_finished", &Impl::ContextProxy::onAnimationFinished,
             "on_key_pressed", &Impl::ContextProxy::onKeyPressed,
             "on_key_released", &Impl::ContextProxy::onKeyReleased,
             "on_key_held", &Impl::ContextProxy::onKeyHeld,
             "on_collision_enter", &Impl::ContextProxy::onCollisionEnter,
             "on_collision_exit", &Impl::ContextProxy::onCollisionExit,
+            "wait", &Impl::ContextProxy::wait,
+            "state_set", &Impl::ContextProxy::stateSet,
+            "state_add", &Impl::ContextProxy::stateAdd,
+            "state_compare", &Impl::ContextProxy::stateCompare,
+            "is_key_down", &Impl::ContextProxy::isKeyDown,
             "other_is_object_type", &Impl::ContextProxy::otherIsObjectType);
 
         sol::table logic = lua.create_named_table("logic");
@@ -333,6 +564,7 @@ bool LogicRuntime::loadPrograms(const std::vector<LogicProgram>& programs, std::
         if (error) *error = "Logic programs were already loaded";
         return false;
     }
+    impl_->programsRequireTick = false;
     for (const LogicProgram& program : programs) {
         for (const std::string& feature : program.requiredFeatures) {
             if (!supportedFeatures().count(feature)) {
@@ -341,6 +573,7 @@ bool LogicRuntime::loadPrograms(const std::vector<LogicProgram>& programs, std::
                 return false;
             }
         }
+        impl_->programsRequireTick = impl_->programsRequireTick || program.requiresTick;
         impl_->apiVersionAccepted = false;
         if (!impl_->lua.loadLuaSource(program.source)) {
             if (error) *error = impl_->lua.lastError();
@@ -395,6 +628,8 @@ bool LogicRuntime::cancelScope(ScopeToken token) {
     scope->active = false;
     for (Impl::Subscription& sub : impl_->subscriptions)
         if (sub.scope == token) sub.active = false;
+    for (Impl::DelayedCallback& cb : impl_->delayedCallbacks)
+        if (cb.scope == token) cb.active = false;
     return true;
 }
 
@@ -405,6 +640,12 @@ void LogicRuntime::beginFrame() {
 }
 
 void LogicRuntime::dispatchStart() { impl_->dispatch(Impl::EventKind::Start, LogicKey::Space); }
+void LogicRuntime::dispatchStartForOwner(EntityId owner) {
+    if (owner == INVALID_ENTITY) return;
+    // Nested OK: spawn from a Logic action must still run On Start for the
+    // new entity without re-firing every other Start subscription.
+    impl_->dispatch(Impl::EventKind::Start, LogicKey::Space, owner, std::nullopt, true);
+}
 void LogicRuntime::dispatchKeyPressed(LogicKey key) {
     impl_->dispatch(Impl::EventKind::KeyPressed, key);
 }
@@ -420,19 +661,40 @@ void LogicRuntime::dispatchCollisionEnter(EntityId owner, EntityId other) {
 void LogicRuntime::dispatchCollisionExit(EntityId owner, EntityId other) {
     impl_->dispatch(Impl::EventKind::CollisionExit, LogicKey::Space, owner, other);
 }
+void LogicRuntime::dispatchTick(float dt) {
+    if (!impl_ || !impl_->enabled) return;
+    if (!(dt > 0.f)) dt = 0.f;
+    impl_->dispatch(Impl::EventKind::Update, LogicKey::Space);
+    impl_->tickEverySeconds(dt);
+    impl_->tickDelayed(dt);
+}
+void LogicRuntime::dispatchAnimationStarted(EntityId owner) {
+    if (owner == INVALID_ENTITY) return;
+    impl_->dispatch(Impl::EventKind::AnimationStarted, LogicKey::Space, owner);
+}
+void LogicRuntime::dispatchAnimationFinished(EntityId owner) {
+    if (owner == INVALID_ENTITY) return;
+    impl_->dispatch(Impl::EventKind::AnimationFinished, LogicKey::Space, owner);
+}
 
 void LogicRuntime::shutdown() noexcept {
     if (!impl_ || !impl_->initialized) return;
     for (Impl::Scope& scope : impl_->scopes) scope.active = false;
     impl_->subscriptions.clear();
+    impl_->delayedCallbacks.clear();
     impl_->factories.clear();
     impl_->scopes.clear();
     impl_->lua.shutdown();
     impl_->enabled = false;
     impl_->initialized = false;
+    impl_->programsRequireTick = false;
 }
 
 bool LogicRuntime::isEnabled() const { return impl_ && impl_->enabled; }
+bool LogicRuntime::requiresTick() const {
+    if (!impl_ || !impl_->enabled) return false;
+    return impl_->programsRequireTick || impl_->hasActiveTickWork();
+}
 const std::vector<std::string>& LogicRuntime::diagnostics() const {
     return impl_->diagnosticLog;
 }

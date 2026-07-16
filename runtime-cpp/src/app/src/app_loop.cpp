@@ -9,7 +9,9 @@
 #include <emscripten/emscripten.h>
 #endif
 
+#include <algorithm>
 #include <chrono>
+#include <iostream>
 
 namespace ArtCade {
 
@@ -21,16 +23,60 @@ double elapsedMs(Clock::time_point start) {
     return std::chrono::duration<double, std::milli>(Clock::now() - start).count();
 }
 
-std::string logicInputCode(LogicKey key) {
-    const int value = static_cast<int>(key);
-    if (value >= static_cast<int>(LogicKey::A) && value <= static_cast<int>(LogicKey::Z))
-        return "Key" + Logic::logicKeyName(key);
-    if (value >= static_cast<int>(LogicKey::Num0) && value <= static_cast<int>(LogicKey::Num9))
-        return "Digit" + Logic::logicKeyName(key);
-    return Logic::logicKeyName(key);
-}
-
 } // namespace
+
+void Application::dispatchGameplayCollisionTransitions() {
+    if (!mod_ || !mod_->world) return;
+    std::set<std::pair<EntityId, EntityId>> current;
+    for (const CollisionWorld::ContactEvent& event : mod_->world->collisionEvents()) {
+        if (event.kind == CollisionWorld::ContactEvent::Kind::Exit
+            || event.self == INVALID_ENTITY || event.other == INVALID_ENTITY
+            || event.self == event.other
+            || !mod_->world->isActiveEntity(event.self)
+            || !mod_->world->isActiveEntity(event.other)) continue;
+        current.emplace(std::min(event.self, event.other),
+                        std::max(event.self, event.other));
+    }
+
+    std::set<std::pair<EntityId, EntityId>> entered;
+    std::set<std::pair<EntityId, EntityId>> exited;
+    for (const auto& pair : current)
+        if (mod_->activeGameplayCollisionPairs.count(pair) == 0) entered.insert(pair);
+    for (const auto& pair : mod_->activeGameplayCollisionPairs)
+        if (current.count(pair) == 0) exited.insert(pair);
+
+    const std::vector<EntityId> structuralOrder = mod_->entityGateway->activeSceneIds();
+    const auto dispatch = [&](const auto& edges, bool enter, auto invoke) {
+        for (EntityId owner : structuralOrder) {
+            for (const auto& pair : edges) {
+                EntityId other = INVALID_ENTITY;
+                if (pair.first == owner) other = pair.second;
+                else if (pair.second == owner) other = pair.first;
+                if (other != INVALID_ENTITY) invoke(owner, other, enter);
+            }
+        }
+    };
+
+    // One immutable entity-pair snapshot: every generated board runs before
+    // any manual attachment, both in scene structural order.
+    if (mod_->logicRuntime) {
+        dispatch(entered, true, [&](EntityId owner, EntityId other, bool) {
+            mod_->logicRuntime->dispatchCollisionEnter(owner, other);
+        });
+        dispatch(exited, false, [&](EntityId owner, EntityId other, bool) {
+            mod_->logicRuntime->dispatchCollisionExit(owner, other);
+        });
+    }
+    if (mod_->scriptRuntime) {
+        dispatch(entered, true, [&](EntityId owner, EntityId other, bool) {
+            mod_->scriptRuntime->dispatchCollisionEnter(owner, other);
+        });
+        dispatch(exited, false, [&](EntityId owner, EntityId other, bool) {
+            mod_->scriptRuntime->dispatchCollisionExit(owner, other);
+        });
+    }
+    mod_->activeGameplayCollisionPairs = std::move(current);
+}
 
 void Application::tickFixedStep(float dt) {
     mod_->renderer->clearDrawQueue();
@@ -50,17 +96,35 @@ void Application::tickFixedStep(float dt) {
         }
         profiler_.addGameplayMs(elapsedMs(start));
     }
+    // Drain animator events once; feed Logic Runtime then GameAPI Lua handlers.
     {
+        const auto finished = mod_->spriteAnimator->pollFinished();
+        const auto events = mod_->spriteAnimator->pollEvents();
+        if (mod_->logicRuntime) {
+            for (const auto& ev : events) {
+                if (ev.kind == ArtCade::Modules::SpriteAnimator::AnimEventKind::Start)
+                    mod_->logicRuntime->dispatchAnimationStarted(ev.entityId);
+            }
+            for (const auto& ev : finished)
+                mod_->logicRuntime->dispatchAnimationFinished(ev.entityId);
+            mod_->logicRuntime->dispatchTick(dt);
+        }
         const auto start = Clock::now();
-        const uint32_t events = mod_->gameAPI->dispatchAnimationEvents();
+        const uint32_t luaEvents = mod_->gameAPI->dispatchAnimationEvents(finished, events);
         profiler_.addLuaMs(elapsedMs(start));
-        profiler_.addLuaEvents(events);
+        profiler_.addLuaEvents(luaEvents);
     }
     {
         const auto start = Clock::now();
         mod_->luaHost->tick(dt);
         profiler_.addLuaMs(elapsedMs(start));
         profiler_.setLuaTickEnabled(mod_->luaHost->isScriptTickRequired());
+    }
+    // Manual on_update runs after generated input rules and before platformer
+    // integration, so its movement intent can deliberately override the board.
+    if (mod_->scriptRuntime) {
+        mod_->scriptRuntime->update(dt);
+        mod_->world->flushEntityQueues();
     }
     if (mod_->dialogManager) mod_->dialogManager->tick(dt);
 
@@ -100,6 +164,18 @@ void Application::tickFixedStep(float dt) {
         const uint32_t events = mod_->gameAPI->dispatchLifecycleEvents();
         profiler_.addLuaMs(elapsedMs(start));
         profiler_.addLuaEvents(events);
+    }
+    dispatchGameplayCollisionTransitions();
+
+    // Drain errors from input/update/collision callbacks once the fixed-step
+    // lifecycle has reached a stable post-dispatch boundary.
+    if (mod_->scriptRuntime) {
+        for (const auto& diagnostic : mod_->scriptRuntime->drainDiagnostics()) {
+            std::cerr << "[Script] " << diagnostic.sourcePath;
+            if (diagnostic.line > 0) std::cerr << ":" << diagnostic.line;
+            std::cerr << " [" << diagnostic.callback << "] entity "
+                      << diagnostic.owner << ": " << diagnostic.message << "\n";
+        }
     }
 
     mod_->eventBus->flushDeferred();
@@ -171,16 +247,31 @@ void Application::loopIteration() {
 
     float simulatedDt = 0.f;
     if (simulating) {
-        if (mod_->logicRuntime) {
-            mod_->logicRuntime->beginFrame();
+        if (mod_->logicRuntime || mod_->scriptRuntime) {
+            Scripts::ScriptInputSnapshot scriptInput;
+            if (mod_->logicRuntime) mod_->logicRuntime->beginFrame();
             for (LogicKey key : Logic::supportedLogicKeys()) {
-                if (mod_->input->wasKeyPressed(logicInputCode(key)))
-                    mod_->logicRuntime->dispatchKeyPressed(key);
-                if (mod_->input->wasKeyReleased(logicInputCode(key)))
-                    mod_->logicRuntime->dispatchKeyReleased(key);
-                if (mod_->input->isKeyDown(logicInputCode(key)))
-                    mod_->logicRuntime->dispatchKeyHeld(key);
+                const std::string code = Logic::logicInputCode(key);
+                const bool pressed = mod_->input->wasKeyPressed(code);
+                const bool released = mod_->input->wasKeyReleased(code);
+                const bool held = mod_->input->isKeyDown(code);
+                if (pressed) {
+                    if (mod_->logicRuntime) mod_->logicRuntime->dispatchKeyPressed(key);
+                    scriptInput.pressed.push_back(key);
+                }
+                if (released) {
+                    if (mod_->logicRuntime) mod_->logicRuntime->dispatchKeyReleased(key);
+                    scriptInput.released.push_back(key);
+                }
+                if (held) {
+                    if (mod_->logicRuntime) mod_->logicRuntime->dispatchKeyHeld(key);
+                    scriptInput.held.push_back(key);
+                }
             }
+            if (mod_->scriptRuntime) mod_->scriptRuntime->dispatchInput(scriptInput);
+            // Both languages consumed the same immutable input frame; queued
+            // destroys may now commit before any fixed-step update.
+            mod_->world->flushEntityQueues();
         }
         if (!mod_->dialogManager || !mod_->dialogManager->isBlocking()) {
             const auto start = Clock::now();

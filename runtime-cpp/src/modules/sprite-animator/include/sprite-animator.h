@@ -46,6 +46,8 @@ public:
         std::vector<Frame> frames;
         float              fps    = 12.f;
         bool               loop   = true;
+        /** Owning authoring animation asset. Empty for legacy clips. */
+        std::string        animationAssetId;
         /** Sprite sheet this clip's frame rects belong to. The renderer draws
          *  THIS sheet while the clip plays, so an entity can animate across
          *  sheets without its frames being sliced from the wrong texture. */
@@ -54,6 +56,9 @@ public:
 
     void defineClip(const Clip& clip);
     bool hasClip(const std::string& name) const;
+    bool hasClip(const AssetId& animationAssetId, const std::string& clipId) const;
+    bool isClipPlayable(const AssetId& animationAssetId,
+                        const std::string& clipId) const;
     /** Remove clip definitions whose names are not in keep (instances may still reference them). */
     void removeClipsExcept(const std::unordered_set<std::string>& keep);
     void clearClips();
@@ -66,10 +71,13 @@ public:
     // Start playing a clip on an entity; resets the instance if already playing
     void play(EntityId entity, const std::string& clipName,
               FinishCb onFinish = {});
+    bool play(EntityId entity, const AssetId& animationAssetId,
+              const std::string& clipId, FinishCb onFinish = {});
 
     void pause (EntityId entity);
     void resume(EntityId entity);
     void stop  (EntityId entity);
+    bool setPlaybackSpeed(EntityId entity, float speed);
 
     // Jump to a specific frame (0-based)
     void seekFrame(EntityId entity, int frame);
@@ -87,6 +95,8 @@ public:
 
     /** Sprite sheet a clip's frames belong to ("" if the clip is unknown). */
     std::string clipAssetId(const std::string& clipName) const;
+    std::string clipAssetId(const AssetId& animationAssetId,
+                            const std::string& clipId) const;
 
     /** Sheet of the entity's currently playing clip ("" if no active instance). */
     std::string currentClipAssetId(EntityId entity) const;
@@ -105,6 +115,7 @@ public:
 
     bool isPlaying(EntityId entity) const;
     int  frameIndex(EntityId entity) const;
+    float playbackSpeed(EntityId entity) const;
 
     struct FinishEvent {
         EntityId    entityId = 0;
@@ -160,12 +171,18 @@ private:
     enum class PlayState { Stopped, Playing, Paused };
 
     struct AnimInstance {
-        std::string clipName;
+        std::string clipKey;
         int         frameIdx  = 0;
         float       elapsed   = 0.f;
+        float       playbackSpeed = 1.f;
         PlayState   state     = PlayState::Stopped;
         FinishCb    onFinish;
     };
+
+    static std::string clipKey(const AssetId& animationAssetId,
+                               const std::string& clipId);
+    const Clip* findClip(const std::string& key) const;
+    void playByKey(EntityId entity, const std::string& key, FinishCb onFinish);
 
     /** Record an AnimEvent only if its kind is currently watched. */
     void pushEvent(AnimEventKind kind, EntityId entity,

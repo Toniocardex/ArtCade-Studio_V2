@@ -148,6 +148,17 @@ float VariableManager::addFloat(const std::string& key, float delta,
     return static_cast<float>(value);
 }
 
+bool VariableManager::ensureNumber(const std::string& key) {
+    if (key.empty()) return false;
+    const auto typeIt = globalTypes_.find(key);
+    if (typeIt != globalTypes_.end()) {
+        return typeIt->second == GameVariableDefinition::Type::Number;
+    }
+    globalTypes_[key] = GameVariableDefinition::Type::Number;
+    vars_[key] = 0.0;
+    return true;
+}
+
 std::optional<double> VariableManager::addEntity(
     EntityId id, const std::string& key, double delta) {
     if (!entityExists(id, key)) return std::nullopt;
@@ -213,13 +224,18 @@ VariableManager::GameSnapshot VariableManager::takeGameSnapshot(
 
 bool VariableManager::restoreGameSnapshot(
     const GameSnapshot& snapshot, const std::vector<EntityId>& persistentIds) {
-    if (snapshot.globals.size() != globalTypes_.size()) return false;
+    // Project-defined globals must be present. Extra Number keys created at
+    // runtime (Logic Board ensureNumber) are accepted and re-registered.
     for (const auto& [key, _] : globalTypes_) {
         if (snapshot.globals.count(key) == 0) return false;
     }
     for (const auto& [key, value] : snapshot.globals) {
         auto typeIt = globalTypes_.find(key);
-        if (typeIt == globalTypes_.end() || !valueMatchesType(value, typeIt->second)) return false;
+        if (typeIt == globalTypes_.end()) {
+            if (!std::holds_alternative<double>(value) || !ensureNumber(key)) return false;
+            continue;
+        }
+        if (!valueMatchesType(value, typeIt->second)) return false;
     }
     for (EntityId id : persistentIds) {
         auto savedIt = snapshot.entities.find(id);

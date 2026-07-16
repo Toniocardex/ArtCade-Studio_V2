@@ -1,9 +1,11 @@
 #pragma once
 
 #include "../../../core/module.h"
+#include "../../../core/types.h"
 #include <string>
 #include <memory>
 #include <functional>
+#include <vector>
 
 namespace ArtCade::Modules {
 
@@ -22,9 +24,13 @@ public:
     void shutdown() override;
 
     // Sound effects (fire-and-forget; same file is reused from cache)
-    void playSound(const std::string& assetPath,
+    bool playSound(const std::string& assetPath,
                    float volume = 1.f,
                    float pitch  = 1.f);
+
+    /** Replace the immutable runtime projection consumed by Logic Board audio. */
+    void setRuntimeAssetCatalog(const std::vector<AudioAssetDef>& assets);
+    bool playResolvedAsset(const AssetId& audioAssetId, float volume);
 
     /** Register SFX from memory (editor WASM upload). `ext` e.g. ".ogg". */
     bool registerSoundFromMemory(const std::string& path,

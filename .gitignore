@@ -28,6 +28,7 @@ tools/
 
 # CMake
 CMakeUserPresets.json
+.qt-prefix.path
 cmake-build-debug/
 cmake-build-release/
 CMakeCache.txt
@@ -39,20 +40,18 @@ Makefile
 *.wasm.map
 *.js.map
 *.js~
-editor/public/runtime/game.js
-editor/public/runtime/game.data
 
-# Python (bytecode generated during build scripts)
+# Python
 __pycache__/
 *.pyc
 *.pyo
 
-# Node/npm
+# Node/npm (optional root helpers only)
 node_modules/
 yarn.lock
+package-lock.json
 *.log
 artcade-vite*.log
-editor/tauri-build*.log
 runtime-cpp/build-wasm*.log
 runtime-cpp/test-project/logs/*.txt
 !runtime-cpp/test-project/logs/.gitkeep
@@ -63,7 +62,7 @@ runtime-cpp/test-project/logs/*.txt
 !.cursor/rules/
 !.cursor/rules/**
 
-# IDE (commit shared C++/SonarLint workspace config under .vscode/)
+# IDE
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
@@ -74,17 +73,6 @@ runtime-cpp/test-project/logs/*.txt
 *.swo
 *~
 .DS_Store
-*.sublime-project
-*.sublime-workspace
-
-# Tauri
-src-tauri/target/
-editor/src-tauri/target/
-dist/
-.tauri/
-editor/src-tauri/resources/scripts/
-editor/src-tauri/resources/tools/
-editor/src-tauri/resources/runtime-cpp-sdk.zip
 
 # Temp/Dev
 .env
@@ -93,7 +81,7 @@ temp/
 tmp/
 *.tmp
 
-# Asset development (gitignore loose assets, commit only in .artcade)
+# Asset development
 assets/dev/
 *.psd
 *.aseprite
@@ -103,7 +91,7 @@ assets/dev/
 *.artcade.debug
 profile-*.json
 
-# Large optional assets (marketing / exports — keep local, not needed to build)
+# Large optional assets
 ico_1920x1504.png
 ArtCade_ICO.png
 ArtCade_ico.svg

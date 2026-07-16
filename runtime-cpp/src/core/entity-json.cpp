@@ -198,6 +198,41 @@ void read_entity_components(const nlohmann::json& entityJson, EntityDef& out) {
     if (entityJson.contains("transform") && entityJson["transform"].is_object())
         out.transform = read_transform(entityJson["transform"]);
     read_sprite_component(entityJson, out.sprite);
+    if (entityJson.contains("spriteRenderer")
+        && entityJson["spriteRenderer"].is_object()) {
+        const auto& value = entityJson["spriteRenderer"];
+        SpriteRendererComponent renderer;
+        renderer.imageAssetId = read_string_any(value, "imageAssetId", "image_asset_id");
+        renderer.animationAssetId = read_string_any(
+            value, "animationAssetId", "animation_asset_id");
+        renderer.visible = value.value("visible", true);
+        out.spriteRenderer = std::move(renderer);
+    }
+    if (entityJson.contains("spriteAnimator")
+        && entityJson["spriteAnimator"].is_object()) {
+        const auto& value = entityJson["spriteAnimator"];
+        SpriteAnimatorComponent animator;
+        animator.initialClipId = read_string_any(value, "initialClipId", "initial_clip_id");
+        animator.autoPlay = value.value("autoPlay", value.value("auto_play", true));
+        animator.playbackSpeed = value.value("playbackSpeed", 1.f);
+        out.spriteAnimator = std::move(animator);
+    }
+    if (entityJson.contains("scripts") && entityJson["scripts"].is_object()) {
+        const auto& value = entityJson["scripts"];
+        ScriptComponent scripts;
+        if (value.contains("attachments") && value["attachments"].is_array()) {
+            for (const auto& item : value["attachments"]) {
+                if (!item.is_object()) continue;
+                ScriptAttachmentDef attachment;
+                attachment.id = item.value("id", std::string{});
+                attachment.scriptAssetId = read_string_any(
+                    item, "scriptAssetId", "script_asset_id");
+                attachment.enabled = item.value("enabled", true);
+                scripts.attachments.push_back(std::move(attachment));
+            }
+        }
+        out.scripts = std::move(scripts);
+    }
     read_physics_component(entityJson, out.physics);
     CollisionBodyComponent collisionBody{};
     if (read_collision_body_component(entityJson, collisionBody))

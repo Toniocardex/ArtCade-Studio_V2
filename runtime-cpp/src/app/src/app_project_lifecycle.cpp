@@ -1,19 +1,22 @@
 #include "../include/app.h"
 
 #include "app_modules.h"
-#include "logic-core.h"
 
 #include "../../modules/editor-api/include/editor-api.h"
 #include "../../modules/presentation/include/presentation_mode.h"
 #include "../../modules/game-state/include/splash-state.h"
 #include "../../modules/sprite-animator/include/animation-clips-registry.h"
+#include "../../modules/logic-core/include/logic-core.h"
 
 #include <cmath>
+#include <algorithm>
 #include <cstring>
 #include <iostream>
 #include <memory>
 #include <string>
 #include <vector>
+#include <unordered_map>
+#include <unordered_set>
 
 namespace ArtCade {
 
@@ -212,29 +215,103 @@ bool Application::loadProject(const std::string& projectPath) {
         return false;
     }
 
-    const Logic::LogicCompileResult logic = Logic::compileProjectLogic(doc);
-    if (!logic.ok()) {
-        std::cerr << "[App] Logic Board validation failed";
-        if (!logic.diagnostics.empty())
-            std::cerr << " [" << logic.diagnostics.front().code << "] "
-                      << logic.diagnostics.front().message;
-        std::cerr << "\n";
+    // Sole Logic Board host (post-React): compile objectTypes[].logicBoard into
+    // LogicRuntime programs at load. scripts/main.lua remains My Script / GameAPI
+    // only — generated Logic Lua never overwrites it.
+    const ArtCade::Logic::LogicCompileResult compiled =
+        ArtCade::Logic::compileProjectLogic(doc);
+    if (!compiled.ok()) {
+        std::cerr << "[App] Logic Board compile failed:\n";
+        for (const ArtCade::Logic::LogicDiagnostic &d : compiled.diagnostics) {
+            if (d.severity != ArtCade::Logic::DiagnosticSeverity::Error) {
+                continue;
+            }
+            std::cerr << "  [" << d.code << "] ";
+            if (!d.objectTypeId.empty()) {
+                std::cerr << d.objectTypeId << ": ";
+            }
+            std::cerr << d.message << "\n";
+        }
         return false;
     }
     std::string logicError;
-    if (!mod_->logicRuntime || !mod_->logicRuntime->loadPrograms(logic.programs, &logicError)) {
+    if (!mod_->logicRuntime || !mod_->logicRuntime->loadPrograms(compiled.programs, &logicError)) {
         std::cerr << "[App] Could not load Logic Board programs: " << logicError << "\n";
         return false;
     }
     mod_->logicObjectTypes.clear();
-    for (const Logic::LogicProgram& program : logic.programs)
+    for (const ArtCade::Logic::LogicProgram &program : compiled.programs) {
         mod_->logicObjectTypes.insert(program.objectTypeId);
+    }
+
+    // Strict immutable manual-source snapshot. Resolve the authoring graph in
+    // deterministic Object Type + persisted attachment order, read each linked
+    // source exactly once through AssetLoader confinement, and preflight it
+    // before any gameplay world is accepted.
+    std::unordered_map<AssetId, Scripts::ScriptProgram> nextScriptPrograms;
+    std::unordered_map<ObjectTypeId, std::vector<ScriptAttachmentDef>>
+        nextScriptAttachments;
+    std::vector<ObjectTypeId> scriptTypeIds;
+    scriptTypeIds.reserve(doc.objectTypes.size());
+    for (const auto& [typeId, unused] : doc.objectTypes) {
+        (void)unused;
+        scriptTypeIds.push_back(typeId);
+    }
+    std::sort(scriptTypeIds.begin(), scriptTypeIds.end());
+    std::vector<AssetId> linkedScriptIds;
+    std::unordered_set<AssetId> seenScriptIds;
+    for (const ObjectTypeId& typeId : scriptTypeIds) {
+        const EntityDef& type = doc.objectTypes.at(typeId);
+        if (!type.scripts) continue;
+        nextScriptAttachments.emplace(typeId, type.scripts->attachments);
+        for (const ScriptAttachmentDef& attachment : type.scripts->attachments) {
+            if (attachment.enabled && seenScriptIds.insert(attachment.scriptAssetId).second)
+                linkedScriptIds.push_back(attachment.scriptAssetId);
+        }
+    }
+    std::unordered_map<AssetId, const ScriptAssetDef*> scriptAssets;
+    for (const ScriptAssetDef& asset : doc.scriptAssets) {
+        if (!scriptAssets.emplace(asset.assetId, &asset).second) {
+            std::cerr << "[App] Duplicate Script Asset id: " << asset.assetId << "\n";
+            return false;
+        }
+    }
+    const Scripts::ScriptRuntimeLimits scriptLimits;
+    Scripts::ScriptRuntime scriptValidator{scriptLimits};
+    for (const AssetId& assetId : linkedScriptIds) {
+        const auto asset = scriptAssets.find(assetId);
+        if (asset == scriptAssets.end()) {
+            std::cerr << "[App] Attached Script Asset is missing: " << assetId << "\n";
+            return false;
+        }
+        std::string source;
+        if (!mod_->assetLoader->loadScriptSource(
+                asset->second->sourcePath, scriptLimits.maxSourceBytes, source)) {
+            std::cerr << "[App] Could not read attached script: "
+                      << asset->second->sourcePath << "\n";
+            return false;
+        }
+        Scripts::ScriptProgram program{
+            assetId, asset->second->sourcePath, std::move(source)};
+        std::string scriptError;
+        if (!scriptValidator.validateProgram(program, &scriptError)) {
+            std::cerr << "[App] Invalid attached script " << program.sourcePath
+                      << ": " << scriptError << "\n";
+            return false;
+        }
+        nextScriptPrograms.emplace(assetId, std::move(program));
+    }
+    mod_->scriptPrograms = std::move(nextScriptPrograms);
+    mod_->scriptAttachments = std::move(nextScriptAttachments);
 
     mod_->world->init(doc);
-    if (!installLogicScopesForActiveScene()) return false;
     if (mod_->spriteAnimator) {
         registerAnimationClipsFromAssets(*mod_->spriteAnimator, doc.imageAssets);
+        appendAnimationClipsFromAssets(*mod_->spriteAnimator, doc.spriteAnimationAssets);
     }
+    if (mod_->audio) mod_->audio->setRuntimeAssetCatalog(doc.audioAssets);
+    if (!installLogicScopesForActiveScene()) return false;
+    if (!installScriptScopesForActiveScene()) return false;
     applyRuntimeSettings(runtimeSettingsFromProjectDoc(doc), ViewportPolicy::NativePlay);
 
     tileColors_.clear();
@@ -276,7 +353,10 @@ bool Application::loadProject(const std::string& projectPath) {
 
 bool Application::installLogicScopesForActiveScene() {
     if (!mod_ || !mod_->logicRuntime || !mod_->entityGateway) return false;
-    for (Logic::ScopeToken token : mod_->logicScopes) mod_->logicRuntime->cancelScope(token);
+    for (const auto& [entityId, token] : mod_->logicScopes) {
+        (void)entityId;
+        mod_->logicRuntime->cancelScope(token);
+    }
     mod_->logicScopes.clear();
     std::string error;
     for (EntityId id : mod_->entityGateway->activeSceneIds()) {
@@ -287,10 +367,54 @@ bool Application::installLogicScopesForActiveScene() {
             std::cerr << "[App] Could not install Logic Board scope: " << error << "\n";
             return false;
         }
-        mod_->logicScopes.push_back(*token);
+        mod_->logicScopes.emplace(id, *token);
     }
     mod_->logicRuntime->beginFrame();
     mod_->logicRuntime->dispatchStart();
+    return true;
+}
+
+bool Application::installLogicScopeForEntity(EntityId entityId) {
+    if (!mod_ || !mod_->logicRuntime || !mod_->entityGateway || entityId == INVALID_ENTITY)
+        return false;
+    if (mod_->logicScopes.count(entityId) != 0) return true;
+    const ObjectTypeId typeId = mod_->entityGateway->className(entityId);
+    if (mod_->logicObjectTypes.find(typeId) == mod_->logicObjectTypes.end()) return true;
+    std::string error;
+    const auto token = mod_->logicRuntime->install(typeId, entityId, &error);
+    if (!token) {
+        std::cerr << "[App] Could not install Logic Board scope for spawn: " << error << "\n";
+        return false;
+    }
+    mod_->logicScopes.emplace(entityId, *token);
+    // Owner-scoped Start only — never re-fire On Start for the whole scene.
+    mod_->logicRuntime->dispatchStartForOwner(entityId);
+    return true;
+}
+
+bool Application::installScriptScopesForActiveScene() {
+    if (!mod_ || !mod_->entityGateway) return false;
+    if (!mod_->logicHost) return false;
+    mod_->activeGameplayCollisionPairs.clear();
+    mod_->scriptRuntime = std::make_unique<Scripts::ScriptRuntime>(*mod_->logicHost);
+    std::string error;
+    for (EntityId id : mod_->entityGateway->activeSceneIds()) {
+        const ObjectTypeId typeId = mod_->entityGateway->className(id);
+        const auto attachments = mod_->scriptAttachments.find(typeId);
+        if (attachments == mod_->scriptAttachments.end()) continue;
+        for (const ScriptAttachmentDef& attachment : attachments->second) {
+            if (!attachment.enabled) continue;
+            const auto program = mod_->scriptPrograms.find(attachment.scriptAssetId);
+            if (program == mod_->scriptPrograms.end()
+                || !mod_->scriptRuntime->install(
+                    program->second, id, attachment.id, &error)) {
+                std::cerr << "[App] Could not install Script scope: " << error << "\n";
+                mod_->scriptRuntime.reset();
+                return false;
+            }
+        }
+    }
+    mod_->scriptRuntime->dispatchStart();
     return true;
 }
 

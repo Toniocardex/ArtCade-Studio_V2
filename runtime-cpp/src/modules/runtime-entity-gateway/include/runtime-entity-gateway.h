@@ -94,6 +94,8 @@ public:
     bool setTransform(EntityId id, Vec2 position, float rotation, Vec2 scale);
     bool getSprite(EntityId id, SpriteComponent& out) const;
     bool setSprite(EntityId id, const SpriteComponent& sprite);
+    bool getSpriteRenderer(EntityId id, SpriteRendererComponent& out) const;
+    bool getSpriteAnimator(EntityId id, SpriteAnimatorComponent& out) const;
     bool getPhysicsComponent(EntityId id, PhysicsComponent& out) const;
     bool setPhysicsComponent(EntityId id, const PhysicsComponent& physics);
     bool getCollisionBody(EntityId id, CollisionBodyComponent& out) const;
@@ -320,7 +322,7 @@ private:
      *  in lockstep when new components are added. */
     void applyEntityDefToRegistry(EntityId id, const EntityDef& def);
     /** After registry apply; before lifecycle Lua drain in the same frame. */
-    void maybePlaySpawnClip(EntityId id, const SpriteComponent& sprite);
+    void maybePlaySpawnClip(EntityId id);
     void captureSceneOwnershipFromScenes(
         const std::unordered_map<SceneId, SceneDef>& scenes);
     std::vector<EntityId> entitiesOwnedByScene(const SceneId& sceneId) const;

@@ -13,6 +13,7 @@
 #include "../../modules/layer-manager/include/layer-manager.h"
 #include "../../modules/lua-runtime/include/lua-host.h"
 #include "../../modules/logic-runtime/include/logic-runtime.h"
+#include "../../modules/script-runtime/include/script-runtime.h"
 #include "../../modules/physics/include/physics.h"
 #include "../../modules/presentation/include/editor_viewport_service.h"
 #include "../../modules/renderer/include/renderer.h"
@@ -28,7 +29,13 @@
 #include "../../modules/variable-manager/include/variable-manager.h"
 #include "../../world/include/world.h"
 
+#include <cmath>
+#include <functional>
 #include <memory>
+#include <set>
+#include <string>
+#include <type_traits>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -36,10 +43,17 @@ namespace ArtCade {
 
 class RuntimeLogicHostAdapter final : public Logic::ILogicRuntimeHost {
 public:
-    explicit RuntimeLogicHostAdapter(Modules::RuntimeEntityGateway& gateway)
-        : gateway_(gateway) {}
+    using SpawnInstaller = std::function<bool(EntityId)>;
+
+    RuntimeLogicHostAdapter(Modules::RuntimeEntityGateway& gateway, Modules::Audio& audio)
+        : gateway_(gateway), audio_(audio) {}
     /** World is constructed after this adapter; wired in once available. */
     void setWorld(World* world) { world_ = world; }
+    void setVariableManager(Modules::VariableManager* variables) { variables_ = variables; }
+    void setInput(Modules::Input* input) { input_ = input; }
+    void setPhysics(Modules::Physics* physics) { physics_ = physics; }
+    void setSpawnInstaller(SpawnInstaller installer) { spawnInstaller_ = std::move(installer); }
+
     bool setVisible(EntityId owner, bool value) override {
         return gateway_.setRuntimeVisible(owner, value);
     }
@@ -49,23 +63,105 @@ public:
         transform.position = value;
         return gateway_.setTransform(owner, transform);
     }
+    bool translate(EntityId owner, Vec2 delta) override {
+        if (!std::isfinite(delta.x) || !std::isfinite(delta.y)) return false;
+        Transform transform{};
+        if (!gateway_.getTransform(owner, transform)) return false;
+        transform.position.x += delta.x;
+        transform.position.y += delta.y;
+        return gateway_.setTransform(owner, transform);
+    }
     bool isGrounded(EntityId owner) override {
         return world_ && world_->isPlatformerGrounded(owner);
     }
     bool requestPlatformerMove(EntityId owner, float axis) override {
-        if (!world_) return false;
+        PlatformerControllerComponent platformer{};
+        if (!world_ || !std::isfinite(axis)
+            || !gateway_.getPlatformerController(owner, platformer)) return false;
         world_->setMovementIntent(owner, axis, 0.f);
         return true;
     }
     bool requestPlatformerJump(EntityId owner) override {
-        if (!world_) return false;
+        PlatformerControllerComponent platformer{};
+        if (!world_ || !gateway_.getPlatformerController(owner, platformer)) return false;
         world_->requestJump(owner);
         return true;
     }
+    bool isObjectType(EntityId entity, const ObjectTypeId& expected) override {
+        return world_ && world_->isObjectType(entity, expected);
+    }
+    bool requestDestroy(EntityId owner) override {
+        return world_ && world_->requestDestroy(owner);
+    }
+    bool playAnimationClip(EntityId owner, const AssetId& animationAssetId,
+                           const std::string& clipId) override {
+        return world_ && world_->playAnimationClip(owner, animationAssetId, clipId);
+    }
+    bool stopAnimation(EntityId owner) override {
+        return world_ && world_->stopAnimation(owner);
+    }
+    bool setAnimationPlaybackSpeed(EntityId owner, float speed) override {
+        return world_ && world_->setAnimationPlaybackSpeed(owner, speed);
+    }
+    bool playSound(EntityId owner, const AssetId& audioAssetId, float volume) override {
+        return world_ && world_->isActiveEntity(owner)
+            && audio_.playResolvedAsset(audioAssetId, volume);
+    }
+    bool setStateNumber(const std::string& key, double value) override {
+        if (!variables_ || !variables_->ensureNumber(key)) return false;
+        variables_->setFloat(key, static_cast<float>(value));
+        return true;
+    }
+    bool addStateNumber(const std::string& key, double delta) override {
+        if (!variables_ || !variables_->ensureNumber(key)) return false;
+        variables_->addFloat(key, static_cast<float>(delta));
+        return true;
+    }
+    double getStateNumber(const std::string& key, double defaultValue = 0.0) override {
+        if (!variables_) return defaultValue;
+        return static_cast<double>(
+            variables_->getFloat(key, static_cast<float>(defaultValue)));
+    }
+    bool setVelocity(EntityId owner, Vec2 velocity) override {
+        if (!std::isfinite(velocity.x) || !std::isfinite(velocity.y)) return false;
+        Transform transform{};
+        if (!gateway_.getTransform(owner, transform)) return false;
+        transform.velocity = velocity;
+        if (!gateway_.setTransform(owner, transform)) return false;
+        const uint32_t handle = gateway_.physicsHandle(owner);
+        if (handle != 0 && physics_) physics_->setLinearVelocity(handle, velocity);
+        return true;
+    }
+    bool isKeyDown(LogicKey key) override {
+        return input_ && input_->isKeyDown(Logic::logicInputCode(key));
+    }
+    EntityId spawnObjectType(EntityId owner, const ObjectTypeId& objectTypeId,
+                             float x, float y) override {
+        if (!world_ || !world_->isActiveEntity(owner) || objectTypeId.empty())
+            return INVALID_ENTITY;
+        if (!std::isfinite(x) || !std::isfinite(y)) return INVALID_ENTITY;
+        const EntityId spawned = gateway_.spawnFromClass(objectTypeId, x, y);
+        if (spawned == INVALID_ENTITY) return INVALID_ENTITY;
+        // Installer must succeed when present; otherwise destroy the orphan and fail.
+        if (spawnInstaller_ && !spawnInstaller_(spawned)) {
+            gateway_.destroy(spawned);
+            return INVALID_ENTITY;
+        }
+        return spawned;
+    }
+
 private:
     Modules::RuntimeEntityGateway& gateway_;
+    Modules::Audio& audio_;
     World* world_ = nullptr;
+    Modules::VariableManager* variables_ = nullptr;
+    Modules::Input* input_ = nullptr;
+    Modules::Physics* physics_ = nullptr;
+    SpawnInstaller spawnInstaller_;
 };
+
+static_assert(!std::is_abstract_v<RuntimeLogicHostAdapter>,
+              "RuntimeLogicHostAdapter must implement every ILogicRuntimeHost method");
 
 /** Internal ownership table shared only by Application implementation units. */
 struct Application::Modules {
@@ -77,8 +173,12 @@ struct Application::Modules {
     std::unique_ptr<ArtCade::Modules::LuaHost> luaHost;
     std::unique_ptr<RuntimeLogicHostAdapter> logicHost;
     std::unique_ptr<ArtCade::Logic::LogicRuntime> logicRuntime;
-    std::vector<ArtCade::Logic::ScopeToken> logicScopes;
+    std::unordered_map<EntityId, ArtCade::Logic::ScopeToken> logicScopes;
     std::unordered_set<ObjectTypeId> logicObjectTypes;
+    std::unique_ptr<ArtCade::Scripts::ScriptRuntime> scriptRuntime;
+    std::unordered_map<AssetId, ArtCade::Scripts::ScriptProgram> scriptPrograms;
+    std::unordered_map<ObjectTypeId, std::vector<ScriptAttachmentDef>> scriptAttachments;
+    std::set<std::pair<EntityId, EntityId>> activeGameplayCollisionPairs;
     std::unique_ptr<ArtCade::Modules::SceneManager> sceneManager;
     std::unique_ptr<ArtCade::Modules::SceneMutationService> sceneMutation;
     std::unique_ptr<ArtCade::Modules::SceneLifecycleService> sceneLifecycle;

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "artcade/sfx/types.hpp"
+
 #include "project-defaults.h"
 #include <cstdint>
 #include <optional>
@@ -19,6 +21,7 @@ using EntityId  = uint32_t;
 using SceneId   = std::string;
 using AssetId   = std::string;
 using ObjectTypeId = std::string;
+using ScriptAttachmentId = std::string;
 
 constexpr EntityId INVALID_ENTITY = 0;
 
@@ -85,9 +88,17 @@ struct LogicBlockDef {
     std::vector<LogicPropertyDef> properties;
 };
 
+// Display-only grouping header for board readability. Sections never affect
+// runtime semantics: rule execution order stays the board rule order.
+struct LogicSectionDef {
+    std::string id;    // stable id ("section-1"); name is a display label only
+    std::string name;
+};
+
 struct LogicRuleDef {
     LogicRuleId               id;
     bool                      enabled = true;
+    std::string               sectionId;  // optional LogicSectionDef.id; empty = unsectioned
     LogicBlockDef             trigger;
     std::vector<LogicBlockDef> conditions;
     std::vector<LogicBlockDef> actions;
@@ -97,6 +108,7 @@ struct LogicBoardDef {
     LogicBoardId              id;
     uint32_t                  schemaVersion = 1;
     uint32_t                  apiVersion = 2;
+    std::vector<LogicSectionDef> sections;  // display grouping; optional
     std::vector<LogicRuleDef> rules;
 };
 
@@ -382,6 +394,18 @@ struct SpriteAnimatorComponent {
     float       playbackSpeed = 1.f;
 };
 
+/** One stable, ordered reference to a manual Script Asset. */
+struct ScriptAttachmentDef {
+    ScriptAttachmentId id;
+    AssetId             scriptAssetId;
+    bool                enabled = true;
+};
+
+/** Authored only on Object Types. Scene instances never override scripts. */
+struct ScriptComponent {
+    std::vector<ScriptAttachmentDef> attachments;
+};
+
 /** Sparse per-instance delta over SpriteRendererComponent. Null means inherit. */
 struct SpriteRendererOverride {
     std::optional<AssetId> imageAssetId;
@@ -415,6 +439,7 @@ struct EntityDef {
     SpriteComponent  sprite;
     std::optional<SpriteRendererComponent> spriteRenderer;
     std::optional<SpriteAnimatorComponent> spriteAnimator;
+    std::optional<ScriptComponent> scripts;
     PhysicsComponent physics;
     std::optional<CollisionBodyComponent> collisionBody;
     AnimationState   animation;
@@ -704,6 +729,15 @@ struct FontAssetDef {
     FontGlyphPreset glyphPreset = FontGlyphPreset::European;
 };
 
+// Manual Lua source registered by the native editor. The source remains an
+// external project-relative .lua file; ProjectDoc owns metadata only. AssetId
+// is the stable identity used by future type-owned Script attachments.
+struct ScriptAssetDef {
+    AssetId     assetId;
+    std::string name;
+    std::string sourcePath;
+};
+
 enum class AnimationPlaybackMode { Loop, Once };
 
 struct SpriteAnimationFrameDef {
@@ -790,7 +824,11 @@ struct ProjectDoc {
     std::vector<ImageAssetDef>    imageAssets;   // editor assets + image points
     std::vector<SpriteAnimationAssetDef> spriteAnimationAssets;
     std::vector<AudioAssetDef>    audioAssets;   // native editor import catalog
+    // Authoring-only procedural SFX recipes. Runtime systems consume only the
+    // AudioAssetDef referenced by GeneratedSfxDef::outputAssetId.
+    std::vector<artcade::sfx::GeneratedSfxDef> generatedSfx;
     std::vector<FontAssetDef>     fontAssets;    // native editor import catalog
+    std::vector<ScriptAssetDef>   scriptAssets;  // external manual Lua source metadata
     WorldSettings                 world{};
     std::vector<GameVariableDefinition> globalVariables;
 };

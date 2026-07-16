@@ -1,5 +1,6 @@
 #include "../include/sprite-animator.h"
 
+#include <cmath>
 #include <unordered_set>
 
 namespace ArtCade::Modules {
@@ -44,11 +45,33 @@ void SpriteAnimator::pushEvent(AnimEventKind kind, EntityId entity,
 // ------------------------------------------------------------------ clip definition
 
 void SpriteAnimator::defineClip(const Clip& clip) {
-    clips_[clip.name] = clip;
+    clips_[clipKey(clip.animationAssetId, clip.name)] = clip;
 }
 
 bool SpriteAnimator::hasClip(const std::string& name) const {
     return clips_.count(name) > 0;
+}
+
+std::string SpriteAnimator::clipKey(const AssetId& animationAssetId,
+                                    const std::string& clipId) {
+    if (animationAssetId.empty()) return clipId;
+    return animationAssetId + "\x1f" + clipId;
+}
+
+const SpriteAnimator::Clip* SpriteAnimator::findClip(const std::string& key) const {
+    const auto it = clips_.find(key);
+    return it == clips_.end() ? nullptr : &it->second;
+}
+
+bool SpriteAnimator::hasClip(const AssetId& animationAssetId,
+                             const std::string& clipId) const {
+    return findClip(clipKey(animationAssetId, clipId)) != nullptr;
+}
+
+bool SpriteAnimator::isClipPlayable(const AssetId& animationAssetId,
+                                    const std::string& clipId) const {
+    const Clip* clip = findClip(clipKey(animationAssetId, clipId));
+    return clip && !clip->frames.empty() && std::isfinite(clip->fps) && clip->fps > 0.f;
 }
 
 void SpriteAnimator::clearClips() {
@@ -58,7 +81,9 @@ void SpriteAnimator::clearClips() {
 
 void SpriteAnimator::removeClipsExcept(const std::unordered_set<std::string>& keep) {
     for (auto it = clips_.begin(); it != clips_.end(); ) {
-        if (keep.count(it->first) == 0)
+        // This API belongs to the legacy image-asset hot-sync path. Current
+        // animation assets use composite keys and are reconciled separately.
+        if (it->second.animationAssetId.empty() && keep.count(it->first) == 0)
             it = clips_.erase(it);
         else
             ++it;
@@ -68,33 +93,50 @@ void SpriteAnimator::removeClipsExcept(const std::unordered_set<std::string>& ke
 // ------------------------------------------------------------------ instance control
 
 void SpriteAnimator::play(EntityId entity, const std::string& clipName, FinishCb onFinish) {
+    playByKey(entity, clipName, std::move(onFinish));
+}
+
+bool SpriteAnimator::play(EntityId entity, const AssetId& animationAssetId,
+                          const std::string& clipId, FinishCb onFinish) {
+    const std::string key = clipKey(animationAssetId, clipId);
+    if (!isClipPlayable(animationAssetId, clipId)) return false;
+    playByKey(entity, key, std::move(onFinish));
+    return true;
+}
+
+void SpriteAnimator::playByKey(EntityId entity, const std::string& key,
+                               FinishCb onFinish) {
+    const Clip* nextClip = findClip(key);
+    if (!nextClip) return;
     // Capture the previously playing clip (if any) before we overwrite the
     // instance, so we can surface a Change event on a real clip switch.
-    std::string prevClip;
+    std::string prevKey;
     auto prevIt = instances_.find(entity);
-    if (prevIt != instances_.end() && prevIt->second.state != PlayState::Stopped)
-        prevClip = prevIt->second.clipName;
+    if (prevIt != instances_.end() && prevIt->second.state != PlayState::Stopped) {
+        prevKey = prevIt->second.clipKey;
+    }
 
     // Idempotent re-play: a held-key rule fires "play(clip)" every frame. If the
     // entity is already playing that same clip, keep it advancing instead of
     // resetting to frame 0 each frame (which would freeze the animation).
     if (prevIt != instances_.end()
         && prevIt->second.state == PlayState::Playing
-        && prevIt->second.clipName == clipName) {
+        && prevIt->second.clipKey == key) {
         return;
     }
 
     AnimInstance inst;
-    inst.clipName = clipName;
+    inst.clipKey  = key;
     inst.frameIdx = 0;
     inst.elapsed  = 0.f;
+    if (prevIt != instances_.end()) inst.playbackSpeed = prevIt->second.playbackSpeed;
     inst.state    = PlayState::Playing;
     inst.onFinish = std::move(onFinish);
     instances_[entity] = std::move(inst);
 
-    pushEvent(AnimEventKind::Start, entity, clipName, 0);
-    if (!prevClip.empty() && prevClip != clipName)
-        pushEvent(AnimEventKind::Change, entity, clipName, 0);
+    pushEvent(AnimEventKind::Start, entity, nextClip->name, 0);
+    if (!prevKey.empty() && prevKey != key)
+        pushEvent(AnimEventKind::Change, entity, nextClip->name, 0);
 }
 
 void SpriteAnimator::pause(EntityId entity) {
@@ -115,11 +157,17 @@ void SpriteAnimator::stop(EntityId entity) {
         it->second.state = PlayState::Stopped;
 }
 
+bool SpriteAnimator::setPlaybackSpeed(EntityId entity, float speed) {
+    if (!std::isfinite(speed) || speed <= 0.f) return false;
+    instances_[entity].playbackSpeed = speed;
+    return true;
+}
+
 void SpriteAnimator::seekFrame(EntityId entity, int frame) {
     auto iit = instances_.find(entity);
     if (iit == instances_.end()) return;
 
-    auto cit = clips_.find(iit->second.clipName);
+    auto cit = clips_.find(iit->second.clipKey);
     if (cit == clips_.end()) return;
 
     const Clip& clip = cit->second;
@@ -136,7 +184,7 @@ void SpriteAnimator::update(float dt) {
     for (auto& [entity, inst] : instances_) {
         if (inst.state != PlayState::Playing) continue;
 
-        auto cit = clips_.find(inst.clipName);
+        auto cit = clips_.find(inst.clipKey);
         if (cit == clips_.end()) continue;
 
         const Clip& clip  = cit->second;
@@ -144,7 +192,7 @@ void SpriteAnimator::update(float dt) {
         if (count == 0) continue;
 
         float frameDur = (clip.fps > 0.f) ? 1.f / clip.fps : 1.f;
-        inst.elapsed += dt;
+        inst.elapsed += dt * inst.playbackSpeed;
 
         while (inst.elapsed >= frameDur) {
             inst.elapsed -= frameDur;
@@ -153,18 +201,18 @@ void SpriteAnimator::update(float dt) {
             if (inst.frameIdx >= count) {
                 if (clip.loop) {
                     inst.frameIdx = 0;
-                    pushEvent(AnimEventKind::Loop, entity, inst.clipName, 0);
-                    pushEvent(AnimEventKind::Frame, entity, inst.clipName, 0);
+                    pushEvent(AnimEventKind::Loop, entity, clip.name, 0);
+                    pushEvent(AnimEventKind::Frame, entity, clip.name, 0);
                 } else {
                     inst.frameIdx = count - 1;
                     inst.state    = PlayState::Stopped;
-                    finishBuffer_.push_back({ entity, inst.clipName });
+                    finishBuffer_.push_back({ entity, clip.name });
                     if (inst.onFinish)
-                        inst.onFinish(entity, inst.clipName);
+                        inst.onFinish(entity, clip.name);
                     break;
                 }
             } else {
-                pushEvent(AnimEventKind::Frame, entity, inst.clipName, inst.frameIdx);
+                pushEvent(AnimEventKind::Frame, entity, clip.name, inst.frameIdx);
             }
         }
     }
@@ -176,7 +224,7 @@ SpriteAnimator::Frame SpriteAnimator::currentFrame(EntityId entity) const {
     auto iit = instances_.find(entity);
     if (iit == instances_.end()) return {};
 
-    auto cit = clips_.find(iit->second.clipName);
+    auto cit = clips_.find(iit->second.clipKey);
     if (cit == clips_.end()) return {};
 
     const auto& frames = cit->second.frames;
@@ -203,12 +251,19 @@ std::string SpriteAnimator::clipAssetId(const std::string& clipName) const {
     return (cit != clips_.end()) ? cit->second.assetId : std::string{};
 }
 
+std::string SpriteAnimator::clipAssetId(const AssetId& animationAssetId,
+                                        const std::string& clipId) const {
+    const Clip* clip = findClip(clipKey(animationAssetId, clipId));
+    return clip ? clip->assetId : std::string{};
+}
+
 std::string SpriteAnimator::currentClipAssetId(EntityId entity) const {
     // Mirror currentFrame(): a finished non-loop clip still shows its last
     // frame, so its sheet must stay selected regardless of play state.
     auto iit = instances_.find(entity);
     if (iit == instances_.end()) return {};
-    return clipAssetId(iit->second.clipName);
+    const Clip* clip = findClip(iit->second.clipKey);
+    return clip ? clip->assetId : std::string{};
 }
 
 SpriteAnimator::Frame SpriteAnimator::firstFrameForAsset(const std::string& assetId) const {
@@ -230,7 +285,8 @@ std::string SpriteAnimator::currentClip(EntityId entity) const {
     auto it = instances_.find(entity);
     if (it == instances_.end() || it->second.state == PlayState::Stopped)
         return "";
-    return it->second.clipName;
+    const Clip* clip = findClip(it->second.clipKey);
+    return clip ? clip->name : std::string{};
 }
 
 bool SpriteAnimator::isPlaying(EntityId entity) const {
@@ -241,6 +297,11 @@ bool SpriteAnimator::isPlaying(EntityId entity) const {
 int SpriteAnimator::frameIndex(EntityId entity) const {
     auto it = instances_.find(entity);
     return (it != instances_.end()) ? it->second.frameIdx : -1;
+}
+
+float SpriteAnimator::playbackSpeed(EntityId entity) const {
+    const auto it = instances_.find(entity);
+    return it != instances_.end() ? it->second.playbackSpeed : 1.f;
 }
 
 void SpriteAnimator::removeEntity(EntityId entity) {

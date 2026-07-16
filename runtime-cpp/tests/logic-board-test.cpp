@@ -4,7 +4,10 @@
 
 #include <algorithm>
 #include <iostream>
+#include <limits>
+#include <optional>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -22,6 +25,8 @@ struct Host final : ILogicRuntimeHost {
     std::optional<ScopeToken> cancelOnVisible;
     bool failVisible = false;
     std::unordered_set<EntityId> grounded;
+    std::unordered_map<std::string, double> state;
+    bool keyDown = false;
     bool setVisible(EntityId owner, bool value) override {
         calls.push_back("visible:" + std::to_string(owner) + ":" + (value ? "1" : "0"));
         if (runtime && cancelOnVisible) runtime->cancelScope(*cancelOnVisible);
@@ -33,8 +38,82 @@ struct Host final : ILogicRuntimeHost {
                         + std::to_string(static_cast<int>(value.y)));
         return true;
     }
+    bool translate(EntityId owner, Vec2 delta) override {
+        calls.push_back("translate:" + std::to_string(owner) + ":"
+                        + std::to_string(static_cast<int>(delta.x)) + ","
+                        + std::to_string(static_cast<int>(delta.y)));
+        return true;
+    }
     bool isGrounded(EntityId owner) override {
         return grounded.count(owner) != 0;
+    }
+    bool requestPlatformerMove(EntityId owner, float axis) override {
+        calls.push_back("platformer_move:" + std::to_string(owner) + ":" + std::to_string(axis));
+        return true;
+    }
+    bool requestPlatformerJump(EntityId owner) override {
+        calls.push_back("platformer_jump:" + std::to_string(owner));
+        return true;
+    }
+    bool isObjectType(EntityId, const ObjectTypeId&) override { return false; }
+    bool requestDestroy(EntityId owner) override {
+        calls.push_back("destroy:" + std::to_string(owner));
+        return true;
+    }
+    bool playAnimationClip(EntityId owner, const AssetId& animationAssetId,
+                           const std::string& clipId) override {
+        calls.push_back("play_clip:" + std::to_string(owner) + ":" + animationAssetId + ":" + clipId);
+        return true;
+    }
+    bool stopAnimation(EntityId owner) override {
+        calls.push_back("stop_animation:" + std::to_string(owner));
+        return true;
+    }
+    bool setAnimationPlaybackSpeed(EntityId owner, float speed) override {
+        calls.push_back("animation_speed:" + std::to_string(owner) + ":" + std::to_string(speed));
+        return true;
+    }
+    bool playSound(EntityId owner, const AssetId& audioAssetId, float volume) override {
+        calls.push_back("play_sound:" + std::to_string(owner) + ":" + audioAssetId + ":"
+                       + std::to_string(volume));
+        return true;
+    }
+    bool setStateNumber(const std::string& key, double value) override {
+        state[key] = value;
+        calls.push_back("state_set:" + key + ":" + std::to_string(static_cast<int>(value)));
+        return true;
+    }
+    bool addStateNumber(const std::string& key, double delta) override {
+        state[key] = (state.count(key) ? state[key] : 0.0) + delta;
+        calls.push_back("state_add:" + key + ":" + std::to_string(static_cast<int>(delta)));
+        return true;
+    }
+    double getStateNumber(const std::string& key, double defaultValue = 0.0) override {
+        const auto it = state.find(key);
+        return it == state.end() ? defaultValue : it->second;
+    }
+    bool setVelocity(EntityId owner, Vec2 velocity) override {
+        calls.push_back("velocity:" + std::to_string(owner) + ":"
+                        + std::to_string(static_cast<int>(velocity.x)) + ","
+                        + std::to_string(static_cast<int>(velocity.y)));
+        return true;
+    }
+    bool isKeyDown(LogicKey) override { return keyDown; }
+    EntityId nextSpawnId = 99;
+    bool failSpawn = false;
+    std::vector<EntityId> destroyedSpawns;
+    EntityId spawnObjectType(EntityId owner, const ObjectTypeId& objectTypeId,
+                             float x, float y) override {
+        calls.push_back("spawn:" + std::to_string(owner) + ":" + objectTypeId + ":"
+                        + std::to_string(static_cast<int>(x)) + ","
+                        + std::to_string(static_cast<int>(y)));
+        if (failSpawn) {
+            // Mirrors RuntimeLogicHostAdapter: install failure → no id returned.
+            destroyedSpawns.push_back(nextSpawnId);
+            calls.push_back("spawn_rollback:" + std::to_string(nextSpawnId));
+            return INVALID_ENTITY;
+        }
+        return nextSpawnId;
     }
 };
 
@@ -329,12 +408,443 @@ static void testIsGroundedCondition() {
     }
 }
 
+static void testPlaySoundAction() {
+    // Registry: Play Sound exists, is an Action, category=audio, volume default=1.
+    const LogicBlockDescriptor* descriptor = findDescriptor(kAudioPlaySound);
+    CHECK(descriptor != nullptr);
+    if (descriptor) {
+        CHECK(descriptor->kind == BlockKind::Action);
+        CHECK(descriptor->categoryId == "audio");
+        CHECK(descriptor->requiredFeature == "audio.play_sound");
+        const auto volumeIt = std::find_if(descriptor->properties.begin(), descriptor->properties.end(),
+            [](const LogicPropertyDescriptor& p) { return p.key == "volume"; });
+        CHECK(volumeIt != descriptor->properties.end());
+        CHECK(volumeIt != descriptor->properties.end() && std::get<double>(volumeIt->defaultValue) == 1.0);
+    }
+
+    LogicBlockDef action = makeDefaultBlock(kAudioPlaySound, BlockKind::Action);
+    CHECK(action.typeId == kAudioPlaySound);
+
+    ProjectDoc project;
+    AudioAssetDef staticAsset;
+    staticAsset.assetId = "jump.wav";
+    staticAsset.sourcePath = "audio/jump.wav";
+    staticAsset.loadMode = AudioLoadMode::StaticSound;
+    project.audioAssets.push_back(staticAsset);
+    AudioAssetDef streamAsset;
+    streamAsset.assetId = "theme.ogg";
+    streamAsset.sourcePath = "audio/theme.ogg";
+    streamAsset.loadMode = AudioLoadMode::Stream;
+    project.audioAssets.push_back(streamAsset);
+
+    const auto makeBoardWith = [](const std::string& assetId, double volume) {
+        LogicBoardDef board;
+        board.id = "logic:Audio";
+        LogicRuleDef rule = makeDefaultRule("rule-1");
+        LogicBlockDef play = makeDefaultBlock(kAudioPlaySound, BlockKind::Action);
+        for (LogicPropertyDef& p : play.properties) {
+            if (p.key == "audioAssetId") p.value = LogicAssetReference{assetId};
+            else if (p.key == "volume") p.value = volume;
+        }
+        rule.actions = {play};
+        board.rules.push_back(rule);
+        return board;
+    };
+    const auto hasDiagnostic = [](const std::vector<LogicDiagnostic>& diagnostics, const char* code) {
+        return std::any_of(diagnostics.begin(), diagnostics.end(),
+            [&](const LogicDiagnostic& d) { return d.code == code; });
+    };
+
+    // Empty is a first-class authoring draft, not a missing non-empty ID.
+    // The same core policy remains strict for compiler/Play/export.
+    {
+        const LogicBoardDef draft = makeBoardWith("", 1.0);
+        const auto authoring = validateBoard(
+            "Hero", draft, nullptr, &project, ValidationMode::Authoring);
+        CHECK(hasDiagnostic(authoring, "LB_AUDIO_ASSET_REFERENCE"));
+        CHECK(std::none_of(authoring.begin(), authoring.end(),
+            [](const LogicDiagnostic& diagnostic) {
+                return diagnostic.severity == DiagnosticSeverity::Error;
+            }));
+        const auto executable = validateBoard(
+            "Hero", draft, nullptr, &project, ValidationMode::Executable);
+        CHECK(std::any_of(executable.begin(), executable.end(),
+            [](const LogicDiagnostic& diagnostic) {
+                return diagnostic.code == "LB_AUDIO_ASSET_REFERENCE"
+                    && diagnostic.severity == DiagnosticSeverity::Error;
+            }));
+        CHECK(!compileBoard("Hero", draft, nullptr, &project).ok());
+    }
+    // Valid: existing StaticSound asset, volume in range.
+    {
+        const LogicBoardDef board = makeBoardWith("jump.wav", 0.8);
+        CHECK(validateBoard("Hero", board, nullptr, &project).empty());
+        LogicCompileResult compiled = compileBoard("Hero", board, nullptr, &project);
+        CHECK(compiled.ok());
+        CHECK(compiled.programs[0].source.find("play_sound(\"jump.wav\", 0.8)") != std::string::npos);
+        const auto& features = compiled.programs[0].requiredFeatures;
+        CHECK(std::find(features.begin(), features.end(), "audio.play_sound") != features.end());
+    }
+
+    // Missing asset.
+    CHECK(hasDiagnostic(validateBoard("Hero", makeBoardWith("does-not-exist", 1.0), nullptr, &project),
+                       "LB_AUDIO_ASSET_REFERENCE"));
+
+    // Stream asset rejected — Play Sound requires StaticSound.
+    CHECK(hasDiagnostic(validateBoard("Hero", makeBoardWith("theme.ogg", 1.0), nullptr, &project),
+                       "LB_AUDIO_REQUIRES_STATIC"));
+
+    // Volume out of range (both directions) and non-finite.
+    CHECK(hasDiagnostic(validateBoard("Hero", makeBoardWith("jump.wav", 1.5), nullptr, &project),
+                       "LB_AUDIO_VOLUME_RANGE"));
+    CHECK(hasDiagnostic(validateBoard("Hero", makeBoardWith("jump.wav", -0.1), nullptr, &project),
+                       "LB_AUDIO_VOLUME_RANGE"));
+    CHECK(hasDiagnostic(
+        validateBoard("Hero", makeBoardWith("jump.wav", std::numeric_limits<double>::quiet_NaN()),
+                     nullptr, &project),
+        "LB_NON_FINITE"));
+
+    // Logic-runtime Lua binding: dispatches host.playSound exactly once.
+    {
+        LogicCompileResult compiled =
+            compileBoard("Hero", makeBoardWith("jump.wav", 0.8), nullptr, &project);
+        CHECK(compiled.ok());
+        Host host;
+        LogicRuntime runtime(host);
+        std::string error;
+        CHECK(runtime.loadPrograms(compiled.programs, &error));
+        CHECK(runtime.install("Hero", 1, &error).has_value());
+        runtime.beginFrame();
+        runtime.dispatchStart();
+        const auto playSoundCalls = std::count_if(host.calls.begin(), host.calls.end(),
+            [](const std::string& call) { return call.rfind("play_sound:", 0) == 0; });
+        CHECK(playSoundCalls == 1);
+        CHECK(!host.calls.empty() && host.calls.back().rfind("play_sound:1:jump.wav:", 0) == 0);
+    }
+
+    // Compatibility: a runtime that predates audio.play_sound rejects the
+    // program up front rather than dispatching to a nonexistent Lua method.
+    {
+        Host host;
+        LogicRuntime runtime(host);
+        LogicProgram program = customProgram("Hero", " context:on_start('r', function() end)");
+        program.requiredFeatures = {"audio.play_sound_v2_future"};
+        std::string error;
+        CHECK(!runtime.loadPrograms({program}, &error));
+        CHECK(!error.empty());
+    }
+}
+
+static void testCombinedGameplaySmoke() {
+    ProjectDoc project;
+    EntityDef hero;
+    hero.className = "Hero";
+    hero.platformerController = PlatformerControllerComponent{};
+    hero.spriteRenderer = SpriteRendererComponent{{}, "hero-animation", true};
+    hero.spriteAnimator = SpriteAnimatorComponent{"jump", true, 1.f};
+
+    LogicBoardDef board;
+    board.id = "logic:Hero";
+    LogicRuleDef rule = makeDefaultRule("jump-feedback");
+    rule.trigger = makeDefaultBlock(kKeyPressed, BlockKind::Trigger);
+    for (LogicPropertyDef& property : rule.trigger.properties) {
+        if (property.key == "key") property.value = LogicKey::Space;
+    }
+    rule.conditions = {makeDefaultBlock(kIsGrounded, BlockKind::Condition)};
+    LogicBlockDef playClip = makeDefaultBlock(kAnimationPlayClip, BlockKind::Action);
+    for (LogicPropertyDef& property : playClip.properties) {
+        if (property.key == "animationAssetId")
+            property.value = LogicAssetReference{"hero-animation"};
+        else if (property.key == "clipId")
+            property.value = LogicStringValue{"jump"};
+    }
+    LogicBlockDef playSound = makeDefaultBlock(kAudioPlaySound, BlockKind::Action);
+    for (LogicPropertyDef& property : playSound.properties) {
+        if (property.key == "audioAssetId")
+            property.value = LogicAssetReference{"jump-sound"};
+        else if (property.key == "volume") property.value = 0.8;
+    }
+    rule.actions = {
+        makeDefaultBlock(kJump, BlockKind::Action),
+        std::move(playClip),
+        std::move(playSound),
+    };
+    board.rules = {rule};
+    hero.logicBoard = board;
+    project.objectTypes.emplace("Hero", hero);
+
+    SpriteAnimationAssetDef animation;
+    animation.id = "hero-animation";
+    SpriteAnimationClipDef clip;
+    clip.id = "jump";
+    clip.name = "Jump";
+    clip.imageId = "hero-sheet";
+    clip.frames = {{0, 0, 16, 16}};
+    animation.clips.push_back(clip);
+    project.spriteAnimationAssets.push_back(animation);
+    project.audioAssets.push_back(
+        AudioAssetDef{"jump-sound", "Jump", "audio/jump.wav", AudioLoadMode::StaticSound});
+
+    LogicCompileResult compiled = compileProjectLogic(project);
+    CHECK(compiled.ok());
+    Host host;
+    host.grounded.insert(42);
+    LogicRuntime runtime(host);
+    std::string error;
+    CHECK(runtime.loadPrograms(compiled.programs, &error));
+    CHECK(runtime.install("Hero", 42, &error).has_value());
+    runtime.beginFrame();
+    runtime.dispatchKeyPressed(LogicKey::Space);
+    CHECK(host.calls.size() == 3);
+    CHECK(host.calls.size() > 0 && host.calls[0] == "platformer_jump:42");
+    CHECK(host.calls.size() > 1
+        && host.calls[1] == "play_clip:42:hero-animation:jump");
+    CHECK(host.calls.size() > 2
+        && host.calls[2].rfind("play_sound:42:jump-sound:", 0) == 0);
+}
+
+static void testP1EverySecondsAndTick() {
+    LogicBoardDef board;
+    board.id = "logic:Timer";
+    LogicRuleDef rule = makeDefaultRule("every");
+    rule.trigger = makeDefaultBlock(kEverySeconds, BlockKind::Trigger);
+    for (LogicPropertyDef& p : rule.trigger.properties) {
+        if (p.key == "seconds") p.value = 0.5;
+    }
+    rule.actions[0] = {kSetPosition,
+        {{"target", LogicEntityReference{}}, {"position", Vec2{1.f, 2.f}}}};
+    board.rules.push_back(rule);
+
+    LogicCompileResult compiled = compileBoard("Timer", board);
+    CHECK(compiled.ok());
+    CHECK(compiled.programs[0].requiresTick);
+    CHECK(compiled.programs[0].source.find("on_every_seconds") != std::string::npos);
+
+    Host host;
+    LogicRuntime runtime(host);
+    std::string error;
+    CHECK(runtime.loadPrograms(compiled.programs, &error));
+    CHECK(runtime.requiresTick());
+    CHECK(runtime.install("Timer", 7, &error).has_value());
+    runtime.beginFrame();
+    runtime.dispatchTick(0.25f);
+    CHECK(host.calls.empty());
+    runtime.dispatchTick(0.30f);
+    CHECK(host.calls.size() == 1);
+    CHECK(host.calls[0] == "position:7:1,2");
+}
+
+static void testP1StateAndWaitAndVelocity() {
+    {
+        LogicBoardDef board;
+        board.id = "logic:State";
+        LogicRuleDef rule = makeDefaultRule("state");
+        LogicBlockDef set = makeDefaultBlock(kStateSet, BlockKind::Action);
+        for (LogicPropertyDef& p : set.properties) {
+            if (p.key == "key") p.value = LogicStringValue{"score"};
+            else if (p.key == "value") p.value = 10.0;
+        }
+        LogicBlockDef add = makeDefaultBlock(kStateAdd, BlockKind::Action);
+        for (LogicPropertyDef& p : add.properties) {
+            if (p.key == "key") p.value = LogicStringValue{"score"};
+            else if (p.key == "amount") p.value = 3.0;
+        }
+        LogicBlockDef sub = makeDefaultBlock(kStateSubtract, BlockKind::Action);
+        for (LogicPropertyDef& p : sub.properties) {
+            if (p.key == "key") p.value = LogicStringValue{"score"};
+            else if (p.key == "amount") p.value = 1.0;
+        }
+        rule.actions = {set, add, sub};
+        board.rules.push_back(rule);
+
+        LogicCompileResult compiled = compileBoard("State", board);
+        CHECK(compiled.ok());
+        Host host;
+        LogicRuntime runtime(host);
+        std::string error;
+        CHECK(runtime.loadPrograms(compiled.programs, &error));
+        CHECK(runtime.install("State", 1, &error).has_value());
+        runtime.beginFrame();
+        runtime.dispatchStart();
+        CHECK(host.state["score"] == 12.0);
+        CHECK(std::count_if(host.calls.begin(), host.calls.end(),
+            [](const std::string& c) { return c.rfind("state_", 0) == 0; }) == 3);
+    }
+    {
+        LogicBoardDef board;
+        board.id = "logic:Compare";
+        LogicRuleDef rule = makeDefaultRule("cmp");
+        rule.trigger = {kKeyPressed, {{"key", LogicKey::Space}}};
+        LogicBlockDef cond = makeDefaultBlock(kStateCompare, BlockKind::Condition);
+        for (LogicPropertyDef& p : cond.properties) {
+            if (p.key == "key") p.value = LogicStringValue{"score"};
+            else if (p.key == "op") p.value = LogicStringValue{">="};
+            else if (p.key == "value") p.value = 5.0;
+        }
+        rule.conditions = {cond};
+        rule.actions[0] = {kSetVisible,
+            {{"target", LogicEntityReference{}}, {"visible", false}}};
+        board.rules.push_back(rule);
+
+        LogicCompileResult compiled = compileBoard("Compare", board);
+        CHECK(compiled.ok());
+        Host host;
+        host.state["score"] = 4.0;
+        LogicRuntime runtime(host);
+        std::string error;
+        CHECK(runtime.loadPrograms(compiled.programs, &error));
+        CHECK(runtime.install("Compare", 1, &error).has_value());
+        runtime.beginFrame();
+        runtime.dispatchKeyPressed(LogicKey::Space);
+        CHECK(host.calls.empty());
+        host.state["score"] = 5.0;
+        runtime.beginFrame();
+        runtime.dispatchKeyPressed(LogicKey::Space);
+        CHECK(host.calls.size() == 1);
+    }
+    {
+        LogicBoardDef board;
+        board.id = "logic:Wait";
+        LogicRuleDef rule = makeDefaultRule("wait");
+        LogicBlockDef wait = makeDefaultBlock(kWait, BlockKind::Action);
+        for (LogicPropertyDef& p : wait.properties) {
+            if (p.key == "seconds") p.value = 0.4;
+        }
+        LogicBlockDef pos = {kSetPosition,
+            {{"target", LogicEntityReference{}}, {"position", Vec2{9.f, 8.f}}}};
+        rule.actions = {wait, pos};
+        board.rules.push_back(rule);
+
+        LogicCompileResult compiled = compileBoard("Wait", board);
+        CHECK(compiled.ok());
+        CHECK(compiled.programs[0].requiresTick);
+        Host host;
+        LogicRuntime runtime(host);
+        std::string error;
+        CHECK(runtime.loadPrograms(compiled.programs, &error));
+        CHECK(runtime.install("Wait", 3, &error).has_value());
+        runtime.beginFrame();
+        runtime.dispatchStart();
+        CHECK(host.calls.empty());
+        runtime.dispatchTick(0.2f);
+        CHECK(host.calls.empty());
+        runtime.dispatchTick(0.3f);
+        CHECK(host.calls.size() == 1);
+        CHECK(host.calls[0] == "position:3:9,8");
+    }
+    {
+        LogicBoardDef board;
+        board.id = "logic:Vel";
+        LogicRuleDef rule = makeDefaultRule("vel");
+        LogicBlockDef vel = makeDefaultBlock(kSetVelocity, BlockKind::Action);
+        for (LogicPropertyDef& p : vel.properties) {
+            if (p.key == "velocity") p.value = Vec2{5.f, -3.f};
+        }
+        rule.actions = {vel};
+        board.rules.push_back(rule);
+
+        LogicCompileResult compiled = compileBoard("Vel", board);
+        CHECK(compiled.ok());
+        Host host;
+        LogicRuntime runtime(host);
+        std::string error;
+        CHECK(runtime.loadPrograms(compiled.programs, &error));
+        CHECK(runtime.install("Vel", 4, &error).has_value());
+        runtime.beginFrame();
+        runtime.dispatchStart();
+        CHECK(host.calls.size() == 1);
+        CHECK(host.calls[0] == "velocity:4:5,-3");
+    }
+}
+
+static void testP1KeyDownCondition() {
+    LogicBoardDef board;
+    board.id = "logic:KeyDown";
+    LogicRuleDef rule = makeDefaultRule("held-gate");
+    rule.trigger = {kKeyPressed, {{"key", LogicKey::Space}}};
+    LogicBlockDef cond = makeDefaultBlock(kKeyDown, BlockKind::Condition);
+    for (LogicPropertyDef& p : cond.properties) {
+        if (p.key == "key") p.value = LogicKey::A;
+    }
+    rule.conditions = {cond};
+    rule.actions[0] = {kSetVisible,
+        {{"target", LogicEntityReference{}}, {"visible", false}}};
+    board.rules.push_back(rule);
+
+    LogicCompileResult compiled = compileBoard("KeyDown", board);
+    CHECK(compiled.ok());
+    CHECK(compiled.programs[0].source.find("is_key_down(\"A\")") != std::string::npos);
+
+    Host host;
+    LogicRuntime runtime(host);
+    std::string error;
+    CHECK(runtime.loadPrograms(compiled.programs, &error));
+    CHECK(runtime.install("KeyDown", 1, &error).has_value());
+    runtime.beginFrame();
+    runtime.dispatchKeyPressed(LogicKey::Space);
+    CHECK(host.calls.empty());
+    host.keyDown = true;
+    runtime.beginFrame();
+    runtime.dispatchKeyPressed(LogicKey::Space);
+    CHECK(host.calls.size() == 1);
+}
+
+static void testP1SpawnInstallFailure() {
+    LogicBoardDef board;
+    board.id = "logic:SpawnFail";
+    LogicRuleDef rule = makeDefaultRule("spawn");
+    LogicBlockDef spawn = makeDefaultBlock(kSpawnObject, BlockKind::Action);
+    for (LogicPropertyDef& p : spawn.properties) {
+        if (p.key == "objectTypeId") p.value = LogicStringValue{"Coin"};
+        else if (p.key == "position") p.value = Vec2{10.f, 20.f};
+    }
+    rule.actions = {spawn};
+    board.rules.push_back(rule);
+
+    ProjectDoc project;
+    EntityDef coin;
+    coin.name = "Coin";
+    project.objectTypes["Coin"] = coin;
+    EntityDef hero;
+    hero.name = "Hero";
+    project.objectTypes["Hero"] = hero;
+
+    LogicCompileResult compiled = compileBoard("Hero", board, &hero, &project);
+    CHECK(compiled.ok());
+    CHECK(compiled.programs[0].source.find("spawn(\"Coin\"") != std::string::npos);
+
+    Host host;
+    host.failSpawn = true;
+    host.nextSpawnId = 77;
+    LogicRuntime runtime(host);
+    std::string error;
+    CHECK(runtime.loadPrograms(compiled.programs, &error));
+    const auto scope = runtime.install("Hero", 1, &error);
+    CHECK(scope.has_value());
+    runtime.beginFrame();
+    runtime.dispatchStart();
+    // Spawn must fail closed: no successful entity id, rollback recorded, rule disabled.
+    CHECK(host.destroyedSpawns.size() == 1);
+    CHECK(host.destroyedSpawns[0] == 77);
+    CHECK(std::any_of(host.calls.begin(), host.calls.end(),
+        [](const std::string& c) { return c.rfind("spawn:", 0) == 0; }));
+    CHECK(std::any_of(host.calls.begin(), host.calls.end(),
+        [](const std::string& c) { return c == "spawn_rollback:77"; }));
+    CHECK(!runtime.diagnostics().empty());
+}
+
 int main() {
     testCompilerAndJson();
     testRuntime();
     testStrictSandboxAndBudget();
     testLimitsSnapshotAndIsolation();
     testIsGroundedCondition();
+    testPlaySoundAction();
+    testCombinedGameplaySmoke();
+    testP1EverySecondsAndTick();
+    testP1StateAndWaitAndVelocity();
+    testP1KeyDownCondition();
+    testP1SpawnInstallFailure();
     std::cout << passed << " passed, " << failed << " failed\n";
     return failed == 0 ? 0 : 1;
 }
