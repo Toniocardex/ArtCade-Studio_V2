@@ -216,6 +216,21 @@ double EditorSession::selectedX() const
     return m_selectedX;
 }
 
+double EditorSession::selectedScaleX() const
+{
+    return m_selectedScaleX;
+}
+
+double EditorSession::selectedScaleY() const
+{
+    return m_selectedScaleY;
+}
+
+double EditorSession::selectedRotationDeg() const
+{
+    return m_selectedRotationDeg;
+}
+
 double EditorSession::selectedY() const
 {
     return m_selectedY;
@@ -244,6 +259,11 @@ int EditorSession::logicRuleCount() const
 QVariantList EditorSession::logicRules() const
 {
     return m_logicRules;
+}
+
+QVariantList EditorSession::logicSections() const
+{
+    return m_logicSections;
 }
 
 QString EditorSession::selectedLogicRuleId() const
@@ -526,11 +546,15 @@ void EditorSession::refreshSelectionCache()
     m_selectedName.clear();
     m_selectedX = 0.0;
     m_selectedY = 0.0;
+    m_selectedScaleX = 1.0;
+    m_selectedScaleY = 1.0;
+    m_selectedRotationDeg = 0.0;
     m_selectedObjectTypeId.clear();
     m_selectedObjectTypeName.clear();
     m_logicRuleCount = 0;
     m_logicRuleIds.clear();
     m_logicRules.clear();
+    m_logicSections.clear();
     m_selectedLogicRuleId.clear();
     const auto id = m_coordinator->selectedEntityId();
     if (id != 0) {
@@ -539,6 +563,10 @@ void EditorSession::refreshSelectionCache()
             m_selectedName = QString::fromStdString(inst->instanceName);
             m_selectedX = inst->transform.position.x;
             m_selectedY = inst->transform.position.y;
+            m_selectedScaleX = inst->transform.scale.x;
+            m_selectedScaleY = inst->transform.scale.y;
+            m_selectedRotationDeg =
+                static_cast<double>(inst->transform.rotation) * (180.0 / 3.14159265358979323846);
             m_selectedObjectTypeId = QString::fromStdString(inst->objectTypeId);
             if (!inst->objectTypeId.empty()) {
                 const auto typeIt = doc.objectTypes.find(inst->objectTypeId);
@@ -548,6 +576,13 @@ void EditorSession::refreshSelectionCache()
                         type.name.empty() ? inst->objectTypeId : type.name;
                     m_selectedObjectTypeName = QString::fromStdString(label);
                     if (type.logicBoard) {
+                        for (const ArtCade::LogicSectionDef &section :
+                             type.logicBoard->sections) {
+                            m_logicSections.append(QVariantMap{
+                                {QStringLiteral("id"), QString::fromStdString(section.id)},
+                                {QStringLiteral("name"), QString::fromStdString(section.name)},
+                            });
+                        }
                         m_logicRuleCount = static_cast<int>(type.logicBoard->rules.size());
                         for (const ArtCade::LogicRuleDef &rule : type.logicBoard->rules) {
                             m_logicRuleIds.append(QString::fromStdString(rule.id));
@@ -570,6 +605,8 @@ void EditorSession::refreshSelectionCache()
                             m_logicRules.append(QVariantMap{
                                 {QStringLiteral("id"), QString::fromStdString(rule.id)},
                                 {QStringLiteral("enabled"), rule.enabled},
+                                {QStringLiteral("sectionId"),
+                                 QString::fromStdString(rule.sectionId)},
                                 {QStringLiteral("triggerTypeId"),
                                  QString::fromStdString(rule.trigger.typeId)},
                                 {QStringLiteral("conditionTypeIds"), condition_ids},
@@ -593,6 +630,7 @@ void EditorSession::refreshSelectionCache()
         m_selectedLogicRuleId = m_logicRuleIds.first();
     }
     emit selectionChanged();
+    emit selectedTransformChanged();
     emit logicRulesChanged();
     emit selectedLogicRuleChanged();
 }
@@ -742,7 +780,7 @@ void EditorSession::commitRename(const QString &newName)
     setStatus(QStringLiteral("Renamed"));
 }
 
-void EditorSession::commitPosition(double x, double y)
+void EditorSession::commitPosition(quint32 entityId, double x, double y)
 {
     QString guard_error;
     if (!guardAuthoring(&guard_error)) {
@@ -750,18 +788,98 @@ void EditorSession::commitPosition(double x, double y)
         emit errorOccurred(guard_error);
         return;
     }
-    if (qFuzzyCompare(static_cast<float>(x), static_cast<float>(m_selectedX))
-        && qFuzzyCompare(static_cast<float>(y), static_cast<float>(m_selectedY))) {
+    if (entityId == 0 || entityId != selectedEntityId()) {
+        refreshSelectionCache();
         return;
     }
     std::string error;
-    if (!m_coordinator->setSelectedPosition(static_cast<float>(x), static_cast<float>(y), error)) {
+    if (!m_coordinator->setEntityPosition(entityId, static_cast<float>(x), static_cast<float>(y),
+                                          error)) {
         setStatus(QString::fromStdString(error));
+        emit errorOccurred(QString::fromStdString(error));
         return;
     }
     refreshSelectionCache();
     emit dirtyChanged();
     setStatus(QStringLiteral("Position updated"));
+}
+
+void EditorSession::commitScale(quint32 entityId, double scaleX, double scaleY)
+{
+    QString guard_error;
+    if (!guardAuthoring(&guard_error)) {
+        setStatus(guard_error, false);
+        emit errorOccurred(guard_error);
+        return;
+    }
+    if (entityId == 0 || entityId != selectedEntityId()) {
+        refreshSelectionCache();
+        return;
+    }
+    ArtCade::SceneId scene_id;
+    const ArtCade::SceneInstanceDef *inst = nullptr;
+    if (!ArtCade::EditorCore::project_doc_locate_instance(m_coordinator->document(),
+                                                          entityId,
+                                                          scene_id,
+                                                          inst)
+        || !inst) {
+        const QString msg = QStringLiteral("Entity not found");
+        setStatus(msg, false);
+        emit errorOccurred(msg);
+        return;
+    }
+    std::string error;
+    if (!m_coordinator->setEntityScale(scene_id,
+                                       entityId,
+                                       static_cast<float>(scaleX),
+                                       static_cast<float>(scaleY),
+                                       error)) {
+        setStatus(QString::fromStdString(error));
+        emit errorOccurred(QString::fromStdString(error));
+        refreshSelectionCache();
+        return;
+    }
+    refreshSelectionCache();
+    emit dirtyChanged();
+    setStatus(QStringLiteral("Scale updated"));
+}
+
+void EditorSession::commitRotation(quint32 entityId, double degrees)
+{
+    QString guard_error;
+    if (!guardAuthoring(&guard_error)) {
+        setStatus(guard_error, false);
+        emit errorOccurred(guard_error);
+        return;
+    }
+    if (entityId == 0 || entityId != selectedEntityId()) {
+        refreshSelectionCache();
+        return;
+    }
+    ArtCade::SceneId scene_id;
+    const ArtCade::SceneInstanceDef *inst = nullptr;
+    if (!ArtCade::EditorCore::project_doc_locate_instance(m_coordinator->document(),
+                                                          entityId,
+                                                          scene_id,
+                                                          inst)
+        || !inst) {
+        const QString msg = QStringLiteral("Entity not found");
+        setStatus(msg, false);
+        emit errorOccurred(msg);
+        return;
+    }
+    const float radians =
+        static_cast<float>(degrees * (3.14159265358979323846 / 180.0));
+    std::string error;
+    if (!m_coordinator->setEntityRotation(scene_id, entityId, radians, error)) {
+        setStatus(QString::fromStdString(error));
+        emit errorOccurred(QString::fromStdString(error));
+        refreshSelectionCache();
+        return;
+    }
+    refreshSelectionCache();
+    emit dirtyChanged();
+    setStatus(QStringLiteral("Rotation updated"));
 }
 
 void EditorSession::setActiveLayer(const QString &layerId)
@@ -1031,6 +1149,117 @@ void EditorSession::setLogicRuleEnabled(const QString &ruleId, bool enabled)
                       : QStringLiteral("Disabled Logic rule %1").arg(ruleId));
 }
 
+void EditorSession::addLogicSection()
+{
+    QString guard_error;
+    if (!guardAuthoring(&guard_error)) {
+        setStatus(guard_error, false);
+        emit errorOccurred(guard_error);
+        return;
+    }
+    if (m_selectedObjectTypeId.isEmpty()) {
+        const QString msg = QStringLiteral("Select an object to add a section to its board");
+        setStatus(msg, false);
+        emit errorOccurred(msg);
+        return;
+    }
+    std::string error;
+    std::string section_id;
+    if (!m_coordinator->addLogicSection(
+            m_selectedObjectTypeId.toStdString(), std::string{}, section_id, error)) {
+        setStatus(QString::fromStdString(error));
+        emit errorOccurred(QString::fromStdString(error));
+        return;
+    }
+    refreshSelectionCache();
+    emit dirtyChanged();
+    setStatus(QStringLiteral("Added section %1").arg(QString::fromStdString(section_id)));
+}
+
+void EditorSession::renameLogicSection(const QString &sectionId, const QString &name)
+{
+    QString guard_error;
+    if (!guardAuthoring(&guard_error)) {
+        setStatus(guard_error, false);
+        emit errorOccurred(guard_error);
+        return;
+    }
+    if (m_selectedObjectTypeId.isEmpty() || sectionId.isEmpty()) {
+        const QString msg = QStringLiteral("Select a section to rename");
+        setStatus(msg, false);
+        emit errorOccurred(msg);
+        return;
+    }
+    std::string error;
+    if (!m_coordinator->renameLogicSection(m_selectedObjectTypeId.toStdString(),
+                                           sectionId.toStdString(),
+                                           name.toStdString(),
+                                           error)) {
+        setStatus(QString::fromStdString(error));
+        emit errorOccurred(QString::fromStdString(error));
+        return;
+    }
+    refreshSelectionCache();
+    emit dirtyChanged();
+    setStatus(QStringLiteral("Renamed section to %1").arg(name.trimmed()));
+}
+
+void EditorSession::removeLogicSection(const QString &sectionId)
+{
+    QString guard_error;
+    if (!guardAuthoring(&guard_error)) {
+        setStatus(guard_error, false);
+        emit errorOccurred(guard_error);
+        return;
+    }
+    if (m_selectedObjectTypeId.isEmpty() || sectionId.isEmpty()) {
+        const QString msg = QStringLiteral("Select a section to remove");
+        setStatus(msg, false);
+        emit errorOccurred(msg);
+        return;
+    }
+    std::string error;
+    if (!m_coordinator->removeLogicSection(
+            m_selectedObjectTypeId.toStdString(), sectionId.toStdString(), error)) {
+        setStatus(QString::fromStdString(error));
+        emit errorOccurred(QString::fromStdString(error));
+        return;
+    }
+    refreshSelectionCache();
+    emit dirtyChanged();
+    setStatus(QStringLiteral("Removed section %1 (rules kept)").arg(sectionId));
+}
+
+void EditorSession::setLogicRuleSection(const QString &ruleId, const QString &sectionId)
+{
+    QString guard_error;
+    if (!guardAuthoring(&guard_error)) {
+        setStatus(guard_error, false);
+        emit errorOccurred(guard_error);
+        return;
+    }
+    if (m_selectedObjectTypeId.isEmpty() || ruleId.isEmpty()) {
+        const QString msg = QStringLiteral("Select a Logic rule to move it into a section");
+        setStatus(msg, false);
+        emit errorOccurred(msg);
+        return;
+    }
+    std::string error;
+    if (!m_coordinator->setLogicRuleSection(m_selectedObjectTypeId.toStdString(),
+                                            ruleId.toStdString(),
+                                            sectionId.toStdString(),
+                                            error)) {
+        setStatus(QString::fromStdString(error));
+        emit errorOccurred(QString::fromStdString(error));
+        return;
+    }
+    refreshSelectionCache();
+    emit dirtyChanged();
+    setStatus(sectionId.isEmpty()
+                  ? QStringLiteral("Rule %1 unsectioned").arg(ruleId)
+                  : QStringLiteral("Rule %1 moved to section").arg(ruleId));
+}
+
 quint32 EditorSession::pickEntityAt(double worldX, double worldY)
 {
     return m_coordinator->pickEntityAt(static_cast<float>(worldX), static_cast<float>(worldY));
@@ -1152,6 +1381,7 @@ void EditorSession::paintSceneView(QPainter *painter, const SceneViewItem *view)
 
     const quint32 selected = m_coordinator->selectedEntityId();
     const float extent = ArtCade::EditorCore::EditorCoordinator::kSceneViewPlaceholderExtent;
+    // Visual: scale then rotate about placeholder center. Pick stays AABB (no OBB).
 
     for (const ArtCade::SceneInstanceDef &inst : scene.instances) {
         if (!inst.visible) {
@@ -1169,9 +1399,16 @@ void EditorSession::paintSceneView(QPainter *painter, const SceneViewItem *view)
         const qreal w = extent * inst.transform.scale.x * view->zoom();
         const qreal h = extent * inst.transform.scale.y * view->zoom();
         const QPointF screen = view->worldToScreen(pos);
-        const QRectF box(screen.x(), screen.y(), w, h);
+        const qreal center_x = screen.x() + w * 0.5;
+        const qreal center_y = screen.y() + h * 0.5;
+        const qreal degrees =
+            static_cast<qreal>(inst.transform.rotation) * (180.0 / 3.14159265358979323846);
 
         const bool is_selected = inst.id == selected;
+        painter->save();
+        painter->translate(center_x, center_y);
+        painter->rotate(degrees);
+        const QRectF box(-w * 0.5, -h * 0.5, w, h);
         painter->fillRect(box, instance_fill(inst.id, is_selected));
         painter->setPen(QPen(is_selected ? QColor(0x4f, 0x8e, 0xe8) : QColor(0xd9, 0xdd, 0xe5),
                              is_selected ? 2 : 1));
@@ -1182,6 +1419,7 @@ void EditorSession::paintSceneView(QPainter *painter, const SceneViewItem *view)
             : QString::fromStdString(inst.instanceName);
         painter->setPen(QColor(0xd9, 0xdd, 0xe5));
         painter->drawText(box.adjusted(4, 2, -2, -2), Qt::AlignLeft | Qt::AlignTop, label);
+        painter->restore();
     }
 }
 

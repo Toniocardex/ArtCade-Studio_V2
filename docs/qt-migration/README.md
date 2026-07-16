@@ -56,5 +56,7 @@ Open / Fixture → Hierarchy → Select → Rename / SetPosition → Layers/Asse
 
 **Logic Board:** CRUD + When/Also/Then pickers + **block property editing** (Bool / Key / Number / String; e.g. key, visible) + **Play compile gate** (`compileProjectLogic` → LogicRuntime in `game.exe`; editor preflight before Play). `main.lua` untouched.
 
+**Inspector Transform:** Position + Rotation (degrees UI / radians storage) + Scale X/Y (finite, > 0). Placeholder paint applies scale+rotation; pick remains AABB.
+
 Next (Qt only): Script editor, packaging/LGPL notices.  
 Done: shell + Hierarchy + Layers/Assets + Scene View + Play + Logic Board authoring + LogicRuntime Play path.

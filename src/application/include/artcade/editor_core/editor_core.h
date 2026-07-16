@@ -65,6 +65,42 @@ private:
 };
 
 /**
+ * Sets instance scale (SceneId + EntityId). Rejects non-finite or non-positive scale.
+ */
+class SetEntityScaleCommand final : public ICommand {
+public:
+    SetEntityScaleCommand(SceneId scene_id, EntityId entity_id, Vec2 after_scale);
+    void execute(ProjectDoc &doc) override;
+    void undo(ProjectDoc &doc) override;
+
+private:
+    SceneId m_scene_id;
+    EntityId m_entity_id = 0;
+    Vec2 m_after_scale{1.f, 1.f};
+    Vec2 m_before_scale{1.f, 1.f};
+    bool m_captured = false;
+    bool m_applied = false;
+};
+
+/**
+ * Sets instance rotation in radians (SceneId + EntityId). Rejects non-finite values.
+ */
+class SetEntityRotationCommand final : public ICommand {
+public:
+    SetEntityRotationCommand(SceneId scene_id, EntityId entity_id, float after_rotation_radians);
+    void execute(ProjectDoc &doc) override;
+    void undo(ProjectDoc &doc) override;
+
+private:
+    SceneId m_scene_id;
+    EntityId m_entity_id = 0;
+    float m_after_rotation = 0.f;
+    float m_before_rotation = 0.f;
+    bool m_captured = false;
+    bool m_applied = false;
+};
+
+/**
  * Sets per-scene layer visibility for the active scene (layerSettings[layerId].visible).
  */
 class SetLayerVisibleCommand final : public ICommand {
@@ -267,8 +303,97 @@ bool logic_value_parse(ArtCade::Logic::LogicValueKind kind,
 [[nodiscard]] std::vector<LogicPropertySummary> logic_block_authorable_properties(
     const LogicBlockDef &block);
 
+/**
+ * Appends a display section to the board (board created on demand).
+ * Sections group rules visually and never affect execution order.
+ */
+class AddLogicSectionCommand final : public ICommand {
+public:
+    AddLogicSectionCommand(ObjectTypeId object_type_id, std::string name);
+    void execute(ProjectDoc &doc) override;
+    void undo(ProjectDoc &doc) override;
+
+    [[nodiscard]] const std::string &sectionId() const { return m_section_id; }
+    [[nodiscard]] bool applied() const { return m_applied; }
+
+private:
+    ObjectTypeId m_object_type_id;
+    std::string m_name;
+    std::string m_section_id;
+    bool m_created_board = false;
+    bool m_applied = false;
+};
+
+/**
+ * Renames a display section. Same name is a no-op.
+ */
+class RenameLogicSectionCommand final : public ICommand {
+public:
+    RenameLogicSectionCommand(ObjectTypeId object_type_id,
+                              std::string section_id,
+                              std::string new_name);
+    void execute(ProjectDoc &doc) override;
+    void undo(ProjectDoc &doc) override;
+
+private:
+    ObjectTypeId m_object_type_id;
+    std::string m_section_id;
+    std::string m_new_name;
+    std::string m_old_name;
+    bool m_captured = false;
+    bool m_applied = false;
+};
+
+/**
+ * Removes a display section and clears membership on its rules.
+ * Undo restores the section at its index and the rule membership.
+ */
+class RemoveLogicSectionCommand final : public ICommand {
+public:
+    RemoveLogicSectionCommand(ObjectTypeId object_type_id, std::string section_id);
+    void execute(ProjectDoc &doc) override;
+    void undo(ProjectDoc &doc) override;
+
+private:
+    ObjectTypeId m_object_type_id;
+    std::string m_section_id;
+    LogicSectionDef m_removed_section;
+    std::vector<LogicRuleId> m_member_rule_ids;
+    std::size_t m_index = 0;
+    bool m_captured = false;
+    bool m_applied = false;
+};
+
+/**
+ * Assigns a rule to a display section (empty section id = unsectioned).
+ */
+class SetLogicRuleSectionCommand final : public ICommand {
+public:
+    SetLogicRuleSectionCommand(ObjectTypeId object_type_id,
+                               LogicRuleId rule_id,
+                               std::string section_id);
+    void execute(ProjectDoc &doc) override;
+    void undo(ProjectDoc &doc) override;
+
+private:
+    ObjectTypeId m_object_type_id;
+    LogicRuleId m_rule_id;
+    std::string m_section_id;
+    std::string m_old_section_id;
+    bool m_captured = false;
+    bool m_applied = false;
+};
+
 /** C++-owned editor project format. */
 inline constexpr int kCurrentProjectFormatVersion = 5;
+
+/** Floating-point no-op tolerance for transform compares (~1e-6). */
+inline constexpr float kTransformEpsilon = 1e-6f;
+
+[[nodiscard]] bool nearly_equal(float a, float b, float epsilon = kTransformEpsilon);
+[[nodiscard]] bool nearly_equal(const Vec2 &a, const Vec2 &b, float epsilon = kTransformEpsilon);
+[[nodiscard]] bool is_valid_authored_scale(const Vec2 &scale);
+[[nodiscard]] bool is_finite_float(float value);
 
 bool project_file_io_load(const std::string &project_json_path,
                           ProjectDoc &out,
@@ -280,6 +405,24 @@ bool project_file_io_save(const std::string &project_json_path,
 
 SceneInstanceDef *project_doc_find_instance(ProjectDoc &doc, EntityId entity_id);
 const SceneInstanceDef *project_doc_find_instance(const ProjectDoc &doc, EntityId entity_id);
+
+/**
+ * Locates an instance within a specific scene (stable Command targeting).
+ */
+SceneInstanceDef *project_doc_find_instance_in_scene(ProjectDoc &doc,
+                                                     const SceneId &scene_id,
+                                                     EntityId entity_id);
+const SceneInstanceDef *project_doc_find_instance_in_scene(const ProjectDoc &doc,
+                                                           const SceneId &scene_id,
+                                                           EntityId entity_id);
+
+/**
+ * Resolves which scene owns @p entity_id. Returns false if not found.
+ */
+bool project_doc_locate_instance(const ProjectDoc &doc,
+                                 EntityId entity_id,
+                                 SceneId &out_scene_id,
+                                 const SceneInstanceDef *&out_instance);
 
 /**
  * Sole in-memory ProjectDocument authority.
@@ -309,8 +452,19 @@ public:
 
     bool renameSelected(const std::string &new_name, std::string &error_message);
     bool setSelectedPosition(float x, float y, std::string &error_message);
+    bool setSelectedScale(float scale_x, float scale_y, std::string &error_message);
+    bool setSelectedRotation(float radians, std::string &error_message);
     bool renameEntity(EntityId entity_id, const std::string &new_name, std::string &error_message);
     bool setEntityPosition(EntityId entity_id, float x, float y, std::string &error_message);
+    bool setEntityScale(const SceneId &scene_id,
+                        EntityId entity_id,
+                        float scale_x,
+                        float scale_y,
+                        std::string &error_message);
+    bool setEntityRotation(const SceneId &scene_id,
+                           EntityId entity_id,
+                           float radians,
+                           std::string &error_message);
     bool setLayerVisible(const std::string &layer_id, bool visible, std::string &error_message);
 
     /**
@@ -353,6 +507,39 @@ public:
     bool setLogicRuleEnabled(const ObjectTypeId &object_type_id,
                              const LogicRuleId &rule_id,
                              bool enabled,
+                             std::string &error_message);
+
+    /**
+     * Adds a display section ("Section N" when @p name is empty).
+     * @param out_section_id filled with the new stable section id on success
+     */
+    bool addLogicSection(const ObjectTypeId &object_type_id,
+                         const std::string &name,
+                         std::string &out_section_id,
+                         std::string &error_message);
+
+    /**
+     * Renames a display section. Empty (trimmed) names are rejected.
+     */
+    bool renameLogicSection(const ObjectTypeId &object_type_id,
+                            const std::string &section_id,
+                            const std::string &new_name,
+                            std::string &error_message);
+
+    /**
+     * Removes a display section; member rules become unsectioned.
+     */
+    bool removeLogicSection(const ObjectTypeId &object_type_id,
+                            const std::string &section_id,
+                            std::string &error_message);
+
+    /**
+     * Assigns a rule to a section (empty @p section_id clears membership).
+     * The section must exist; same assignment is a no-op.
+     */
+    bool setLogicRuleSection(const ObjectTypeId &object_type_id,
+                             const LogicRuleId &rule_id,
+                             const std::string &section_id,
                              std::string &error_message);
 
     /**

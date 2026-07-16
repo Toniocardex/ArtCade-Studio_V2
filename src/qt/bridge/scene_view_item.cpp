@@ -395,7 +395,7 @@ void SceneViewItem::mouseReleaseEvent(QMouseEvent *event)
             const qreal dx = snapped.x() - m_drag_origin_world.x();
             const qreal dy = snapped.y() - m_drag_origin_world.y();
             if (std::abs(dx) > 0.001 || std::abs(dy) > 0.001) {
-                m_session->commitPosition(snapped.x(), snapped.y());
+                m_session->commitPosition(m_drag_entity_id, snapped.x(), snapped.y());
             }
         }
         m_has_drag_preview = false;

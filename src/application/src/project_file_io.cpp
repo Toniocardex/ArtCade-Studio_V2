@@ -146,6 +146,54 @@ const SceneInstanceDef *project_doc_find_instance(const ProjectDoc &doc, EntityI
     return project_doc_find_instance(const_cast<ProjectDoc &>(doc), entity_id);
 }
 
+SceneInstanceDef *project_doc_find_instance_in_scene(ProjectDoc &doc,
+                                                     const SceneId &scene_id,
+                                                     EntityId entity_id)
+{
+    if (entity_id == 0 || scene_id.empty()) {
+        return nullptr;
+    }
+    auto scene_it = doc.scenes.find(scene_id);
+    if (scene_it == doc.scenes.end()) {
+        return nullptr;
+    }
+    for (SceneInstanceDef &inst : scene_it->second.instances) {
+        if (inst.id == entity_id) {
+            return &inst;
+        }
+    }
+    return nullptr;
+}
+
+const SceneInstanceDef *project_doc_find_instance_in_scene(const ProjectDoc &doc,
+                                                           const SceneId &scene_id,
+                                                           EntityId entity_id)
+{
+    return project_doc_find_instance_in_scene(const_cast<ProjectDoc &>(doc), scene_id, entity_id);
+}
+
+bool project_doc_locate_instance(const ProjectDoc &doc,
+                                 EntityId entity_id,
+                                 SceneId &out_scene_id,
+                                 const SceneInstanceDef *&out_instance)
+{
+    out_scene_id.clear();
+    out_instance = nullptr;
+    if (entity_id == 0) {
+        return false;
+    }
+    for (const auto &[scene_id, scene] : doc.scenes) {
+        for (const SceneInstanceDef &inst : scene.instances) {
+            if (inst.id == entity_id) {
+                out_scene_id = scene_id;
+                out_instance = &inst;
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 bool project_file_io_load(const std::string &project_json_path,
                           ProjectDoc &out,
                           std::string &error_message)

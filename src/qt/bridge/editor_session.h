@@ -46,6 +46,9 @@ class EditorSession : public QObject
     Q_PROPERTY(QString selectedName READ selectedName NOTIFY selectionChanged)
     Q_PROPERTY(double selectedX READ selectedX NOTIFY selectionChanged)
     Q_PROPERTY(double selectedY READ selectedY NOTIFY selectionChanged)
+    Q_PROPERTY(double selectedScaleX READ selectedScaleX NOTIFY selectedTransformChanged)
+    Q_PROPERTY(double selectedScaleY READ selectedScaleY NOTIFY selectedTransformChanged)
+    Q_PROPERTY(double selectedRotationDeg READ selectedRotationDeg NOTIFY selectedTransformChanged)
     Q_PROPERTY(bool hasSelection READ hasSelection NOTIFY selectionChanged)
     /** Derived from selection → SceneInstanceDef.objectTypeId (workspace, not a second authority). */
     Q_PROPERTY(QString selectedObjectTypeId READ selectedObjectTypeId NOTIFY selectionChanged)
@@ -61,6 +64,11 @@ class EditorSession : public QObject
      * project-backed pickers (assets, clips, object types), empty = free-form.
      */
     Q_PROPERTY(QVariantList logicRules READ logicRules NOTIFY logicRulesChanged)
+    /**
+     * Display sections on the selected type's board, in board order:
+     * [{ id, name }]. Grouping metadata only — never affects execution order.
+     */
+    Q_PROPERTY(QVariantList logicSections READ logicSections NOTIFY logicRulesChanged)
     /** Workspace: which rule is focused in Logic Board (does not dirty). */
     Q_PROPERTY(QString selectedLogicRuleId READ selectedLogicRuleId WRITE setSelectedLogicRuleId
                    NOTIFY selectedLogicRuleChanged)
@@ -99,11 +107,15 @@ public:
     [[nodiscard]] QString selectedName() const;
     [[nodiscard]] double selectedX() const;
     [[nodiscard]] double selectedY() const;
+    [[nodiscard]] double selectedScaleX() const;
+    [[nodiscard]] double selectedScaleY() const;
+    [[nodiscard]] double selectedRotationDeg() const;
     [[nodiscard]] bool hasSelection() const;
     [[nodiscard]] QString selectedObjectTypeId() const;
     [[nodiscard]] QString selectedObjectTypeName() const;
     [[nodiscard]] int logicRuleCount() const;
     [[nodiscard]] QVariantList logicRules() const;
+    [[nodiscard]] QVariantList logicSections() const;
     [[nodiscard]] QString selectedLogicRuleId() const;
     [[nodiscard]] QStringList logicTriggerCatalog() const;
     [[nodiscard]] QStringList logicConditionCatalog() const;
@@ -138,7 +150,21 @@ public:
     Q_INVOKABLE void selectEntity(quint32 entityId);
     Q_INVOKABLE void clearSelection();
     Q_INVOKABLE void commitRename(const QString &newName);
-    Q_INVOKABLE void commitPosition(double x, double y);
+    /**
+     * Commits position for @p entityId only if it is still the selected instance
+     * (guards mid-edit selection changes).
+     */
+    Q_INVOKABLE void commitPosition(quint32 entityId, double x, double y);
+    /**
+     * Commits scale for @p entityId only if still selected. One undoable command.
+     * Scale must be finite and > 0.
+     */
+    Q_INVOKABLE void commitScale(quint32 entityId, double scaleX, double scaleY);
+    /**
+     * Commits rotation (degrees UI) for @p entityId only if still selected.
+     * Stored as radians in ProjectDoc.
+     */
+    Q_INVOKABLE void commitRotation(quint32 entityId, double degrees);
     Q_INVOKABLE void setActiveLayer(const QString &layerId);
     Q_INVOKABLE void setLayerVisible(const QString &layerId, bool visible);
     /**
@@ -165,6 +191,14 @@ public:
      * Disabled rules persist but are skipped by compile/Play. Undoable.
      */
     Q_INVOKABLE void setLogicRuleEnabled(const QString &ruleId, bool enabled);
+    /** Adds a display section ("Section N") on the selected type's board. Undoable. */
+    Q_INVOKABLE void addLogicSection();
+    /** Renames display section @p sectionId (empty names rejected). Undoable. */
+    Q_INVOKABLE void renameLogicSection(const QString &sectionId, const QString &name);
+    /** Removes section @p sectionId; its rules become unsectioned. Undoable. */
+    Q_INVOKABLE void removeLogicSection(const QString &sectionId);
+    /** Assigns rule @p ruleId to @p sectionId ("" = unsectioned). Undoable. */
+    Q_INVOKABLE void setLogicRuleSection(const QString &ruleId, const QString &sectionId);
     /**
      * Sets a property on a primary block of @p ruleId.
      * @p slot is "trigger" | "condition" | "action".
@@ -206,6 +240,8 @@ signals:
     void statusMessageChanged();
     void hasProjectChanged();
     void selectionChanged();
+    /** Emitted when any projected Transform field changes (position/scale/rotation). */
+    void selectedTransformChanged();
     void selectedLogicRuleChanged();
     void logicRulesChanged();
     void activeLayerChanged();
@@ -241,10 +277,14 @@ private:
     QString m_selectedName;
     double m_selectedX = 0.0;
     double m_selectedY = 0.0;
+    double m_selectedScaleX = 1.0;
+    double m_selectedScaleY = 1.0;
+    double m_selectedRotationDeg = 0.0;
     QString m_selectedObjectTypeId;
     QString m_selectedObjectTypeName;
     int m_logicRuleCount = 0;
     QStringList m_logicRuleIds;
     QVariantList m_logicRules;
+    QVariantList m_logicSections;
     QString m_selectedLogicRuleId;
 };

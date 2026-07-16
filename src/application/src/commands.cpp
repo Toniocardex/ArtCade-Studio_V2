@@ -1,6 +1,31 @@
 #include "artcade/editor_core/editor_core.h"
 
+#include <cmath>
+
 namespace ArtCade::EditorCore {
+
+bool nearly_equal(float a, float b, float epsilon)
+{
+    if (!std::isfinite(a) || !std::isfinite(b)) {
+        return false;
+    }
+    return std::fabs(a - b) <= epsilon;
+}
+
+bool nearly_equal(const Vec2 &a, const Vec2 &b, float epsilon)
+{
+    return nearly_equal(a.x, b.x, epsilon) && nearly_equal(a.y, b.y, epsilon);
+}
+
+bool is_finite_float(float value)
+{
+    return std::isfinite(value);
+}
+
+bool is_valid_authored_scale(const Vec2 &scale)
+{
+    return is_finite_float(scale.x) && is_finite_float(scale.y) && scale.x > 0.f && scale.y > 0.f;
+}
 
 void CommandStack::execute(std::unique_ptr<ICommand> command, ProjectDoc &doc)
 {
@@ -117,6 +142,90 @@ void SetEntityPositionCommand::undo(ProjectDoc &doc)
     }
     inst->transform.position.x = m_old_x;
     inst->transform.position.y = m_old_y;
+}
+
+SetEntityScaleCommand::SetEntityScaleCommand(SceneId scene_id, EntityId entity_id, Vec2 after_scale)
+    : m_scene_id(std::move(scene_id))
+    , m_entity_id(entity_id)
+    , m_after_scale(after_scale)
+{
+}
+
+void SetEntityScaleCommand::execute(ProjectDoc &doc)
+{
+    if (!is_valid_authored_scale(m_after_scale)) {
+        return;
+    }
+    SceneInstanceDef *inst =
+        project_doc_find_instance_in_scene(doc, m_scene_id, m_entity_id);
+    if (!inst) {
+        return;
+    }
+    if (!m_captured) {
+        m_before_scale = inst->transform.scale;
+        m_captured = true;
+    }
+    if (nearly_equal(inst->transform.scale, m_after_scale)) {
+        return;
+    }
+    inst->transform.scale = m_after_scale;
+    m_applied = true;
+}
+
+void SetEntityScaleCommand::undo(ProjectDoc &doc)
+{
+    if (!m_applied || !m_captured) {
+        return;
+    }
+    SceneInstanceDef *inst =
+        project_doc_find_instance_in_scene(doc, m_scene_id, m_entity_id);
+    if (!inst) {
+        return;
+    }
+    inst->transform.scale = m_before_scale;
+}
+
+SetEntityRotationCommand::SetEntityRotationCommand(SceneId scene_id,
+                                                   EntityId entity_id,
+                                                   float after_rotation_radians)
+    : m_scene_id(std::move(scene_id))
+    , m_entity_id(entity_id)
+    , m_after_rotation(after_rotation_radians)
+{
+}
+
+void SetEntityRotationCommand::execute(ProjectDoc &doc)
+{
+    if (!is_finite_float(m_after_rotation)) {
+        return;
+    }
+    SceneInstanceDef *inst =
+        project_doc_find_instance_in_scene(doc, m_scene_id, m_entity_id);
+    if (!inst) {
+        return;
+    }
+    if (!m_captured) {
+        m_before_rotation = inst->transform.rotation;
+        m_captured = true;
+    }
+    if (nearly_equal(inst->transform.rotation, m_after_rotation)) {
+        return;
+    }
+    inst->transform.rotation = m_after_rotation;
+    m_applied = true;
+}
+
+void SetEntityRotationCommand::undo(ProjectDoc &doc)
+{
+    if (!m_applied || !m_captured) {
+        return;
+    }
+    SceneInstanceDef *inst =
+        project_doc_find_instance_in_scene(doc, m_scene_id, m_entity_id);
+    if (!inst) {
+        return;
+    }
+    inst->transform.rotation = m_before_rotation;
 }
 
 SetLayerVisibleCommand::SetLayerVisibleCommand(SceneId scene_id,

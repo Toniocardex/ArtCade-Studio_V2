@@ -8,13 +8,56 @@ Rectangle {
 
     color: Theme.panel
 
+    /** Captured at edit start so mid-edit selection change cannot apply to the wrong entity. */
+    property quint32 transformEditTargetId: 0
+
+    function captureTransformTarget() {
+        transformEditTargetId = EditorSession.selectedEntityId
+    }
+
+    function syncTransformFieldsFromSession() {
+        xField.value = EditorSession.selectedX
+        yField.value = EditorSession.selectedY
+        rotationField.value = EditorSession.selectedRotationDeg
+        scaleXField.value = EditorSession.selectedScaleX
+        scaleYField.value = EditorSession.selectedScaleY
+    }
+
     function commitPos() {
-        if (!EditorSession.hasSelection)
+        if (transformEditTargetId === 0
+                || transformEditTargetId !== EditorSession.selectedEntityId) {
+            syncTransformFieldsFromSession()
             return
-        if (xField.value === EditorSession.selectedX
-                && yField.value === EditorSession.selectedY)
+        }
+        EditorSession.commitPosition(transformEditTargetId, xField.value, yField.value)
+    }
+
+    function commitScale() {
+        if (transformEditTargetId === 0
+                || transformEditTargetId !== EditorSession.selectedEntityId) {
+            syncTransformFieldsFromSession()
             return
-        EditorSession.commitPosition(xField.value, yField.value)
+        }
+        EditorSession.commitScale(transformEditTargetId, scaleXField.value, scaleYField.value)
+    }
+
+    function commitRotation() {
+        if (transformEditTargetId === 0
+                || transformEditTargetId !== EditorSession.selectedEntityId) {
+            syncTransformFieldsFromSession()
+            return
+        }
+        EditorSession.commitRotation(transformEditTargetId, rotationField.value)
+    }
+
+    Connections {
+        target: EditorSession
+        function onSelectedTransformChanged() {
+            if (!xField.activeFocus && !yField.activeFocus
+                    && !rotationField.activeFocus
+                    && !scaleXField.activeFocus && !scaleYField.activeFocus)
+                syncTransformFieldsFromSession()
+        }
     }
 
     ColumnLayout {
@@ -153,7 +196,8 @@ Rectangle {
                             Layout.fillWidth: true
                             value: EditorSession.selectedX
                             decimals: 3
-                            onEditingFinished: commitPos()
+                            enabled: !EditorSession.playing
+                            onActiveFocusChanged: if (activeFocus) root.captureTransformTarget()
                         }
                         Text {
                             text: "px"
@@ -166,7 +210,7 @@ Rectangle {
                         Layout.fillWidth: true
                         Layout.leftMargin: Metrics.spacingMd
                         Layout.rightMargin: Metrics.spacingMd
-                        Layout.bottomMargin: Metrics.spacingSm
+                        Layout.bottomMargin: Metrics.spacingXs
                         spacing: Metrics.spacingSm
 
                         Text {
@@ -180,13 +224,110 @@ Rectangle {
                             Layout.fillWidth: true
                             value: EditorSession.selectedY
                             decimals: 3
-                            onEditingFinished: commitPos()
+                            enabled: !EditorSession.playing
+                            onActiveFocusChanged: if (activeFocus) root.captureTransformTarget()
                         }
                         Text {
                             text: "px"
                             color: Theme.textMuted
                             font.pixelSize: Typography.sizeXs
                         }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: Metrics.spacingMd
+                        Layout.rightMargin: Metrics.spacingMd
+                        Layout.bottomMargin: Metrics.spacingXs
+                        spacing: Metrics.spacingSm
+
+                        Text {
+                            text: "Rotation"
+                            color: Theme.textSecondary
+                            font.pixelSize: Typography.sizeXs
+                            Layout.preferredWidth: Metrics.labelColumnWidth
+                        }
+                        AcNumberField {
+                            id: rotationField
+                            Layout.fillWidth: true
+                            value: EditorSession.selectedRotationDeg
+                            decimals: 2
+                            enabled: !EditorSession.playing
+                            onActiveFocusChanged: if (activeFocus) root.captureTransformTarget()
+                        }
+                        Text {
+                            text: "°"
+                            color: Theme.textMuted
+                            font.pixelSize: Typography.sizeXs
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: Metrics.spacingMd
+                        Layout.rightMargin: Metrics.spacingMd
+                        Layout.bottomMargin: Metrics.spacingXs
+                        spacing: Metrics.spacingSm
+
+                        Text {
+                            text: "Scale X"
+                            color: Theme.textSecondary
+                            font.pixelSize: Typography.sizeXs
+                            Layout.preferredWidth: Metrics.labelColumnWidth
+                        }
+                        AcNumberField {
+                            id: scaleXField
+                            Layout.fillWidth: true
+                            value: EditorSession.selectedScaleX
+                            decimals: 3
+                            enabled: !EditorSession.playing
+                            onActiveFocusChanged: if (activeFocus) root.captureTransformTarget()
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: Metrics.spacingMd
+                        Layout.rightMargin: Metrics.spacingMd
+                        Layout.bottomMargin: Metrics.spacingSm
+                        spacing: Metrics.spacingSm
+
+                        Text {
+                            text: "Scale Y"
+                            color: Theme.textSecondary
+                            font.pixelSize: Typography.sizeXs
+                            Layout.preferredWidth: Metrics.labelColumnWidth
+                        }
+                        AcNumberField {
+                            id: scaleYField
+                            Layout.fillWidth: true
+                            value: EditorSession.selectedScaleY
+                            decimals: 3
+                            enabled: !EditorSession.playing
+                            onActiveFocusChanged: if (activeFocus) root.captureTransformTarget()
+                        }
+                    }
+
+                    // Connections (not onEditingFinished overrides) so AcNumberField can parse first.
+                    Connections {
+                        target: xField
+                        function onEditingFinished() { root.commitPos() }
+                    }
+                    Connections {
+                        target: yField
+                        function onEditingFinished() { root.commitPos() }
+                    }
+                    Connections {
+                        target: rotationField
+                        function onEditingFinished() { root.commitRotation() }
+                    }
+                    Connections {
+                        target: scaleXField
+                        function onEditingFinished() { root.commitScale() }
+                    }
+                    Connections {
+                        target: scaleYField
+                        function onEditingFinished() { root.commitScale() }
                     }
                 }
 

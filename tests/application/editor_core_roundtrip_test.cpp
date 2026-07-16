@@ -4,9 +4,11 @@
 
 #include "logic-core.h"
 
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
+#include <limits>
 #include <string>
 #include <variant>
 
@@ -68,9 +70,72 @@ int main()
     expect(project_doc_find_instance(coord.document(), 1)->transform.position.x == 10.f,
            "undo position x");
 
+    // Transform: scale + rotation (SceneId + EntityId commands)
+    constexpr float kPi = 3.14159265358979323846f;
+    coord.selectEntity(1);
+    const std::uint64_t rev_before_scale = coord.revision();
+    expect(coord.setSelectedScale(2.f, 3.f, error), "set scale");
+    expect(coord.revision() == rev_before_scale + 1, "scale bumps revision once");
+    expect(coord.isDirty(), "scale dirties");
+    expect(nearly_equal(project_doc_find_instance(coord.document(), 1)->transform.scale,
+                        ArtCade::Vec2{2.f, 3.f}),
+           "scale updated");
+    coord.undo();
+    expect(nearly_equal(project_doc_find_instance(coord.document(), 1)->transform.scale,
+                        ArtCade::Vec2{1.f, 1.f}),
+           "undo scale");
+    coord.redo();
+    expect(nearly_equal(project_doc_find_instance(coord.document(), 1)->transform.scale,
+                        ArtCade::Vec2{2.f, 3.f}),
+           "redo scale");
+
+    const std::uint64_t rev_before_scale_noop = coord.revision();
+    expect(coord.setSelectedScale(2.f, 3.f, error), "no-op scale succeeds");
+    expect(coord.revision() == rev_before_scale_noop, "no-op scale does not bump revision");
+
+    expect(!coord.setSelectedScale(0.f, 1.f, error), "scale zero rejected");
+    expect(!coord.setSelectedScale(-1.f, 1.f, error), "scale negative rejected");
+    expect(!coord.setSelectedScale(std::numeric_limits<float>::quiet_NaN(), 1.f, error),
+           "scale NaN rejected");
+    expect(!coord.setSelectedScale(1.f, std::numeric_limits<float>::infinity(), error),
+           "scale Inf rejected");
+
+    const std::uint64_t rev_before_rot = coord.revision();
+    expect(coord.setSelectedRotation(kPi * 0.5f, error), "set rotation 90deg");
+    expect(coord.revision() == rev_before_rot + 1, "rotation bumps revision once");
+    expect(nearly_equal(project_doc_find_instance(coord.document(), 1)->transform.rotation,
+                        kPi * 0.5f),
+           "rotation ~ pi/2");
+    coord.undo();
+    expect(nearly_equal(project_doc_find_instance(coord.document(), 1)->transform.rotation, 0.f),
+           "undo rotation");
+    coord.redo();
+    expect(nearly_equal(project_doc_find_instance(coord.document(), 1)->transform.rotation,
+                        kPi * 0.5f),
+           "redo rotation");
+
+    const std::uint64_t rev_before_rot_noop = coord.revision();
+    expect(coord.setSelectedRotation(kPi * 0.5f, error), "no-op rotation succeeds");
+    expect(coord.revision() == rev_before_rot_noop, "no-op rotation does not bump revision");
+    expect(!coord.setSelectedRotation(std::numeric_limits<float>::quiet_NaN(), error),
+           "rotation NaN rejected");
+    expect(!coord.setSelectedRotation(std::numeric_limits<float>::infinity(), error),
+           "rotation Inf rejected");
+
+    coord.clearSelection();
+    expect(!coord.setSelectedScale(1.5f, 1.5f, error), "scale without selection fails");
+    expect(!coord.setSelectedRotation(0.f, error), "rotation without selection fails");
+    expect(!coord.setEntityScale("missing_scene", 1, 1.f, 1.f, error),
+           "scale bad scene rejected");
+    expect(!coord.setEntityRotation("scene_main", 9999, 0.f, error),
+           "rotation missing entity rejected");
+
     // Leave a deterministic dirty state for save
+    coord.selectEntity(1);
     expect(coord.renameEntity(1, "HeroSaved", error), "final rename");
     expect(coord.setEntityPosition(1, 55.f, 66.f, error), "final position");
+    expect(coord.setEntityScale("scene_main", 1, 2.f, 3.f, error), "final scale");
+    expect(coord.setEntityRotation("scene_main", 1, kPi * 0.5f, error), "final rotation");
 
     const std::uint64_t rev_before_select = coord.revision();
     coord.selectEntity(2);
@@ -355,6 +420,51 @@ int main()
            "clear bad condition for save");
     expect(coord.validateLogicForPlay(error), "cleared board validates again");
 
+    // Display sections: grouping metadata only, undoable, persisted.
+    std::string section_id;
+    expect(coord.addLogicSection("Player", "", section_id, error), "add section");
+    expect(!section_id.empty(), "section id assigned");
+    expect(coord.document().objectTypes.at("Player").logicBoard->sections.size() == 1,
+           "one section");
+    expect(coord.renameLogicSection("Player", section_id, "  Collection  ", error),
+           "rename section (trims)");
+    expect(coord.document().objectTypes.at("Player").logicBoard->sections.front().name
+               == "Collection",
+           "section name trimmed");
+    expect(!coord.renameLogicSection("Player", section_id, "   ", error),
+           "blank section name rejected");
+    coord.undo();
+    expect(coord.document().objectTypes.at("Player").logicBoard->sections.front().name
+               == "Section 1",
+           "undo rename restores default name");
+    coord.redo();
+
+    expect(coord.setLogicRuleSection("Player", deleted_id, section_id, error),
+           "assign rule to section");
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules.front().sectionId
+               == section_id,
+           "rule sectionId set");
+    expect(!coord.setLogicRuleSection("Player", deleted_id, "section-missing", error),
+           "unknown section rejected");
+    const std::uint64_t rev_before_section_noop = coord.revision();
+    expect(coord.setLogicRuleSection("Player", deleted_id, section_id, error),
+           "no-op section assign succeeds");
+    expect(coord.revision() == rev_before_section_noop,
+           "no-op section assign does not bump revision");
+
+    expect(coord.removeLogicSection("Player", section_id, error), "remove section");
+    expect(coord.document().objectTypes.at("Player").logicBoard->sections.empty(),
+           "sections empty after remove");
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules.front().sectionId.empty(),
+           "member rule unsectioned after remove");
+    coord.undo();
+    expect(coord.document().objectTypes.at("Player").logicBoard->sections.size() == 1,
+           "undo remove restores section");
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules.front().sectionId
+               == section_id,
+           "undo remove restores rule membership");
+    expect(coord.validateLogicForPlay(error), "sections do not affect Play validation");
+
     expect(coord.saveProjectAs(out_path.string(), error), "save roundtrip file");
     expect(!coord.isDirty(), "clean after save");
 
@@ -366,6 +476,9 @@ int main()
     expect(again->instanceName == "HeroSaved", "persisted name");
     expect(again->transform.position.x == 55.f && again->transform.position.y == 66.f,
            "persisted position");
+    expect(nearly_equal(again->transform.scale, ArtCade::Vec2{2.f, 3.f}), "persisted scale");
+    expect(nearly_equal(again->transform.rotation, 3.14159265358979323846f * 0.5f),
+           "persisted rotation");
     expect(reloaded.document().layers.size() == 3, "persisted layers");
     expect(reloaded.document().imageAssets.size() == 2, "persisted image assets");
     expect(!reloaded.layerVisible("layer_ui"), "persisted layer visibility");
@@ -377,6 +490,13 @@ int main()
            "persisted rule id");
     expect(!reloaded_player->second.logicBoard->rules.front().enabled,
            "persisted rule disabled state");
+    expect(reloaded_player->second.logicBoard->sections.size() == 1,
+           "persisted section count");
+    expect(reloaded_player->second.logicBoard->sections.front().id == section_id
+               && reloaded_player->second.logicBoard->sections.front().name == "Collection",
+           "persisted section id and name");
+    expect(reloaded_player->second.logicBoard->rules.front().sectionId == section_id,
+           "persisted rule section membership");
 
     std::error_code ec;
     fs::remove(out_path, ec);
