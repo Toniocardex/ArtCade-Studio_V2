@@ -25,8 +25,9 @@ Rectangle {
     signal conditionChosen(string typeId)
     signal actionChosen(string typeId)
     signal propertyEdited(string slot, string propertyKey, string valueText)
-    signal contextMenuRequested()
+    signal contextMenuRequested(var anchorItem)
     signal expansionToggleRequested()
+    signal renameRequested()
 
     readonly property bool ruleEnabled: rule.enabled === true
     readonly property var conditionIds: rule.conditionTypeIds || []
@@ -105,7 +106,7 @@ Rectangle {
     implicitHeight: cardColumn.implicitHeight
     radius: Metrics.radiusCard
     color: root.expanded || root.selected ? Theme.panelRaised
-                    : (titleMouse.containsMouse ? Theme.controlHover : Theme.control)
+                    : (headerHover.hovered ? Theme.controlHover : Theme.control)
     border.width: 1
     border.color: root.expanded || root.selected ? Theme.border : Theme.borderSubtle
     clip: true
@@ -157,63 +158,91 @@ Rectangle {
                 }
             }
 
-            Text {
-                id: titleLabel
+            Item {
+                id: headerToggleArea
                 Layout.fillWidth: true
                 Layout.alignment: Qt.AlignVCenter
                 Layout.minimumWidth: 80
-                height: Typography.sizeBody + 4
-                text: root.highlightText(root.displayName)
-                textFormat: root.highlighting ? Text.StyledText : Text.PlainText
-                color: Theme.textPrimary
-                font.family: Typography.family
-                font.pixelSize: Typography.sizeBody
-                font.weight: Font.DemiBold
-                elide: Text.ElideRight
-                opacity: root.summaryOpacity
-                verticalAlignment: Text.AlignVCenter
+                Layout.preferredHeight: 36
 
-                MouseArea {
-                    id: titleMouse
+                RowLayout {
                     anchors.fill: parent
-                    hoverEnabled: true
-                    acceptedButtons: Qt.LeftButton | Qt.RightButton
-                    onClicked: function(mouse) {
-                        root.selectRequested()
-                        if (mouse.button === Qt.RightButton)
-                            root.contextMenuRequested()
-                        else
-                            root.expansionToggleRequested()
+                    spacing: Metrics.spacingSm
+
+                    AcIcon {
+                        Layout.alignment: Qt.AlignVCenter
+                        source: Icons.chevron
+                        size: Metrics.iconSizeSm
+                        color: Theme.textSecondary
+                        rotation: root.expanded ? 0 : -90
+                    }
+
+                    Text {
+                        Layout.fillWidth: true
+                        Layout.alignment: Qt.AlignVCenter
+                        text: root.highlightText(root.displayName)
+                        textFormat: root.highlighting ? Text.StyledText : Text.PlainText
+                        color: Theme.textPrimary
+                        font.family: Typography.family
+                        font.pixelSize: Typography.sizeBody
+                        font.weight: Font.DemiBold
+                        elide: Text.ElideRight
+                        opacity: root.summaryOpacity
+                        verticalAlignment: Text.AlignVCenter
+                    }
+
+                    Text {
+                        visible: !root.expanded
+                        Layout.alignment: Qt.AlignVCenter
+                        Layout.maximumWidth: 260
+                        Layout.preferredWidth: Math.min(implicitWidth, 260)
+                        text: root.highlightText(root.collapsedSummary)
+                        textFormat: root.highlighting ? Text.StyledText : Text.PlainText
+                        color: Theme.textMuted
+                        font.family: Typography.family
+                        font.pixelSize: Typography.sizeToolbar
+                        elide: Text.ElideRight
+                        opacity: root.summaryOpacity
+                        verticalAlignment: Text.AlignVCenter
                     }
                 }
-            }
 
-            Text {
-                visible: !root.expanded
-                Layout.alignment: Qt.AlignVCenter
-                Layout.maximumWidth: 260
-                Layout.preferredWidth: Math.min(implicitWidth, 260)
-                height: Typography.sizeToolbar + 4
-                text: root.highlightText(root.collapsedSummary)
-                textFormat: root.highlighting ? Text.StyledText : Text.PlainText
-                color: Theme.textMuted
-                font.family: Typography.family
-                font.pixelSize: Typography.sizeToolbar
-                elide: Text.ElideRight
-                opacity: root.summaryOpacity
-                verticalAlignment: Text.AlignVCenter
+                HoverHandler {
+                    id: headerHover
+                }
 
-                MouseArea {
-                    anchors.fill: parent
+                // Defer single-click toggle so a double-click can rename without flapping expand.
+                Timer {
+                    id: headerClickTimer
+                    interval: 280
+                    repeat: false
+                    onTriggered: root.expansionToggleRequested()
+                }
+
+                TapHandler {
                     acceptedButtons: Qt.LeftButton | Qt.RightButton
-                    onClicked: function(mouse) {
+                    gesturePolicy: TapHandler.ReleaseWithinBounds
+                    onTapped: function(eventPoint, button) {
+                        if (button === Qt.RightButton) {
+                            headerClickTimer.stop()
+                            root.selectRequested()
+                            root.contextMenuRequested(headerToggleArea)
+                            return
+                        }
                         root.selectRequested()
-                        if (mouse.button === Qt.RightButton)
-                            root.contextMenuRequested()
-                        else
-                            root.expansionToggleRequested()
+                        if (tapCount === 2) {
+                            headerClickTimer.stop()
+                            if (!EditorSession.playing)
+                                root.renameRequested()
+                        } else {
+                            headerClickTimer.restart()
+                        }
                     }
                 }
+
+                ToolTip.visible: headerHover.hovered && !EditorSession.playing
+                ToolTip.delay: 600
+                ToolTip.text: "Click to expand or collapse · Double-click to rename"
             }
 
             // Plain Item chrome — Qt Button can leave an empty indicator square.
@@ -261,7 +290,7 @@ Rectangle {
                 Layout.preferredWidth: 28
                 Layout.preferredHeight: 28
                 radius: Metrics.radiusControl
-                color: overflowMa.containsMouse ? Theme.controlHover : "transparent"
+                color: overflowHover.hovered ? Theme.controlHover : "transparent"
                 opacity: EditorSession.playing ? 0.5 : 1.0
 
                 Text {
@@ -271,14 +300,17 @@ Rectangle {
                     font.pixelSize: Typography.sizeObjectTitle
                 }
 
-                MouseArea {
-                    id: overflowMa
-                    anchors.fill: parent
-                    hoverEnabled: true
+                HoverHandler {
+                    id: overflowHover
+                }
+
+                TapHandler {
+                    acceptedButtons: Qt.LeftButton
                     enabled: !EditorSession.playing
-                    onClicked: {
+                    gesturePolicy: TapHandler.ReleaseWithinBounds
+                    onTapped: function(eventPoint, button) {
+                        root.contextMenuRequested(overflowBtn)
                         root.selectRequested()
-                        root.contextMenuRequested()
                     }
                 }
             }

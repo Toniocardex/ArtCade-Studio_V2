@@ -43,9 +43,4 @@ MenuItem {
                      && disabledHover.hovered
     ToolTip.delay: 400
     ToolTip.text: root.disabledHint
-
-    onTriggered: {
-        if (!root.available)
-            return
-    }
 }

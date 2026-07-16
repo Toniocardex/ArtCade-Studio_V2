@@ -63,14 +63,20 @@ Rectangle {
     }
 
     function isRuleExpanded(ruleId) {
+        // collapsedRules[id] === true means collapsed; missing/false means expanded.
         return collapsedRules[ruleId] !== true
     }
 
     function toggleRuleExpanded(ruleId) {
+        if (ruleId.length === 0)
+            return
         const next = {}
         for (const key in collapsedRules)
             next[key] = collapsedRules[key]
-        next[ruleId] = !isRuleExpanded(ruleId)
+        if (isRuleExpanded(ruleId))
+            next[ruleId] = true
+        else
+            delete next[ruleId]
         collapsedRules = next
     }
 
@@ -503,6 +509,7 @@ Rectangle {
                         searchTerms: root.searchHighlightTerms
                         onSelectRequested: EditorSession.selectedLogicRuleId = ruleId
                         onExpansionToggleRequested: root.toggleRuleExpanded(ruleId)
+                        onRenameRequested: renameLogicDialog.openFor(ruleId, rule.displayName)
                         onEnabledToggled: function(enabled) {
                             EditorSession.setLogicRuleEnabled(ruleId, enabled)
                         }
@@ -519,7 +526,9 @@ Rectangle {
                         onPropertyEdited: function(slot, key, value) {
                             EditorSession.setLogicRuleBlockProperty(ruleId, slot, key, value)
                         }
-                        onContextMenuRequested: ruleMenu.openFor(ruleId, rule.displayName)
+                        onContextMenuRequested: function(anchorItem) {
+                            ruleMenu.openFor(ruleId, rule.displayName, anchorItem)
+                        }
                     }
                 }
 
@@ -556,18 +565,25 @@ Rectangle {
         property string targetRuleId: ""
         property string targetDisplayName: ""
 
-        function openFor(ruleId, displayName) {
+        function openFor(ruleId, displayName, anchorItem) {
             targetRuleId = ruleId
             targetDisplayName = displayName
-            popup()
+            if (anchorItem)
+                popup(anchorItem, 0, anchorItem.height)
+            else
+                popup()
         }
 
         AcMenuItem {
             text: "Rename Logic…"
             available: !EditorSession.playing
             disabledHint: EditorSession.playing ? "Unavailable during Play" : ""
-            onTriggered: renameLogicDialog.openFor(ruleMenu.targetRuleId,
-                                                    ruleMenu.targetDisplayName)
+            onTriggered: {
+                if (!available)
+                    return
+                renameLogicDialog.openFor(ruleMenu.targetRuleId,
+                                          ruleMenu.targetDisplayName)
+            }
         }
 
         AcMenu {
