@@ -12,6 +12,7 @@
 #include <QObject>
 #include <QString>
 #include <QStringList>
+#include <QVariant>
 #include <QtQml/qqmlregistration.h>
 #include <memory>
 
@@ -51,15 +52,13 @@ class EditorSession : public QObject
     Q_PROPERTY(QString selectedObjectTypeName READ selectedObjectTypeName NOTIFY selectionChanged)
     /** Rule count on objectTypes[typeId].logicBoard; 0 until boards are authored/loaded. */
     Q_PROPERTY(int logicRuleCount READ logicRuleCount NOTIFY logicRulesChanged)
-    Q_PROPERTY(QStringList logicRuleIds READ logicRuleIds NOTIFY logicRulesChanged)
+    /**
+     * Per-rule summaries for the selected type's board, in execution order.
+     * Each entry: { id, enabled, triggerTypeId, conditionTypeIds, actionTypeIds }.
+     */
+    Q_PROPERTY(QVariantList logicRules READ logicRules NOTIFY logicRulesChanged)
     /** Workspace: which rule is focused in Logic Board (does not dirty). */
     Q_PROPERTY(QString selectedLogicRuleId READ selectedLogicRuleId WRITE setSelectedLogicRuleId
-                   NOTIFY selectedLogicRuleChanged)
-    Q_PROPERTY(QString selectedRuleTriggerTypeId READ selectedRuleTriggerTypeId
-                   NOTIFY selectedLogicRuleChanged)
-    Q_PROPERTY(QStringList selectedRuleConditionTypeIds READ selectedRuleConditionTypeIds
-                   NOTIFY selectedLogicRuleChanged)
-    Q_PROPERTY(QStringList selectedRuleActionTypeIds READ selectedRuleActionTypeIds
                    NOTIFY selectedLogicRuleChanged)
     /** Catalog typeIds from logic-core registry (stable; not project data). */
     Q_PROPERTY(QStringList logicTriggerCatalog READ logicTriggerCatalog CONSTANT)
@@ -99,11 +98,8 @@ public:
     [[nodiscard]] QString selectedObjectTypeId() const;
     [[nodiscard]] QString selectedObjectTypeName() const;
     [[nodiscard]] int logicRuleCount() const;
-    [[nodiscard]] QStringList logicRuleIds() const;
+    [[nodiscard]] QVariantList logicRules() const;
     [[nodiscard]] QString selectedLogicRuleId() const;
-    [[nodiscard]] QString selectedRuleTriggerTypeId() const;
-    [[nodiscard]] QStringList selectedRuleConditionTypeIds() const;
-    [[nodiscard]] QStringList selectedRuleActionTypeIds() const;
     [[nodiscard]] QStringList logicTriggerCatalog() const;
     [[nodiscard]] QStringList logicActionCatalog() const;
     void setSelectedLogicRuleId(const QString &ruleId);
@@ -153,6 +149,11 @@ public:
     Q_INVOKABLE void setLogicRuleTrigger(const QString &blockTypeId);
     /** Sets primary Then action block type on the selected rule. */
     Q_INVOKABLE void setLogicRulePrimaryAction(const QString &blockTypeId);
+    /**
+     * Enables/disables Logic rule @p ruleId on the selected type.
+     * Disabled rules persist but are skipped by compile/Play. Undoable.
+     */
+    Q_INVOKABLE void setLogicRuleEnabled(const QString &ruleId, bool enabled);
     [[nodiscard]] Q_INVOKABLE QString logicBlockDisplayName(const QString &blockTypeId) const;
     Q_INVOKABLE quint32 pickEntityAt(double worldX, double worldY);
     /**
@@ -217,10 +218,6 @@ private:
     QString m_selectedObjectTypeName;
     int m_logicRuleCount = 0;
     QStringList m_logicRuleIds;
+    QVariantList m_logicRules;
     QString m_selectedLogicRuleId;
-    QString m_selectedRuleTriggerTypeId;
-    QStringList m_selectedRuleConditionTypeIds;
-    QStringList m_selectedRuleActionTypeIds;
-
-    void refreshSelectedLogicRuleCache();
 };

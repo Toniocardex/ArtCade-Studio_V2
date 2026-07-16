@@ -155,29 +155,14 @@ int EditorSession::logicRuleCount() const
     return m_logicRuleCount;
 }
 
-QStringList EditorSession::logicRuleIds() const
+QVariantList EditorSession::logicRules() const
 {
-    return m_logicRuleIds;
+    return m_logicRules;
 }
 
 QString EditorSession::selectedLogicRuleId() const
 {
     return m_selectedLogicRuleId;
-}
-
-QString EditorSession::selectedRuleTriggerTypeId() const
-{
-    return m_selectedRuleTriggerTypeId;
-}
-
-QStringList EditorSession::selectedRuleConditionTypeIds() const
-{
-    return m_selectedRuleConditionTypeIds;
-}
-
-QStringList EditorSession::selectedRuleActionTypeIds() const
-{
-    return m_selectedRuleActionTypeIds;
 }
 
 QStringList EditorSession::logicTriggerCatalog() const
@@ -221,38 +206,7 @@ void EditorSession::setSelectedLogicRuleId(const QString &ruleId)
         return;
     }
     m_selectedLogicRuleId = ruleId;
-    refreshSelectedLogicRuleCache();
     emit selectedLogicRuleChanged();
-}
-
-void EditorSession::refreshSelectedLogicRuleCache()
-{
-    m_selectedRuleTriggerTypeId.clear();
-    m_selectedRuleConditionTypeIds.clear();
-    m_selectedRuleActionTypeIds.clear();
-    if (m_selectedLogicRuleId.isEmpty() || m_selectedObjectTypeId.isEmpty()
-        || !m_coordinator->hasProject()) {
-        return;
-    }
-    const ArtCade::ProjectDoc &doc = m_coordinator->document();
-    const auto typeIt = doc.objectTypes.find(m_selectedObjectTypeId.toStdString());
-    if (typeIt == doc.objectTypes.end() || !typeIt->second.logicBoard) {
-        return;
-    }
-    const std::string want = m_selectedLogicRuleId.toStdString();
-    for (const ArtCade::LogicRuleDef &rule : typeIt->second.logicBoard->rules) {
-        if (rule.id != want) {
-            continue;
-        }
-        m_selectedRuleTriggerTypeId = QString::fromStdString(rule.trigger.typeId);
-        for (const ArtCade::LogicBlockDef &block : rule.conditions) {
-            m_selectedRuleConditionTypeIds.append(QString::fromStdString(block.typeId));
-        }
-        for (const ArtCade::LogicBlockDef &block : rule.actions) {
-            m_selectedRuleActionTypeIds.append(QString::fromStdString(block.typeId));
-        }
-        break;
-    }
 }
 
 QString EditorSession::activeLayerId() const
@@ -421,6 +375,7 @@ void EditorSession::refreshSelectionCache()
     m_selectedObjectTypeName.clear();
     m_logicRuleCount = 0;
     m_logicRuleIds.clear();
+    m_logicRules.clear();
     m_selectedLogicRuleId.clear();
     const auto id = m_coordinator->selectedEntityId();
     if (id != 0) {
@@ -441,6 +396,22 @@ void EditorSession::refreshSelectionCache()
                         m_logicRuleCount = static_cast<int>(type.logicBoard->rules.size());
                         for (const ArtCade::LogicRuleDef &rule : type.logicBoard->rules) {
                             m_logicRuleIds.append(QString::fromStdString(rule.id));
+                            QStringList condition_ids;
+                            for (const ArtCade::LogicBlockDef &block : rule.conditions) {
+                                condition_ids.append(QString::fromStdString(block.typeId));
+                            }
+                            QStringList action_ids;
+                            for (const ArtCade::LogicBlockDef &block : rule.actions) {
+                                action_ids.append(QString::fromStdString(block.typeId));
+                            }
+                            m_logicRules.append(QVariantMap{
+                                {QStringLiteral("id"), QString::fromStdString(rule.id)},
+                                {QStringLiteral("enabled"), rule.enabled},
+                                {QStringLiteral("triggerTypeId"),
+                                 QString::fromStdString(rule.trigger.typeId)},
+                                {QStringLiteral("conditionTypeIds"), condition_ids},
+                                {QStringLiteral("actionTypeIds"), action_ids},
+                            });
                         }
                     }
                 } else {
@@ -454,7 +425,6 @@ void EditorSession::refreshSelectionCache()
     } else if (!m_logicRuleIds.isEmpty()) {
         m_selectedLogicRuleId = m_logicRuleIds.first();
     }
-    refreshSelectedLogicRuleCache();
     emit selectionChanged();
     emit logicRulesChanged();
     emit selectedLogicRuleChanged();
@@ -774,6 +744,35 @@ void EditorSession::setLogicRulePrimaryAction(const QString &blockTypeId)
     refreshSelectionCache();
     emit dirtyChanged();
     setStatus(QStringLiteral("Then: %1").arg(logicBlockDisplayName(blockTypeId)));
+}
+
+void EditorSession::setLogicRuleEnabled(const QString &ruleId, bool enabled)
+{
+    QString guard_error;
+    if (!guardAuthoring(&guard_error)) {
+        setStatus(guard_error, false);
+        emit errorOccurred(guard_error);
+        return;
+    }
+    if (m_selectedObjectTypeId.isEmpty() || ruleId.isEmpty()) {
+        const QString msg = QStringLiteral("Select a Logic rule to enable or disable it");
+        setStatus(msg, false);
+        emit errorOccurred(msg);
+        return;
+    }
+    std::string error;
+    if (!m_coordinator->setLogicRuleEnabled(m_selectedObjectTypeId.toStdString(),
+                                            ruleId.toStdString(),
+                                            enabled,
+                                            error)) {
+        setStatus(QString::fromStdString(error));
+        emit errorOccurred(QString::fromStdString(error));
+        return;
+    }
+    refreshSelectionCache();
+    emit dirtyChanged();
+    setStatus(enabled ? QStringLiteral("Enabled Logic rule %1").arg(ruleId)
+                      : QStringLiteral("Disabled Logic rule %1").arg(ruleId));
 }
 
 quint32 EditorSession::pickEntityAt(double worldX, double worldY)

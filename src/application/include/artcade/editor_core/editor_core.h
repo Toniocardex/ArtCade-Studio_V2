@@ -165,6 +165,25 @@ private:
     bool m_applied = false;
 };
 
+/**
+ * Enables or disables a Logic Rule. Disabled rules persist but are skipped
+ * by logic compilation (Play and export).
+ */
+class SetLogicRuleEnabledCommand final : public ICommand {
+public:
+    SetLogicRuleEnabledCommand(ObjectTypeId object_type_id, LogicRuleId rule_id, bool enabled);
+    void execute(ProjectDoc &doc) override;
+    void undo(ProjectDoc &doc) override;
+
+private:
+    ObjectTypeId m_object_type_id;
+    LogicRuleId m_rule_id;
+    bool m_new_enabled = true;
+    bool m_old_enabled = true;
+    bool m_captured = false;
+    bool m_applied = false;
+};
+
 /** C++-owned editor project format. */
 inline constexpr int kCurrentProjectFormatVersion = 5;
 
@@ -244,6 +263,14 @@ public:
                                    const LogicRuleId &rule_id,
                                    const std::string &block_type_id,
                                    std::string &error_message);
+
+    /**
+     * Enables or disables a rule. Same value is a no-op (does not dirty).
+     */
+    bool setLogicRuleEnabled(const ObjectTypeId &object_type_id,
+                             const LogicRuleId &rule_id,
+                             bool enabled,
+                             std::string &error_message);
 
     [[nodiscard]] bool layerVisible(const std::string &layer_id) const;
     [[nodiscard]] bool layerLocked(const std::string &layer_id) const;

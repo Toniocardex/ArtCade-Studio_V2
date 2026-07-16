@@ -295,4 +295,50 @@ void SetLogicRulePrimaryActionCommand::undo(ProjectDoc &doc)
     }
 }
 
+SetLogicRuleEnabledCommand::SetLogicRuleEnabledCommand(ObjectTypeId object_type_id,
+                                                       LogicRuleId rule_id,
+                                                       bool enabled)
+    : m_object_type_id(std::move(object_type_id))
+    , m_rule_id(std::move(rule_id))
+    , m_new_enabled(enabled)
+{
+}
+
+void SetLogicRuleEnabledCommand::execute(ProjectDoc &doc)
+{
+    EntityDef *type = find_object_type(doc, m_object_type_id);
+    if (!type || !type->logicBoard || m_rule_id.empty()) {
+        return;
+    }
+    LogicRuleDef *rule = find_rule(*type->logicBoard, m_rule_id);
+    if (!rule) {
+        return;
+    }
+    if (!m_captured) {
+        m_old_enabled = rule->enabled;
+        m_captured = true;
+    }
+    if (rule->enabled == m_new_enabled) {
+        return; // no-op — do not mark applied
+    }
+    rule->enabled = m_new_enabled;
+    m_applied = true;
+}
+
+void SetLogicRuleEnabledCommand::undo(ProjectDoc &doc)
+{
+    if (!m_applied || !m_captured) {
+        return;
+    }
+    EntityDef *type = find_object_type(doc, m_object_type_id);
+    if (!type || !type->logicBoard) {
+        return;
+    }
+    LogicRuleDef *rule = find_rule(*type->logicBoard, m_rule_id);
+    if (!rule) {
+        return;
+    }
+    rule->enabled = m_old_enabled;
+}
+
 } // namespace ArtCade::EditorCore

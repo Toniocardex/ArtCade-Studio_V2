@@ -171,6 +171,22 @@ int main()
     expect(coord.document().objectTypes.at("Player").logicBoard->rules.front().id == deleted_id,
            "undo remove restores same rule id");
 
+    expect(coord.setLogicRuleEnabled("Player", deleted_id, false, error), "disable rule");
+    expect(coord.isDirty(), "disable rule dirties");
+    expect(!coord.document().objectTypes.at("Player").logicBoard->rules.front().enabled,
+           "rule disabled");
+    coord.undo();
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules.front().enabled,
+           "undo re-enables rule");
+    coord.redo();
+    expect(!coord.document().objectTypes.at("Player").logicBoard->rules.front().enabled,
+           "redo disables rule");
+    const std::uint64_t rev_before_enable_noop = coord.revision();
+    expect(coord.setLogicRuleEnabled("Player", deleted_id, false, error),
+           "no-op disable succeeds");
+    expect(coord.revision() == rev_before_enable_noop,
+           "no-op disable does not bump revision");
+
     expect(coord.saveProjectAs(out_path.string(), error), "save roundtrip file");
     expect(!coord.isDirty(), "clean after save");
 
@@ -191,6 +207,8 @@ int main()
     expect(reloaded_player->second.logicBoard->rules.size() == 1, "persisted rule count");
     expect(reloaded_player->second.logicBoard->rules.front().id == deleted_id,
            "persisted rule id");
+    expect(!reloaded_player->second.logicBoard->rules.front().enabled,
+           "persisted rule disabled state");
 
     std::error_code ec;
     fs::remove(out_path, ec);

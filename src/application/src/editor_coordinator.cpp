@@ -489,6 +489,50 @@ bool EditorCoordinator::setLogicRulePrimaryAction(const ObjectTypeId &object_typ
     return true;
 }
 
+bool EditorCoordinator::setLogicRuleEnabled(const ObjectTypeId &object_type_id,
+                                            const LogicRuleId &rule_id,
+                                            bool enabled,
+                                            std::string &error_message)
+{
+    if (!m_has_project) {
+        error_message = "No project open";
+        return false;
+    }
+    if (object_type_id.empty() || rule_id.empty()) {
+        error_message = "Missing Logic Board target";
+        return false;
+    }
+    auto type_it = m_doc.objectTypes.find(object_type_id);
+    if (type_it == m_doc.objectTypes.end() || !type_it->second.logicBoard) {
+        error_message = "Logic Board not found";
+        return false;
+    }
+    LogicRuleDef *rule = nullptr;
+    for (LogicRuleDef &r : type_it->second.logicBoard->rules) {
+        if (r.id == rule_id) {
+            rule = &r;
+            break;
+        }
+    }
+    if (!rule) {
+        error_message = "Logic rule not found";
+        return false;
+    }
+    if (rule->enabled == enabled) {
+        return true; // no-op — do not dirty
+    }
+    auto command =
+        std::make_unique<SetLogicRuleEnabledCommand>(object_type_id, rule_id, enabled);
+    command->execute(m_doc);
+    if (rule->enabled != enabled) {
+        error_message = "Failed to set rule enabled state";
+        return false;
+    }
+    m_commands.pushExecuted(std::move(command));
+    bumpRevision();
+    return true;
+}
+
 bool EditorCoordinator::renameSelected(const std::string &new_name, std::string &error_message)
 {
     if (m_selected_entity_id == 0) {

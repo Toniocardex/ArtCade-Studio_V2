@@ -4,9 +4,9 @@ import QtQuick.Layouts
 import ArtCade.Ui
 
 /**
- * Logic Board workspace — type-targeted rulesheet.
- * Mutations only via EditorSession.addLogicRule / removeLogicRule /
- * setLogicRuleTrigger / setLogicRulePrimaryAction (command path).
+ * Logic Board workspace — type-targeted rulesheet, compact-first.
+ * Rules render as compact rows; the selected rule expands inline.
+ * Mutations only via EditorSession Logic commands (single write path).
  */
 Rectangle {
     id: root
@@ -14,6 +14,8 @@ Rectangle {
     color: Theme.panel
 
     readonly property bool hasTypeTarget: EditorSession.selectedObjectTypeId.length > 0
+    /** UI density preference (presentation only — never dirties the project). */
+    property bool comfortable: false
 
     ColumnLayout {
         anchors.fill: parent
@@ -21,13 +23,16 @@ Rectangle {
 
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: Metrics.panelHeaderHeight + Metrics.spacingSm
+            Layout.preferredHeight: headerRow.implicitHeight + Metrics.spacingMd * 2
             color: Theme.chrome
 
             RowLayout {
+                id: headerRow
                 anchors.fill: parent
                 anchors.leftMargin: Metrics.spacingMd
                 anchors.rightMargin: Metrics.spacingMd
+                anchors.topMargin: Metrics.spacingMd
+                anchors.bottomMargin: Metrics.spacingMd
                 spacing: Metrics.spacingMd
 
                 Column {
@@ -35,12 +40,46 @@ Rectangle {
                     spacing: 2
 
                     Text {
-                        text: "Logic Board"
-                        color: Theme.textPrimary
+                        visible: root.hasTypeTarget
+                        text: "Objects / " + EditorSession.selectedObjectTypeName
+                        color: Theme.textMuted
                         font.family: Typography.family
-                        font.pixelSize: Typography.sizeSm
-                        font.weight: Font.DemiBold
+                        font.pixelSize: Typography.sizeXs
                     }
+
+                    Row {
+                        spacing: Metrics.spacingSm
+
+                        Text {
+                            text: root.hasTypeTarget ? EditorSession.selectedObjectTypeName
+                                                     : "Logic Board"
+                            color: Theme.textPrimary
+                            font.family: Typography.family
+                            font.pixelSize: Typography.sizeLg
+                            font.weight: Font.DemiBold
+                        }
+
+                        Rectangle {
+                            visible: root.hasTypeTarget
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: badgeText.implicitWidth + Metrics.spacingMd
+                            height: 16
+                            radius: 2
+                            color: Qt.alpha(Theme.accent, 0.16)
+
+                            Text {
+                                id: badgeText
+                                anchors.centerIn: parent
+                                text: "OBJECT TYPE LOGIC"
+                                color: Theme.accent
+                                font.family: Typography.family
+                                font.pixelSize: 9
+                                font.weight: Font.DemiBold
+                                font.letterSpacing: 0.5
+                            }
+                        }
+                    }
+
                     Text {
                         text: {
                             if (!EditorSession.hasProject)
@@ -49,8 +88,8 @@ Rectangle {
                                 return "Select a scene object — rules apply to its object type"
                             const rules = EditorSession.logicRuleCount
                             const ruleLabel = rules === 1 ? "1 rule" : (rules + " rules")
-                            return "Applies to: " + EditorSession.selectedObjectTypeName
-                                   + "  ·  " + ruleLabel
+                            return "Applies to all " + EditorSession.selectedObjectTypeName
+                                   + " instances  ·  " + ruleLabel
                         }
                         color: Theme.textSecondary
                         font.family: Typography.family
@@ -60,26 +99,87 @@ Rectangle {
                     }
                 }
 
+                Text {
+                    visible: root.hasTypeTarget && EditorSession.selectedName.length > 0
+                    text: "Selected instance: " + EditorSession.selectedName
+                    color: Theme.textMuted
+                    font.family: Typography.family
+                    font.pixelSize: Typography.sizeXs
+                    ToolTip.visible: instanceMa.containsMouse
+                    ToolTip.delay: 400
+                    ToolTip.text: "This logic is shared by every " +
+                                  EditorSession.selectedObjectTypeName +
+                                  " instance. Runtime variables stay per-instance."
+
+                    MouseArea {
+                        id: instanceMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        acceptedButtons: Qt.NoButton
+                    }
+                }
+
+                Rectangle {
+                    visible: root.hasTypeTarget
+                    Layout.preferredWidth: densityRow.implicitWidth + 2
+                    Layout.preferredHeight: Metrics.controlHeight - 4
+                    radius: Metrics.radiusSmall
+                    color: Theme.control
+                    border.width: 1
+                    border.color: Theme.borderSubtle
+
+                    Row {
+                        id: densityRow
+                        anchors.centerIn: parent
+
+                        Repeater {
+                            model: ["Compact", "Comfortable"]
+
+                            delegate: Rectangle {
+                                id: densityItem
+                                required property string modelData
+                                required property int index
+                                readonly property bool comfortableChoice: index === 1
+                                readonly property bool active:
+                                    comfortableChoice === root.comfortable
+                                width: densityLabel.implicitWidth + Metrics.spacingMd * 2
+                                height: Metrics.controlHeight - 6
+                                radius: Metrics.radiusSmall
+                                color: active ? Theme.selection
+                                     : densityMa.containsMouse ? Theme.controlHover
+                                     : "transparent"
+
+                                Text {
+                                    id: densityLabel
+                                    anchors.centerIn: parent
+                                    text: densityItem.modelData
+                                    color: densityItem.active ? Theme.textPrimary
+                                                              : Theme.textSecondary
+                                    font.family: Typography.family
+                                    font.pixelSize: Typography.sizeXs
+                                }
+
+                                MouseArea {
+                                    id: densityMa
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    onClicked: root.comfortable =
+                                                   densityItem.comfortableChoice
+                                }
+                            }
+                        }
+                    }
+                }
+
                 AcButton {
                     text: "+ Add Rule"
                     primary: true
-                    enabled: EditorSession.hasProject && root.hasTypeTarget && !EditorSession.playing
+                    enabled: EditorSession.hasProject && root.hasTypeTarget
+                             && !EditorSession.playing
                     onClicked: EditorSession.addLogicRule()
                     ToolTip.visible: hovered
                     ToolTip.delay: 400
                     ToolTip.text: "Add a default When / Then rule on this object type"
-                }
-
-                AcButton {
-                    text: "Delete Rule"
-                    destructive: true
-                    enabled: EditorSession.hasProject && root.hasTypeTarget
-                             && EditorSession.selectedLogicRuleId.length > 0
-                             && !EditorSession.playing
-                    onClicked: EditorSession.removeLogicRule(EditorSession.selectedLogicRuleId)
-                    ToolTip.visible: hovered
-                    ToolTip.delay: 400
-                    ToolTip.text: "Delete the selected Logic rule (undoable)"
                 }
             }
 
@@ -92,174 +192,43 @@ Rectangle {
             }
         }
 
-        RowLayout {
+        ListView {
+            id: rulesList
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: 0
+            Layout.margins: Metrics.spacingMd
+            clip: true
             visible: EditorSession.hasProject && root.hasTypeTarget
+            model: EditorSession.logicRules
+            spacing: Metrics.spacingSm
+            boundsBehavior: Flickable.StopAtBounds
 
-            Rectangle {
-                Layout.preferredWidth: 200
-                Layout.fillHeight: true
-                color: Theme.panelRaised
+            delegate: AcLogicRuleCard {
+                required property var modelData
+                required property int index
 
-                ColumnLayout {
-                    anchors.fill: parent
-                    spacing: 0
-
-                    Text {
-                        Layout.fillWidth: true
-                        Layout.leftMargin: Metrics.spacingMd
-                        Layout.topMargin: Metrics.spacingSm
-                        Layout.bottomMargin: Metrics.spacingXs
-                        text: "RULES"
-                        color: Theme.textSecondary
-                        font.family: Typography.family
-                        font.pixelSize: Typography.sizeXs
-                        font.weight: Font.DemiBold
-                    }
-
-                    ListView {
-                        id: rulesList
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        clip: true
-                        model: EditorSession.logicRuleIds
-                        currentIndex: {
-                            const ids = EditorSession.logicRuleIds
-                            return ids.indexOf(EditorSession.selectedLogicRuleId)
-                        }
-                        boundsBehavior: Flickable.StopAtBounds
-
-                        delegate: Rectangle {
-                            required property string modelData
-                            required property int index
-                            width: rulesList.width
-                            height: Metrics.controlHeight + 4
-                            color: modelData === EditorSession.selectedLogicRuleId
-                                   ? Theme.selection
-                                   : (ruleMa.containsMouse ? Theme.controlHover : "transparent")
-
-                            MouseArea {
-                                id: ruleMa
-                                anchors.fill: parent
-                                anchors.rightMargin: 28
-                                hoverEnabled: true
-                                z: 0
-                                onClicked: EditorSession.selectedLogicRuleId = modelData
-                            }
-
-                            RowLayout {
-                                anchors.fill: parent
-                                anchors.leftMargin: Metrics.spacingMd
-                                anchors.rightMargin: Metrics.spacingXs
-                                spacing: Metrics.spacingXs
-                                z: 1
-
-                                Text {
-                                    Layout.fillWidth: true
-                                    text: modelData
-                                    color: Theme.textPrimary
-                                    font.family: Typography.family
-                                    font.pixelSize: Typography.sizeSm
-                                    elide: Text.ElideRight
-                                }
-
-                                AcToolButton {
-                                    iconSource: Icons.close
-                                    implicitWidth: 22
-                                    implicitHeight: 22
-                                    enabled: !EditorSession.playing
-                                    ToolTip.visible: hovered
-                                    ToolTip.delay: 400
-                                    ToolTip.text: "Delete this rule"
-                                    onClicked: EditorSession.removeLogicRule(modelData)
-                                }
-                            }
-                        }
-
-                        AcEmptyHint {
-                            visible: EditorSession.logicRuleCount === 0
-                            message: "No rules yet"
-                            hint: "Click + Add Rule to create a When / Then rule"
-                        }
-                    }
+                width: rulesList.width
+                rule: modelData
+                orderIndex: index
+                expanded: modelData.id === EditorSession.selectedLogicRuleId
+                comfortable: root.comfortable
+                onSelectRequested: EditorSession.selectedLogicRuleId = modelData.id
+                onEnabledToggled: function(enabled) {
+                    EditorSession.setLogicRuleEnabled(modelData.id, enabled)
                 }
-
-                Rectangle {
-                    anchors.top: parent.top
-                    anchors.bottom: parent.bottom
-                    anchors.right: parent.right
-                    width: 1
-                    color: Theme.borderSubtle
+                onDeleteRequested: EditorSession.removeLogicRule(modelData.id)
+                onTriggerChosen: function(typeId) {
+                    EditorSession.setLogicRuleTrigger(typeId)
+                }
+                onActionChosen: function(typeId) {
+                    EditorSession.setLogicRulePrimaryAction(typeId)
                 }
             }
 
-            RowLayout {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                spacing: 0
-
-                AcLogicColumn {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    title: "When"
-                    subtitle: "Trigger"
-                    accent: Theme.accent
-                    emptyText: "No trigger"
-                    boardHasRules: EditorSession.logicRuleCount > 0
-                    blocks: EditorSession.selectedRuleTriggerTypeId.length > 0
-                            ? [EditorSession.selectedRuleTriggerTypeId]
-                            : []
-                    editable: true
-                    catalogTypeIds: EditorSession.logicTriggerCatalog
-                    currentTypeId: EditorSession.selectedRuleTriggerTypeId
-                    onTypeChosen: function(typeId) {
-                        EditorSession.setLogicRuleTrigger(typeId)
-                    }
-                }
-
-                Rectangle {
-                    Layout.fillHeight: true
-                    Layout.preferredWidth: 1
-                    color: Theme.borderSubtle
-                }
-
-                AcLogicColumn {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    title: "Also require…"
-                    subtitle: "Conditions (optional)"
-                    accent: Theme.warning
-                    emptyText: "None (always)"
-                    boardHasRules: EditorSession.logicRuleCount > 0
-                    blocks: EditorSession.selectedRuleConditionTypeIds
-                }
-
-                Rectangle {
-                    Layout.fillHeight: true
-                    Layout.preferredWidth: 1
-                    color: Theme.borderSubtle
-                }
-
-                AcLogicColumn {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    title: "Then"
-                    subtitle: "Actions"
-                    accent: Theme.success
-                    emptyText: "No actions"
-                    boardHasRules: EditorSession.logicRuleCount > 0
-                    blocks: EditorSession.selectedRuleActionTypeIds
-                    editable: true
-                    catalogTypeIds: EditorSession.logicActionCatalog
-                    currentTypeId: EditorSession.selectedRuleActionTypeIds.length > 0
-                                   ? EditorSession.selectedRuleActionTypeIds[0]
-                                   : ""
-                    onTypeChosen: function(typeId) {
-                        EditorSession.setLogicRulePrimaryAction(typeId)
-                    }
-                }
+            AcEmptyHint {
+                visible: EditorSession.logicRuleCount === 0
+                message: "This board has no rules yet"
+                hint: "Click + Add Rule — a rule runs its Then actions when the When trigger fires"
             }
         }
 
