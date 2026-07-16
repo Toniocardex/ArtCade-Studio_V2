@@ -130,7 +130,7 @@ Rectangle {
                 radius: 2
                 color: (root.rule.errorCount || 0) > 0 ? Theme.error : Theme.warning
                 ToolTip.visible: warnHover.hovered
-                ToolTip.delay: 200
+                ToolTip.delay: 400
                 ToolTip.text: {
                     const rows = root.rule.diagnostics || []
                     const parts = []

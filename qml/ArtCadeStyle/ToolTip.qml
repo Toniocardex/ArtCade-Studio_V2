@@ -5,16 +5,17 @@ import ArtCade.Ui
 /**
  * App-wide themed tooltip (style override — replaces the native white one).
  * Anthracite surface, strong border, 4px radius, ~400ms delay, max 280px.
+ *
+ * Width is measured via TextMetrics (unwrapped natural size) so wrapMode
+ * cannot collapse the popup into a near-zero-width column.
  */
 T.ToolTip {
     id: control
 
+    readonly property int maxTooltipWidth: 280
+
     x: parent ? (parent.width - implicitWidth) / 2 : 0
     y: -implicitHeight - 6
-
-    implicitWidth: Math.min(280,
-                            implicitContentWidth + leftPadding + rightPadding)
-    implicitHeight: implicitContentHeight + topPadding + bottomPadding
 
     margins: 6
     topPadding: 6
@@ -24,9 +25,30 @@ T.ToolTip {
     delay: 400
     timeout: 9000
 
-    contentItem: Text {
+    TextMetrics {
+        id: textMetrics
         text: control.text
-        wrapMode: Text.Wrap
+        font.family: Typography.family
+        font.pixelSize: Typography.sizeXs
+    }
+
+    implicitWidth: Math.min(
+        maxTooltipWidth,
+        Math.max(
+            80,
+            textMetrics.boundingRect.width
+                + leftPadding
+                + rightPadding
+        )
+    )
+    implicitHeight:
+        tooltipText.implicitHeight + topPadding + bottomPadding
+
+    contentItem: Text {
+        id: tooltipText
+        width: control.availableWidth
+        text: control.text
+        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
         color: Theme.textPrimary
         font.family: Typography.family
         font.pixelSize: Typography.sizeXs
