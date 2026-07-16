@@ -54,29 +54,33 @@ Button {
                      : Theme.border
     }
 
-    contentItem: Row {
-        spacing: Metrics.spacingXs
-        implicitHeight: Math.max(iconItem.implicitHeight, labelItem.implicitHeight)
-        implicitWidth: (iconItem.visible ? iconItem.implicitWidth + spacing : 0) + labelItem.implicitWidth
+    // Item (not Row) owns assignable implicit* — Row's implicitWidth is read-only in Qt 6.8.
+    contentItem: Item {
+        implicitWidth: row.implicitWidth
+        implicitHeight: row.implicitHeight
 
-        AcIcon {
-            id: iconItem
-            visible: root.iconSource.toString().length > 0
-            source: root.iconSource
-            size: Metrics.iconSize
-            color: root._labelColor
-            anchors.verticalCenter: parent.verticalCenter
-        }
-        Text {
-            id: labelItem
-            text: root.text
-            color: root._labelColor
-            font.family: Typography.family
-            font.pixelSize: Typography.sizeSm
-            font.weight: root.primary ? Font.DemiBold : Font.Normal
-            verticalAlignment: Text.AlignVCenter
-            elide: Text.ElideRight
-            anchors.verticalCenter: parent.verticalCenter
+        Row {
+            id: row
+            anchors.centerIn: parent
+            spacing: Metrics.spacingXs
+
+            AcIcon {
+                visible: root.iconSource.toString().length > 0
+                source: root.iconSource
+                size: Metrics.iconSize
+                color: root._labelColor
+                anchors.verticalCenter: parent.verticalCenter
+            }
+            Text {
+                text: root.text
+                color: root._labelColor
+                font.family: Typography.family
+                font.pixelSize: Typography.sizeSm
+                font.weight: root.primary ? Font.DemiBold : Font.Normal
+                verticalAlignment: Text.AlignVCenter
+                elide: Text.ElideRight
+                anchors.verticalCenter: parent.verticalCenter
+            }
         }
     }
 }
