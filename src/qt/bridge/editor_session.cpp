@@ -5,6 +5,8 @@
 
 #include "artcade/editor_core/editor_core.h"
 
+#include "logic-core.h"
+
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
@@ -176,6 +178,38 @@ QStringList EditorSession::selectedRuleConditionTypeIds() const
 QStringList EditorSession::selectedRuleActionTypeIds() const
 {
     return m_selectedRuleActionTypeIds;
+}
+
+QStringList EditorSession::logicTriggerCatalog() const
+{
+    QStringList ids;
+    for (const ArtCade::Logic::LogicBlockDescriptor &desc : ArtCade::Logic::registry()) {
+        if (desc.kind == ArtCade::Logic::BlockKind::Trigger) {
+            ids.append(QString::fromStdString(desc.typeId));
+        }
+    }
+    return ids;
+}
+
+QStringList EditorSession::logicActionCatalog() const
+{
+    QStringList ids;
+    for (const ArtCade::Logic::LogicBlockDescriptor &desc : ArtCade::Logic::registry()) {
+        if (desc.kind == ArtCade::Logic::BlockKind::Action) {
+            ids.append(QString::fromStdString(desc.typeId));
+        }
+    }
+    return ids;
+}
+
+QString EditorSession::logicBlockDisplayName(const QString &blockTypeId) const
+{
+    const ArtCade::Logic::LogicBlockDescriptor *desc =
+        ArtCade::Logic::findDescriptor(blockTypeId.toStdString());
+    if (!desc) {
+        return blockTypeId;
+    }
+    return QString::fromStdString(desc->displayName);
 }
 
 void EditorSession::setSelectedLogicRuleId(const QString &ruleId)
@@ -422,6 +456,7 @@ void EditorSession::refreshSelectionCache()
     }
     refreshSelectedLogicRuleCache();
     emit selectionChanged();
+    emit logicRulesChanged();
     emit selectedLogicRuleChanged();
 }
 
@@ -683,6 +718,62 @@ void EditorSession::removeLogicRule(const QString &ruleId)
     refreshSelectionCache();
     emit dirtyChanged();
     setStatus(QStringLiteral("Deleted Logic rule %1").arg(target));
+}
+
+void EditorSession::setLogicRuleTrigger(const QString &blockTypeId)
+{
+    QString guard_error;
+    if (!guardAuthoring(&guard_error)) {
+        setStatus(guard_error, false);
+        emit errorOccurred(guard_error);
+        return;
+    }
+    if (m_selectedObjectTypeId.isEmpty() || m_selectedLogicRuleId.isEmpty()) {
+        const QString msg = QStringLiteral("Select a Logic rule to edit its When trigger");
+        setStatus(msg, false);
+        emit errorOccurred(msg);
+        return;
+    }
+    std::string error;
+    if (!m_coordinator->setLogicRuleTrigger(m_selectedObjectTypeId.toStdString(),
+                                            m_selectedLogicRuleId.toStdString(),
+                                            blockTypeId.toStdString(),
+                                            error)) {
+        setStatus(QString::fromStdString(error));
+        emit errorOccurred(QString::fromStdString(error));
+        return;
+    }
+    refreshSelectionCache();
+    emit dirtyChanged();
+    setStatus(QStringLiteral("When: %1").arg(logicBlockDisplayName(blockTypeId)));
+}
+
+void EditorSession::setLogicRulePrimaryAction(const QString &blockTypeId)
+{
+    QString guard_error;
+    if (!guardAuthoring(&guard_error)) {
+        setStatus(guard_error, false);
+        emit errorOccurred(guard_error);
+        return;
+    }
+    if (m_selectedObjectTypeId.isEmpty() || m_selectedLogicRuleId.isEmpty()) {
+        const QString msg = QStringLiteral("Select a Logic rule to edit its Then action");
+        setStatus(msg, false);
+        emit errorOccurred(msg);
+        return;
+    }
+    std::string error;
+    if (!m_coordinator->setLogicRulePrimaryAction(m_selectedObjectTypeId.toStdString(),
+                                                  m_selectedLogicRuleId.toStdString(),
+                                                  blockTypeId.toStdString(),
+                                                  error)) {
+        setStatus(QString::fromStdString(error));
+        emit errorOccurred(QString::fromStdString(error));
+        return;
+    }
+    refreshSelectionCache();
+    emit dirtyChanged();
+    setStatus(QStringLiteral("Then: %1").arg(logicBlockDisplayName(blockTypeId)));
 }
 
 quint32 EditorSession::pickEntityAt(double worldX, double worldY)

@@ -5,7 +5,8 @@ import ArtCade.Ui
 
 /**
  * Logic Board workspace — type-targeted rulesheet.
- * Mutations only via EditorSession.addLogicRule (command path).
+ * Mutations only via EditorSession.addLogicRule / removeLogicRule /
+ * setLogicRuleTrigger / setLogicRulePrimaryAction (command path).
  */
 Rectangle {
     id: root
@@ -206,9 +207,16 @@ Rectangle {
                     subtitle: "Trigger"
                     accent: Theme.accent
                     emptyText: "No trigger"
+                    boardHasRules: EditorSession.logicRuleCount > 0
                     blocks: EditorSession.selectedRuleTriggerTypeId.length > 0
                             ? [EditorSession.selectedRuleTriggerTypeId]
                             : []
+                    editable: true
+                    catalogTypeIds: EditorSession.logicTriggerCatalog
+                    currentTypeId: EditorSession.selectedRuleTriggerTypeId
+                    onTypeChosen: function(typeId) {
+                        EditorSession.setLogicRuleTrigger(typeId)
+                    }
                 }
 
                 Rectangle {
@@ -224,6 +232,7 @@ Rectangle {
                     subtitle: "Conditions (optional)"
                     accent: Theme.warning
                     emptyText: "None (always)"
+                    boardHasRules: EditorSession.logicRuleCount > 0
                     blocks: EditorSession.selectedRuleConditionTypeIds
                 }
 
@@ -240,7 +249,16 @@ Rectangle {
                     subtitle: "Actions"
                     accent: Theme.success
                     emptyText: "No actions"
+                    boardHasRules: EditorSession.logicRuleCount > 0
                     blocks: EditorSession.selectedRuleActionTypeIds
+                    editable: true
+                    catalogTypeIds: EditorSession.logicActionCatalog
+                    currentTypeId: EditorSession.selectedRuleActionTypeIds.length > 0
+                                   ? EditorSession.selectedRuleActionTypeIds[0]
+                                   : ""
+                    onTypeChosen: function(typeId) {
+                        EditorSession.setLogicRulePrimaryAction(typeId)
+                    }
                 }
             }
         }

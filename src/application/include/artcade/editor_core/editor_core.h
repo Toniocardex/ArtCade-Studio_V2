@@ -22,6 +22,8 @@ public:
 class CommandStack {
 public:
     void execute(std::unique_ptr<ICommand> command, ProjectDoc &doc);
+    /** Push a command already applied to @p doc (does not call execute again). */
+    void pushExecuted(std::unique_ptr<ICommand> command);
     bool canUndo() const;
     bool canRedo() const;
     void undo(ProjectDoc &doc);
@@ -90,6 +92,7 @@ public:
     void undo(ProjectDoc &doc) override;
 
     [[nodiscard]] const LogicRuleId &ruleId() const { return m_rule_id; }
+    [[nodiscard]] bool applied() const { return m_applied; }
 
 private:
     ObjectTypeId m_object_type_id;
@@ -117,6 +120,47 @@ private:
     std::uint32_t m_api_version = 2;
     std::size_t m_index = 0;
     bool m_cleared_board = false;
+    bool m_captured = false;
+    bool m_applied = false;
+};
+
+/**
+ * Replaces the When (trigger) block on a Logic Rule with a default block of @p block_type_id.
+ */
+class SetLogicRuleTriggerCommand final : public ICommand {
+public:
+    SetLogicRuleTriggerCommand(ObjectTypeId object_type_id,
+                               LogicRuleId rule_id,
+                               std::string block_type_id);
+    void execute(ProjectDoc &doc) override;
+    void undo(ProjectDoc &doc) override;
+
+private:
+    ObjectTypeId m_object_type_id;
+    LogicRuleId m_rule_id;
+    std::string m_block_type_id;
+    LogicBlockDef m_old_trigger;
+    bool m_captured = false;
+    bool m_applied = false;
+};
+
+/**
+ * Replaces the first Then (action) block on a Logic Rule (or inserts one if empty).
+ */
+class SetLogicRulePrimaryActionCommand final : public ICommand {
+public:
+    SetLogicRulePrimaryActionCommand(ObjectTypeId object_type_id,
+                                     LogicRuleId rule_id,
+                                     std::string block_type_id);
+    void execute(ProjectDoc &doc) override;
+    void undo(ProjectDoc &doc) override;
+
+private:
+    ObjectTypeId m_object_type_id;
+    LogicRuleId m_rule_id;
+    std::string m_block_type_id;
+    LogicBlockDef m_old_action;
+    bool m_had_action = false;
     bool m_captured = false;
     bool m_applied = false;
 };
@@ -184,6 +228,22 @@ public:
     bool removeLogicRule(const ObjectTypeId &object_type_id,
                          const LogicRuleId &rule_id,
                          std::string &error_message);
+
+    /**
+     * Sets the When trigger type on a rule (default properties for that block type).
+     */
+    bool setLogicRuleTrigger(const ObjectTypeId &object_type_id,
+                             const LogicRuleId &rule_id,
+                             const std::string &block_type_id,
+                             std::string &error_message);
+
+    /**
+     * Sets the primary Then action type on a rule (index 0).
+     */
+    bool setLogicRulePrimaryAction(const ObjectTypeId &object_type_id,
+                                   const LogicRuleId &rule_id,
+                                   const std::string &block_type_id,
+                                   std::string &error_message);
 
     [[nodiscard]] bool layerVisible(const std::string &layer_id) const;
     [[nodiscard]] bool layerLocked(const std::string &layer_id) const;

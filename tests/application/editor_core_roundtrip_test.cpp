@@ -2,6 +2,8 @@
 
 #include "artcade/editor_core/editor_core.h"
 
+#include "logic-core.h"
+
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
@@ -97,6 +99,7 @@ int main()
 
     ArtCade::LogicRuleId rule_id;
     expect(coord.addLogicRule("Player", rule_id, error), "add logic rule on Player");
+    expect(coord.isDirty(), "add logic rule dirties");
     expect(!rule_id.empty(), "rule id assigned");
     const auto player_it = coord.document().objectTypes.find("Player");
     expect(player_it != coord.document().objectTypes.end(), "Player type exists");
@@ -112,8 +115,52 @@ int main()
     expect(coord.document().objectTypes.at("Player").logicBoard->rules.size() == 1,
            "redo restores rule");
 
-    ArtCade::LogicRuleId deleted_id = rule_id;
-    expect(coord.removeLogicRule("Player", deleted_id, error), "remove logic rule");
+    ArtCade::LogicRuleId rule_b;
+    expect(coord.addLogicRule("Player", rule_b, error), "add second rule");
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules.size() == 2,
+           "two rules");
+    expect(rule_b != rule_id, "second rule id distinct");
+
+    expect(coord.setLogicRuleTrigger("Player",
+                                     rule_id,
+                                     ArtCade::Logic::kKeyPressed,
+                                     error),
+           "set trigger to key pressed");
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].trigger.typeId
+               == ArtCade::Logic::kKeyPressed,
+           "trigger updated");
+    coord.undo();
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].trigger.typeId
+               == ArtCade::Logic::kOnStart,
+           "undo trigger");
+
+    expect(coord.setLogicRulePrimaryAction("Player",
+                                           rule_id,
+                                           ArtCade::Logic::kDestroySelf,
+                                           error),
+           "set primary action");
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].actions.front().typeId
+               == ArtCade::Logic::kDestroySelf,
+           "action updated");
+    coord.undo();
+
+    expect(coord.removeLogicRule("Player", rule_id, error), "remove first rule");
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules.size() == 1,
+           "one rule remains");
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules.front().id == rule_b,
+           "remaining is second rule");
+    coord.undo();
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules.size() == 2,
+           "undo remove restores two rules");
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].id == rule_id,
+           "undo restore at index 0");
+    coord.redo();
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules.size() == 1,
+           "redo remove");
+
+    // Leave one rule (rule_b) for save persistence checks.
+    ArtCade::LogicRuleId deleted_id = rule_b;
+    expect(coord.removeLogicRule("Player", deleted_id, error), "remove last rule");
     expect(!coord.document().objectTypes.at("Player").logicBoard.has_value(),
            "remove last rule clears board");
     coord.undo();
@@ -142,7 +189,7 @@ int main()
     expect(reloaded_player != reloaded.document().objectTypes.end(), "reloaded Player");
     expect(reloaded_player->second.logicBoard.has_value(), "persisted logicBoard");
     expect(reloaded_player->second.logicBoard->rules.size() == 1, "persisted rule count");
-    expect(reloaded_player->second.logicBoard->rules.front().id == rule_id,
+    expect(reloaded_player->second.logicBoard->rules.front().id == deleted_id,
            "persisted rule id");
 
     std::error_code ec;

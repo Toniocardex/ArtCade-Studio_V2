@@ -3,8 +3,9 @@
 #include "logic-core.h"
 
 #include <algorithm>
+#include <charconv>
 #include <cstddef>
-#include <sstream>
+#include <string>
 
 namespace ArtCade::EditorCore {
 namespace {
@@ -16,17 +17,18 @@ LogicRuleId allocate_logic_rule_id(const LogicBoardDef &board)
         if (rule.id.rfind("rule-", 0) != 0) {
             continue;
         }
-        try {
-            const int n = std::stoi(rule.id.substr(5));
-            if (n > max_n) {
-                max_n = n;
-            }
-        } catch (...) {
+        const char *begin = rule.id.data() + 5;
+        const char *end = rule.id.data() + rule.id.size();
+        int n = 0;
+        const auto parsed = std::from_chars(begin, end, n);
+        if (parsed.ec != std::errc{} || parsed.ptr != end || n <= 0) {
+            continue;
+        }
+        if (n > max_n) {
+            max_n = n;
         }
     }
-    std::ostringstream oss;
-    oss << "rule-" << (max_n + 1);
-    return oss.str();
+    return "rule-" + std::to_string(max_n + 1);
 }
 
 EntityDef *find_object_type(ProjectDoc &doc, const ObjectTypeId &object_type_id)
@@ -39,6 +41,16 @@ EntityDef *find_object_type(ProjectDoc &doc, const ObjectTypeId &object_type_id)
         return nullptr;
     }
     return &type_it->second;
+}
+
+LogicRuleDef *find_rule(LogicBoardDef &board, const LogicRuleId &rule_id)
+{
+    for (LogicRuleDef &rule : board.rules) {
+        if (rule.id == rule_id) {
+            return &rule;
+        }
+    }
+    return nullptr;
 }
 
 } // namespace
@@ -75,8 +87,7 @@ void AddLogicRuleCommand::execute(ProjectDoc &doc)
     }
     for (const LogicRuleDef &existing : board.rules) {
         if (existing.id == m_rule_id) {
-            m_applied = true;
-            return;
+            return; // true no-op — do not mark applied
         }
     }
     board.rules.push_back(ArtCade::Logic::makeDefaultRule(m_rule_id));
@@ -129,6 +140,7 @@ void RemoveLogicRuleCommand::execute(ProjectDoc &doc)
         m_api_version = board.apiVersion;
         m_captured = true;
     }
+    m_cleared_board = false;
     board.rules.erase(it);
     if (board.rules.empty()) {
         type->logicBoard.reset();
@@ -164,6 +176,123 @@ void RemoveLogicRuleCommand::undo(ProjectDoc &doc)
     const std::size_t insert_at = std::min(m_index, board.rules.size());
     board.rules.insert(board.rules.begin() + static_cast<std::ptrdiff_t>(insert_at),
                        m_removed_rule);
+}
+
+SetLogicRuleTriggerCommand::SetLogicRuleTriggerCommand(ObjectTypeId object_type_id,
+                                                       LogicRuleId rule_id,
+                                                       std::string block_type_id)
+    : m_object_type_id(std::move(object_type_id))
+    , m_rule_id(std::move(rule_id))
+    , m_block_type_id(std::move(block_type_id))
+{
+}
+
+void SetLogicRuleTriggerCommand::execute(ProjectDoc &doc)
+{
+    EntityDef *type = find_object_type(doc, m_object_type_id);
+    if (!type || !type->logicBoard || m_rule_id.empty() || m_block_type_id.empty()) {
+        return;
+    }
+    LogicRuleDef *rule = find_rule(*type->logicBoard, m_rule_id);
+    if (!rule) {
+        return;
+    }
+    LogicBlockDef next =
+        ArtCade::Logic::makeDefaultBlock(m_block_type_id, ArtCade::Logic::BlockKind::Trigger);
+    if (next.typeId.empty()) {
+        return;
+    }
+    if (!m_captured) {
+        m_old_trigger = rule->trigger;
+        m_captured = true;
+    }
+    if (rule->trigger.typeId == next.typeId) {
+        return; // no-op — do not mark applied
+    }
+    rule->trigger = std::move(next);
+    m_applied = true;
+}
+
+void SetLogicRuleTriggerCommand::undo(ProjectDoc &doc)
+{
+    if (!m_applied || !m_captured) {
+        return;
+    }
+    EntityDef *type = find_object_type(doc, m_object_type_id);
+    if (!type || !type->logicBoard) {
+        return;
+    }
+    LogicRuleDef *rule = find_rule(*type->logicBoard, m_rule_id);
+    if (!rule) {
+        return;
+    }
+    rule->trigger = m_old_trigger;
+}
+
+SetLogicRulePrimaryActionCommand::SetLogicRulePrimaryActionCommand(ObjectTypeId object_type_id,
+                                                                   LogicRuleId rule_id,
+                                                                   std::string block_type_id)
+    : m_object_type_id(std::move(object_type_id))
+    , m_rule_id(std::move(rule_id))
+    , m_block_type_id(std::move(block_type_id))
+{
+}
+
+void SetLogicRulePrimaryActionCommand::execute(ProjectDoc &doc)
+{
+    EntityDef *type = find_object_type(doc, m_object_type_id);
+    if (!type || !type->logicBoard || m_rule_id.empty() || m_block_type_id.empty()) {
+        return;
+    }
+    LogicRuleDef *rule = find_rule(*type->logicBoard, m_rule_id);
+    if (!rule) {
+        return;
+    }
+    LogicBlockDef next =
+        ArtCade::Logic::makeDefaultBlock(m_block_type_id, ArtCade::Logic::BlockKind::Action);
+    if (next.typeId.empty()) {
+        return;
+    }
+    if (!m_captured) {
+        m_had_action = !rule->actions.empty();
+        if (m_had_action) {
+            m_old_action = rule->actions.front();
+        }
+        m_captured = true;
+    }
+    if (m_had_action && !rule->actions.empty() && rule->actions.front().typeId == next.typeId) {
+        return; // no-op — same primary action type
+    }
+    if (rule->actions.empty()) {
+        rule->actions.push_back(std::move(next));
+    } else {
+        rule->actions.front() = std::move(next);
+    }
+    m_applied = true;
+}
+
+void SetLogicRulePrimaryActionCommand::undo(ProjectDoc &doc)
+{
+    if (!m_applied || !m_captured) {
+        return;
+    }
+    EntityDef *type = find_object_type(doc, m_object_type_id);
+    if (!type || !type->logicBoard) {
+        return;
+    }
+    LogicRuleDef *rule = find_rule(*type->logicBoard, m_rule_id);
+    if (!rule) {
+        return;
+    }
+    if (!m_had_action) {
+        rule->actions.clear();
+        return;
+    }
+    if (rule->actions.empty()) {
+        rule->actions.push_back(m_old_action);
+    } else {
+        rule->actions.front() = m_old_action;
+    }
 }
 
 } // namespace ArtCade::EditorCore

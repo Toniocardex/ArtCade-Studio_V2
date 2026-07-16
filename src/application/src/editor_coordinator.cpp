@@ -337,14 +337,13 @@ bool EditorCoordinator::addLogicRule(const ObjectTypeId &object_type_id,
         return false;
     }
     auto command = std::make_unique<AddLogicRuleCommand>(object_type_id);
-    const AddLogicRuleCommand *raw = command.get();
-    m_commands.execute(std::move(command), m_doc);
-    out_rule_id = raw->ruleId();
-    if (out_rule_id.empty()) {
+    command->execute(m_doc);
+    out_rule_id = command->ruleId();
+    if (!command->applied() || out_rule_id.empty()) {
         error_message = "Failed to add Logic rule";
-        m_commands.undo(m_doc);
         return false;
     }
+    m_commands.pushExecuted(std::move(command));
     bumpRevision();
     return true;
 }
@@ -386,6 +385,106 @@ bool EditorCoordinator::removeLogicRule(const ObjectTypeId &object_type_id,
         return false;
     }
     m_commands.execute(std::make_unique<RemoveLogicRuleCommand>(object_type_id, rule_id), m_doc);
+    bumpRevision();
+    return true;
+}
+
+bool EditorCoordinator::setLogicRuleTrigger(const ObjectTypeId &object_type_id,
+                                            const LogicRuleId &rule_id,
+                                            const std::string &block_type_id,
+                                            std::string &error_message)
+{
+    if (!m_has_project) {
+        error_message = "No project open";
+        return false;
+    }
+    if (object_type_id.empty() || rule_id.empty() || block_type_id.empty()) {
+        error_message = "Missing Logic Board target";
+        return false;
+    }
+    auto type_it = m_doc.objectTypes.find(object_type_id);
+    if (type_it == m_doc.objectTypes.end() || !type_it->second.logicBoard) {
+        error_message = "Logic Board not found";
+        return false;
+    }
+    LogicRuleDef *rule = nullptr;
+    for (LogicRuleDef &r : type_it->second.logicBoard->rules) {
+        if (r.id == rule_id) {
+            rule = &r;
+            break;
+        }
+    }
+    if (!rule) {
+        error_message = "Logic rule not found";
+        return false;
+    }
+    if (rule->trigger.typeId == block_type_id) {
+        return true; // no-op — do not dirty
+    }
+    const ArtCade::Logic::LogicBlockDescriptor *desc =
+        ArtCade::Logic::findDescriptor(block_type_id);
+    if (!desc || desc->kind != ArtCade::Logic::BlockKind::Trigger) {
+        error_message = "Not a valid trigger block type";
+        return false;
+    }
+    auto command = std::make_unique<SetLogicRuleTriggerCommand>(
+        object_type_id, rule_id, block_type_id);
+    command->execute(m_doc);
+    if (rule->trigger.typeId != block_type_id) {
+        error_message = "Failed to set trigger";
+        return false;
+    }
+    m_commands.pushExecuted(std::move(command));
+    bumpRevision();
+    return true;
+}
+
+bool EditorCoordinator::setLogicRulePrimaryAction(const ObjectTypeId &object_type_id,
+                                                  const LogicRuleId &rule_id,
+                                                  const std::string &block_type_id,
+                                                  std::string &error_message)
+{
+    if (!m_has_project) {
+        error_message = "No project open";
+        return false;
+    }
+    if (object_type_id.empty() || rule_id.empty() || block_type_id.empty()) {
+        error_message = "Missing Logic Board target";
+        return false;
+    }
+    auto type_it = m_doc.objectTypes.find(object_type_id);
+    if (type_it == m_doc.objectTypes.end() || !type_it->second.logicBoard) {
+        error_message = "Logic Board not found";
+        return false;
+    }
+    LogicRuleDef *rule = nullptr;
+    for (LogicRuleDef &r : type_it->second.logicBoard->rules) {
+        if (r.id == rule_id) {
+            rule = &r;
+            break;
+        }
+    }
+    if (!rule) {
+        error_message = "Logic rule not found";
+        return false;
+    }
+    if (!rule->actions.empty() && rule->actions.front().typeId == block_type_id) {
+        return true; // no-op — do not dirty
+    }
+    const ArtCade::Logic::LogicBlockDescriptor *desc =
+        ArtCade::Logic::findDescriptor(block_type_id);
+    if (!desc || desc->kind != ArtCade::Logic::BlockKind::Action) {
+        error_message = "Not a valid action block type";
+        return false;
+    }
+    auto command = std::make_unique<SetLogicRulePrimaryActionCommand>(
+        object_type_id, rule_id, block_type_id);
+    command->execute(m_doc);
+    if (rule->actions.empty() || rule->actions.front().typeId != block_type_id) {
+        error_message = "Failed to set action";
+        return false;
+    }
+    m_commands.pushExecuted(std::move(command));
     bumpRevision();
     return true;
 }

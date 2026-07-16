@@ -12,6 +12,15 @@ void CommandStack::execute(std::unique_ptr<ICommand> command, ProjectDoc &doc)
     m_redo.clear();
 }
 
+void CommandStack::pushExecuted(std::unique_ptr<ICommand> command)
+{
+    if (!command) {
+        return;
+    }
+    m_undo.push_back(std::move(command));
+    m_redo.clear();
+}
+
 bool CommandStack::canUndo() const
 {
     return !m_undo.empty();
