@@ -4,6 +4,7 @@
 #include "bridge/scene_view_item.h"
 
 #include "artcade/editor_core/editor_core.h"
+#include "logic_board_names.h"
 
 #include "logic-core.h"
 
@@ -789,7 +790,13 @@ void EditorSession::refreshSelectionCache()
                                 inst->objectTypeId, *type.logicBoard, &type, &doc,
                                 ArtCade::Logic::ValidationMode::Authoring);
                         m_logicRuleCount = static_cast<int>(type.logicBoard->rules.size());
-                        for (const ArtCade::LogicRuleDef &rule : type.logicBoard->rules) {
+                        for (std::size_t rule_index = 0;
+                             rule_index < type.logicBoard->rules.size();
+                             ++rule_index) {
+                            const ArtCade::LogicRuleDef &rule = type.logicBoard->rules[rule_index];
+                            const QString name = QString::fromStdString(rule.name);
+                            const QString display_name = QString::fromStdString(
+                                ArtCade::EditorCore::logic_rule_display_name(rule, rule_index));
                             m_logicRuleIds.append(QString::fromStdString(rule.id));
                             QStringList condition_ids;
                             for (const ArtCade::LogicBlockDef &block : rule.conditions) {
@@ -831,6 +838,8 @@ void EditorSession::refreshSelectionCache()
                             }
                             m_logicRules.append(QVariantMap{
                                 {QStringLiteral("id"), QString::fromStdString(rule.id)},
+                                {QStringLiteral("name"), name},
+                                {QStringLiteral("displayName"), display_name},
                                 {QStringLiteral("enabled"), rule.enabled},
                                 {QStringLiteral("sectionId"),
                                  QString::fromStdString(rule.sectionId)},
@@ -1255,6 +1264,46 @@ void EditorSession::removeLogicRule(const QString &ruleId)
     refreshSelectionCache();
     emit dirtyChanged();
     setStatus(QStringLiteral("Deleted Logic rule %1").arg(target));
+}
+
+bool EditorSession::renameLogicRule(const QString &ruleId, const QString &name)
+{
+    QString guard_error;
+    if (!guardAuthoring(&guard_error)) {
+        setStatus(guard_error, false);
+        emit errorOccurred(guard_error);
+        return false;
+    }
+    if (m_selectedObjectTypeId.isEmpty() || ruleId.isEmpty()) {
+        const QString msg = QStringLiteral("Select a Logic rule to rename");
+        setStatus(msg, false);
+        emit errorOccurred(msg);
+        return false;
+    }
+    const QString trimmed_name = name.trimmed();
+    if (!trimmed_name.isEmpty()) {
+        for (const QVariant &entry : m_logicRules) {
+            const QVariantMap rule = entry.toMap();
+            if (rule.value(QStringLiteral("id")).toString() == ruleId
+                && rule.value(QStringLiteral("name")).toString() == trimmed_name) {
+                return true; // no-op â€” no refresh or dirty notification
+            }
+        }
+    }
+    std::string error;
+    if (!m_coordinator->renameLogicRule(m_selectedObjectTypeId.toStdString(),
+                                        ruleId.toStdString(),
+                                        trimmed_name.toStdString(),
+                                        error)) {
+        const QString msg = QString::fromStdString(error);
+        setStatus(msg, false);
+        emit errorOccurred(msg);
+        return false;
+    }
+    refreshSelectionCache();
+    emit dirtyChanged();
+    setStatus(QStringLiteral("Renamed Logic rule to %1").arg(trimmed_name));
+    return true;
 }
 
 void EditorSession::setLogicRuleTrigger(const QString &blockTypeId)

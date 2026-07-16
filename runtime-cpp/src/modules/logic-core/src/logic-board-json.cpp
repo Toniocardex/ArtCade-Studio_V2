@@ -119,6 +119,8 @@ nlohmann::json logicBoardToJson(const LogicBoardDef& board) {
             {"conditions", std::move(conditions)},
             {"actions", std::move(actions)},
         };
+        // Optional authoring label â€” legacy documents intentionally omit it.
+        if (!rule.name.empty()) ruleJson["name"] = rule.name;
         // Optional display grouping — omitted when unsectioned (format stays additive).
         if (!rule.sectionId.empty()) ruleJson["sectionId"] = rule.sectionId;
         rules.push_back(std::move(ruleJson));
@@ -178,6 +180,10 @@ LogicJsonResult logicBoardFromJson(const nlohmann::json& json, LogicBoardDef& ou
             LogicRuleDef rule;
             if (!readString(item, "id", rule.id)) return {false, "Logic rule id is missing"};
             if (!ruleIds.insert(rule.id).second) return {false, "Duplicate Logic rule id"};
+            if (item.contains("name")) {
+                if (!item["name"].is_string()) return {false, "Logic rule name is invalid"};
+                rule.name = item["name"].get<std::string>();
+            }
             if (!item.contains("enabled") || !item["enabled"].is_boolean())
                 return {false, "Logic rule enabled is invalid"};
             rule.enabled = item["enabled"].get<bool>();

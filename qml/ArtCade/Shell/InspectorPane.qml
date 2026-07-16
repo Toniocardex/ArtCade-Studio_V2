@@ -43,7 +43,7 @@ Rectangle {
         const rules = EditorSession.logicRules || []
         for (let i = 0; i < rules.length; ++i) {
             if (rules[i].id === id)
-                return "Logic " + String(i + 1).padStart(2, "0")
+                return rules[i].displayName || "Logic " + String(i + 1).padStart(2, "0")
         }
         return "None"
     }

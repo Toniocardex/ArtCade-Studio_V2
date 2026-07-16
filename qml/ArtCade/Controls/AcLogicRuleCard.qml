@@ -12,9 +12,8 @@ Rectangle {
     id: root
 
     property var rule: ({})
-    property int orderIndex: 0
-    /** Local expand state — cards start collapsed; not tied to selection. */
-    property bool expanded: false
+    /** Workspace-owned expansion state, supplied by LogicBoardView. */
+    property bool expanded: true
     property bool selected: false
     property bool comfortable: false
     property var searchTerms: []
@@ -27,6 +26,7 @@ Rectangle {
     signal actionChosen(string typeId)
     signal propertyEdited(string slot, string propertyKey, string valueText)
     signal contextMenuRequested()
+    signal expansionToggleRequested()
 
     readonly property bool ruleEnabled: rule.enabled === true
     readonly property var conditionIds: rule.conditionTypeIds || []
@@ -34,23 +34,52 @@ Rectangle {
     readonly property var triggerProperties: rule.triggerProperties || []
     readonly property var conditionProperties: rule.conditionProperties || []
     readonly property var actionProperties: rule.actionProperties || []
+    readonly property var displayDiagnostics: {
+        const entries = []
+        const rows = root.rule.diagnostics || []
+        for (let i = 0; i < rows.length; ++i) {
+            const row = rows[i]
+            if (!row)
+                continue
+            const message = String(row.message || "").trim()
+            if (message.length === 0)
+                continue
+            entries.push({
+                severity: row.severity === "error" ? "error" : "warning",
+                message: message,
+            })
+        }
+        return entries
+    }
+    readonly property string diagnosticText: displayDiagnostics
+        .map(function(diagnostic) {
+            return diagnostic.severity + ": " + diagnostic.message
+        })
+        .join("\n")
+    readonly property bool hasDiagnostics: displayDiagnostics.length > 0
+    readonly property bool hasErrors: {
+        for (let i = 0; i < displayDiagnostics.length; ++i) {
+            if (displayDiagnostics[i].severity === "error")
+                return true
+        }
+        return false
+    }
     readonly property real summaryOpacity: ruleEnabled ? 1.0 : 0.45
     readonly property bool highlighting: searchTerms && searchTerms.length > 0
 
     readonly property int logicOuterPadding: comfortable ? Metrics.spacingMd : Metrics.spacingSm
     readonly property int logicSectionSpacing: comfortable ? Metrics.spacingMd : Metrics.spacingSm
-    readonly property string logicLabel: "Logic "
-            + String(root.orderIndex + 1).padStart(2, "0")
+    readonly property string displayName: String(root.rule.displayName || "Logic")
     readonly property string collapsedSummary: {
         const trigger = EditorSession.logicBlockDisplayName(root.rule.triggerTypeId || "")
         const action = root.actionIds.length > 0
                        ? EditorSession.logicBlockDisplayName(root.actionIds[0])
                        : ""
         if (trigger.length === 0 && action.length === 0)
-            return root.logicLabel
+            return "Not configured"
         if (action.length === 0)
-            return root.logicLabel + " · " + trigger
-        return root.logicLabel + " · " + trigger + " → " + action
+            return trigger
+        return trigger + " → " + action
     }
     /** Stack WHEN/IF/THEN below this width (Inspector open / narrow center). */
     readonly property bool stackedColumns: width > 0 && width < 720
@@ -76,26 +105,10 @@ Rectangle {
     implicitHeight: cardColumn.implicitHeight
     radius: Metrics.radiusCard
     color: root.expanded || root.selected ? Theme.panelRaised
-                    : (cardMa.containsMouse ? Theme.controlHover : Theme.control)
+                    : (titleMouse.containsMouse ? Theme.controlHover : Theme.control)
     border.width: 1
     border.color: root.expanded || root.selected ? Theme.border : Theme.borderSubtle
     clip: true
-
-    MouseArea {
-        id: cardMa
-        anchors.fill: parent
-        hoverEnabled: true
-        acceptedButtons: Qt.LeftButton | Qt.RightButton
-        onClicked: function(mouse) {
-            root.selectRequested()
-            if (mouse.button === Qt.RightButton)
-                root.contextMenuRequested()
-        }
-        onDoubleClicked: function(mouse) {
-            if (mouse.button === Qt.LeftButton)
-                root.expanded = !root.expanded
-        }
-    }
 
     Rectangle {
         anchors.left: parent.left
@@ -123,21 +136,15 @@ Rectangle {
             // No emoji / Canvas: ⚠ tofu + Canvas opaque buffer both showed a grey square.
             Rectangle {
                 id: warnBadge
-                visible: (root.rule.errorCount || 0) > 0 || (root.rule.warningCount || 0) > 0
+                visible: root.hasDiagnostics
                 Layout.preferredWidth: 14
                 Layout.preferredHeight: 14
                 Layout.alignment: Qt.AlignVCenter
                 radius: 2
-                color: (root.rule.errorCount || 0) > 0 ? Theme.error : Theme.warning
-                ToolTip.visible: warnHover.hovered
+                color: root.hasErrors ? Theme.error : Theme.warning
+                ToolTip.visible: root.hasDiagnostics && warnHover.hovered
                 ToolTip.delay: 400
-                ToolTip.text: {
-                    const rows = root.rule.diagnostics || []
-                    const parts = []
-                    for (let i = 0; i < rows.length; ++i)
-                        parts.push(rows[i].severity + ": " + rows[i].message)
-                    return parts.length > 0 ? parts.join("\n") : "Validation warning"
-                }
+                ToolTip.text: root.diagnosticText
                 HoverHandler { id: warnHover }
 
                 Text {
@@ -156,8 +163,7 @@ Rectangle {
                 Layout.alignment: Qt.AlignVCenter
                 Layout.minimumWidth: 80
                 height: Typography.sizeBody + 4
-                text: root.highlightText(
-                          root.expanded ? root.logicLabel : root.collapsedSummary)
+                text: root.highlightText(root.displayName)
                 textFormat: root.highlighting ? Text.StyledText : Text.PlainText
                 color: Theme.textPrimary
                 font.family: Typography.family
@@ -166,6 +172,48 @@ Rectangle {
                 elide: Text.ElideRight
                 opacity: root.summaryOpacity
                 verticalAlignment: Text.AlignVCenter
+
+                MouseArea {
+                    id: titleMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                    onClicked: function(mouse) {
+                        root.selectRequested()
+                        if (mouse.button === Qt.RightButton)
+                            root.contextMenuRequested()
+                        else
+                            root.expansionToggleRequested()
+                    }
+                }
+            }
+
+            Text {
+                visible: !root.expanded
+                Layout.alignment: Qt.AlignVCenter
+                Layout.maximumWidth: 260
+                Layout.preferredWidth: Math.min(implicitWidth, 260)
+                height: Typography.sizeToolbar + 4
+                text: root.highlightText(root.collapsedSummary)
+                textFormat: root.highlighting ? Text.StyledText : Text.PlainText
+                color: Theme.textMuted
+                font.family: Typography.family
+                font.pixelSize: Typography.sizeToolbar
+                elide: Text.ElideRight
+                opacity: root.summaryOpacity
+                verticalAlignment: Text.AlignVCenter
+
+                MouseArea {
+                    anchors.fill: parent
+                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                    onClicked: function(mouse) {
+                        root.selectRequested()
+                        if (mouse.button === Qt.RightButton)
+                            root.contextMenuRequested()
+                        else
+                            root.expansionToggleRequested()
+                    }
+                }
             }
 
             // Plain Item chrome — Qt Button can leave an empty indicator square.
@@ -230,38 +278,7 @@ Rectangle {
                     enabled: !EditorSession.playing
                     onClicked: {
                         root.selectRequested()
-                        overflowMenu.open()
-                    }
-                }
-
-                AcMenu {
-                    id: overflowMenu
-                    AcMenuItem {
-                        text: "Duplicate Logic"
-                        available: false
-                        disabledHint: "Coming next"
-                        visible: EditorSession.developerMode || available
-                    }
-                    AcMenuItem {
-                        text: "Move Up"
-                        available: false
-                        disabledHint: "Coming next"
-                        visible: EditorSession.developerMode || available
-                    }
-                    AcMenuItem {
-                        text: "Move Down"
-                        available: false
-                        disabledHint: "Coming next"
-                        visible: EditorSession.developerMode || available
-                    }
-                    AcMenuItem {
-                        text: "Delete Logic"
-                        available: !EditorSession.playing
-                        disabledHint: EditorSession.playing ? "Unavailable during Play" : ""
-                        onTriggered: {
-                            if (available)
-                                root.deleteRequested()
-                        }
+                        root.contextMenuRequested()
                     }
                 }
             }
@@ -269,11 +286,17 @@ Rectangle {
 
         // —— Expanded body: WHEN | IF | THEN ——
         Loader {
+            id: bodyLoader
             Layout.fillWidth: true
+            Layout.minimumHeight: 0
+            Layout.preferredHeight: root.expanded && bodyLoader.item
+                                    ? bodyLoader.item.implicitHeight : 0
+            Layout.maximumHeight: root.expanded ? Infinity : 0
             Layout.leftMargin: Metrics.spacingXs
             Layout.rightMargin: Metrics.spacingXs
-            Layout.bottomMargin: root.logicOuterPadding
+            Layout.bottomMargin: root.expanded ? root.logicOuterPadding : 0
             active: root.expanded
+            visible: root.expanded
             sourceComponent: root.stackedColumns ? stackedBody : rowBody
         }
     }

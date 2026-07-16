@@ -17,6 +17,7 @@ Rectangle {
     /** UI density preference (presentation only — never dirties the project). */
     property bool comfortable: false
     property var collapsedSections: ({})
+    property var collapsedRules: ({})
     property string searchText: ""
 
     readonly property int logicOuterPadding: comfortable ? Metrics.spacingMd : Metrics.spacingSm
@@ -59,6 +60,18 @@ Rectangle {
             next[key] = collapsedSections[key]
         next[sectionId] = !next[sectionId]
         collapsedSections = next
+    }
+
+    function isRuleExpanded(ruleId) {
+        return collapsedRules[ruleId] !== true
+    }
+
+    function toggleRuleExpanded(ruleId) {
+        const next = {}
+        for (const key in collapsedRules)
+            next[key] = collapsedRules[key]
+        next[ruleId] = !isRuleExpanded(ruleId)
+        collapsedRules = next
     }
 
     function clearSearch() {
@@ -451,12 +464,63 @@ Rectangle {
                     policy: ScrollBar.AsNeeded
                 }
 
-                delegate: Loader {
-                    id: displayLoader
+                delegate: Item {
+                    id: delegateRoot
                     required property var modelData
                     width: rulesList.width - root.logicOuterPadding * 2
-                    sourceComponent: modelData.kind === "header" ? sectionHeaderComponent
-                                                                 : ruleCardComponent
+                    readonly property bool isHeader: modelData.kind === "header"
+                    implicitHeight: isHeader ? sectionHeader.implicitHeight : ruleCard.implicitHeight
+
+                    AcLogicSectionHeader {
+                        id: sectionHeader
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        visible: delegateRoot.isHeader
+                        enabled: visible
+                        sectionId: visible ? delegateRoot.modelData.sectionId : ""
+                        name: visible ? delegateRoot.modelData.name : ""
+                        ruleCount: visible ? delegateRoot.modelData.count : 0
+                        collapsed: visible
+                                   && root.collapsedSections[delegateRoot.modelData.sectionId] === true
+                        onToggleRequested: root.toggleSectionCollapsed(sectionId)
+                        onRenameCommitted: function(newName) {
+                            EditorSession.renameLogicSection(sectionId, newName)
+                        }
+                        onDeleteRequested: EditorSession.removeLogicSection(sectionId)
+                    }
+
+                    AcLogicRuleCard {
+                        id: ruleCard
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        visible: !delegateRoot.isHeader
+                        enabled: visible
+                        readonly property string ruleId: visible ? delegateRoot.modelData.rule.id : ""
+                        rule: visible ? delegateRoot.modelData.rule : ({})
+                        expanded: visible && root.isRuleExpanded(ruleId)
+                        selected: ruleId === EditorSession.selectedLogicRuleId
+                        comfortable: root.comfortable
+                        searchTerms: root.searchHighlightTerms
+                        onSelectRequested: EditorSession.selectedLogicRuleId = ruleId
+                        onExpansionToggleRequested: root.toggleRuleExpanded(ruleId)
+                        onEnabledToggled: function(enabled) {
+                            EditorSession.setLogicRuleEnabled(ruleId, enabled)
+                        }
+                        onDeleteRequested: EditorSession.removeLogicRule(ruleId)
+                        onTriggerChosen: function(typeId) {
+                            EditorSession.setLogicRuleTrigger(typeId)
+                        }
+                        onConditionChosen: function(typeId) {
+                            EditorSession.setLogicRulePrimaryCondition(typeId)
+                        }
+                        onActionChosen: function(typeId) {
+                            EditorSession.setLogicRulePrimaryAction(typeId)
+                        }
+                        onPropertyEdited: function(slot, key, value) {
+                            EditorSession.setLogicRuleBlockProperty(ruleId, slot, key, value)
+                        }
+                        onContextMenuRequested: ruleMenu.openFor(ruleId, rule.displayName)
+                    }
                 }
 
                 footer: Item {
@@ -486,63 +550,24 @@ Rectangle {
         id: logicSearch
     }
 
-    Component {
-        id: sectionHeaderComponent
-
-        AcLogicSectionHeader {
-            sectionId: displayLoader.modelData.sectionId
-            name: displayLoader.modelData.name
-            ruleCount: displayLoader.modelData.count
-            collapsed: root.collapsedSections[displayLoader.modelData.sectionId] === true
-            onToggleRequested: root.toggleSectionCollapsed(sectionId)
-            onRenameCommitted: function(newName) {
-                EditorSession.renameLogicSection(sectionId, newName)
-            }
-            onDeleteRequested: EditorSession.removeLogicSection(sectionId)
-        }
-    }
-
-    Component {
-        id: ruleCardComponent
-
-        AcLogicRuleCard {
-            readonly property string ruleId: displayLoader.modelData.rule.id
-
-            rule: displayLoader.modelData.rule
-            orderIndex: displayLoader.modelData.ruleIndex
-            selected: ruleId === EditorSession.selectedLogicRuleId
-            // expanded stays local (default collapsed); double-click toggles
-            comfortable: root.comfortable
-            searchTerms: root.searchHighlightTerms
-            onSelectRequested: EditorSession.selectedLogicRuleId = ruleId
-            onEnabledToggled: function(enabled) {
-                EditorSession.setLogicRuleEnabled(ruleId, enabled)
-            }
-            onDeleteRequested: EditorSession.removeLogicRule(ruleId)
-            onTriggerChosen: function(typeId) {
-                EditorSession.setLogicRuleTrigger(typeId)
-            }
-            onConditionChosen: function(typeId) {
-                EditorSession.setLogicRulePrimaryCondition(typeId)
-            }
-            onActionChosen: function(typeId) {
-                EditorSession.setLogicRulePrimaryAction(typeId)
-            }
-            onPropertyEdited: function(slot, key, value) {
-                EditorSession.setLogicRuleBlockProperty(ruleId, slot, key, value)
-            }
-            onContextMenuRequested: ruleMenu.openFor(ruleId)
-        }
-    }
-
     AcMenu {
         id: ruleMenu
 
         property string targetRuleId: ""
+        property string targetDisplayName: ""
 
-        function openFor(ruleId) {
+        function openFor(ruleId, displayName) {
             targetRuleId = ruleId
+            targetDisplayName = displayName
             popup()
+        }
+
+        AcMenuItem {
+            text: "Rename Logic…"
+            available: !EditorSession.playing
+            disabledHint: EditorSession.playing ? "Unavailable during Play" : ""
+            onTriggered: renameLogicDialog.openFor(ruleMenu.targetRuleId,
+                                                    ruleMenu.targetDisplayName)
         }
 
         AcMenu {
@@ -598,6 +623,85 @@ Rectangle {
             onTriggered: {
                 if (available)
                     EditorSession.removeLogicRule(ruleMenu.targetRuleId)
+            }
+        }
+    }
+
+    Dialog {
+        id: renameLogicDialog
+        parent: Overlay.overlay
+        modal: true
+        title: "Rename Logic"
+        property string targetRuleId: ""
+        property string validationError: ""
+
+        function openFor(ruleId, displayName) {
+            targetRuleId = ruleId
+            validationError = ""
+            renameNameField.text = displayName
+            open()
+        }
+
+        function commit() {
+            const requestedName = renameNameField.text.trim()
+            if (requestedName.length === 0) {
+                validationError = "Logic name cannot be empty"
+                return
+            }
+            if (EditorSession.renameLogicRule(targetRuleId, requestedName)) {
+                close()
+                return
+            }
+            validationError = EditorSession.statusMessage
+        }
+
+        onOpened: {
+            renameNameField.forceActiveFocus()
+            renameNameField.selectAll()
+        }
+
+        contentItem: ColumnLayout {
+            implicitWidth: 360
+            spacing: Metrics.spacingSm
+
+            Text {
+                text: "Name"
+                color: Theme.textSecondary
+                font.family: Typography.family
+                font.pixelSize: Typography.sizeToolbar
+            }
+
+            AcTextField {
+                id: renameNameField
+                Layout.fillWidth: true
+                onTextChanged: renameLogicDialog.validationError = ""
+                onAccepted: renameLogicDialog.commit()
+                Keys.onEscapePressed: renameLogicDialog.close()
+            }
+
+            Text {
+                Layout.fillWidth: true
+                visible: renameLogicDialog.validationError.length > 0
+                text: renameLogicDialog.validationError
+                color: Theme.error
+                font.family: Typography.family
+                font.pixelSize: Typography.sizeToolbar
+                wrapMode: Text.WordWrap
+            }
+
+            RowLayout {
+                Layout.alignment: Qt.AlignRight
+                spacing: Metrics.spacingSm
+
+                AcButton {
+                    text: "Cancel"
+                    onClicked: renameLogicDialog.close()
+                }
+                AcButton {
+                    text: "Rename"
+                    primary: true
+                    onClicked: renameLogicDialog.commit()
+                }
             }
         }
     }

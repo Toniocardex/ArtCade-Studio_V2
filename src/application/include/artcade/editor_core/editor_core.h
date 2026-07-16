@@ -162,6 +162,26 @@ private:
 };
 
 /**
+ * Renames one Logic Rule authoring label. The rule remains addressed by stable id.
+ */
+class RenameLogicRuleCommand final : public ICommand {
+public:
+    RenameLogicRuleCommand(ObjectTypeId object_type_id,
+                           LogicRuleId rule_id,
+                           std::string new_name);
+    void execute(ProjectDoc &doc) override;
+    void undo(ProjectDoc &doc) override;
+
+private:
+    ObjectTypeId m_object_type_id;
+    LogicRuleId m_rule_id;
+    std::string m_new_name;
+    std::string m_old_name;
+    bool m_captured = false;
+    bool m_applied = false;
+};
+
+/**
  * Replaces the When (trigger) block on a Logic Rule with a default block of @p block_type_id.
  */
 class SetLogicRuleTriggerCommand final : public ICommand {
@@ -490,6 +510,14 @@ public:
      */
     bool removeLogicRule(const ObjectTypeId &object_type_id,
                          const LogicRuleId &rule_id,
+                         std::string &error_message);
+
+    /**
+     * Renames a rule authoring label. Trimmed, unique names are required per board.
+     */
+    bool renameLogicRule(const ObjectTypeId &object_type_id,
+                         const LogicRuleId &rule_id,
+                         const std::string &new_name,
                          std::string &error_message);
 
     /**

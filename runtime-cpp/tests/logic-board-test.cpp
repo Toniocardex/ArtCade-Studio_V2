@@ -134,6 +134,7 @@ static LogicBoardDef makeBoard() {
 
 static void testCompilerAndJson() {
     LogicBoardDef board = makeBoard();
+    board.rules[0].name = "Player Movement";
     LogicCompileResult a = compileBoard("Hero", board);
     LogicCompileResult b = compileBoard("Hero", board);
     CHECK(a.ok());
@@ -145,6 +146,13 @@ static void testCompilerAndJson() {
     LogicBoardDef loaded;
     CHECK(logicBoardFromJson(json, loaded).ok);
     CHECK(logicBoardToJson(loaded) == json);
+    CHECK(loaded.rules[0].name == "Player Movement");
+
+    auto legacy_json = json;
+    legacy_json["rules"][0].erase("name");
+    LogicBoardDef legacy_loaded;
+    CHECK(logicBoardFromJson(legacy_json, legacy_loaded).ok);
+    CHECK(legacy_loaded.rules[0].name.empty());
 
     loaded.apiVersion = 999;
     CHECK(!validateBoard("Hero", loaded).empty());

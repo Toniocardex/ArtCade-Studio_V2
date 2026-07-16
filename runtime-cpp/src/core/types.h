@@ -97,6 +97,7 @@ struct LogicSectionDef {
 
 struct LogicRuleDef {
     LogicRuleId               id;
+    std::string               name;       // authoring display label; never affects runtime logic
     bool                      enabled = true;
     std::string               sectionId;  // optional LogicSectionDef.id; empty = unsectioned
     LogicBlockDef             trigger;

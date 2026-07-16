@@ -37,6 +37,7 @@ target_include_directories(artcade-editor-qt
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/bridge
+        ${CMAKE_SOURCE_DIR}/src/application/src
 )
 
 target_link_libraries(artcade-editor-qt

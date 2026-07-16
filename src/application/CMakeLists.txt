@@ -4,6 +4,7 @@
 add_library(artcade_editor_core STATIC
     src/project_file_io.cpp
     src/commands.cpp
+    src/logic_board_names.cpp
     src/logic_board_commands.cpp
     src/logic_board_property.cpp
     src/logic_board_section_commands.cpp
@@ -39,5 +40,9 @@ if(NOT BUILD_FOR_WASM)
     target_compile_definitions(artcade_editor_core_roundtrip_test
         PRIVATE
             ARTCADE_QT_SLICE_FIXTURE_DIR="${CMAKE_SOURCE_DIR}/tests/fixtures/qt-slice"
+    )
+    target_include_directories(artcade_editor_core_roundtrip_test
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src
     )
 endif()

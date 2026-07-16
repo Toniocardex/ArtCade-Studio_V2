@@ -1,5 +1,7 @@
 #include "artcade/editor_core/editor_core.h"
 
+#include "logic_board_names.h"
+
 #include "logic-core.h"
 
 #include <algorithm>
@@ -90,7 +92,9 @@ void AddLogicRuleCommand::execute(ProjectDoc &doc)
             return; // true no-op — do not mark applied
         }
     }
-    board.rules.push_back(ArtCade::Logic::makeDefaultRule(m_rule_id));
+    LogicRuleDef rule = ArtCade::Logic::makeDefaultRule(m_rule_id);
+    rule.name = logic_board_next_available_rule_name(board);
+    board.rules.push_back(std::move(rule));
     m_applied = true;
 }
 
@@ -176,6 +180,50 @@ void RemoveLogicRuleCommand::undo(ProjectDoc &doc)
     const std::size_t insert_at = std::min(m_index, board.rules.size());
     board.rules.insert(board.rules.begin() + static_cast<std::ptrdiff_t>(insert_at),
                        m_removed_rule);
+}
+
+RenameLogicRuleCommand::RenameLogicRuleCommand(ObjectTypeId object_type_id,
+                                               LogicRuleId rule_id,
+                                               std::string new_name)
+    : m_object_type_id(std::move(object_type_id))
+    , m_rule_id(std::move(rule_id))
+    , m_new_name(std::move(new_name))
+{
+}
+
+void RenameLogicRuleCommand::execute(ProjectDoc &doc)
+{
+    EntityDef *type = find_object_type(doc, m_object_type_id);
+    if (!type || !type->logicBoard || m_rule_id.empty() || m_new_name.empty()) {
+        return;
+    }
+    LogicRuleDef *rule = find_rule(*type->logicBoard, m_rule_id);
+    if (!rule) {
+        return;
+    }
+    if (!m_captured) {
+        m_old_name = rule->name;
+        m_captured = true;
+    }
+    if (rule->name == m_new_name) {
+        return;
+    }
+    rule->name = m_new_name;
+    m_applied = true;
+}
+
+void RenameLogicRuleCommand::undo(ProjectDoc &doc)
+{
+    if (!m_applied || !m_captured) {
+        return;
+    }
+    EntityDef *type = find_object_type(doc, m_object_type_id);
+    if (!type || !type->logicBoard) {
+        return;
+    }
+    if (LogicRuleDef *rule = find_rule(*type->logicBoard, m_rule_id)) {
+        rule->name = m_old_name;
+    }
 }
 
 SetLogicRuleTriggerCommand::SetLogicRuleTriggerCommand(ObjectTypeId object_type_id,

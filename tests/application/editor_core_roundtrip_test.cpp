@@ -1,6 +1,7 @@
 // artcade_editor_core_roundtrip_test — single authority load/command/undo/save/reload
 
 #include "artcade/editor_core/editor_core.h"
+#include "logic_board_names.h"
 
 #include "logic-core.h"
 
@@ -172,6 +173,11 @@ int main()
     expect(player_it->second.logicBoard.has_value(), "Player has logicBoard");
     expect(player_it->second.logicBoard->rules.size() == 1, "one rule after add");
     expect(player_it->second.logicBoard->rules.front().id == rule_id, "rule id matches");
+    expect(player_it->second.logicBoard->rules.front().name == "Logic 01",
+           "first rule receives persisted default name");
+    ArtCade::LogicRuleDef legacy_rule;
+    expect(ArtCade::EditorCore::logic_rule_display_name(legacy_rule, 0) == "Logic 01",
+           "legacy rule receives bridge display fallback");
     coord.undo();
     expect(!coord.document().objectTypes.at("Player").logicBoard.has_value(),
            "undo removes created board");
@@ -186,6 +192,33 @@ int main()
     expect(coord.document().objectTypes.at("Player").logicBoard->rules.size() == 2,
            "two rules");
     expect(rule_b != rule_id, "second rule id distinct");
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules[1].name == "Logic 02",
+           "second rule receives next available name");
+
+    expect(coord.renameLogicRule("Player", rule_id, "  Player Movement  ", error),
+           "rename Logic rule trims name");
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].name
+               == "Player Movement",
+           "renamed Logic label persists");
+    expect(!coord.renameLogicRule("Player", rule_b, "player movement", error),
+           "case-insensitive duplicate Logic name rejected");
+    const std::uint64_t rev_before_name_noop = coord.revision();
+    expect(coord.renameLogicRule("Player", rule_id, "Player Movement", error),
+           "same Logic name is a no-op");
+    expect(coord.revision() == rev_before_name_noop, "no-op rename does not bump revision");
+    coord.undo();
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].name == "Logic 01",
+           "undo restores default Logic name");
+    coord.redo();
+    expect(coord.renameLogicRule("Player", rule_id, "Logic 01", error),
+           "restore first canonical name before gap reuse");
+    expect(coord.renameLogicRule("Player", rule_b, "Jump", error),
+           "rename second rule before gap reuse");
+    ArtCade::LogicRuleId rule_c;
+    expect(coord.addLogicRule("Player", rule_c, error), "add rule reuses available Logic label");
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules.back().name == "Logic 02",
+           "new rule uses first available canonical Logic name");
+    coord.undo();
 
     expect(coord.setLogicRuleTrigger("Player",
                                      rule_id,

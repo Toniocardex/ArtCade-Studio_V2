@@ -1,9 +1,10 @@
 #include "artcade/editor_core/editor_core.h"
 
+#include "logic_board_names.h"
+
 #include "logic-core.h"
 
 #include <algorithm>
-
 namespace ArtCade::EditorCore {
 
 bool EditorCoordinator::openProject(const std::string &project_json_path, std::string &error_message)
@@ -480,6 +481,61 @@ bool EditorCoordinator::removeLogicRule(const ObjectTypeId &object_type_id,
         return false;
     }
     m_commands.execute(std::make_unique<RemoveLogicRuleCommand>(object_type_id, rule_id), m_doc);
+    bumpRevision();
+    return true;
+}
+
+bool EditorCoordinator::renameLogicRule(const ObjectTypeId &object_type_id,
+                                        const LogicRuleId &rule_id,
+                                        const std::string &new_name,
+                                        std::string &error_message)
+{
+    if (!m_has_project) {
+        error_message = "No project open";
+        return false;
+    }
+    if (object_type_id.empty() || rule_id.empty()) {
+        error_message = "Missing Logic rule target";
+        return false;
+    }
+    const std::string trimmed = logic_rule_trim_name(new_name);
+    if (trimmed.empty()) {
+        error_message = "Logic name cannot be empty";
+        return false;
+    }
+    auto type_it = m_doc.objectTypes.find(object_type_id);
+    if (type_it == m_doc.objectTypes.end() || !type_it->second.logicBoard) {
+        error_message = "Logic Board not found";
+        return false;
+    }
+    LogicBoardDef &board = *type_it->second.logicBoard;
+    LogicRuleDef *target = nullptr;
+    for (std::size_t index = 0; index < board.rules.size(); ++index) {
+        LogicRuleDef &candidate = board.rules[index];
+        if (candidate.id == rule_id) {
+            target = &candidate;
+            continue;
+        }
+        if (logic_rule_normalize_name(logic_rule_display_name(candidate, index))
+            == logic_rule_normalize_name(trimmed)) {
+            error_message = "A Logic item with this name already exists";
+            return false;
+        }
+    }
+    if (!target) {
+        error_message = "Logic rule not found";
+        return false;
+    }
+    if (target->name == trimmed) {
+        return true; // no-op â€” do not dirty
+    }
+    auto command = std::make_unique<RenameLogicRuleCommand>(object_type_id, rule_id, trimmed);
+    command->execute(m_doc);
+    if (target->name != trimmed) {
+        error_message = "Failed to rename Logic rule";
+        return false;
+    }
+    m_commands.pushExecuted(std::move(command));
     bumpRevision();
     return true;
 }

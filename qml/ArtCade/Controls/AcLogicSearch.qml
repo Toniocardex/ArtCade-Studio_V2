@@ -91,7 +91,9 @@ QtObject {
             return (propsText(rule.triggerProperties)
                     + propsText(rule.conditionProperties)
                     + propsText(rule.actionProperties)).indexOf(token.term) >= 0
-        return (trigger + conditions + actions
+        return (String(rule.displayName || "").toLowerCase()
+                + String(rule.name || "").toLowerCase()
+                + trigger + conditions + actions
                 + String(rule.id).toLowerCase()).indexOf(token.term) >= 0
     }
 

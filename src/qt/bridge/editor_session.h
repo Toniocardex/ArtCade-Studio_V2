@@ -68,7 +68,7 @@ class EditorSession : public QObject
     Q_PROPERTY(int logicRuleCount READ logicRuleCount NOTIFY logicRulesChanged)
     /**
      * Per-rule summaries for the selected type's board, in execution order.
-     * Each entry: { id, enabled, triggerTypeId, conditionTypeIds, actionTypeIds,
+     * Each entry: { id, name, displayName, enabled, triggerTypeId, conditionTypeIds, actionTypeIds,
      *               triggerProperties, conditionProperties, actionProperties }.
      * Property rows: { key, kind, value, valueLabel, choices } for
      * Bool/Integer/Number/String/Key/Vec2/Asset; choices ({value,label}) are
@@ -218,6 +218,10 @@ public:
      * Dirties ProjectDoc; undoable.
      */
     Q_INVOKABLE void removeLogicRule(const QString &ruleId);
+    /**
+     * Renames a Logic rule authoring label. Returns false and reports the validation error on failure.
+     */
+    Q_INVOKABLE bool renameLogicRule(const QString &ruleId, const QString &name);
     /** Sets When trigger block type on the selected rule. */
     Q_INVOKABLE void setLogicRuleTrigger(const QString &blockTypeId);
     /** Sets primary Then action block type on the selected rule. */
