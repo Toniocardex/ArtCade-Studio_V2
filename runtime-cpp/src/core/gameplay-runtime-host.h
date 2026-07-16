@@ -15,6 +15,12 @@ public:
     virtual bool setVisible(EntityId owner, bool value) = 0;
     virtual bool setPosition(EntityId owner, Vec2 value) = 0;
     virtual bool translate(EntityId owner, Vec2 delta) = 0;
+    /** Absolute rotation in radians (Logic compiler converts authored degrees). */
+    virtual bool setRotation(EntityId owner, float radians) = 0;
+    /** Relative rotation delta in radians. */
+    virtual bool rotateBy(EntityId owner, float deltaRadians) = 0;
+    /** Absolute scale; both axes must be finite and > 0 (no negative flip). */
+    virtual bool setScale(EntityId owner, Vec2 scale) = 0;
     virtual bool isGrounded(EntityId owner) = 0;
     virtual bool requestPlatformerMove(EntityId owner, float axis) = 0;
     virtual bool requestPlatformerJump(EntityId owner) = 0;

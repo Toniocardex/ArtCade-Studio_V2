@@ -3,6 +3,7 @@
 #include "modules/lua-runtime/include/lua-host.h"
 
 #include <algorithm>
+#include <cmath>
 #include <iostream>
 #include <limits>
 #include <optional>
@@ -21,6 +22,9 @@ static int failed = 0;
 
 struct Host final : ILogicRuntimeHost {
     std::vector<std::string> calls;
+    std::vector<std::pair<EntityId, float>> rotations;
+    std::vector<std::pair<EntityId, float>> rotationDeltas;
+    std::vector<std::pair<EntityId, Vec2>> scales;
     LogicRuntime* runtime = nullptr;
     std::optional<ScopeToken> cancelOnVisible;
     bool failVisible = false;
@@ -42,6 +46,22 @@ struct Host final : ILogicRuntimeHost {
         calls.push_back("translate:" + std::to_string(owner) + ":"
                         + std::to_string(static_cast<int>(delta.x)) + ","
                         + std::to_string(static_cast<int>(delta.y)));
+        return true;
+    }
+    bool setRotation(EntityId owner, float radians) override {
+        rotations.emplace_back(owner, radians);
+        calls.push_back("rotation:" + std::to_string(owner) + ":" + std::to_string(radians));
+        return true;
+    }
+    bool rotateBy(EntityId owner, float deltaRadians) override {
+        rotationDeltas.emplace_back(owner, deltaRadians);
+        calls.push_back("rotate_by:" + std::to_string(owner) + ":" + std::to_string(deltaRadians));
+        return true;
+    }
+    bool setScale(EntityId owner, Vec2 scale) override {
+        scales.emplace_back(owner, scale);
+        calls.push_back("scale:" + std::to_string(owner) + ":"
+                        + std::to_string(scale.x) + "," + std::to_string(scale.y));
         return true;
     }
     bool isGrounded(EntityId owner) override {
@@ -841,6 +861,97 @@ static void testP1SpawnInstallFailure() {
     CHECK(!runtime.diagnostics().empty());
 }
 
+static void testEntityTransformActions() {
+    LogicBoardDef board;
+    board.id = "logic:Transform";
+    LogicRuleDef rule = makeDefaultRule("xf");
+    rule.trigger = makeDefaultTrigger();
+    LogicBlockDef moveBy = makeDefaultBlock(kTranslateBy, BlockKind::Action);
+    for (LogicPropertyDef& p : moveBy.properties) {
+        if (p.key == "offset") p.value = Vec2{3.f, 4.f};
+    }
+    LogicBlockDef setRot = makeDefaultBlock(kSetRotation, BlockKind::Action);
+    for (LogicPropertyDef& p : setRot.properties) {
+        if (p.key == "degrees") p.value = 90.0;
+    }
+    LogicBlockDef rotBy = makeDefaultBlock(kRotateBy, BlockKind::Action);
+    for (LogicPropertyDef& p : rotBy.properties) {
+        if (p.key == "degrees") p.value = -45.0;
+    }
+    LogicBlockDef setScale = makeDefaultBlock(kSetScale, BlockKind::Action);
+    for (LogicPropertyDef& p : setScale.properties) {
+        if (p.key == "scale") p.value = Vec2{2.f, 2.f};
+    }
+    rule.actions = {moveBy, setRot, rotBy, setScale};
+    board.rules.push_back(rule);
+
+    // Negative / zero scale rejected.
+    LogicBoardDef badBoard = board;
+    badBoard.rules[0].actions[3].properties[0].value = Vec2{-1.f, 1.f};
+    LogicCompileResult bad = compileBoard("Hero", badBoard);
+    CHECK(!bad.ok());
+
+    LogicCompileResult compiled = compileBoard("Hero", board);
+    CHECK(compiled.ok());
+    CHECK(compiled.programs[0].source.find("translate(3") != std::string::npos);
+    CHECK(compiled.programs[0].source.find("set_rotation(") != std::string::npos);
+    CHECK(compiled.programs[0].source.find("rotate_by(") != std::string::npos);
+    CHECK(compiled.programs[0].source.find("set_scale(2") != std::string::npos);
+
+    Host host;
+    LogicRuntime runtime(host);
+    std::string error;
+    CHECK(runtime.loadPrograms(compiled.programs, &error));
+    CHECK(runtime.install("Hero", 9, &error).has_value());
+    runtime.beginFrame();
+    runtime.dispatchStart();
+    CHECK(host.calls.size() == 4);
+    CHECK(host.calls[0] == "translate:9:3,4");
+    CHECK(host.calls[1].rfind("rotation:9:", 0) == 0);
+    CHECK(host.calls[2].rfind("rotate_by:9:", 0) == 0);
+    CHECK(host.rotations.size() == 1);
+    CHECK(host.rotations[0].first == 9);
+    CHECK(std::abs(host.rotations[0].second - std::acos(-1.f) / 2.f) < 0.0001f);
+    CHECK(host.rotationDeltas.size() == 1);
+    CHECK(host.rotationDeltas[0].first == 9);
+    CHECK(std::abs(host.rotationDeltas[0].second + std::acos(-1.f) / 4.f) < 0.0001f);
+    CHECK(host.scales.size() == 1);
+    CHECK(host.scales[0].first == 9);
+    CHECK(host.scales[0].second.x == 2.f);
+    CHECK(host.scales[0].second.y == 2.f);
+}
+
+static void testManualTransformActions() {
+    using namespace ArtCade::Modules;
+
+    LuaHost lua({LuaSandboxProfile::ManualScriptStrict, 1024u * 1024u});
+    CHECK(lua.init());
+    CHECK(lua.loadManualProgramSource(
+        "artcade.require_api_version(2)\n"
+        "return {\n"
+        "  on_start = function(ctx)\n"
+        "    ctx.self:set_rotation(1.25)\n"
+        "    ctx.self:rotate_by(-0.5)\n"
+        "    ctx.self:set_scale(2, 3)\n"
+        "  end\n"
+        "}\n",
+        "manual-transform.lua", 2, 1000, 64));
+
+    Host host;
+    CHECK(lua.callManualOnStart(&host, 17, 1000, 64));
+    CHECK(host.rotations.size() == 1);
+    CHECK(host.rotations[0].first == 17);
+    CHECK(std::abs(host.rotations[0].second - 1.25f) < 0.0001f);
+    CHECK(host.rotationDeltas.size() == 1);
+    CHECK(host.rotationDeltas[0].first == 17);
+    CHECK(std::abs(host.rotationDeltas[0].second + 0.5f) < 0.0001f);
+    CHECK(host.scales.size() == 1);
+    CHECK(host.scales[0].first == 17);
+    CHECK(host.scales[0].second.x == 2.f);
+    CHECK(host.scales[0].second.y == 3.f);
+    lua.shutdown();
+}
+
 int main() {
     testCompilerAndJson();
     testRuntime();
@@ -853,6 +964,8 @@ int main() {
     testP1StateAndWaitAndVelocity();
     testP1KeyDownCondition();
     testP1SpawnInstallFailure();
+    testEntityTransformActions();
+    testManualTransformActions();
     std::cout << passed << " passed, " << failed << " failed\n";
     return failed == 0 ? 0 : 1;
 }

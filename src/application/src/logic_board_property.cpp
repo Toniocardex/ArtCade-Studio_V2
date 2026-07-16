@@ -277,6 +277,7 @@ std::vector<LogicPropertySummary> logic_block_authorable_properties(const LogicB
         }
         LogicPropertySummary row;
         row.key = prop_desc.key;
+        row.displayName = ArtCade::Logic::propertyDisplayName(prop_desc);
         row.kind = logic_value_kind_id(prop_desc.valueKind);
         const LogicPropertyDef *current = ArtCade::Logic::findProperty(block, prop_desc.key);
         row.value = logic_value_to_text(current ? current->value : prop_desc.defaultValue);

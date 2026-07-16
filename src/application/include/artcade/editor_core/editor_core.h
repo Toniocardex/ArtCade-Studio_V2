@@ -337,6 +337,7 @@ private:
 /** Summary row for QML property editors (text-encoded values). */
 struct LogicPropertySummary {
     std::string key;
+    std::string displayName;
     std::string kind;
     std::string value;
 };

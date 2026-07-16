@@ -71,6 +71,30 @@ public:
         transform.position.y += delta.y;
         return gateway_.setTransform(owner, transform);
     }
+    bool setRotation(EntityId owner, float radians) override {
+        if (!std::isfinite(radians)) return false;
+        Transform transform{};
+        if (!gateway_.getTransform(owner, transform)) return false;
+        transform.rotation = radians;
+        return gateway_.setTransform(owner, transform);
+    }
+    bool rotateBy(EntityId owner, float deltaRadians) override {
+        if (!std::isfinite(deltaRadians)) return false;
+        Transform transform{};
+        if (!gateway_.getTransform(owner, transform)) return false;
+        transform.rotation += deltaRadians;
+        return gateway_.setTransform(owner, transform);
+    }
+    bool setScale(EntityId owner, Vec2 scale) override {
+        if (!std::isfinite(scale.x) || !std::isfinite(scale.y)
+            || scale.x <= 0.f || scale.y <= 0.f) {
+            return false;
+        }
+        Transform transform{};
+        if (!gateway_.getTransform(owner, transform)) return false;
+        transform.scale = scale;
+        return gateway_.setTransform(owner, transform);
+    }
     bool isGrounded(EntityId owner) override {
         return world_ && world_->isPlatformerGrounded(owner);
     }

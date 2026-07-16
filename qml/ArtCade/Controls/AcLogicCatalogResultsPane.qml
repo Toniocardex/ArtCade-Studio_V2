@@ -16,9 +16,9 @@ Item {
     property string selectedTypeId: ""
 
     readonly property var entries: {
-        const out = []
+        const raw = []
         if (!catalog)
-            return out
+            return raw
         const revision = catalog.revision
         const query = searchText.trim().toLowerCase()
         for (let i = 0; i < catalog.rowCount(); ++i) {
@@ -32,48 +32,89 @@ Item {
             if (showTypeId)
                 haystack += " " + String(entry.typeId).toLowerCase()
             if (query.length === 0 || haystack.indexOf(query) >= 0)
-                out.push(entry)
+                raw.push(entry)
+        }
+        if (categoryId !== "all" || query.length > 0)
+            return raw
+        // All view: category separators between sorted groups
+        const out = []
+        let lastCat = ""
+        for (let i = 0; i < raw.length; ++i) {
+            const entry = raw[i]
+            const label = String(entry.categoryLabel || "").toUpperCase()
+            if (label.length > 0 && label !== lastCat) {
+                lastCat = label
+                out.push({
+                    isSeparator: true,
+                    typeId: "",
+                    categoryLabel: label,
+                    displayName: label,
+                    available: false,
+                })
+            }
+            out.push(entry)
+        }
+        return out
+    }
+    readonly property var selectableEntries: {
+        const out = []
+        for (let i = 0; i < entries.length; ++i) {
+            if (!entries[i].isSeparator)
+                out.push(entries[i])
         }
         return out
     }
     readonly property var selectedEntry: {
-        for (let i = 0; i < entries.length; ++i) {
-            if (entries[i].typeId === selectedTypeId)
-                return entries[i]
+        for (let i = 0; i < selectableEntries.length; ++i) {
+            if (selectableEntries[i].typeId === selectedTypeId)
+                return selectableEntries[i]
         }
-        return entries.length > 0 ? entries[0] : null
+        return selectableEntries.length > 0 ? selectableEntries[0] : null
     }
     readonly property int selectedIndex: {
         for (let i = 0; i < entries.length; ++i) {
-            if (entries[i].typeId === selectedTypeId)
+            if (!entries[i].isSeparator && entries[i].typeId === selectedTypeId)
                 return i
         }
-        return entries.length > 0 ? 0 : -1
+        for (let i = 0; i < entries.length; ++i) {
+            if (!entries[i].isSeparator)
+                return i
+        }
+        return -1
     }
 
     function syncSelection() {
-        if (entries.length === 0) {
+        if (selectableEntries.length === 0) {
             selectedTypeId = ""
             return
         }
-        for (let i = 0; i < entries.length; ++i) {
-            if (entries[i].typeId === selectedTypeId)
+        for (let i = 0; i < selectableEntries.length; ++i) {
+            if (selectableEntries[i].typeId === selectedTypeId)
                 return
         }
-        for (let i = 0; i < entries.length; ++i) {
-            if (entries[i].typeId === currentTypeId) {
-                selectedTypeId = entries[i].typeId
+        for (let i = 0; i < selectableEntries.length; ++i) {
+            if (selectableEntries[i].typeId === currentTypeId) {
+                selectedTypeId = selectableEntries[i].typeId
                 return
             }
         }
-        selectedTypeId = entries[0].typeId
+        selectedTypeId = selectableEntries[0].typeId
     }
 
     function moveSelection(delta) {
-        if (entries.length === 0)
+        if (selectableEntries.length === 0)
             return
-        const next = Math.max(0, Math.min(entries.length - 1, selectedIndex + delta))
-        selectedTypeId = entries[next].typeId
+        let current = -1
+        for (let i = 0; i < selectableEntries.length; ++i) {
+            if (selectableEntries[i].typeId === selectedTypeId) {
+                current = i
+                break
+            }
+        }
+        if (current < 0)
+            current = 0
+        const next = Math.max(0, Math.min(selectableEntries.length - 1, current + delta))
+        selectedTypeId = selectableEntries[next].typeId
         scrollToSelected()
     }
 
@@ -115,14 +156,31 @@ Item {
         delegate: Rectangle {
             required property var modelData
             width: resultsList.width
-            height: 36
-            readonly property bool isSelected: modelData.typeId === root.selectedTypeId
-            readonly property bool isCurrent: modelData.typeId === root.currentTypeId
+            height: modelData.isSeparator ? 26 : 36
+            readonly property bool isSeparator: modelData.isSeparator === true
+            readonly property bool isSelected: !isSeparator && modelData.typeId === root.selectedTypeId
+            readonly property bool isCurrent: !isSeparator && modelData.typeId === root.currentTypeId
             radius: Metrics.radiusControl
             color: isSelected ? Theme.controlHover : "transparent"
-            opacity: modelData.available ? 1.0 : 0.55
+            opacity: isSeparator ? 1.0 : (modelData.available ? 1.0 : 0.55)
+
+            Text {
+                visible: parent.isSeparator
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.leftMargin: Metrics.spacingSm
+                anchors.rightMargin: Metrics.spacingSm
+                text: modelData.categoryLabel || ""
+                color: Theme.textMuted
+                font.family: Typography.family
+                font.pixelSize: Typography.sizeMeta
+                font.weight: Font.DemiBold
+                font.letterSpacing: 0.8
+            }
 
             Column {
+                visible: !parent.isSeparator
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
@@ -151,6 +209,7 @@ Item {
             }
             MouseArea {
                 anchors.fill: parent
+                enabled: !parent.isSeparator
                 onClicked: {
                     root.selectedTypeId = modelData.typeId
                     root.focusResults()
@@ -163,7 +222,7 @@ Item {
     Column {
         anchors.centerIn: parent
         spacing: Metrics.spacingXs
-        visible: root.entries.length === 0
+        visible: root.entries.filter(function(e) { return !e.isSeparator }).length === 0
         width: parent.width - Metrics.spacingLg * 2
         Text {
             width: parent.width

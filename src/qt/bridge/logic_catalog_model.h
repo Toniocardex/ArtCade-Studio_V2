@@ -97,6 +97,7 @@ private:
         QStringList propertyKeys;
         QString propertySummary;
         QStringList searchSynonyms;
+        int catalogOrder = 0;
     };
 
     ArtCade::EditorCore::EditorCoordinator *m_coordinator = nullptr;

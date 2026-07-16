@@ -142,7 +142,15 @@ Item {
         Text {
             Layout.fillWidth: true
             visible: root.selectedEntry && String(root.selectedEntry.propertySummary || "").length > 0
-            text: root.selectedEntry ? root.selectedEntry.propertySummary : ""
+            text: {
+                if (!root.selectedEntry)
+                    return ""
+                if (EditorSession.developerMode
+                    && root.selectedEntry.propertyKeys
+                    && root.selectedEntry.propertyKeys.length > 0)
+                    return root.selectedEntry.propertyKeys.join(", ")
+                return root.selectedEntry.propertySummary
+            }
             color: Theme.textSecondary
             font.pixelSize: Typography.sizeToolbar
             wrapMode: Text.WordWrap

@@ -137,6 +137,22 @@ struct LogicRuntime::Impl {
             if (!impl || !impl->host.setPosition(owner, Vec2{x, y}))
                 throw sol::error("set_position failed for owner");
         }
+        void translate(float x, float y) {
+            if (!impl || !impl->host.translate(owner, Vec2{x, y}))
+                throw sol::error("translate failed for owner");
+        }
+        void setRotation(float radians) {
+            if (!impl || !impl->host.setRotation(owner, radians))
+                throw sol::error("set_rotation failed for owner");
+        }
+        void rotateBy(float deltaRadians) {
+            if (!impl || !impl->host.rotateBy(owner, deltaRadians))
+                throw sol::error("rotate_by failed for owner");
+        }
+        void setScale(float x, float y) {
+            if (!impl || !impl->host.setScale(owner, Vec2{x, y}))
+                throw sol::error("set_scale failed for owner");
+        }
         void setVelocity(float x, float y) {
             if (!impl || !impl->host.setVelocity(owner, Vec2{x, y}))
                 throw sol::error("set_velocity failed for owner");
@@ -502,6 +518,10 @@ bool LogicRuntime::initialize(std::string* error) {
             "LogicSelf", sol::no_constructor,
             "set_visible", &Impl::SelfProxy::setVisible,
             "set_position", &Impl::SelfProxy::setPosition,
+            "translate", &Impl::SelfProxy::translate,
+            "set_rotation", &Impl::SelfProxy::setRotation,
+            "rotate_by", &Impl::SelfProxy::rotateBy,
+            "set_scale", &Impl::SelfProxy::setScale,
             "set_velocity", &Impl::SelfProxy::setVelocity,
             "spawn", &Impl::SelfProxy::spawn,
             "is_grounded", &Impl::SelfProxy::isGrounded,

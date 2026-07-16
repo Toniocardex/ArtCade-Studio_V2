@@ -27,6 +27,10 @@ inline constexpr const char* kKeyHeld = "input.key_held";
 inline constexpr const char* kKeyDown = "input.key_down";
 inline constexpr const char* kSetVisible = "entity.set_visible";
 inline constexpr const char* kSetPosition = "entity.set_position";
+inline constexpr const char* kTranslateBy = "entity.translate_by";
+inline constexpr const char* kSetRotation = "entity.set_rotation";
+inline constexpr const char* kRotateBy = "entity.rotate_by";
+inline constexpr const char* kSetScale = "entity.set_scale";
 inline constexpr const char* kSetVelocity = "physics.set_velocity";
 inline constexpr const char* kSpawnObject = "entity.spawn";
 inline constexpr const char* kIsGrounded = "platformer.is_grounded";
@@ -71,6 +75,9 @@ struct LogicPropertyDescriptor {
     std::string    key;
     LogicValueKind valueKind = LogicValueKind::Bool;
     LogicValue     defaultValue = false;
+    /** User-facing label; empty means fall back to @p key. */
+    std::string    displayName;
+    std::string    description;
 };
 
 struct LogicBlockDescriptor {
@@ -85,6 +92,8 @@ struct LogicBlockDescriptor {
     std::vector<LogicContextCapability>  providedContext;
     std::string                          requiredFeature;
     bool                                 requiresTick = false;
+    /** Stable sort key within a category (lower first). */
+    int                                  catalogOrder = 0;
     /** Extra case-insensitive search terms for the Logic Catalog (registry-owned). */
     std::vector<std::string>             searchSynonyms;
 };
@@ -147,6 +156,8 @@ const LogicRequiredComponentDescriptor* requiredComponentDescriptor(const std::s
 /** Returns whether @p owner satisfies the complete requirement for @p component. */
 bool hasRequiredComponent(const EntityDef& owner, LogicRequiredComponent component);
 const LogicPropertyDef* findProperty(const LogicBlockDef& block, const std::string& key);
+/** User-facing property label; falls back to @p key when displayName is empty. */
+[[nodiscard]] std::string propertyDisplayName(const LogicPropertyDescriptor& property);
 LogicBlockDef makeDefaultBlock(const LogicBlockTypeId& typeId, BlockKind expected);
 LogicBlockAvailability blockAvailability(const EntityDef& owner,
                                          const LogicBlockDescriptor& candidate,

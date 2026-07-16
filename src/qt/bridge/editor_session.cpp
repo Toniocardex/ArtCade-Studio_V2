@@ -118,6 +118,7 @@ QVariantList logic_property_rows(const ArtCade::ProjectDoc &doc,
         }
         rows.append(QVariantMap{
             {QStringLiteral("key"), QString::fromStdString(row.key)},
+            {QStringLiteral("displayName"), QString::fromStdString(row.displayName)},
             {QStringLiteral("kind"), QString::fromStdString(row.kind)},
             {QStringLiteral("value"), QString::fromStdString(row.value)},
             {QStringLiteral("valueLabel"), value_label},

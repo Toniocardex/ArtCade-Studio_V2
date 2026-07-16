@@ -193,6 +193,37 @@ int manualTranslate(lua_State* state) {
     return 0;
 }
 
+int manualSetRotation(lua_State* state) {
+    IGameplayRuntimeHost* host = manualGameplayHost(state);
+    luaL_checktype(state, 1, LUA_TTABLE);
+    const float radians = static_cast<float>(luaL_checknumber(state, 2));
+    if (!std::isfinite(radians)
+        || !host || !host->setRotation(manualOwner(state), radians))
+        return luaL_error(state, "ctx.self:set_rotation failed");
+    return 0;
+}
+
+int manualRotateBy(lua_State* state) {
+    IGameplayRuntimeHost* host = manualGameplayHost(state);
+    luaL_checktype(state, 1, LUA_TTABLE);
+    const float delta = static_cast<float>(luaL_checknumber(state, 2));
+    if (!std::isfinite(delta)
+        || !host || !host->rotateBy(manualOwner(state), delta))
+        return luaL_error(state, "ctx.self:rotate_by failed");
+    return 0;
+}
+
+int manualSetScale(lua_State* state) {
+    IGameplayRuntimeHost* host = manualGameplayHost(state);
+    luaL_checktype(state, 1, LUA_TTABLE);
+    const float x = static_cast<float>(luaL_checknumber(state, 2));
+    const float y = static_cast<float>(luaL_checknumber(state, 3));
+    if (!std::isfinite(x) || !std::isfinite(y) || x <= 0.f || y <= 0.f
+        || !host || !host->setScale(manualOwner(state), Vec2{x, y}))
+        return luaL_error(state, "ctx.self:set_scale failed");
+    return 0;
+}
+
 int manualDestroy(lua_State* state) {
     IGameplayRuntimeHost* host = manualGameplayHost(state);
     luaL_checktype(state, 1, LUA_TTABLE);
@@ -322,6 +353,9 @@ void pushManualContext(lua_State* state, IGameplayRuntimeHost* host, EntityId ow
     setManualHostMethod(state, host, owner, "set_visible", manualSetVisible);
     setManualHostMethod(state, host, owner, "set_position", manualSetPosition);
     setManualHostMethod(state, host, owner, "translate", manualTranslate);
+    setManualHostMethod(state, host, owner, "set_rotation", manualSetRotation);
+    setManualHostMethod(state, host, owner, "rotate_by", manualRotateBy);
+    setManualHostMethod(state, host, owner, "set_scale", manualSetScale);
     setManualHostMethod(state, host, owner, "destroy", manualDestroy);
     lua_setfield(state, -2, "self");
 

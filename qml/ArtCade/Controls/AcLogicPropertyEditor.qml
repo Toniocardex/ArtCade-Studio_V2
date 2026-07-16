@@ -13,6 +13,7 @@ RowLayout {
     id: root
 
     property string propertyKey: ""
+    property string displayName: ""
     property string kind: "string"
     property string valueText: ""
     /** Optional [{value, label}] picker entries from EditorSession.logicRules. */
@@ -27,7 +28,15 @@ RowLayout {
         Layout.preferredWidth: 72
         Layout.maximumWidth: 96
         Layout.alignment: Qt.AlignVCenter
-        text: root.propertyKey
+        text: {
+            const label = root.displayName && root.displayName.length > 0
+                          ? root.displayName : root.propertyKey
+            if (EditorSession.developerMode && root.displayName
+                && root.displayName !== root.propertyKey
+                && root.propertyKey.length > 0)
+                return label + " · " + root.propertyKey
+            return label
+        }
         color: Theme.textMuted
         font.family: Typography.family
         font.pixelSize: Typography.sizeXs

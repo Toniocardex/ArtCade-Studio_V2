@@ -7,6 +7,8 @@
 #include <QVariant>
 #include <QVariantMap>
 
+#include <algorithm>
+
 LogicCatalogModel::LogicCatalogModel(QObject *parent)
     : QAbstractListModel(parent)
 {
@@ -132,9 +134,11 @@ void LogicCatalogModel::reload()
         for (const auto &property : desc.properties) {
             const QString key = QString::fromStdString(property.key);
             row.propertyKeys.append(key);
-            prop_labels.append(key);
+            prop_labels.append(QString::fromStdString(
+                ArtCade::Logic::propertyDisplayName(property)));
         }
         row.propertySummary = prop_labels.join(QStringLiteral(", "));
+        row.catalogOrder = desc.catalogOrder;
 
         if (owner) {
             const ArtCade::Logic::LogicBlockAvailability availability =
@@ -163,6 +167,21 @@ void LogicCatalogModel::reload()
             m_categoryIds.append(id);
         }
     }
+
+    // categoryOrder → catalogOrder → displayName
+    std::sort(m_rows.begin(), m_rows.end(), [&](const Row &a, const Row &b) {
+        const int a_rank = m_categoryIds.indexOf(a.categoryId);
+        const int b_rank = m_categoryIds.indexOf(b.categoryId);
+        const int a_cat = a_rank < 0 ? 1000 : a_rank;
+        const int b_cat = b_rank < 0 ? 1000 : b_rank;
+        if (a_cat != b_cat) {
+            return a_cat < b_cat;
+        }
+        if (a.catalogOrder != b.catalogOrder) {
+            return a.catalogOrder < b.catalogOrder;
+        }
+        return a.displayName.localeAwareCompare(b.displayName) < 0;
+    });
 
     endResetModel();
     ++m_revision;

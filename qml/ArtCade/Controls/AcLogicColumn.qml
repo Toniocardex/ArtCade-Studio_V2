@@ -190,6 +190,7 @@ Item {
                     required property var modelData
                     Layout.fillWidth: true
                     propertyKey: modelData.key || ""
+                    displayName: modelData.displayName || ""
                     kind: modelData.kind || "string"
                     valueText: modelData.value || ""
                     choices: modelData.choices || []
