@@ -78,6 +78,7 @@ set(ARTCADE_QML_FILES
     ../../qml/ArtCade/Controls/AcSplitterHandle.qml
     ../../qml/ArtCade/Controls/AcWindowResizeFrame.qml
     ../../qml/ArtCade/Controls/AcTreeDelegate.qml
+    ../../qml/ArtCade/Controls/AcLayerRow.qml
     ../../qml/ArtCade/Controls/AcNumberField.qml
     ../../qml/ArtCade/Controls/AcInspectorRow.qml
     ../../qml/ArtCade/Controls/AcIcon.qml
@@ -117,6 +118,7 @@ set_source_files_properties(../../qml/ArtCade/Controls/AcPanelHeader.qml PROPERT
 set_source_files_properties(../../qml/ArtCade/Controls/AcSplitterHandle.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcSplitterHandle.qml")
 set_source_files_properties(../../qml/ArtCade/Controls/AcWindowResizeFrame.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcWindowResizeFrame.qml")
 set_source_files_properties(../../qml/ArtCade/Controls/AcTreeDelegate.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcTreeDelegate.qml")
+set_source_files_properties(../../qml/ArtCade/Controls/AcLayerRow.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcLayerRow.qml")
 set_source_files_properties(../../qml/ArtCade/Controls/AcNumberField.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcNumberField.qml")
 set_source_files_properties(../../qml/ArtCade/Controls/AcInspectorRow.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcInspectorRow.qml")
 set_source_files_properties(../../qml/ArtCade/Controls/AcIcon.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcIcon.qml")
@@ -150,7 +152,9 @@ set(ARTCADE_ICON_SVGS
     ${ARTCADE_ICON_DIR}/search.svg
     ${ARTCADE_ICON_DIR}/add.svg
     ${ARTCADE_ICON_DIR}/eye.svg
+    ${ARTCADE_ICON_DIR}/eyeOff.svg
     ${ARTCADE_ICON_DIR}/lock.svg
+    ${ARTCADE_ICON_DIR}/layer.svg
     ${ARTCADE_ICON_DIR}/select.svg
     ${ARTCADE_ICON_DIR}/pan.svg
     ${ARTCADE_ICON_DIR}/move.svg
@@ -207,6 +211,7 @@ set(ARTCADE_QML_LINT_FILES
     ${ARTCADE_QML_ROOT}/Controls/AcSplitterHandle.qml
     ${ARTCADE_QML_ROOT}/Controls/AcWindowResizeFrame.qml
     ${ARTCADE_QML_ROOT}/Controls/AcTreeDelegate.qml
+    ${ARTCADE_QML_ROOT}/Controls/AcLayerRow.qml
     ${ARTCADE_QML_ROOT}/Controls/AcNumberField.qml
     ${ARTCADE_QML_ROOT}/Controls/AcInspectorRow.qml
     ${ARTCADE_QML_ROOT}/Controls/AcIcon.qml

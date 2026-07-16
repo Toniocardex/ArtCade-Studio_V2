@@ -133,54 +133,24 @@ Rectangle {
                 id: layersList
                 clip: true
                 model: EditorSession.layersModel
+                spacing: 1
+                boundsBehavior: Flickable.StopAtBounds
 
-                delegate: Rectangle {
-                    width: layersList.width
-                    height: Metrics.controlHeight
-                    required property string display
-                    required property string layerId
-                    required property bool layerVisible
-                    required property bool locked
-                    required property bool active
-
-                    color: active ? Theme.selection
-                                  : (layerMa.containsMouse ? Theme.controlHover : "transparent")
-
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: Metrics.spacingMd
-                        anchors.rightMargin: Metrics.spacingSm
-                        spacing: Metrics.spacingSm
-
-                        CheckBox {
-                            checked: layerVisible
-                            onToggled: EditorSession.setLayerVisible(layerId, checked)
-                        }
-
-                        Text {
-                            text: display
-                            color: Theme.textPrimary
-                            font.family: Typography.family
-                            font.pixelSize: Typography.sizeSm
-                            Layout.fillWidth: true
-                            elide: Text.ElideRight
-                        }
-
-                        AcIcon {
-                            visible: locked
-                            source: Icons.lock
-                            size: 12
-                            color: Theme.textSecondary
-                        }
+                delegate: AcLayerRow {
+                    onActivateRequested: function(id) { EditorSession.setActiveLayer(id) }
+                    onVisibilityToggled: function(id, visible) {
+                        EditorSession.setLayerVisible(id, visible)
                     }
+                }
 
-                    MouseArea {
-                        id: layerMa
-                        anchors.fill: parent
-                        anchors.leftMargin: 36
-                        hoverEnabled: true
-                        onClicked: EditorSession.setActiveLayer(layerId)
-                    }
+                Text {
+                    anchors.centerIn: parent
+                    visible: !EditorSession.hasProject
+                    text: "Open or load Fixture"
+                    color: Theme.textMuted
+                    font.family: Typography.family
+                    font.pixelSize: Typography.sizeSm
+                    z: 1
                 }
             }
 
