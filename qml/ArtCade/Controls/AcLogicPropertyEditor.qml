@@ -64,6 +64,16 @@ ColumnLayout {
             }
             textRole: "label"
             valueRole: "value"
+            // Suppress Fusion/system popup chrome; list chrome is custom below.
+            palette.mid: Theme.panel
+            palette.window: Theme.panel
+            palette.base: Theme.panel
+            palette.button: Theme.panelRaised
+            palette.highlight: Theme.controlHover
+            palette.highlightedText: Theme.textPrimary
+            palette.text: Theme.textPrimary
+            palette.buttonText: Theme.textPrimary
+
             Component.onCompleted: currentIndex = Math.max(0, indexOfValue(root.valueText))
             onActivated: function(index) {
                 const next = model[index].value
@@ -86,6 +96,48 @@ ColumnLayout {
                 color: choiceBox.hovered ? Theme.controlHover : Theme.panelRaised
                 border.color: choiceBox.popup.visible ? Theme.accent : Theme.borderSubtle
                 border.width: 1
+            }
+            popup: Popup {
+                y: choiceBox.height + 2
+                width: choiceBox.width
+                implicitHeight: Math.min(contentItem.implicitHeight + 8, 240)
+                padding: 4
+                closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutsideParent
+
+                contentItem: ListView {
+                    clip: true
+                    implicitHeight: contentHeight
+                    boundsBehavior: Flickable.StopAtBounds
+                    model: choiceBox.popup.visible ? choiceBox.delegateModel : null
+                    currentIndex: choiceBox.highlightedIndex
+                    ScrollIndicator.vertical: ScrollIndicator {}
+                    spacing: 2
+                }
+
+                background: Rectangle {
+                    color: Theme.panelRaised
+                    border.color: Theme.border
+                    border.width: 1
+                    radius: Metrics.radiusSmall
+                }
+            }
+            delegate: ItemDelegate {
+                required property var modelData
+                required property int index
+                width: ListView.view ? ListView.view.width : choiceBox.width
+                highlighted: choiceBox.highlightedIndex === index
+                contentItem: Text {
+                    text: modelData.label
+                    color: modelData.value.length > 0 ? Theme.textPrimary : Theme.textMuted
+                    font.family: Typography.family
+                    font.pixelSize: Typography.sizeXs
+                    elide: Text.ElideRight
+                    verticalAlignment: Text.AlignVCenter
+                }
+                background: Rectangle {
+                    radius: Metrics.radiusSmall
+                    color: parent.highlighted ? Theme.controlHover : "transparent"
+                }
             }
         }
     }
@@ -141,6 +193,15 @@ ColumnLayout {
             id: boolBox
             model: ["true", "false"]
             enabled: !EditorSession.playing
+            palette.mid: Theme.panel
+            palette.window: Theme.panel
+            palette.base: Theme.panel
+            palette.button: Theme.panelRaised
+            palette.highlight: Theme.controlHover
+            palette.highlightedText: Theme.textPrimary
+            palette.text: Theme.textPrimary
+            palette.buttonText: Theme.textPrimary
+
             Component.onCompleted: currentIndex = root.valueText === "false" ? 1 : 0
             onActivated: function(index) {
                 const next = model[index]
@@ -149,6 +210,7 @@ ColumnLayout {
             }
             contentItem: Text {
                 leftPadding: Metrics.spacingSm
+                rightPadding: boolBox.indicator.width + Metrics.spacingSm
                 text: boolBox.displayText
                 color: Theme.textPrimary
                 font.family: Typography.family
@@ -158,9 +220,49 @@ ColumnLayout {
             background: Rectangle {
                 implicitHeight: Metrics.controlHeight - 4
                 radius: Metrics.radiusSmall
-                color: Theme.panelRaised
-                border.color: Theme.borderSubtle
+                color: boolBox.hovered ? Theme.controlHover : Theme.panelRaised
+                border.color: boolBox.popup.visible ? Theme.accent : Theme.borderSubtle
                 border.width: 1
+            }
+            popup: Popup {
+                y: boolBox.height + 2
+                width: boolBox.width
+                implicitHeight: contentItem.implicitHeight + 8
+                padding: 4
+                closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutsideParent
+
+                contentItem: ListView {
+                    clip: true
+                    implicitHeight: contentHeight
+                    boundsBehavior: Flickable.StopAtBounds
+                    model: boolBox.popup.visible ? boolBox.delegateModel : null
+                    currentIndex: boolBox.highlightedIndex
+                    spacing: 2
+                }
+
+                background: Rectangle {
+                    color: Theme.panelRaised
+                    border.color: Theme.border
+                    border.width: 1
+                    radius: Metrics.radiusSmall
+                }
+            }
+            delegate: ItemDelegate {
+                required property var modelData
+                required property int index
+                width: ListView.view ? ListView.view.width : boolBox.width
+                highlighted: boolBox.highlightedIndex === index
+                contentItem: Text {
+                    text: modelData
+                    color: Theme.textPrimary
+                    font.family: Typography.family
+                    font.pixelSize: Typography.sizeXs
+                    verticalAlignment: Text.AlignVCenter
+                }
+                background: Rectangle {
+                    radius: Metrics.radiusSmall
+                    color: parent.highlighted ? Theme.controlHover : "transparent"
+                }
             }
         }
     }
