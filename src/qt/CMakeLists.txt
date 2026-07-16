@@ -51,6 +51,11 @@ target_link_libraries(artcade-editor-qt
 )
 
 # Style module: QQuickStyle("ArtCadeStyle") control overrides (themed ToolTip).
+# QT_RESOURCE_ALIAS must be set *before* qt_add_qml_module reads the source
+# list — setting it after silently keeps the full relative path as the alias
+# (qrc:/qt/qml/ArtCadeStyle/../../qml/ArtCadeStyle/ToolTip.qml), which the
+# style resolver cannot find, so QML load fails and the app exits immediately.
+set_source_files_properties(../../qml/ArtCadeStyle/ToolTip.qml PROPERTIES QT_RESOURCE_ALIAS "ToolTip.qml")
 qt_add_qml_module(artcade-editor-style
     STATIC
     URI ArtCadeStyle
@@ -58,7 +63,6 @@ qt_add_qml_module(artcade-editor-style
     QML_FILES
         ../../qml/ArtCadeStyle/ToolTip.qml
 )
-set_source_files_properties(../../qml/ArtCadeStyle/ToolTip.qml PROPERTIES QT_RESOURCE_ALIAS "ToolTip.qml")
 target_link_libraries(artcade-editor-qt PRIVATE artcade-editor-styleplugin)
 
 # Bake absolute path to W2 fixture for one-click open in the shell.
