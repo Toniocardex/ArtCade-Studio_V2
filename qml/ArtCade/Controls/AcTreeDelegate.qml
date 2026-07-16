@@ -3,8 +3,9 @@ import QtQuick.Controls
 import ArtCade.Ui
 
 /**
- * Hierarchy tree row — ArtCade chevron indicator (not Basic-style dark triangle).
- * Model roles via model.*; expand/collapse uses TreeViewDelegate defaults.
+ * Hierarchy tree row — ArtCade chevron + label as one hit target.
+ * Scene (and other branch) rows toggle expand on the whole row; instances select.
+ * Indicator is visual-only so expand is not chevron-only.
  */
 TreeViewDelegate {
     id: root
@@ -18,6 +19,7 @@ TreeViewDelegate {
     readonly property string displayText: model.display ?? ""
     readonly property string nodeKind: model.nodeKind ?? ""
     readonly property var stableId: model.stableId ?? 0
+    readonly property bool branchRow: root.hasChildren
 
     background: Rectangle {
         anchors.fill: parent
@@ -36,9 +38,8 @@ TreeViewDelegate {
         border.color: Theme.accent
     }
 
-    // Custom indicator: thin white chevron matching AcPanelHeader / Assets style.
+    // Visual only — no TapHandler here; whole-row onClicked owns expand/select.
     indicator: Item {
-        id: indicatorRoot
         implicitWidth: Metrics.iconSizeSm
         implicitHeight: Metrics.iconSizeSm
         width: Metrics.iconSizeSm
@@ -47,10 +48,10 @@ TreeViewDelegate {
 
         AcIcon {
             anchors.centerIn: parent
-            visible: root.isTreeNode && root.hasChildren
+            visible: root.branchRow
             source: Icons.chevron
             size: Metrics.iconSizeSm
-            color: Theme.textSecondary
+            color: root.hovered ? Theme.textPrimary : Theme.textSecondary
             rotation: root.expanded ? 0 : -90
             Behavior on rotation { NumberAnimation { duration: 100; easing.type: Easing.OutCubic } }
         }
@@ -67,7 +68,11 @@ TreeViewDelegate {
     }
 
     onClicked: {
-        if (root.nodeKind === "instance")
+        if (root.nodeKind === "instance") {
             EditorSession.selectEntity(root.stableId)
+            return
+        }
+        if (root.branchRow)
+            root.expanded = !root.expanded
     }
 }
