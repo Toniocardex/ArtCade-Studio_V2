@@ -17,6 +17,7 @@ ApplicationWindow {
     minimumWidth: 1100
     minimumHeight: 700
     visible: true
+    visibility: Window.Maximized
     title: EditorSession.hasProject
            ? ("ArtCade Studio — " + EditorSession.projectName
               + (EditorSession.dirty ? " *" : ""))
