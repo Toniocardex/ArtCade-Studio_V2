@@ -8,9 +8,9 @@ call :rmdir_if_exist "%ROOT%\runtime-cpp\build-msvc"
 call :rmdir_if_exist "%ROOT%\runtime-cpp\build-nmake"
 call :rmdir_if_exist "%ROOT%\runtime-cpp\build"
 call :rmdir_if_exist "%ROOT%\build"
+call :rmdir_if_exist "%ROOT%\build-qt"
 call :rmdir_if_exist "%ROOT%\build-nmake"
-call :rmdir_if_exist "%ROOT%\editor\dist"
-call :rmdir_if_exist "%ROOT%\editor\src-tauri\src-tauri"
+call :rmdir_if_exist "%ROOT%\dist"
 
 echo [OK] Build output directories removed.
 exit /b 0

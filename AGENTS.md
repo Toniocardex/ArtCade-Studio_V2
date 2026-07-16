@@ -35,15 +35,14 @@ Same C++ compiles to native `.exe` and Emscripten `.wasm` with near-identical ga
 ### 2. Hybrid authoring (Logic Board + Lua + dialogs)
 **Why**: Gameplay ships as compiled Lua, but the editor provides a visual Logic Board (JSON schemas → Lua compiler), a script tab, and RPG-style dialog graphs (`dialogs/*.json`). The C++ runtime is Lua + Raylib + Sol2 without the old monolithic AST runtime. Generated Logic Lua is read-only and must never overwrite user scripts.
 
-### 3. Tauri Preview Integration
-**Why**: Tauri loads the WASM build inside WebView. What you see in editor preview is
-exactly what users see in browser. No sync issues. React is the presentation layer (RmlUi analogue): intents/commands only — never document owner.
+### 3. Qt Studio + dual runtime
+**Why**: Qt owns the Studio window and authoring UI. The same C++ runtime builds native and WASM. QML is presentation only (intents/commands) — never document owner.
 
 ### 4. Lua for Game Logic
 **Why**: Portable, deterministic, easy Lua<->C++ binding via Sol2. Native builds use bytecode; editor preview hot-reloads Lua source via WASM only where explicitly supported — **no automatic hot-reload as MVP product policy** until teardown/parity are solid.
 
 ### 5. ProjectRuntimeSettings (editor ↔ runtime contract)
-**Why**: Preview and native exe must share timing and physics. `editor/src/utils/runtime-fingerprint.ts` (`RuntimeProjectPayload` / fingerprint `fps` + `pm`) mirrors C++ `ProjectRuntimeSettings` in `runtime-cpp/src/core/types.h`, applied by `Application::applyRuntimeSettings()` on load.
+**Why**: Preview and native exe must share timing and physics. C++ `ProjectRuntimeSettings` in `runtime-cpp/src/core/types.h` is applied by `Application::applyRuntimeSettings()` on load. The Qt editor writes runtime fields into `project.json` (formatVersion 5) via `artcade_editor_core`.
 
 ### 6. .artcade Format (ZIP-based)
 **Why**: Single-file distribution, fast web loading, asset encryption (future), version manifest.
@@ -85,8 +84,8 @@ exactly what users see in browser. No sync issues. React is the presentation lay
 ### 10. Logic Board, Script, and shared gameplay host
 **Why**: Visual and scripted gameplay must share one runtime contract.
 
-- Logic Board is type-targeted via `project.logicBoards`, descriptor-driven (WHEN / IF-AND / DO).
-- **Shipping authority (React stack):** TS compile → composed `main.lua` → GameAPI. Play, Save, Pack, and export use that path. C++ `objectTypes[].logicBoard` / LogicRuntime is dormant and must not dual-fire.
+- Logic Board is type-targeted via project data, descriptor-driven (WHEN / IF-AND / DO).
+- **Shipping authority:** C++ compile / runtime host (in progress). No React/TS dual compile path.
 - Unsupported Logic actions fail compile (no soft `-- TODO` no-ops).
 - Disk `main.lua` may be composed for native load; Script editor extracts `MANUAL_BEGIN`/`MANUAL_END` as My Script only.
 - Behavior scripts type-owned; project scripts global and ordered; Lua source under project root with relative paths only.
@@ -137,38 +136,19 @@ runtime-cpp/
 - `cmake .. -DCMAKE_BUILD_TYPE=Release` → Windows MSVC → `game.exe`
 - `emcmake cmake .. -DCMAKE_TOOLCHAIN_FILE=$EMSDK/cmake/Modules/Platform/Emscripten.cmake` → WASM → `game.js + game.wasm`
 
-### `editor/` — React TypeScript
-
-**Framework**: React 19 + Vite + TailwindCSS  
-**Language**: TypeScript
+### `src/application` + `src/qt` + `qml/` — Studio editor (Qt)
 
 ```
-editor/
-├── src/
-│   ├── main.tsx                    # Entry
-│   ├── App.tsx                     # Root layout
-│   ├── components/
-│   │   ├── EngineScriptEditor.tsx  # CodeMirror host (iframe MPA)
-│   │   └── ...
-│   ├── codemirror-frame/           # Isolated editor document (postMessage)
-│   ├── codemirror/                 # Lua mode, theme, completions
-│   ├── panels/
-│   │   ├── ScriptEditorPanel.tsx
-│   │   ├── LogicBoardPanel.tsx     # Visual board + Lua sync → script store
-│   │   └── ...
-│   ├── utils/
-│   │   ├── api.ts                  # IPC to Tauri
-│   │   ├── project.ts              # ProjectDoc utilities
-│   │   └── ...
-│   └── types/
-│       └── index.ts                # Shared types (EntityDef, SceneDef, etc.)
-├── public/
-└── package.json
+src/application/          # artcade_editor_core — ProjectDoc authority, Commands
+src/qt/                   # artcade-editor-qt — QObject adapter
+qml/ArtCade/              # QML presentation (no ProjectDocument copies)
 ```
+
+Build: `ARTCADE_BUILD_QT_EDITOR=ON` (default on Windows). Run: `scripts/run-artcade-editor-qt.ps1`.
 
 ### WASM preview bundle
 
-Emscripten output is built under `runtime-cpp/build-wasm/` and copied to `editor/public/runtime/` via `runtime-cpp/build_wasm.bat`. The editor loads `game.js` / `game.wasm` from there (`editor/src/utils/runtime-path.ts`).
+Emscripten output is built under `runtime-cpp/build-wasm/` and copied to `dist/wasm/` via `runtime-cpp/build_wasm.bat`.
 
 ### `docs/` — Design Documentation
 

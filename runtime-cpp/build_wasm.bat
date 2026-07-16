@@ -4,12 +4,12 @@ setlocal EnableExtensions EnableDelayedExpansion
 rem ArtCade WASM build script.
 rem - Uses Ninja + Emscripten only (no MSVC/nmake needed for the WASM target).
 rem - Configures/builds runtime-cpp/build-wasm.
-rem - Copies game.js/game.wasm/game.data to editor/public/runtime.
+rem - Copies game.js/game.wasm/game.data to dist/wasm (runtime ship artifacts).
 
 set "SCRIPT_DIR=%~dp0"
 set "BUILD_DIR=%SCRIPT_DIR%build-wasm"
 set "OUTDIR=%BUILD_DIR%\src\app"
-set "EDITOR_RUNTIME=%SCRIPT_DIR%..\editor\public\runtime"
+set "EDITOR_RUNTIME=%SCRIPT_DIR%..\dist\wasm"
 
 if "%EMSDK%"=="" set "EMSDK=%USERPROFILE%\emsdk"
 if not exist "%EMSDK%\emsdk_env.bat" (

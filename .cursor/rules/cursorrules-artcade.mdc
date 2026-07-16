@@ -11,7 +11,7 @@ Follow these rules for implementation work and when the user asks for a code rev
 
 ## Modular architecture
 
-**A file = a module = a domain.** These rules apply to every layer: editor TS, Tauri Rust, runtime C++, WASM, schema.
+**A file = a module = a domain.** These rules apply to every layer: Qt QML, Qt/C++ adapter, `artcade_editor_core`, runtime C++, WASM, schema.
 
 - Organize files by **domain/feature**, never by technical type (`utils/`, `helpers/` are warning signs).
 - No monolithic files: a file exceeding ~300 lines is a signal it needs to be split.
@@ -257,11 +257,13 @@ Follow this sequence for implementation tasks unless the user asks for a subset 
 Before commit, run what the change touches:
 
 ```powershell
-cd editor; npm test -- --run
+cmake --build build-qt --config Release --target artcade_editor_core_roundtrip_test
+# run the exe under build-qt/src/application/Release/
+cmake --build build-qt --config Release --target artcade-editor-qt
 ```
 
 - If `runtime-cpp/` changed: run relevant C++ tests / build as appropriate.
-- Fix failures before proceeding. **Exception:** if a test was already failing before your change (confirm with `git stash; npm test -- --run; git stash pop`), flag it as a pre-existing failure — do not block the commit, but note it explicitly in the summary.
+- Fix failures before proceeding.
 
 ### 3. Diff audit (required before every commit)
 
@@ -293,16 +295,13 @@ Run `git status` and `git diff --stat`. Review explicitly:
 
 | Check | Action |
 |-------|--------|
-| Scope | Only intended files staged. Tauri FS permissions: edit `editor/src-tauri/capabilities/default.json` only, then `npm run tauri:sync-schemas` in `editor/` (do not hand-edit `gen/schemas/`). |
+| Scope | Only intended files staged. |
 | Regressions | Related tests still pass; behavior of adjacent features unchanged. |
-| Logic Board | `wait` / control-flow actions, hot reload, `emit-action-sequence` semantics. |
 | Secrets | Never stage `.env`, keys, credentials. |
-| Generated files | Include `validators.generated.ts` when schemas change. |
-| Breaking changes | If the diff touches a public contract (TypeScript types, Lua API, JSON schema, Tauri IPC, saved project format), flag it explicitly. Silent backward-incompatible changes are always a BLOCKER. |
+| Breaking changes | If the diff touches a public contract (Lua API, saved project format, Qt IPC), flag it explicitly. Silent backward-incompatible changes are always a BLOCKER. |
 | Native-first | Flag any workaround introduced by this diff. If present, it must carry a `// TEMPORARY:` comment or be converted to the native solution before the commit is allowed. |
 | Project authority | Persistent project mutations go through command/intent plus centralized validation; UI-only state does not dirty the project. |
-| Saved format | `schemaVersion` and migrations are updated for breaking saved-format changes; fixtures/round-trip tests cover the migration. |
-| Assets | AssetRef/id registry stays atomic; referenced asset deletion is guarded by dependency checks. |
+| Saved format | `formatVersion` (C++-owned, currently 5) updated for breaking saved-format changes; fixtures cover the change. |
 | Naming & structure | New symbols follow naming conventions; no new file over ~300 lines without justification; no circular imports introduced. |
 | Dead code | Confirm no orphaned exports, unreachable branches, or unused imports survived the diff. |
 | Documentation | New public functions documented in header; no untracked TODO/FIXME introduced. |
@@ -346,14 +345,10 @@ cd editor; npm run desktop:release
 
 ### Quick reference (this repo)
 
-- **Editor tests:** `cd editor; npm test -- --run`
-- **WASM preview:** `cd runtime-cpp; .\build_wasm.bat`
-- **Desktop build:** `npm run desktop:build` (exe only). **Installers:** `npm run desktop:release` (release only). Close `artcade-editor.exe` first — Windows file-locks the binary on rebuild.
-- **Logic Board timing:**
-  - Periodic gameplay → **When: Timer**
-  - Finite burst, then continue → **When: Timer** + **Then: Repeat** (Times + Every seconds; `0` = instant loop)
-- **Hot reload:** reloads frontend TS/assets without a full Tauri rebuild. Does *not* pick up changes in `src-tauri/` Rust code or native WASM — those require a full rebuild.
-- **emit-action-sequence:** fires a named sequence of Logic Board actions in order. Execution is deterministic but not blocking — the next action does not wait for the previous one to complete unless a `wait` action is explicitly inserted between them.
+- **Editor core tests:** build + run `artcade_editor_core_roundtrip_test`
+- **Qt editor:** `scripts/run-artcade-editor-qt.ps1` (after `cmake --build build-qt --config Release --target artcade-editor-qt`)
+- **WASM runtime:** `cd runtime-cpp; .\build_wasm.bat` → `dist/wasm/`
+- **Desktop native game:** `npm run build:cpp`
 
 ---
 

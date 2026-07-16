@@ -1,0 +1,134 @@
+{
+  "activeSceneId": "scene_main",
+  "formatVersion": 5,
+  "imageAssets": [
+    {
+      "assetId": "img_hero",
+      "name": "Hero Sprite",
+      "sourcePath": "assets/sprites/hero.png"
+    },
+    {
+      "assetId": "img_coin",
+      "name": "Coin",
+      "sourcePath": "assets/sprites/coin.png"
+    }
+  ],
+  "layers": [
+    {
+      "id": "layer_bg",
+      "locked": false,
+      "name": "Background"
+    },
+    {
+      "id": "layer_main",
+      "locked": false,
+      "name": "Main"
+    },
+    {
+      "id": "layer_ui",
+      "locked": false,
+      "name": "UI"
+    }
+  ],
+  "mainScriptPath": "scripts/main.lua",
+  "objectTypes": {
+    "Coin": {
+      "displayName": "Coin",
+      "id": "Coin",
+      "tags": []
+    },
+    "Player": {
+      "displayName": "Player",
+      "id": "Player",
+      "tags": []
+    }
+  },
+  "projectName": "Qt Slice Fixture",
+  "scenes": {
+    "scene_main": {
+      "backgroundColor": {
+        "w": 1.0,
+        "x": 0.0820000022649765,
+        "y": 0.09000000357627869,
+        "z": 0.10999999940395355
+      },
+      "cameraStart": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "entityIds": [
+        1,
+        2
+      ],
+      "id": "scene_main",
+      "instances": [
+        {
+          "id": 1,
+          "instanceName": "Hero",
+          "layerId": "layer_main",
+          "objectTypeId": "Player",
+          "transform": {
+            "position": {
+              "x": 91.45455169677734,
+              "y": 82.06060791015625
+            },
+            "rotation": 0.0,
+            "scale": {
+              "x": 1.0,
+              "y": 1.0
+            }
+          },
+          "visible": true
+        },
+        {
+          "id": 2,
+          "instanceName": "Coin_A",
+          "layerId": "layer_main",
+          "objectTypeId": "Coin",
+          "transform": {
+            "position": {
+              "x": 224.1212158203125,
+              "y": 61.63636779785156
+            },
+            "rotation": 0.0,
+            "scale": {
+              "x": 1.0,
+              "y": 1.0
+            }
+          },
+          "visible": true
+        }
+      ],
+      "layerSettings": {
+        "layer_bg": {
+          "opacity": 1.0,
+          "visible": true
+        },
+        "layer_main": {
+          "opacity": 1.0,
+          "visible": true
+        },
+        "layer_ui": {
+          "opacity": 1.0,
+          "visible": true
+        }
+      },
+      "name": "Main Scene",
+      "viewportSize": {
+        "x": 1280.0,
+        "y": 720.0
+      },
+      "worldSize": {
+        "x": 1280.0,
+        "y": 720.0
+      }
+    }
+  },
+  "targetFPS": 60.0,
+  "version": "1.0.0",
+  "world": {
+    "gravity": 9.800000190734863,
+    "pixelsPerMeter": 32.0,
+    "timeScale": 1.0
+  }
+}

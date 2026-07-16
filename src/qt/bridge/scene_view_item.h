@@ -1,0 +1,78 @@
+/**
+ * Authoring scene canvas: pan/zoom (workspace), pick, drag-move via EditorSession.
+ * Draws placeholder AABBs from ProjectDoc — not a second document authority.
+ */
+#pragma once
+
+#include <QPointF>
+#include <QQuickPaintedItem>
+#include <QtQml/qqmlregistration.h>
+
+class EditorSession;
+
+class SceneViewItem : public QQuickPaintedItem
+{
+    Q_OBJECT
+    QML_ELEMENT
+
+    Q_PROPERTY(EditorSession *session READ session WRITE setSession NOTIFY sessionChanged)
+    Q_PROPERTY(qreal panX READ panX WRITE setPanX NOTIFY viewChanged)
+    Q_PROPERTY(qreal panY READ panY WRITE setPanY NOTIFY viewChanged)
+    Q_PROPERTY(qreal zoom READ zoom WRITE setZoom NOTIFY viewChanged)
+
+public:
+    explicit SceneViewItem(QQuickItem *parent = nullptr);
+
+    [[nodiscard]] EditorSession *session() const;
+    void setSession(EditorSession *session);
+
+    [[nodiscard]] qreal panX() const;
+    void setPanX(qreal value);
+    [[nodiscard]] qreal panY() const;
+    void setPanY(qreal value);
+    [[nodiscard]] qreal zoom() const;
+    void setZoom(qreal value);
+
+    /** Applies pan/zoom so the active scene world rect fits the item. */
+    void applyFit(qreal world_w, qreal world_h);
+
+    [[nodiscard]] QPointF screenToWorld(const QPointF &screen) const;
+    [[nodiscard]] QPointF worldToScreen(const QPointF &world) const;
+
+    [[nodiscard]] bool hasDragPreview() const;
+    [[nodiscard]] quint32 dragEntityId() const;
+    [[nodiscard]] QPointF dragPreviewWorld() const;
+
+    Q_INVOKABLE void resetView();
+    Q_INVOKABLE void fitActiveScene();
+
+    void paint(QPainter *painter) override;
+
+signals:
+    void sessionChanged();
+    void viewChanged();
+
+protected:
+    void mousePressEvent(QMouseEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
+    void wheelEvent(QWheelEvent *event) override;
+
+private:
+    void bindSessionSignals();
+    void onSessionDocumentChanged();
+
+    EditorSession *m_session = nullptr;
+    qreal m_pan_x = 0.0;
+    qreal m_pan_y = 0.0;
+    qreal m_zoom = 1.0;
+
+    bool m_panning = false;
+    bool m_dragging = false;
+    QPointF m_last_screen;
+    QPointF m_drag_start_world;
+    QPointF m_drag_origin_world;
+    quint32 m_drag_entity_id = 0;
+    QPointF m_drag_preview_world;
+    bool m_has_drag_preview = false;
+};

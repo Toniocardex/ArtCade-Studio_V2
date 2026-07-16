@@ -1,0 +1,40 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 21,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "qt-editor",
+      "displayName": "ArtCade Qt editor (Qt 6.8)",
+      "description": "Set ARTCADE_QT_PREFIX to …/6.8.x/msvc2022_64 (see scripts/install-qt-6.8.ps1).",
+      "generator": "Visual Studio 17 2022",
+      "architecture": {
+        "value": "x64",
+        "strategy": "set"
+      },
+      "binaryDir": "${sourceDir}/build-qt",
+      "cacheVariables": {
+        "ARTCADE_BUILD_QT_EDITOR": "ON",
+        "CMAKE_POLICY_VERSION_MINIMUM": "3.5",
+        "CMAKE_PREFIX_PATH": "$env{ARTCADE_QT_PREFIX}"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "qt-editor-release",
+      "configurePreset": "qt-editor",
+      "configuration": "Release",
+      "targets": ["artcade-editor-qt"]
+    },
+    {
+      "name": "qt-qmllint",
+      "configurePreset": "qt-editor",
+      "configuration": "Release",
+      "targets": ["artcade-qmllint"]
+    }
+  ]
+}
