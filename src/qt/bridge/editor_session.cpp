@@ -261,11 +261,6 @@ QVariantList EditorSession::logicRules() const
     return m_logicRules;
 }
 
-QVariantList EditorSession::logicSections() const
-{
-    return m_logicSections;
-}
-
 QString EditorSession::selectedLogicRuleId() const
 {
     return m_selectedLogicRuleId;
@@ -554,7 +549,6 @@ void EditorSession::refreshSelectionCache()
     m_logicRuleCount = 0;
     m_logicRuleIds.clear();
     m_logicRules.clear();
-    m_logicSections.clear();
     m_selectedLogicRuleId.clear();
     const auto id = m_coordinator->selectedEntityId();
     if (id != 0) {
@@ -576,13 +570,6 @@ void EditorSession::refreshSelectionCache()
                         type.name.empty() ? inst->objectTypeId : type.name;
                     m_selectedObjectTypeName = QString::fromStdString(label);
                     if (type.logicBoard) {
-                        for (const ArtCade::LogicSectionDef &section :
-                             type.logicBoard->sections) {
-                            m_logicSections.append(QVariantMap{
-                                {QStringLiteral("id"), QString::fromStdString(section.id)},
-                                {QStringLiteral("name"), QString::fromStdString(section.name)},
-                            });
-                        }
                         m_logicRuleCount = static_cast<int>(type.logicBoard->rules.size());
                         for (const ArtCade::LogicRuleDef &rule : type.logicBoard->rules) {
                             m_logicRuleIds.append(QString::fromStdString(rule.id));
@@ -605,8 +592,6 @@ void EditorSession::refreshSelectionCache()
                             m_logicRules.append(QVariantMap{
                                 {QStringLiteral("id"), QString::fromStdString(rule.id)},
                                 {QStringLiteral("enabled"), rule.enabled},
-                                {QStringLiteral("sectionId"),
-                                 QString::fromStdString(rule.sectionId)},
                                 {QStringLiteral("triggerTypeId"),
                                  QString::fromStdString(rule.trigger.typeId)},
                                 {QStringLiteral("conditionTypeIds"), condition_ids},
@@ -1147,117 +1132,6 @@ void EditorSession::setLogicRuleEnabled(const QString &ruleId, bool enabled)
     emit dirtyChanged();
     setStatus(enabled ? QStringLiteral("Enabled Logic rule %1").arg(ruleId)
                       : QStringLiteral("Disabled Logic rule %1").arg(ruleId));
-}
-
-void EditorSession::addLogicSection()
-{
-    QString guard_error;
-    if (!guardAuthoring(&guard_error)) {
-        setStatus(guard_error, false);
-        emit errorOccurred(guard_error);
-        return;
-    }
-    if (m_selectedObjectTypeId.isEmpty()) {
-        const QString msg = QStringLiteral("Select an object to add a section to its board");
-        setStatus(msg, false);
-        emit errorOccurred(msg);
-        return;
-    }
-    std::string error;
-    std::string section_id;
-    if (!m_coordinator->addLogicSection(
-            m_selectedObjectTypeId.toStdString(), std::string{}, section_id, error)) {
-        setStatus(QString::fromStdString(error));
-        emit errorOccurred(QString::fromStdString(error));
-        return;
-    }
-    refreshSelectionCache();
-    emit dirtyChanged();
-    setStatus(QStringLiteral("Added section %1").arg(QString::fromStdString(section_id)));
-}
-
-void EditorSession::renameLogicSection(const QString &sectionId, const QString &name)
-{
-    QString guard_error;
-    if (!guardAuthoring(&guard_error)) {
-        setStatus(guard_error, false);
-        emit errorOccurred(guard_error);
-        return;
-    }
-    if (m_selectedObjectTypeId.isEmpty() || sectionId.isEmpty()) {
-        const QString msg = QStringLiteral("Select a section to rename");
-        setStatus(msg, false);
-        emit errorOccurred(msg);
-        return;
-    }
-    std::string error;
-    if (!m_coordinator->renameLogicSection(m_selectedObjectTypeId.toStdString(),
-                                           sectionId.toStdString(),
-                                           name.toStdString(),
-                                           error)) {
-        setStatus(QString::fromStdString(error));
-        emit errorOccurred(QString::fromStdString(error));
-        return;
-    }
-    refreshSelectionCache();
-    emit dirtyChanged();
-    setStatus(QStringLiteral("Renamed section to %1").arg(name.trimmed()));
-}
-
-void EditorSession::removeLogicSection(const QString &sectionId)
-{
-    QString guard_error;
-    if (!guardAuthoring(&guard_error)) {
-        setStatus(guard_error, false);
-        emit errorOccurred(guard_error);
-        return;
-    }
-    if (m_selectedObjectTypeId.isEmpty() || sectionId.isEmpty()) {
-        const QString msg = QStringLiteral("Select a section to remove");
-        setStatus(msg, false);
-        emit errorOccurred(msg);
-        return;
-    }
-    std::string error;
-    if (!m_coordinator->removeLogicSection(
-            m_selectedObjectTypeId.toStdString(), sectionId.toStdString(), error)) {
-        setStatus(QString::fromStdString(error));
-        emit errorOccurred(QString::fromStdString(error));
-        return;
-    }
-    refreshSelectionCache();
-    emit dirtyChanged();
-    setStatus(QStringLiteral("Removed section %1 (rules kept)").arg(sectionId));
-}
-
-void EditorSession::setLogicRuleSection(const QString &ruleId, const QString &sectionId)
-{
-    QString guard_error;
-    if (!guardAuthoring(&guard_error)) {
-        setStatus(guard_error, false);
-        emit errorOccurred(guard_error);
-        return;
-    }
-    if (m_selectedObjectTypeId.isEmpty() || ruleId.isEmpty()) {
-        const QString msg = QStringLiteral("Select a Logic rule to move it into a section");
-        setStatus(msg, false);
-        emit errorOccurred(msg);
-        return;
-    }
-    std::string error;
-    if (!m_coordinator->setLogicRuleSection(m_selectedObjectTypeId.toStdString(),
-                                            ruleId.toStdString(),
-                                            sectionId.toStdString(),
-                                            error)) {
-        setStatus(QString::fromStdString(error));
-        emit errorOccurred(QString::fromStdString(error));
-        return;
-    }
-    refreshSelectionCache();
-    emit dirtyChanged();
-    setStatus(sectionId.isEmpty()
-                  ? QStringLiteral("Rule %1 unsectioned").arg(ruleId)
-                  : QStringLiteral("Rule %1 moved to section").arg(ruleId));
 }
 
 quint32 EditorSession::pickEntityAt(double worldX, double worldY)

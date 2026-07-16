@@ -303,87 +303,6 @@ bool logic_value_parse(ArtCade::Logic::LogicValueKind kind,
 [[nodiscard]] std::vector<LogicPropertySummary> logic_block_authorable_properties(
     const LogicBlockDef &block);
 
-/**
- * Appends a display section to the board (board created on demand).
- * Sections group rules visually and never affect execution order.
- */
-class AddLogicSectionCommand final : public ICommand {
-public:
-    AddLogicSectionCommand(ObjectTypeId object_type_id, std::string name);
-    void execute(ProjectDoc &doc) override;
-    void undo(ProjectDoc &doc) override;
-
-    [[nodiscard]] const std::string &sectionId() const { return m_section_id; }
-    [[nodiscard]] bool applied() const { return m_applied; }
-
-private:
-    ObjectTypeId m_object_type_id;
-    std::string m_name;
-    std::string m_section_id;
-    bool m_created_board = false;
-    bool m_applied = false;
-};
-
-/**
- * Renames a display section. Same name is a no-op.
- */
-class RenameLogicSectionCommand final : public ICommand {
-public:
-    RenameLogicSectionCommand(ObjectTypeId object_type_id,
-                              std::string section_id,
-                              std::string new_name);
-    void execute(ProjectDoc &doc) override;
-    void undo(ProjectDoc &doc) override;
-
-private:
-    ObjectTypeId m_object_type_id;
-    std::string m_section_id;
-    std::string m_new_name;
-    std::string m_old_name;
-    bool m_captured = false;
-    bool m_applied = false;
-};
-
-/**
- * Removes a display section and clears membership on its rules.
- * Undo restores the section at its index and the rule membership.
- */
-class RemoveLogicSectionCommand final : public ICommand {
-public:
-    RemoveLogicSectionCommand(ObjectTypeId object_type_id, std::string section_id);
-    void execute(ProjectDoc &doc) override;
-    void undo(ProjectDoc &doc) override;
-
-private:
-    ObjectTypeId m_object_type_id;
-    std::string m_section_id;
-    LogicSectionDef m_removed_section;
-    std::vector<LogicRuleId> m_member_rule_ids;
-    std::size_t m_index = 0;
-    bool m_captured = false;
-    bool m_applied = false;
-};
-
-/**
- * Assigns a rule to a display section (empty section id = unsectioned).
- */
-class SetLogicRuleSectionCommand final : public ICommand {
-public:
-    SetLogicRuleSectionCommand(ObjectTypeId object_type_id,
-                               LogicRuleId rule_id,
-                               std::string section_id);
-    void execute(ProjectDoc &doc) override;
-    void undo(ProjectDoc &doc) override;
-
-private:
-    ObjectTypeId m_object_type_id;
-    LogicRuleId m_rule_id;
-    std::string m_section_id;
-    std::string m_old_section_id;
-    bool m_captured = false;
-    bool m_applied = false;
-};
-
 /** C++-owned editor project format. */
 inline constexpr int kCurrentProjectFormatVersion = 5;
 
@@ -507,39 +426,6 @@ public:
     bool setLogicRuleEnabled(const ObjectTypeId &object_type_id,
                              const LogicRuleId &rule_id,
                              bool enabled,
-                             std::string &error_message);
-
-    /**
-     * Adds a display section ("Section N" when @p name is empty).
-     * @param out_section_id filled with the new stable section id on success
-     */
-    bool addLogicSection(const ObjectTypeId &object_type_id,
-                         const std::string &name,
-                         std::string &out_section_id,
-                         std::string &error_message);
-
-    /**
-     * Renames a display section. Empty (trimmed) names are rejected.
-     */
-    bool renameLogicSection(const ObjectTypeId &object_type_id,
-                            const std::string &section_id,
-                            const std::string &new_name,
-                            std::string &error_message);
-
-    /**
-     * Removes a display section; member rules become unsectioned.
-     */
-    bool removeLogicSection(const ObjectTypeId &object_type_id,
-                            const std::string &section_id,
-                            std::string &error_message);
-
-    /**
-     * Assigns a rule to a section (empty @p section_id clears membership).
-     * The section must exist; same assignment is a no-op.
-     */
-    bool setLogicRuleSection(const ObjectTypeId &object_type_id,
-                             const LogicRuleId &rule_id,
-                             const std::string &section_id,
                              std::string &error_message);
 
     /**
