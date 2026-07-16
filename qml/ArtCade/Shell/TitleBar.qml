@@ -33,24 +33,16 @@ Rectangle {
         }
 
         Text {
-            text: "ArtCade Studio"
+            text: EditorSession.hasProject
+                  ? (EditorSession.projectName + (EditorSession.dirty ? " *" : ""))
+                  : "No project"
             color: Theme.textPrimary
             font.family: Typography.family
             font.pixelSize: Typography.sizeObjectTitle
             font.weight: Font.DemiBold
-            Layout.alignment: Qt.AlignVCenter
-        }
-
-        Text {
-            text: EditorSession.hasProject
-                  ? ("— " + EditorSession.projectName + (EditorSession.dirty ? " *" : ""))
-                  : "— No project"
-            color: Theme.textSecondary
-            font.family: Typography.family
-            font.pixelSize: Typography.sizeToolbar
             elide: Text.ElideRight
             Layout.fillWidth: true
-            Layout.maximumWidth: 420
+            Layout.maximumWidth: 520
             Layout.alignment: Qt.AlignVCenter
         }
 

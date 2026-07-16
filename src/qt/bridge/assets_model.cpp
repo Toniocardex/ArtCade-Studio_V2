@@ -71,3 +71,29 @@ QHash<int, QByteArray> AssetsModel::roleNames() const
         {KindRole, "kind"},
     };
 }
+
+bool AssetsModel::lookup(const QString &assetId,
+                         QString *displayOut,
+                         QString *kindOut,
+                         QString *sourcePathOut) const
+{
+    if (assetId.isEmpty()) {
+        return false;
+    }
+    for (const Row &row : m_rows) {
+        if (row.assetId != assetId) {
+            continue;
+        }
+        if (displayOut) {
+            *displayOut = row.display;
+        }
+        if (kindOut) {
+            *kindOut = row.kind;
+        }
+        if (sourcePathOut) {
+            *sourcePathOut = row.sourcePath;
+        }
+        return true;
+    }
+    return false;
+}

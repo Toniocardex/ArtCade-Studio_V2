@@ -26,8 +26,35 @@ ApplicationWindow {
     flags: Qt.Window | Qt.FramelessWindowHint
 
     property bool allowClose: false
+    property real lastExpandedConsoleHeight: Metrics.consoleDefaultHeight
 
-    Component.onCompleted: Qt.callLater(function() { window.showMaximized() })
+    function applyConsoleState() {
+        if (!EditorSession.hasProject) {
+            consolePane.SplitView.preferredHeight = Metrics.panelHeaderHeight
+            return
+        }
+        if (EditorSession.consoleCollapsed) {
+            if (consolePane.height > Metrics.panelHeaderHeight + 2)
+                lastExpandedConsoleHeight = consolePane.height
+            consolePane.SplitView.preferredHeight = Metrics.panelHeaderHeight
+        } else {
+            consolePane.SplitView.preferredHeight = Math.max(
+                        lastExpandedConsoleHeight, Metrics.consoleDefaultHeight)
+        }
+    }
+
+    Component.onCompleted: {
+        Qt.callLater(function() {
+            window.showMaximized()
+            applyConsoleState()
+        })
+    }
+
+    Connections {
+        target: EditorSession
+        function onConsoleCollapsedChanged() { applyConsoleState() }
+        function onHasProjectChanged() { applyConsoleState() }
+    }
 
     onClosing: function(close) {
         if (allowClose) {
@@ -117,11 +144,11 @@ ApplicationWindow {
                 }
 
                 ConsolePane {
-                    SplitView.preferredHeight: EditorSession.hasProject
-                                              ? Metrics.consoleDefaultHeight
-                                              : Metrics.panelHeaderHeight
+                    id: consolePane
+                    SplitView.preferredHeight: Metrics.panelHeaderHeight
                     SplitView.minimumHeight: Metrics.panelHeaderHeight
                     SplitView.fillWidth: true
+                    onCollapseToggled: applyConsoleState()
                 }
             }
 

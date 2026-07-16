@@ -21,12 +21,21 @@ if (-not $QtPrefix) {
     }
 }
 
-$exe = Join-Path $repoRoot "build-qt\src\qt\$Config\artcade-editor-qt.exe"
+# Multi-config (VS) puts the exe under Release/; single-config (Ninja) does not.
+$exeRelease = Join-Path $repoRoot "build-qt\src\qt\$Config\artcade-editor-qt.exe"
+$exeNinja = Join-Path $repoRoot "build-qt\src\qt\artcade-editor-qt.exe"
+$exe = if (Test-Path -LiteralPath $exeRelease) {
+    $exeRelease
+} elseif (Test-Path -LiteralPath $exeNinja) {
+    $exeNinja
+} else {
+    $exeRelease
+}
 $windeploy = Join-Path $QtPrefix "bin\windeployqt.exe"
 $qmlDir = Join-Path $repoRoot "qml"
 
 if (-not (Test-Path -LiteralPath $exe)) {
-    throw "Executable not found: $exe — build with ARTCADE_BUILD_QT_EDITOR=ON first."
+    throw "Executable not found: $exeRelease (or $exeNinja) — build with ARTCADE_BUILD_QT_EDITOR=ON first."
 }
 if (-not (Test-Path -LiteralPath $windeploy)) {
     throw "windeployqt not found: $windeploy"

@@ -37,6 +37,12 @@ public:
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
     QHash<int, QByteArray> roleNames() const override;
 
+    /** Lookup by asset id; returns false if missing. */
+    [[nodiscard]] bool lookup(const QString &assetId,
+                              QString *displayOut,
+                              QString *kindOut,
+                              QString *sourcePathOut) const;
+
 private:
     struct Row {
         QString assetId;

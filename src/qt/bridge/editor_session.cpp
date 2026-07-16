@@ -539,6 +539,107 @@ void EditorSession::setSnapEnabled(bool enabled)
     emit snapEnabledChanged();
 }
 
+QString EditorSession::selectedAssetId() const
+{
+    return m_selectedAssetId;
+}
+
+QString EditorSession::selectedAssetName() const
+{
+    return m_selectedAssetName;
+}
+
+QString EditorSession::selectedAssetKind() const
+{
+    return m_selectedAssetKind;
+}
+
+QString EditorSession::selectedAssetPath() const
+{
+    return m_selectedAssetPath;
+}
+
+bool EditorSession::hasAssetSelection() const
+{
+    return !m_selectedAssetId.isEmpty();
+}
+
+void EditorSession::setSelectedAssetId(const QString &assetId)
+{
+    if (assetId == m_selectedAssetId) {
+        return;
+    }
+    if (assetId.isEmpty()) {
+        clearAssetSelection();
+        return;
+    }
+    QString display;
+    QString kind;
+    QString path;
+    if (!m_assets || !m_assets->lookup(assetId, &display, &kind, &path)) {
+        return;
+    }
+    // Workspace mutual exclusion with entity selection (Inspector priority).
+    if (m_coordinator->selectedEntityId() != 0) {
+        m_coordinator->clearSelection();
+        refreshSelectionCache();
+    }
+    m_selectedAssetId = assetId;
+    m_selectedAssetName = display;
+    m_selectedAssetKind = kind;
+    m_selectedAssetPath = path;
+    emit selectedAssetChanged();
+}
+
+void EditorSession::clearAssetSelection()
+{
+    if (m_selectedAssetId.isEmpty() && m_selectedAssetName.isEmpty()
+        && m_selectedAssetKind.isEmpty() && m_selectedAssetPath.isEmpty()) {
+        return;
+    }
+    m_selectedAssetId.clear();
+    m_selectedAssetName.clear();
+    m_selectedAssetKind.clear();
+    m_selectedAssetPath.clear();
+    emit selectedAssetChanged();
+}
+
+void EditorSession::refreshAssetSelectionCache()
+{
+    if (m_selectedAssetId.isEmpty()) {
+        return;
+    }
+    QString display;
+    QString kind;
+    QString path;
+    if (!m_assets || !m_assets->lookup(m_selectedAssetId, &display, &kind, &path)) {
+        clearAssetSelection();
+        return;
+    }
+    if (display == m_selectedAssetName && kind == m_selectedAssetKind
+        && path == m_selectedAssetPath) {
+        return;
+    }
+    m_selectedAssetName = display;
+    m_selectedAssetKind = kind;
+    m_selectedAssetPath = path;
+    emit selectedAssetChanged();
+}
+
+bool EditorSession::consoleCollapsed() const
+{
+    return m_consoleCollapsed;
+}
+
+void EditorSession::setConsoleCollapsed(bool collapsed)
+{
+    if (m_consoleCollapsed == collapsed) {
+        return;
+    }
+    m_consoleCollapsed = collapsed;
+    emit consoleCollapsedChanged();
+}
+
 double EditorSession::sceneGridStep() const
 {
     return static_cast<double>(ArtCade::EditorCore::EditorCoordinator::kSceneViewPlaceholderExtent);
@@ -589,6 +690,7 @@ void EditorSession::reloadDerivedModels()
     m_hierarchy->reload();
     m_layers->reload();
     m_assets->reload();
+    refreshAssetSelectionCache();
     refreshProjectCounts();
 }
 
@@ -925,6 +1027,9 @@ void EditorSession::saveProject()
 
 void EditorSession::selectEntity(quint32 entityId)
 {
+    if (entityId != 0) {
+        clearAssetSelection();
+    }
     m_coordinator->selectEntity(entityId);
     refreshSelectionCache();
 }

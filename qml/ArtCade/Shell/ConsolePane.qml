@@ -8,12 +8,21 @@ Rectangle {
 
     color: Theme.panel
     property int consoleTab: 0
+    property int previousErrorCount: EditorSession.consoleModel.errorCount
+
+    signal collapseToggled()
+
+    function toggleCollapsed() {
+        EditorSession.consoleCollapsed = !EditorSession.consoleCollapsed
+        root.collapseToggled()
+    }
 
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
 
         Rectangle {
+            id: consoleHeader
             Layout.fillWidth: true
             Layout.preferredHeight: Metrics.panelHeaderHeight
             color: Theme.panelRaised
@@ -23,6 +32,22 @@ Rectangle {
                 anchors.leftMargin: Metrics.spacingSm
                 anchors.rightMargin: Metrics.spacingSm
                 spacing: Metrics.spacingXs
+
+                Text {
+                    text: EditorSession.consoleCollapsed ? "▸" : "▾"
+                    color: Theme.textSecondary
+                    font.family: Typography.family
+                    font.pixelSize: Typography.sizeBody
+                    Layout.alignment: Qt.AlignVCenter
+                    Accessible.name: EditorSession.consoleCollapsed
+                                     ? "Expand console" : "Collapse console"
+
+                    MouseArea {
+                        anchors.fill: parent
+                        anchors.margins: -4
+                        onClicked: root.toggleCollapsed()
+                    }
+                }
 
                 AcTabButton {
                     text: "Console"
@@ -40,10 +65,22 @@ Rectangle {
                     onClicked: root.consoleTab = 2
                 }
 
-                Item { Layout.fillWidth: true }
+                Item {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+
+                    TapHandler {
+                        acceptedButtons: Qt.LeftButton
+                        onTapped: function(eventPoint, button) {
+                            if (tapCount === 2)
+                                root.toggleCollapsed()
+                        }
+                    }
+                }
 
                 AcIconButton {
                     text: "Clear"
+                    visible: !EditorSession.consoleCollapsed
                     onClicked: EditorSession.consoleModel.clear()
                 }
 
@@ -72,6 +109,8 @@ Rectangle {
             Layout.leftMargin: Metrics.spacingSm
             Layout.rightMargin: Metrics.spacingSm
             Layout.topMargin: Metrics.spacingXs
+            visible: !EditorSession.consoleCollapsed
+            enabled: visible
 
             AcTextField {
                 Layout.fillWidth: true
@@ -84,7 +123,8 @@ Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
-            visible: root.consoleTab === 0
+            visible: !EditorSession.consoleCollapsed && root.consoleTab === 0
+            enabled: visible
             model: EditorSession.consoleModel
             ScrollBar.vertical: ScrollBar {
                 policy: ScrollBar.AsNeeded
@@ -133,7 +173,8 @@ Rectangle {
         Text {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            visible: root.consoleTab !== 0
+            visible: !EditorSession.consoleCollapsed && root.consoleTab !== 0
+            enabled: visible
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
             text: root.consoleTab === 1 ? "No problems" : "Search — coming next"
@@ -147,6 +188,19 @@ Rectangle {
         target: EditorSession
         function onErrorOccurred(message) {
             EditorSession.consoleModel.appendError(message)
+        }
+    }
+
+    Connections {
+        target: EditorSession.consoleModel
+        function onCountsChanged() {
+            const next = EditorSession.consoleModel.errorCount
+            if (next > root.previousErrorCount) {
+                root.consoleTab = 0
+                EditorSession.consoleCollapsed = false
+                root.collapseToggled()
+            }
+            root.previousErrorCount = next
         }
     }
 

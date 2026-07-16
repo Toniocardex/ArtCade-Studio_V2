@@ -99,6 +99,16 @@ class EditorSession : public QObject
     Q_PROPERTY(QString activeTool READ activeTool WRITE setActiveTool NOTIFY activeToolChanged)
     /** Workspace: snap Move commits to scene grid (does not dirty). */
     Q_PROPERTY(bool snapEnabled READ snapEnabled WRITE setSnapEnabled NOTIFY snapEnabledChanged)
+    /** Workspace: selected asset id in Assets dock (does not dirty). */
+    Q_PROPERTY(QString selectedAssetId READ selectedAssetId WRITE setSelectedAssetId
+                   NOTIFY selectedAssetChanged)
+    Q_PROPERTY(QString selectedAssetName READ selectedAssetName NOTIFY selectedAssetChanged)
+    Q_PROPERTY(QString selectedAssetKind READ selectedAssetKind NOTIFY selectedAssetChanged)
+    Q_PROPERTY(QString selectedAssetPath READ selectedAssetPath NOTIFY selectedAssetChanged)
+    Q_PROPERTY(bool hasAssetSelection READ hasAssetSelection NOTIFY selectedAssetChanged)
+    /** Workspace: Console panel collapsed (does not dirty). Default true for session. */
+    Q_PROPERTY(bool consoleCollapsed READ consoleCollapsed WRITE setConsoleCollapsed
+                   NOTIFY consoleCollapsedChanged)
 
 public:
     explicit EditorSession(QObject *parent = nullptr);
@@ -146,10 +156,18 @@ public:
     [[nodiscard]] double worldPixelsPerMeter() const;
     [[nodiscard]] QString activeTool() const;
     [[nodiscard]] bool snapEnabled() const;
+    [[nodiscard]] QString selectedAssetId() const;
+    [[nodiscard]] QString selectedAssetName() const;
+    [[nodiscard]] QString selectedAssetKind() const;
+    [[nodiscard]] QString selectedAssetPath() const;
+    [[nodiscard]] bool hasAssetSelection() const;
+    [[nodiscard]] bool consoleCollapsed() const;
 
     void setActiveMode(const QString &mode);
     void setActiveTool(const QString &tool);
     void setSnapEnabled(bool enabled);
+    void setSelectedAssetId(const QString &assetId);
+    void setConsoleCollapsed(bool collapsed);
 
     Q_INVOKABLE void openProject(const QString &pathOrUrl);
     /**
@@ -272,6 +290,8 @@ signals:
     void projectChanged();
     void activeToolChanged();
     void snapEnabledChanged();
+    void selectedAssetChanged();
+    void consoleCollapsedChanged();
     void errorOccurred(const QString &message);
     void closeBlockedByDirty();
     void closeAccepted();
@@ -283,6 +303,8 @@ private:
     void refreshSelectionCache();
     void reloadDerivedModels();
     void refreshProjectCounts();
+    void refreshAssetSelectionCache();
+    void clearAssetSelection();
     void rememberRecentProject(const QString &path, const QString &name);
     void onPlayProcessStopped(int exit_code, const QString &status_message);
     [[nodiscard]] QString normalizePath(const QString &pathOrUrl) const;
@@ -316,4 +338,9 @@ private:
     QVariantList m_logicRules;
     QVariantList m_logicSections;
     QString m_selectedLogicRuleId;
+    QString m_selectedAssetId;
+    QString m_selectedAssetName;
+    QString m_selectedAssetKind;
+    QString m_selectedAssetPath;
+    bool m_consoleCollapsed = true;
 };

@@ -575,20 +575,30 @@ Rectangle {
 
         AcMenuItem {
             text: "Duplicate Logic"
-            enabled: false
+            available: false
+            disabledHint: "Coming next"
+            visible: EditorSession.developerMode || available
         }
         AcMenuItem {
             text: "Move Up"
-            enabled: false
+            available: false
+            disabledHint: "Coming next"
+            visible: EditorSession.developerMode || available
         }
         AcMenuItem {
             text: "Move Down"
-            enabled: false
+            available: false
+            disabledHint: "Coming next"
+            visible: EditorSession.developerMode || available
         }
         AcMenuItem {
             text: "Delete Logic"
-            enabled: !EditorSession.playing
-            onTriggered: EditorSession.removeLogicRule(ruleMenu.targetRuleId)
+            available: !EditorSession.playing
+            disabledHint: EditorSession.playing ? "Unavailable during Play" : ""
+            onTriggered: {
+                if (available)
+                    EditorSession.removeLogicRule(ruleMenu.targetRuleId)
+            }
         }
     }
 }

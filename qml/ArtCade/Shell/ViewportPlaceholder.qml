@@ -13,62 +13,7 @@ Rectangle {
         anchors.fill: parent
         spacing: 0
 
-        // Scene document tabs (Canvas only — hidden on Project Home)
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: Metrics.panelHeaderHeight
-            color: Theme.chrome
-            visible: EditorSession.activeMode === "canvas" && EditorSession.hasProject
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: Metrics.spacingSm
-                spacing: Metrics.spacingXs
-
-                Rectangle {
-                    Layout.preferredHeight: parent.height - 6
-                    Layout.preferredWidth: sceneTabLabel.implicitWidth + Metrics.spacingLg * 2
-                    Layout.alignment: Qt.AlignVCenter
-                    radius: Metrics.radiusControl
-                    color: Theme.panelRaised
-                    border.color: Theme.borderSubtle
-                    border.width: 1
-
-                    Text {
-                        id: sceneTabLabel
-                        anchors.centerIn: parent
-                        text: EditorSession.activeSceneName.length > 0
-                              ? EditorSession.activeSceneName
-                              : (EditorSession.projectName + " · scene")
-                        color: Theme.textPrimary
-                        font.family: Typography.family
-                        font.pixelSize: Typography.sizeMeta
-                    }
-                }
-
-                AcToolButton {
-                    iconSource: Icons.add
-                    implicitWidth: 26
-                    implicitHeight: 26
-                    enabled: false
-                    ToolTip.visible: hovered
-                    ToolTip.delay: 400
-                    ToolTip.text: "Add scene tab — coming next"
-                }
-
-                Item { Layout.fillWidth: true }
-            }
-
-            Rectangle {
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                height: 1
-                color: Theme.borderSubtle
-            }
-        }
-
-        // Scene toolbar (Canvas only — hidden on Project Home)
+        // Single Canvas toolbar: scene chip + tools | view controls
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: Metrics.toolbarHeight
@@ -80,6 +25,33 @@ Rectangle {
                 anchors.leftMargin: Metrics.spacingSm
                 anchors.rightMargin: Metrics.spacingSm
                 spacing: Metrics.spacingXs
+
+                Rectangle {
+                    Layout.preferredHeight: parent.height - 8
+                    Layout.preferredWidth: sceneChipLabel.implicitWidth + Metrics.spacingMd * 2
+                    Layout.alignment: Qt.AlignVCenter
+                    radius: Metrics.radiusControl
+                    color: Theme.panelRaised
+                    border.color: Theme.borderSubtle
+                    border.width: 1
+
+                    Text {
+                        id: sceneChipLabel
+                        anchors.centerIn: parent
+                        text: EditorSession.activeSceneName.length > 0
+                              ? EditorSession.activeSceneName
+                              : "Main Scene"
+                        color: Theme.textPrimary
+                        font.family: Typography.family
+                        font.pixelSize: Typography.sizeMeta
+                    }
+                }
+
+                Rectangle {
+                    Layout.preferredWidth: 1
+                    Layout.preferredHeight: 20
+                    color: Theme.borderSubtle
+                }
 
                 AcToolButton {
                     iconSource: Icons.select
@@ -118,48 +90,6 @@ Rectangle {
                     ToolTip.text: "Rectangle select — drag a box; picks topmost hit"
                 }
 
-                Rectangle {
-                    Layout.preferredWidth: 1
-                    Layout.preferredHeight: 20
-                    color: Theme.borderSubtle
-                }
-
-                Text {
-                    text: "Local"
-                    color: Theme.textSecondary
-                    font.family: Typography.family
-                    font.pixelSize: Typography.sizeXs
-                    ToolTip.visible: localSpaceHover.hovered
-                    ToolTip.delay: 400
-                    ToolTip.text: "Transform space: Local (World coming next)"
-                    HoverHandler { id: localSpaceHover }
-                }
-
-                Text {
-                    text: Math.round(sceneView.zoom * 100) + "%"
-                    color: Theme.textPrimary
-                    font.family: Typography.familyMono
-                    font.pixelSize: Typography.sizeXs
-                    ToolTip.visible: zoomHover.hovered
-                    ToolTip.delay: 400
-                    ToolTip.text: "Zoom — scroll the mouse wheel to zoom"
-                    HoverHandler { id: zoomHover }
-                }
-
-                Text {
-                    text: EditorSession.activeLayerId.length > 0
-                          ? EditorSession.activeLayerId : "Layer"
-                    color: Theme.textSecondary
-                    font.family: Typography.family
-                    font.pixelSize: Typography.sizeXs
-                    elide: Text.ElideRight
-                    Layout.maximumWidth: 120
-                    ToolTip.visible: layerHover.hovered && EditorSession.activeLayerId.length > 0
-                    ToolTip.delay: 400
-                    ToolTip.text: "Active layer: " + EditorSession.activeLayerId
-                    HoverHandler { id: layerHover }
-                }
-
                 Item { Layout.fillWidth: true }
 
                 AcToolButton {
@@ -181,6 +111,17 @@ Rectangle {
                     ToolTip.text: EditorSession.snapEnabled
                                  ? "Snap to grid — on"
                                  : "Snap to grid — off"
+                }
+                Text {
+                    text: Math.round(sceneView.zoom * 100) + "%"
+                    color: Theme.textPrimary
+                    font.family: Typography.familyMono
+                    font.pixelSize: Typography.sizeXs
+                    Layout.alignment: Qt.AlignVCenter
+                    ToolTip.visible: zoomHover.hovered
+                    ToolTip.delay: 400
+                    ToolTip.text: "Zoom — scroll the mouse wheel to zoom"
+                    HoverHandler { id: zoomHover }
                 }
                 AcButton {
                     text: "Fit"
