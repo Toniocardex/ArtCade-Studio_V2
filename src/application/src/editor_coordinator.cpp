@@ -7,6 +7,44 @@
 #include <algorithm>
 namespace ArtCade::EditorCore {
 
+namespace {
+
+bool ensure_logic_block_available(const EntityDef &owner,
+                                  const ArtCade::Logic::LogicBlockDescriptor &candidate,
+                                  const ArtCade::Logic::LogicBlockDescriptor *trigger,
+                                  std::string &error_message)
+{
+    const ArtCade::Logic::LogicBlockAvailability availability =
+        ArtCade::Logic::blockAvailability(owner, candidate, trigger);
+    if (availability.compatible) {
+        return true;
+    }
+    error_message = availability.reason;
+    return false;
+}
+
+bool ensure_trigger_preserves_rule_compatibility(const EntityDef &owner,
+                                                 const LogicRuleDef &rule,
+                                                 const ArtCade::Logic::LogicBlockDescriptor &trigger,
+                                                 std::string &error_message)
+{
+    for (const LogicBlockDef &block : rule.conditions) {
+        const auto *descriptor = ArtCade::Logic::findDescriptor(block.typeId);
+        if (descriptor && !ensure_logic_block_available(owner, *descriptor, &trigger, error_message)) {
+            return false;
+        }
+    }
+    for (const LogicBlockDef &block : rule.actions) {
+        const auto *descriptor = ArtCade::Logic::findDescriptor(block.typeId);
+        if (descriptor && !ensure_logic_block_available(owner, *descriptor, &trigger, error_message)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+} // namespace
+
 bool EditorCoordinator::openProject(const std::string &project_json_path, std::string &error_message)
 {
     ProjectDoc loaded;
@@ -578,6 +616,11 @@ bool EditorCoordinator::setLogicRuleTrigger(const ObjectTypeId &object_type_id,
         error_message = "Not a valid trigger block type";
         return false;
     }
+    if (!ensure_logic_block_available(type_it->second, *desc, nullptr, error_message)
+        || !ensure_trigger_preserves_rule_compatibility(type_it->second, *rule, *desc,
+                                                        error_message)) {
+        return false;
+    }
     auto command = std::make_unique<SetLogicRuleTriggerCommand>(
         object_type_id, rule_id, block_type_id);
     command->execute(m_doc);
@@ -626,6 +669,10 @@ bool EditorCoordinator::setLogicRulePrimaryAction(const ObjectTypeId &object_typ
         ArtCade::Logic::findDescriptor(block_type_id);
     if (!desc || desc->kind != ArtCade::Logic::BlockKind::Action) {
         error_message = "Not a valid action block type";
+        return false;
+    }
+    const auto *trigger = ArtCade::Logic::findDescriptor(rule->trigger.typeId);
+    if (!ensure_logic_block_available(type_it->second, *desc, trigger, error_message)) {
         return false;
     }
     auto command = std::make_unique<SetLogicRulePrimaryActionCommand>(
@@ -900,6 +947,10 @@ bool EditorCoordinator::setLogicRulePrimaryCondition(const ObjectTypeId &object_
         ArtCade::Logic::findDescriptor(block_type_id);
     if (!desc || desc->kind != ArtCade::Logic::BlockKind::Condition) {
         error_message = "Not a valid condition block type";
+        return false;
+    }
+    const auto *trigger = ArtCade::Logic::findDescriptor(rule->trigger.typeId);
+    if (!ensure_logic_block_available(type_it->second, *desc, trigger, error_message)) {
         return false;
     }
     auto command = std::make_unique<SetLogicRulePrimaryConditionCommand>(

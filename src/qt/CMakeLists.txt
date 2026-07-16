@@ -112,7 +112,10 @@ set(ARTCADE_QML_FILES
     ../../qml/ArtCade/Controls/AcLogicSectionHeader.qml
     ../../qml/ArtCade/Controls/AcMenu.qml
     ../../qml/ArtCade/Controls/AcMenuItem.qml
-    ../../qml/ArtCade/Controls/AcLogicCatalogItem.qml
+    ../../qml/ArtCade/Controls/AcLogicCatalogDialog.qml
+    ../../qml/ArtCade/Controls/AcLogicCatalogCategoryPane.qml
+    ../../qml/ArtCade/Controls/AcLogicCatalogResultsPane.qml
+    ../../qml/ArtCade/Controls/AcLogicCatalogDetailsPane.qml
     ../../qml/ArtCade/Controls/AcNumberField.qml
     ../../qml/ArtCade/Controls/AcInspectorRow.qml
     ../../qml/ArtCade/Controls/AcIcon.qml
@@ -164,7 +167,10 @@ set_source_files_properties(../../qml/ArtCade/Controls/AcLogicSearch.qml PROPERT
 set_source_files_properties(../../qml/ArtCade/Controls/AcLogicSectionHeader.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcLogicSectionHeader.qml")
 set_source_files_properties(../../qml/ArtCade/Controls/AcMenu.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcMenu.qml")
 set_source_files_properties(../../qml/ArtCade/Controls/AcMenuItem.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcMenuItem.qml")
-set_source_files_properties(../../qml/ArtCade/Controls/AcLogicCatalogItem.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcLogicCatalogItem.qml")
+set_source_files_properties(../../qml/ArtCade/Controls/AcLogicCatalogDialog.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcLogicCatalogDialog.qml")
+set_source_files_properties(../../qml/ArtCade/Controls/AcLogicCatalogCategoryPane.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcLogicCatalogCategoryPane.qml")
+set_source_files_properties(../../qml/ArtCade/Controls/AcLogicCatalogResultsPane.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcLogicCatalogResultsPane.qml")
+set_source_files_properties(../../qml/ArtCade/Controls/AcLogicCatalogDetailsPane.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcLogicCatalogDetailsPane.qml")
 set_source_files_properties(../../qml/ArtCade/Controls/AcNumberField.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcNumberField.qml")
 set_source_files_properties(../../qml/ArtCade/Controls/AcInspectorRow.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcInspectorRow.qml")
 set_source_files_properties(../../qml/ArtCade/Controls/AcIcon.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcIcon.qml")
@@ -233,6 +239,10 @@ qt_add_qml_module(artcade-editor-qt
         bridge/layers_model.cpp
         bridge/assets_model.h
         bridge/assets_model.cpp
+        bridge/logic_catalog_model.h
+        bridge/logic_catalog_model.cpp
+        bridge/logic_catalog_metadata.h
+        bridge/logic_catalog_metadata.cpp
         bridge/scene_view_item.h
         bridge/scene_view_item.cpp
         bridge/play_process_host.h
@@ -269,7 +279,10 @@ set(ARTCADE_QML_LINT_FILES
     ${ARTCADE_QML_ROOT}/Controls/AcLogicSectionHeader.qml
     ${ARTCADE_QML_ROOT}/Controls/AcMenu.qml
     ${ARTCADE_QML_ROOT}/Controls/AcMenuItem.qml
-    ${ARTCADE_QML_ROOT}/Controls/AcLogicCatalogItem.qml
+    ${ARTCADE_QML_ROOT}/Controls/AcLogicCatalogDialog.qml
+    ${ARTCADE_QML_ROOT}/Controls/AcLogicCatalogCategoryPane.qml
+    ${ARTCADE_QML_ROOT}/Controls/AcLogicCatalogResultsPane.qml
+    ${ARTCADE_QML_ROOT}/Controls/AcLogicCatalogDetailsPane.qml
     ${ARTCADE_QML_ROOT}/Controls/AcNumberField.qml
     ${ARTCADE_QML_ROOT}/Controls/AcInspectorRow.qml
     ${ARTCADE_QML_ROOT}/Controls/AcIcon.qml

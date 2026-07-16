@@ -8,6 +8,7 @@
 #include "bridge/console_model.h"
 #include "bridge/hierarchy_model.h"
 #include "bridge/layers_model.h"
+#include "bridge/logic_catalog_model.h"
 
 #include <QObject>
 #include <QString>
@@ -41,6 +42,7 @@ class EditorSession : public QObject
     Q_PROPERTY(LayersModel *layersModel READ layersModel CONSTANT)
     Q_PROPERTY(AssetsModel *assetsModel READ assetsModel CONSTANT)
     Q_PROPERTY(ConsoleModel *consoleModel READ consoleModel CONSTANT)
+    Q_PROPERTY(LogicCatalogModel *logicCatalogModel READ logicCatalogModel CONSTANT)
     Q_PROPERTY(bool hasProject READ hasProject NOTIFY hasProjectChanged)
     /** True when built with ARTCADE_DEV_TOOLS (Load Fixture, tech console logs). */
     Q_PROPERTY(bool developerMode READ developerMode CONSTANT)
@@ -85,10 +87,6 @@ class EditorSession : public QObject
     /** Workspace: which rule is focused in Logic Board (does not dirty). */
     Q_PROPERTY(QString selectedLogicRuleId READ selectedLogicRuleId WRITE setSelectedLogicRuleId
                    NOTIFY selectedLogicRuleChanged)
-    /** Catalog typeIds from logic-core registry (stable; not project data). */
-    Q_PROPERTY(QStringList logicTriggerCatalog READ logicTriggerCatalog CONSTANT)
-    Q_PROPERTY(QStringList logicConditionCatalog READ logicConditionCatalog CONSTANT)
-    Q_PROPERTY(QStringList logicActionCatalog READ logicActionCatalog CONSTANT)
     Q_PROPERTY(QString activeLayerId READ activeLayerId NOTIFY activeLayerChanged)
     Q_PROPERTY(QString activeSceneName READ activeSceneName NOTIFY projectChanged)
     Q_PROPERTY(double activeSceneWidth READ activeSceneWidth NOTIFY projectChanged)
@@ -125,6 +123,7 @@ public:
     [[nodiscard]] LayersModel *layersModel() const;
     [[nodiscard]] AssetsModel *assetsModel() const;
     [[nodiscard]] ConsoleModel *consoleModel() const;
+    [[nodiscard]] LogicCatalogModel *logicCatalogModel() const;
     [[nodiscard]] bool hasProject() const;
     [[nodiscard]] bool developerMode() const;
     [[nodiscard]] int sceneCount() const;
@@ -144,9 +143,6 @@ public:
     [[nodiscard]] QVariantList logicRules() const;
     [[nodiscard]] QVariantList logicSections() const;
     [[nodiscard]] QString selectedLogicRuleId() const;
-    [[nodiscard]] QStringList logicTriggerCatalog() const;
-    [[nodiscard]] QStringList logicConditionCatalog() const;
-    [[nodiscard]] QStringList logicActionCatalog() const;
     void setSelectedLogicRuleId(const QString &ruleId);
     [[nodiscard]] QString activeLayerId() const;
     [[nodiscard]] QString activeSceneName() const;
@@ -222,15 +218,16 @@ public:
      * Renames a Logic rule authoring label. Returns false and reports the validation error on failure.
      */
     Q_INVOKABLE bool renameLogicRule(const QString &ruleId, const QString &name);
-    /** Sets When trigger block type on the selected rule. */
-    Q_INVOKABLE void setLogicRuleTrigger(const QString &blockTypeId);
-    /** Sets primary Then action block type on the selected rule. */
-    Q_INVOKABLE void setLogicRulePrimaryAction(const QString &blockTypeId);
+    /** Sets When trigger block type on @p ruleId. */
+    Q_INVOKABLE void setLogicRuleTrigger(const QString &ruleId, const QString &blockTypeId);
+    /** Sets primary Then action block type on @p ruleId. */
+    Q_INVOKABLE void setLogicRulePrimaryAction(const QString &ruleId, const QString &blockTypeId);
     /**
-     * Sets primary Also-require condition on the selected rule.
+     * Sets primary Also-require condition on @p ruleId.
      * Empty @p blockTypeId clears all conditions (None / always).
      */
-    Q_INVOKABLE void setLogicRulePrimaryCondition(const QString &blockTypeId);
+    Q_INVOKABLE void setLogicRulePrimaryCondition(const QString &ruleId,
+                                                  const QString &blockTypeId);
     /**
      * Enables/disables Logic rule @p ruleId on the selected type.
      * Disabled rules persist but are skipped by compile/Play. Undoable.
@@ -255,7 +252,6 @@ public:
                                                const QString &valueText);
     [[nodiscard]] Q_INVOKABLE QString logicBlockDisplayName(const QString &blockTypeId) const;
     /** Short registry description for catalog pickers (empty if unknown). */
-    [[nodiscard]] Q_INVOKABLE QString logicBlockDescription(const QString &blockTypeId) const;
     /**
      * Maps a Qt key code to a Logic key name ("Space", "W", …), or empty if unsupported.
      * Used by the Logic Board key detector (single source with logicKeyFromName).
@@ -320,6 +316,7 @@ private:
     LayersModel *m_layers = nullptr;
     AssetsModel *m_assets = nullptr;
     ConsoleModel *m_console = nullptr;
+    LogicCatalogModel *m_logicCatalog = nullptr;
     PlayProcessHost *m_play = nullptr;
     QString m_activeMode;
     QString m_statusMessage;

@@ -510,19 +510,13 @@ Rectangle {
                         onSelectRequested: EditorSession.selectedLogicRuleId = ruleId
                         onExpansionToggleRequested: root.toggleRuleExpanded(ruleId)
                         onRenameRequested: renameLogicDialog.openFor(ruleId, rule.displayName)
+                        onCatalogRequested: function(slot) {
+                            catalogHost.openFor(ruleId, slot, rule)
+                        }
                         onEnabledToggled: function(enabled) {
                             EditorSession.setLogicRuleEnabled(ruleId, enabled)
                         }
                         onDeleteRequested: EditorSession.removeLogicRule(ruleId)
-                        onTriggerChosen: function(typeId) {
-                            EditorSession.setLogicRuleTrigger(typeId)
-                        }
-                        onConditionChosen: function(typeId) {
-                            EditorSession.setLogicRulePrimaryCondition(typeId)
-                        }
-                        onActionChosen: function(typeId) {
-                            EditorSession.setLogicRulePrimaryAction(typeId)
-                        }
                         onPropertyEdited: function(slot, key, value) {
                             EditorSession.setLogicRuleBlockProperty(ruleId, slot, key, value)
                         }
@@ -557,6 +551,75 @@ Rectangle {
 
     AcLogicSearch {
         id: logicSearch
+    }
+
+    QtObject {
+        id: catalogHost
+        property string targetRuleId: ""
+        property string targetSlot: ""
+
+        function propertyLabels(rows) {
+            const labels = []
+            const list = rows || []
+            for (let i = 0; i < list.length; ++i) {
+                const key = list[i].key || list[i].valueLabel || ""
+                if (key.length > 0)
+                    labels.push(key)
+            }
+            return labels
+        }
+
+        function openFor(ruleId, slot, rule) {
+            if (EditorSession.playing || !ruleId || !slot)
+                return
+            targetRuleId = ruleId
+            targetSlot = slot
+            EditorSession.selectedLogicRuleId = ruleId
+
+            let currentTypeId = ""
+            let rows = []
+            if (slot === "trigger") {
+                currentTypeId = rule.triggerTypeId || ""
+                rows = rule.triggerProperties || []
+            } else if (slot === "condition") {
+                const ids = rule.conditionTypeIds || []
+                currentTypeId = ids.length > 0 ? ids[0] : ""
+                rows = rule.conditionProperties || []
+            } else {
+                const ids = rule.actionTypeIds || []
+                currentTypeId = ids.length > 0 ? ids[0] : ""
+                rows = rule.actionProperties || []
+            }
+
+            const labels = propertyLabels(rows)
+            catalogDialog.kind = slot
+            catalogDialog.currentTypeId = currentTypeId
+            catalogDialog.contextObjectTypeId = EditorSession.selectedObjectTypeId
+            catalogDialog.triggerTypeId = rule.triggerTypeId || ""
+            catalogDialog.replacingConfigured = currentTypeId.length > 0 && labels.length > 0
+            catalogDialog.replaceDiscardHint = catalogDialog.replacingConfigured
+                ? ("Replacing " + EditorSession.logicBlockDisplayName(currentTypeId)
+                   + " will discard its current "
+                   + labels.join(" and ") + " settings.")
+                : ""
+            catalogDialog.openCatalog()
+        }
+    }
+
+    AcLogicCatalogDialog {
+        id: catalogDialog
+        onAccepted: function(typeId) {
+            const ruleId = catalogHost.targetRuleId
+            const slot = catalogHost.targetSlot
+            if (!ruleId || !slot || !typeId)
+                return
+            if (slot === "trigger")
+                EditorSession.setLogicRuleTrigger(ruleId, typeId)
+            else if (slot === "condition")
+                EditorSession.setLogicRulePrimaryCondition(ruleId, typeId)
+            else
+                EditorSession.setLogicRulePrimaryAction(ruleId, typeId)
+        }
     }
 
     AcMenu {

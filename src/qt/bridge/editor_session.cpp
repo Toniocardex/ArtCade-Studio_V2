@@ -136,6 +136,7 @@ EditorSession::EditorSession(QObject *parent)
     , m_layers(new LayersModel(this))
     , m_assets(new AssetsModel(this))
     , m_console(new ConsoleModel(this))
+    , m_logicCatalog(new LogicCatalogModel(this))
     , m_play(new PlayProcessHost(this))
     , m_activeMode(QStringLiteral("canvas"))
     , m_statusMessage(QStringLiteral("Create a new project or open an existing one"))
@@ -143,6 +144,7 @@ EditorSession::EditorSession(QObject *parent)
     m_hierarchy->setCoordinator(m_coordinator.get());
     m_layers->setCoordinator(m_coordinator.get());
     m_assets->setCoordinator(m_coordinator.get());
+    m_logicCatalog->setCoordinator(m_coordinator.get());
     connect(m_play, &PlayProcessHost::stopped, this, &EditorSession::onPlayProcessStopped);
 
     QSettings settings;
@@ -226,6 +228,11 @@ AssetsModel *EditorSession::assetsModel() const
 ConsoleModel *EditorSession::consoleModel() const
 {
     return m_console;
+}
+
+LogicCatalogModel *EditorSession::logicCatalogModel() const
+{
+    return m_logicCatalog;
 }
 
 bool EditorSession::hasProject() const
@@ -323,39 +330,6 @@ QString EditorSession::selectedLogicRuleId() const
     return m_selectedLogicRuleId;
 }
 
-QStringList EditorSession::logicTriggerCatalog() const
-{
-    QStringList ids;
-    for (const ArtCade::Logic::LogicBlockDescriptor &desc : ArtCade::Logic::registry()) {
-        if (desc.kind == ArtCade::Logic::BlockKind::Trigger) {
-            ids.append(QString::fromStdString(desc.typeId));
-        }
-    }
-    return ids;
-}
-
-QStringList EditorSession::logicConditionCatalog() const
-{
-    QStringList ids;
-    for (const ArtCade::Logic::LogicBlockDescriptor &desc : ArtCade::Logic::registry()) {
-        if (desc.kind == ArtCade::Logic::BlockKind::Condition) {
-            ids.append(QString::fromStdString(desc.typeId));
-        }
-    }
-    return ids;
-}
-
-QStringList EditorSession::logicActionCatalog() const
-{
-    QStringList ids;
-    for (const ArtCade::Logic::LogicBlockDescriptor &desc : ArtCade::Logic::registry()) {
-        if (desc.kind == ArtCade::Logic::BlockKind::Action) {
-            ids.append(QString::fromStdString(desc.typeId));
-        }
-    }
-    return ids;
-}
-
 QString EditorSession::logicBlockDisplayName(const QString &blockTypeId) const
 {
     const ArtCade::Logic::LogicBlockDescriptor *desc =
@@ -364,19 +338,6 @@ QString EditorSession::logicBlockDisplayName(const QString &blockTypeId) const
         return blockTypeId;
     }
     return QString::fromStdString(desc->displayName);
-}
-
-QString EditorSession::logicBlockDescription(const QString &blockTypeId) const
-{
-    if (blockTypeId.isEmpty()) {
-        return {};
-    }
-    const ArtCade::Logic::LogicBlockDescriptor *desc =
-        ArtCade::Logic::findDescriptor(blockTypeId.toStdString());
-    if (!desc) {
-        return {};
-    }
-    return QString::fromStdString(desc->description);
 }
 
 QString EditorSession::logicKeyFromQtKey(int qtKey) const
@@ -692,6 +653,9 @@ void EditorSession::reloadDerivedModels()
     m_layers->reload();
     m_assets->reload();
     refreshAssetSelectionCache();
+    if (m_logicCatalog) {
+        m_logicCatalog->reload();
+    }
     refreshProjectCounts();
 }
 
@@ -1306,7 +1270,7 @@ bool EditorSession::renameLogicRule(const QString &ruleId, const QString &name)
     return true;
 }
 
-void EditorSession::setLogicRuleTrigger(const QString &blockTypeId)
+void EditorSession::setLogicRuleTrigger(const QString &ruleId, const QString &blockTypeId)
 {
     QString guard_error;
     if (!guardAuthoring(&guard_error)) {
@@ -1314,15 +1278,18 @@ void EditorSession::setLogicRuleTrigger(const QString &blockTypeId)
         emit errorOccurred(guard_error);
         return;
     }
-    if (m_selectedObjectTypeId.isEmpty() || m_selectedLogicRuleId.isEmpty()) {
+    if (m_selectedObjectTypeId.isEmpty() || ruleId.isEmpty()) {
         const QString msg = QStringLiteral("Select a Logic rule to edit its When trigger");
         setStatus(msg, false);
         emit errorOccurred(msg);
         return;
     }
+    if (ruleId != m_selectedLogicRuleId) {
+        setSelectedLogicRuleId(ruleId);
+    }
     std::string error;
     if (!m_coordinator->setLogicRuleTrigger(m_selectedObjectTypeId.toStdString(),
-                                            m_selectedLogicRuleId.toStdString(),
+                                            ruleId.toStdString(),
                                             blockTypeId.toStdString(),
                                             error)) {
         setStatus(QString::fromStdString(error));
@@ -1334,7 +1301,7 @@ void EditorSession::setLogicRuleTrigger(const QString &blockTypeId)
     setStatus(QStringLiteral("When: %1").arg(logicBlockDisplayName(blockTypeId)));
 }
 
-void EditorSession::setLogicRulePrimaryAction(const QString &blockTypeId)
+void EditorSession::setLogicRulePrimaryAction(const QString &ruleId, const QString &blockTypeId)
 {
     QString guard_error;
     if (!guardAuthoring(&guard_error)) {
@@ -1342,15 +1309,18 @@ void EditorSession::setLogicRulePrimaryAction(const QString &blockTypeId)
         emit errorOccurred(guard_error);
         return;
     }
-    if (m_selectedObjectTypeId.isEmpty() || m_selectedLogicRuleId.isEmpty()) {
+    if (m_selectedObjectTypeId.isEmpty() || ruleId.isEmpty()) {
         const QString msg = QStringLiteral("Select a Logic rule to edit its Then action");
         setStatus(msg, false);
         emit errorOccurred(msg);
         return;
     }
+    if (ruleId != m_selectedLogicRuleId) {
+        setSelectedLogicRuleId(ruleId);
+    }
     std::string error;
     if (!m_coordinator->setLogicRulePrimaryAction(m_selectedObjectTypeId.toStdString(),
-                                                  m_selectedLogicRuleId.toStdString(),
+                                                  ruleId.toStdString(),
                                                   blockTypeId.toStdString(),
                                                   error)) {
         setStatus(QString::fromStdString(error));
@@ -1362,7 +1332,7 @@ void EditorSession::setLogicRulePrimaryAction(const QString &blockTypeId)
     setStatus(QStringLiteral("Then: %1").arg(logicBlockDisplayName(blockTypeId)));
 }
 
-void EditorSession::setLogicRulePrimaryCondition(const QString &blockTypeId)
+void EditorSession::setLogicRulePrimaryCondition(const QString &ruleId, const QString &blockTypeId)
 {
     QString guard_error;
     if (!guardAuthoring(&guard_error)) {
@@ -1370,16 +1340,19 @@ void EditorSession::setLogicRulePrimaryCondition(const QString &blockTypeId)
         emit errorOccurred(guard_error);
         return;
     }
-    if (m_selectedObjectTypeId.isEmpty() || m_selectedLogicRuleId.isEmpty()) {
+    if (m_selectedObjectTypeId.isEmpty() || ruleId.isEmpty()) {
         const QString msg = QStringLiteral("Select a Logic rule to edit Also require…");
         setStatus(msg, false);
         emit errorOccurred(msg);
         return;
     }
+    if (ruleId != m_selectedLogicRuleId) {
+        setSelectedLogicRuleId(ruleId);
+    }
     std::string error;
     if (blockTypeId.isEmpty()) {
         if (!m_coordinator->clearLogicRuleConditions(m_selectedObjectTypeId.toStdString(),
-                                                     m_selectedLogicRuleId.toStdString(),
+                                                     ruleId.toStdString(),
                                                      error)) {
             setStatus(QString::fromStdString(error));
             emit errorOccurred(QString::fromStdString(error));
@@ -1391,7 +1364,7 @@ void EditorSession::setLogicRulePrimaryCondition(const QString &blockTypeId)
         return;
     }
     if (!m_coordinator->setLogicRulePrimaryCondition(m_selectedObjectTypeId.toStdString(),
-                                                     m_selectedLogicRuleId.toStdString(),
+                                                     ruleId.toStdString(),
                                                      blockTypeId.toStdString(),
                                                      error)) {
         setStatus(QString::fromStdString(error));

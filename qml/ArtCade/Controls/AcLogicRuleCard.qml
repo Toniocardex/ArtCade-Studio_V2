@@ -21,9 +21,7 @@ Rectangle {
     signal selectRequested()
     signal deleteRequested()
     signal enabledToggled(bool enabled)
-    signal triggerChosen(string typeId)
-    signal conditionChosen(string typeId)
-    signal actionChosen(string typeId)
+    signal catalogRequested(string slot)
     signal propertyEdited(string slot, string propertyKey, string valueText)
     signal contextMenuRequested(var anchorItem)
     signal expansionToggleRequested()
@@ -349,10 +347,9 @@ Rectangle {
                 blocks: (root.rule.triggerTypeId || "").length > 0
                         ? [root.rule.triggerTypeId] : []
                 editable: true
-                catalogTypeIds: EditorSession.logicTriggerCatalog
                 currentTypeId: root.rule.triggerTypeId || ""
                 propertyRows: root.triggerProperties
-                onTypeChosen: function(typeId) { root.triggerChosen(typeId) }
+                onCatalogRequested: root.catalogRequested("trigger")
                 onPropertyEdited: function(key, value) {
                     root.propertyEdited("trigger", key, value)
                 }
@@ -372,10 +369,9 @@ Rectangle {
                 comfortable: root.comfortable
                 blocks: root.conditionIds
                 editable: true
-                catalogTypeIds: EditorSession.logicConditionCatalog
                 currentTypeId: root.conditionIds.length > 0 ? root.conditionIds[0] : ""
                 propertyRows: root.conditionProperties
-                onTypeChosen: function(typeId) { root.conditionChosen(typeId) }
+                onCatalogRequested: root.catalogRequested("condition")
                 onPropertyEdited: function(key, value) {
                     root.propertyEdited("condition", key, value)
                 }
@@ -395,10 +391,9 @@ Rectangle {
                 comfortable: root.comfortable
                 blocks: root.actionIds
                 editable: true
-                catalogTypeIds: EditorSession.logicActionCatalog
                 currentTypeId: root.actionIds.length > 0 ? root.actionIds[0] : ""
                 propertyRows: root.actionProperties
-                onTypeChosen: function(typeId) { root.actionChosen(typeId) }
+                onCatalogRequested: root.catalogRequested("action")
                 onPropertyEdited: function(key, value) {
                     root.propertyEdited("action", key, value)
                 }
@@ -421,10 +416,9 @@ Rectangle {
                 blocks: (root.rule.triggerTypeId || "").length > 0
                         ? [root.rule.triggerTypeId] : []
                 editable: true
-                catalogTypeIds: EditorSession.logicTriggerCatalog
                 currentTypeId: root.rule.triggerTypeId || ""
                 propertyRows: root.triggerProperties
-                onTypeChosen: function(typeId) { root.triggerChosen(typeId) }
+                onCatalogRequested: root.catalogRequested("trigger")
                 onPropertyEdited: function(key, value) {
                     root.propertyEdited("trigger", key, value)
                 }
@@ -442,10 +436,9 @@ Rectangle {
                 comfortable: root.comfortable
                 blocks: root.conditionIds
                 editable: true
-                catalogTypeIds: EditorSession.logicConditionCatalog
                 currentTypeId: root.conditionIds.length > 0 ? root.conditionIds[0] : ""
                 propertyRows: root.conditionProperties
-                onTypeChosen: function(typeId) { root.conditionChosen(typeId) }
+                onCatalogRequested: root.catalogRequested("condition")
                 onPropertyEdited: function(key, value) {
                     root.propertyEdited("condition", key, value)
                 }
@@ -463,10 +456,9 @@ Rectangle {
                 comfortable: root.comfortable
                 blocks: root.actionIds
                 editable: true
-                catalogTypeIds: EditorSession.logicActionCatalog
                 currentTypeId: root.actionIds.length > 0 ? root.actionIds[0] : ""
                 propertyRows: root.actionProperties
-                onTypeChosen: function(typeId) { root.actionChosen(typeId) }
+                onCatalogRequested: root.catalogRequested("action")
                 onPropertyEdited: function(key, value) {
                     root.propertyEdited("action", key, value)
                 }

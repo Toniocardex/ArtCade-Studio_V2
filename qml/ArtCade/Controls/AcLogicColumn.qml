@@ -5,26 +5,20 @@ import ArtCade.Ui
 
 /**
  * One Logic Board column (WHEN / IF / THEN) — flat event-sheet cell.
- * No nested card chrome; Column+Repeater (never a nested ListView).
- * Slot-specific anti-duplication: trigger = single ComboBox; IF empty =
- * compact empty + Add Condition; THEN = one editable unit per primary action.
+ * Block type exploration happens in AcLogicCatalogDialog (IDE catalog).
  */
 Item {
     id: root
 
-    /** "trigger" | "condition" | "action" — drives empty/picker rules. */
+    /** "trigger" | "condition" | "action" */
     property string slotKind: "trigger"
     property string title: ""
     property string subtitle: ""
     property bool comfortable: false
-    property bool showDescriptions: comfortable
     property var blocks: []
     property bool editable: false
-    property var catalogTypeIds: []
     property string currentTypeId: ""
     property var propertyRows: []
-    /** Local: after "+ Add Condition" until a type is chosen or cancelled. */
-    property bool pickingCondition: false
 
     readonly property int columnPadding: comfortable ? Metrics.spacingMd : Metrics.spacingXs
     readonly property int rowSpacing: comfortable ? Metrics.spacingSm : Metrics.spacingXs
@@ -33,30 +27,18 @@ Item {
     readonly property bool isCondition: slotKind === "condition"
     readonly property bool isAction: slotKind === "action"
     readonly property bool hasBlocks: blocks && blocks.length > 0
-    readonly property bool showEmptyCondition: isCondition && !hasBlocks && !pickingCondition
-    readonly property bool showTypePicker: editable && catalogTypeIds.length > 0
-            && (isTrigger || isAction || (isCondition && (hasBlocks || pickingCondition)))
+    readonly property bool showEmptyCondition: isCondition && !hasBlocks
+    readonly property string typeLabel: {
+        if (!currentTypeId || currentTypeId.length === 0)
+            return ""
+        return EditorSession.logicBlockDisplayName(currentTypeId)
+    }
 
-    /** Catalog model — IF empty-picker has no leading "None" entry. */
-    readonly property var comboModel: catalogTypeIds
-
-    signal typeChosen(string typeId)
+    signal catalogRequested()
     signal propertyEdited(string propertyKey, string valueText)
 
     implicitHeight: col.implicitHeight + columnPadding * 2
     implicitWidth: 120
-
-    function labelForTypeId(typeId) {
-        if (!typeId || typeId.length === 0)
-            return "—"
-        return EditorSession.logicBlockDisplayName(typeId)
-    }
-
-    function descriptionForTypeId(typeId) {
-        if (!typeId || typeId.length === 0)
-            return ""
-        return EditorSession.logicBlockDescription(typeId)
-    }
 
     ColumnLayout {
         id: col
@@ -86,7 +68,7 @@ Item {
             }
         }
 
-        // IF empty — compact, no "None (always)" combo
+        // IF empty
         Column {
             Layout.fillWidth: true
             spacing: Metrics.spacingXs
@@ -110,105 +92,39 @@ Item {
             }
             AcButton {
                 text: "+ Add Condition"
-                enabled: !EditorSession.playing
-                onClicked: root.pickingCondition = true
+                enabled: root.editable && !EditorSession.playing
+                onClicked: root.catalogRequested()
             }
         }
 
-        // Trigger / Action / Condition-with-type: single ComboBox (no chip list)
-        ComboBox {
-            id: catalogBox
+        // Chosen block + Change / Select
+        RowLayout {
             Layout.fillWidth: true
-            visible: root.showTypePicker
-            model: root.comboModel
-            enabled: !EditorSession.playing
-            palette.mid: Theme.panel
-            palette.window: Theme.panel
-            palette.base: Theme.panel
-            palette.button: Theme.panelRaised
-            palette.highlight: Theme.controlHover
-            palette.highlightedText: Theme.textPrimary
-            palette.text: Theme.textPrimary
-            palette.buttonText: Theme.textPrimary
+            spacing: Metrics.spacingXs
+            visible: root.editable && !root.showEmptyCondition
 
-            contentItem: Text {
-                leftPadding: Metrics.spacingSm
-                rightPadding: catalogBox.indicator.width + Metrics.spacingSm
-                text: catalogBox.currentIndex >= 0
-                      ? root.labelForTypeId(String(root.comboModel[catalogBox.currentIndex] || ""))
-                      : (root.isTrigger ? "Select trigger…"
-                         : root.isAction ? "Select action…"
-                         : "Select condition…")
-                color: catalogBox.currentIndex >= 0 ? Theme.textPrimary : Theme.textMuted
+            Text {
+                Layout.fillWidth: true
+                text: root.typeLabel.length > 0
+                      ? root.typeLabel
+                      : (root.isTrigger ? "No trigger"
+                         : root.isAction ? "No action"
+                         : "Select…")
+                color: root.typeLabel.length > 0 ? Theme.textPrimary : Theme.textMuted
                 font.family: Typography.family
                 font.pixelSize: Typography.sizeBody
-                verticalAlignment: Text.AlignVCenter
+                font.weight: Font.DemiBold
                 elide: Text.ElideRight
             }
 
-            background: Rectangle {
-                implicitHeight: Metrics.controlHeight
-                radius: Metrics.radiusControl
-                color: catalogBox.hovered ? Theme.controlHover : Theme.control
-                border.color: catalogBox.popup.visible ? Theme.accent : Theme.borderSubtle
-                border.width: 1
-            }
-
-            popup: Popup {
-                y: catalogBox.height + 2
-                width: Math.max(catalogBox.width, 220)
-                implicitHeight: Math.min(contentItem.implicitHeight + 8, 300)
-                padding: 4
-                closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutsideParent
-
-                contentItem: ListView {
-                    clip: true
-                    implicitHeight: contentHeight
-                    boundsBehavior: Flickable.StopAtBounds
-                    model: catalogBox.popup.visible ? catalogBox.delegateModel : null
-                    currentIndex: catalogBox.highlightedIndex
-                    ScrollIndicator.vertical: ScrollIndicator {}
-                    spacing: 2
-                }
-
-                background: Rectangle {
-                    color: Theme.selection
-                    border.color: Theme.borderStrong
-                    border.width: 1
-                    radius: Metrics.radiusCard
-                }
-            }
-
-            delegate: AcLogicCatalogItem {
-                required property string modelData
-                required property int index
-                width: ListView.view ? ListView.view.width : catalogBox.width
-                typeId: modelData
-                title: root.labelForTypeId(modelData)
-                description: root.showDescriptions ? root.descriptionForTypeId(modelData) : ""
-                isCurrent: (modelData || "") === (root.currentTypeId || "")
-                highlighted: catalogBox.highlightedIndex === index
-            }
-
-            Component.onCompleted: syncIndex()
-            onActivated: function(index) {
-                const id = root.comboModel[index]
-                const current = root.currentTypeId || ""
-                if (id !== current)
-                    root.typeChosen(id)
-                root.pickingCondition = false
-            }
-
-            function syncIndex() {
-                const current = root.currentTypeId || ""
-                const i = root.comboModel.indexOf(current)
-                // Never leave ComboBox on a default first item when unset —
-                // that falsely showed "On Start" beside "No trigger".
-                catalogBox.currentIndex = i
+            AcButton {
+                text: root.typeLabel.length > 0 ? "Change" : "Select…"
+                enabled: !EditorSession.playing
+                onClicked: root.catalogRequested()
             }
         }
 
-        // Extra THEN actions beyond the primary — label only (API edits primary)
+        // Extra THEN actions beyond the primary — label only
         Column {
             Layout.fillWidth: true
             spacing: root.rowSpacing
@@ -236,7 +152,7 @@ Item {
         ColumnLayout {
             Layout.fillWidth: true
             spacing: root.rowSpacing
-            visible: root.showTypePicker && root.hasBlocks
+            visible: root.editable && root.hasBlocks
 
             Repeater {
                 model: root.editable ? root.propertyRows : []
@@ -253,22 +169,5 @@ Item {
                 }
             }
         }
-
-        // (empty trigger uses ComboBox placeholder — no duplicate "No trigger" label)
-    }
-
-    onCurrentTypeIdChanged: {
-        if (catalogBox.visible)
-            catalogBox.syncIndex()
-        if (root.hasBlocks)
-            root.pickingCondition = false
-    }
-    onCatalogTypeIdsChanged: {
-        if (catalogBox.visible)
-            catalogBox.syncIndex()
-    }
-    onBlocksChanged: {
-        if (root.hasBlocks)
-            root.pickingCondition = false
     }
 }

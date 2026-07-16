@@ -368,24 +368,37 @@ int main()
                == ArtCade::Logic::kSetVisible,
            "undo chain restores default Set Visible action");
 
+    expect(coord.setLogicRuleTrigger("Player",
+                                      rule_id,
+                                      ArtCade::Logic::kCollisionEnter,
+                                      error),
+           "set collision trigger");
     expect(coord.setLogicRulePrimaryCondition("Player",
-                                              rule_id,
-                                              ArtCade::Logic::kIsGrounded,
-                                              error),
-           "set primary condition");
+                                               rule_id,
+                                               ArtCade::Logic::kOtherIsObjectType,
+                                               error),
+           "set condition compatible with collision trigger");
     expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].conditions.size() == 1,
            "one condition");
     expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].conditions.front().typeId
-               == ArtCade::Logic::kIsGrounded,
-           "condition is grounded");
+               == ArtCade::Logic::kOtherIsObjectType,
+           "condition uses collision context");
+    const std::uint64_t rev_before_incompatible_trigger = coord.revision();
+    expect(!coord.setLogicRuleTrigger("Player", rule_id, ArtCade::Logic::kOnStart, error),
+           "trigger that breaks existing condition is rejected");
+    expect(coord.revision() == rev_before_incompatible_trigger,
+           "incompatible trigger does not bump revision");
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].trigger.typeId
+               == ArtCade::Logic::kCollisionEnter,
+           "rejected trigger leaves rule unchanged");
     coord.undo();
     expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].conditions.empty(),
-           "undo clears inserted condition");
+            "undo clears inserted condition");
     expect(coord.setLogicRulePrimaryCondition("Player",
-                                              rule_id,
-                                              ArtCade::Logic::kIsGrounded,
-                                              error),
-           "set condition again");
+                                               rule_id,
+                                               ArtCade::Logic::kOtherIsObjectType,
+                                               error),
+           "set collision condition again");
     expect(coord.clearLogicRuleConditions("Player", rule_id, error), "clear conditions");
     expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].conditions.empty(),
            "conditions cleared");
@@ -439,19 +452,22 @@ int main()
     expect(coord.revision() == rev_before_enable_noop,
            "no-op disable does not bump revision");
 
-    // Default On Start + Set Visible compiles for Play (LogicRuntime host).
-    expect(coord.validateLogicForPlay(error), "default rule validates for Play");
-    expect(coord.setLogicRulePrimaryCondition("Player",
-                                              deleted_id,
-                                              ArtCade::Logic::kIsGrounded,
-                                              error),
-           "set grounded condition");
-    expect(!coord.validateLogicForPlay(error),
-           "grounded without Platformer fails Play validate");
-    expect(!error.empty(), "Play validate reports error text");
-    expect(coord.clearLogicRuleConditions("Player", deleted_id, error),
-           "clear bad condition for save");
-    expect(coord.validateLogicForPlay(error), "cleared board validates again");
+    // Incompatible selections are rejected before they can dirty or invalidate the document.
+    expect(coord.validateLogicForPlay(error), "configured rule validates for Play");
+    const std::uint64_t rev_before_incompatible_condition = coord.revision();
+    expect(!coord.setLogicRulePrimaryCondition("Player",
+                                               deleted_id,
+                                               ArtCade::Logic::kIsGrounded,
+                                               error),
+           "grounded without Platformer is rejected");
+    expect(coord.revision() == rev_before_incompatible_condition,
+           "incompatible condition does not bump revision");
+    expect(coord.validateLogicForPlay(error), "rejected condition leaves board valid");
+    expect(!coord.setLogicRulePrimaryAction("Player",
+                                            deleted_id,
+                                            ArtCade::Logic::kMoveHorizontal,
+                                            error),
+           "platformer action without component is rejected");
 
     // Display sections: grouping metadata only, undoable, persisted.
     std::string section_id;
