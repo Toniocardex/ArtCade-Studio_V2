@@ -224,13 +224,18 @@ VariableManager::GameSnapshot VariableManager::takeGameSnapshot(
 
 bool VariableManager::restoreGameSnapshot(
     const GameSnapshot& snapshot, const std::vector<EntityId>& persistentIds) {
-    if (snapshot.globals.size() != globalTypes_.size()) return false;
+    // Project-defined globals must be present. Extra Number keys created at
+    // runtime (Logic Board ensureNumber) are accepted and re-registered.
     for (const auto& [key, _] : globalTypes_) {
         if (snapshot.globals.count(key) == 0) return false;
     }
     for (const auto& [key, value] : snapshot.globals) {
         auto typeIt = globalTypes_.find(key);
-        if (typeIt == globalTypes_.end() || !valueMatchesType(value, typeIt->second)) return false;
+        if (typeIt == globalTypes_.end()) {
+            if (!std::holds_alternative<double>(value) || !ensureNumber(key)) return false;
+            continue;
+        }
+        if (!valueMatchesType(value, typeIt->second)) return false;
     }
     for (EntityId id : persistentIds) {
         auto savedIt = snapshot.entities.find(id);

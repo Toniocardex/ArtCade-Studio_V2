@@ -141,6 +141,11 @@ LogicRuleDef makeDefaultRule(LogicRuleId id);
 std::string logicKeyName(LogicKey key);
 std::optional<LogicKey> logicKeyFromName(const std::string& name);
 std::vector<LogicKey> supportedLogicKeys();
+/**
+ * Maps a LogicKey to the Input module key code ("KeyA", "Digit0", "Space", …).
+ * Single source for app loop dispatch and Logic host isKeyDown.
+ */
+std::string logicInputCode(LogicKey key);
 
 std::vector<LogicDiagnostic> validateBoard(const ObjectTypeId& objectTypeId,
                                            const LogicBoardDef& board,

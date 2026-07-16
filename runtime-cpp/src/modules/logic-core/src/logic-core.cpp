@@ -628,6 +628,15 @@ std::optional<LogicKey> logicKeyFromName(const std::string& name) {
     return std::nullopt;
 }
 
+std::string logicInputCode(LogicKey key) {
+    const int value = static_cast<int>(key);
+    if (value >= static_cast<int>(LogicKey::A) && value <= static_cast<int>(LogicKey::Z))
+        return "Key" + logicKeyName(key);
+    if (value >= static_cast<int>(LogicKey::Num0) && value <= static_cast<int>(LogicKey::Num9))
+        return "Digit" + logicKeyName(key);
+    return logicKeyName(key);
+}
+
 std::vector<LogicDiagnostic> validateBoard(const ObjectTypeId& objectTypeId,
                                            const LogicBoardDef& board,
                                            const EntityDef* owner,

@@ -99,12 +99,21 @@ struct Host final : ILogicRuntimeHost {
         return true;
     }
     bool isKeyDown(LogicKey) override { return keyDown; }
+    EntityId nextSpawnId = 99;
+    bool failSpawn = false;
+    std::vector<EntityId> destroyedSpawns;
     EntityId spawnObjectType(EntityId owner, const ObjectTypeId& objectTypeId,
                              float x, float y) override {
         calls.push_back("spawn:" + std::to_string(owner) + ":" + objectTypeId + ":"
                         + std::to_string(static_cast<int>(x)) + ","
                         + std::to_string(static_cast<int>(y)));
-        return 99;
+        if (failSpawn) {
+            // Mirrors RuntimeLogicHostAdapter: install failure → no id returned.
+            destroyedSpawns.push_back(nextSpawnId);
+            calls.push_back("spawn_rollback:" + std::to_string(nextSpawnId));
+            return INVALID_ENTITY;
+        }
+        return nextSpawnId;
     }
 };
 
@@ -780,6 +789,50 @@ static void testP1KeyDownCondition() {
     CHECK(host.calls.size() == 1);
 }
 
+static void testP1SpawnInstallFailure() {
+    LogicBoardDef board;
+    board.id = "logic:SpawnFail";
+    LogicRuleDef rule = makeDefaultRule("spawn");
+    LogicBlockDef spawn = makeDefaultBlock(kSpawnObject, BlockKind::Action);
+    for (LogicPropertyDef& p : spawn.properties) {
+        if (p.key == "objectTypeId") p.value = LogicStringValue{"Coin"};
+        else if (p.key == "position") p.value = Vec2{10.f, 20.f};
+    }
+    rule.actions = {spawn};
+    board.rules.push_back(rule);
+
+    ProjectDoc project;
+    EntityDef coin;
+    coin.name = "Coin";
+    project.objectTypes["Coin"] = coin;
+    EntityDef hero;
+    hero.name = "Hero";
+    project.objectTypes["Hero"] = hero;
+
+    LogicCompileResult compiled = compileBoard("Hero", board, &hero, &project);
+    CHECK(compiled.ok());
+    CHECK(compiled.programs[0].source.find("spawn(\"Coin\"") != std::string::npos);
+
+    Host host;
+    host.failSpawn = true;
+    host.nextSpawnId = 77;
+    LogicRuntime runtime(host);
+    std::string error;
+    CHECK(runtime.loadPrograms(compiled.programs, &error));
+    const auto scope = runtime.install("Hero", 1, &error);
+    CHECK(scope.has_value());
+    runtime.beginFrame();
+    runtime.dispatchStart();
+    // Spawn must fail closed: no successful entity id, rollback recorded, rule disabled.
+    CHECK(host.destroyedSpawns.size() == 1);
+    CHECK(host.destroyedSpawns[0] == 77);
+    CHECK(std::any_of(host.calls.begin(), host.calls.end(),
+        [](const std::string& c) { return c.rfind("spawn:", 0) == 0; }));
+    CHECK(std::any_of(host.calls.begin(), host.calls.end(),
+        [](const std::string& c) { return c == "spawn_rollback:77"; }));
+    CHECK(!runtime.diagnostics().empty());
+}
+
 int main() {
     testCompilerAndJson();
     testRuntime();
@@ -791,6 +844,7 @@ int main() {
     testP1EverySecondsAndTick();
     testP1StateAndWaitAndVelocity();
     testP1KeyDownCondition();
+    testP1SpawnInstallFailure();
     std::cout << passed << " passed, " << failed << " failed\n";
     return failed == 0 ? 0 : 1;
 }

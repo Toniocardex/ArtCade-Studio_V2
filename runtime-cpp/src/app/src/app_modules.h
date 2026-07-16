@@ -43,7 +43,7 @@ namespace ArtCade {
 
 class RuntimeLogicHostAdapter final : public Logic::ILogicRuntimeHost {
 public:
-    using SpawnInstaller = std::function<void(EntityId)>;
+    using SpawnInstaller = std::function<bool(EntityId)>;
 
     RuntimeLogicHostAdapter(Modules::RuntimeEntityGateway& gateway, Modules::Audio& audio)
         : gateway_(gateway), audio_(audio) {}
@@ -133,7 +133,7 @@ public:
         return true;
     }
     bool isKeyDown(LogicKey key) override {
-        return input_ && input_->isKeyDown(logicInputCode(key));
+        return input_ && input_->isKeyDown(Logic::logicInputCode(key));
     }
     EntityId spawnObjectType(EntityId owner, const ObjectTypeId& objectTypeId,
                              float x, float y) override {
@@ -142,20 +142,15 @@ public:
         if (!std::isfinite(x) || !std::isfinite(y)) return INVALID_ENTITY;
         const EntityId spawned = gateway_.spawnFromClass(objectTypeId, x, y);
         if (spawned == INVALID_ENTITY) return INVALID_ENTITY;
-        if (spawnInstaller_) spawnInstaller_(spawned);
+        // Installer must succeed when present; otherwise destroy the orphan and fail.
+        if (spawnInstaller_ && !spawnInstaller_(spawned)) {
+            gateway_.destroy(spawned);
+            return INVALID_ENTITY;
+        }
         return spawned;
     }
 
 private:
-    static std::string logicInputCode(LogicKey key) {
-        const int value = static_cast<int>(key);
-        if (value >= static_cast<int>(LogicKey::A) && value <= static_cast<int>(LogicKey::Z))
-            return "Key" + Logic::logicKeyName(key);
-        if (value >= static_cast<int>(LogicKey::Num0) && value <= static_cast<int>(LogicKey::Num9))
-            return "Digit" + Logic::logicKeyName(key);
-        return Logic::logicKeyName(key);
-    }
-
     Modules::RuntimeEntityGateway& gateway_;
     Modules::Audio& audio_;
     World* world_ = nullptr;

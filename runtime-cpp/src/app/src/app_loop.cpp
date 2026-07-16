@@ -23,15 +23,6 @@ double elapsedMs(Clock::time_point start) {
     return std::chrono::duration<double, std::milli>(Clock::now() - start).count();
 }
 
-std::string logicInputCode(LogicKey key) {
-    const int value = static_cast<int>(key);
-    if (value >= static_cast<int>(LogicKey::A) && value <= static_cast<int>(LogicKey::Z))
-        return "Key" + Logic::logicKeyName(key);
-    if (value >= static_cast<int>(LogicKey::Num0) && value <= static_cast<int>(LogicKey::Num9))
-        return "Digit" + Logic::logicKeyName(key);
-    return Logic::logicKeyName(key);
-}
-
 } // namespace
 
 void Application::dispatchGameplayCollisionTransitions() {
@@ -260,7 +251,7 @@ void Application::loopIteration() {
             Scripts::ScriptInputSnapshot scriptInput;
             if (mod_->logicRuntime) mod_->logicRuntime->beginFrame();
             for (LogicKey key : Logic::supportedLogicKeys()) {
-                const std::string code = logicInputCode(key);
+                const std::string code = Logic::logicInputCode(key);
                 const bool pressed = mod_->input->wasKeyPressed(code);
                 const bool released = mod_->input->wasKeyReleased(code);
                 const bool held = mod_->input->isKeyDown(code);

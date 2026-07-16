@@ -116,7 +116,7 @@ bool Application::initSubsystems() {
     mod_->logicHost->setInput(mod_->input.get());
     mod_->logicHost->setPhysics(mod_->physics.get());
     mod_->logicHost->setSpawnInstaller([this](EntityId id) {
-        installLogicScopeForEntity(id);
+        return installLogicScopeForEntity(id);
     });
     mod_->world->setSpriteAnimator(mod_->spriteAnimator.get());
     mod_->world->setEntityDestroyedHandler([this](EntityId id) {
