@@ -18,13 +18,13 @@ Rectangle {
             text: "Ready"
             color: Theme.textSecondary
             font.family: Typography.family
-            font.pixelSize: Typography.sizeXs
+            font.pixelSize: Typography.sizeStatus
         }
         Text {
             text: "No errors"
             color: Theme.success
             font.family: Typography.family
-            font.pixelSize: Typography.sizeXs
+            font.pixelSize: Typography.sizeStatus
         }
 
         Rectangle {
@@ -37,7 +37,7 @@ Rectangle {
             text: EditorSession.statusMessage
             color: Theme.textMuted
             font.family: Typography.family
-            font.pixelSize: Typography.sizeXs
+            font.pixelSize: Typography.sizeStatus
             elide: Text.ElideRight
             Layout.fillWidth: true
             Layout.maximumWidth: 360
@@ -52,7 +52,7 @@ Rectangle {
                   : "No scene"
             color: Theme.textSecondary
             font.family: Typography.family
-            font.pixelSize: Typography.sizeXs
+            font.pixelSize: Typography.sizeStatus
         }
 
         Text {
@@ -61,14 +61,14 @@ Rectangle {
                   : "Select: None"
             color: Theme.textSecondary
             font.family: Typography.family
-            font.pixelSize: Typography.sizeXs
+            font.pixelSize: Typography.sizeStatus
         }
 
         Text {
             text: EditorSession.playing ? "PLAY" : "EDIT"
             color: EditorSession.playing ? Theme.success : Theme.textMuted
             font.family: Typography.family
-            font.pixelSize: Typography.sizeXs
+            font.pixelSize: Typography.sizeStatus
             font.weight: Font.DemiBold
         }
     }

@@ -22,7 +22,7 @@ Button {
 
     readonly property color _labelColor: {
         if (!root.enabled)
-            return Theme.textMuted
+            return Theme.textDisabled
         if (root.primary)
             return "#FFFFFF"
         if (root.destructive)
@@ -75,7 +75,7 @@ Button {
                 text: root.text
                 color: root._labelColor
                 font.family: Typography.family
-                font.pixelSize: Typography.sizeSm
+                font.pixelSize: Typography.sizeToolbar
                 font.weight: root.primary ? Font.DemiBold : Font.Normal
                 verticalAlignment: Text.AlignVCenter
                 elide: Text.ElideRight

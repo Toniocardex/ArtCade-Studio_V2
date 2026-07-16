@@ -21,7 +21,7 @@ Button {
     focusPolicy: Qt.StrongFocus
 
     background: Rectangle {
-        radius: 2
+        radius: Metrics.radiusControl
         color: root.active ? Theme.selection
              : root.down ? Theme.controlPressed
              : root.hovered ? Theme.controlHover
@@ -36,7 +36,7 @@ Button {
             anchors.leftMargin: Metrics.spacingMd
             anchors.rightMargin: Metrics.spacingMd
             height: 2
-            radius: 1
+            radius: Metrics.radiusNone
             color: Theme.accent
             visible: root.active
         }
@@ -56,14 +56,14 @@ Button {
             text: root.glyph
             color: root.active ? Theme.textPrimary : Theme.textSecondary
             font.family: Typography.family
-            font.pixelSize: Typography.sizeMd
+            font.pixelSize: Typography.sizeWorkspace
             anchors.verticalCenter: parent.verticalCenter
         }
         Text {
             text: root.text
             color: root.active ? Theme.textPrimary : Theme.textSecondary
             font.family: Typography.family
-            font.pixelSize: Typography.sizeMd
+            font.pixelSize: Typography.sizeWorkspace
             font.weight: Font.DemiBold
             anchors.verticalCenter: parent.verticalCenter
         }

@@ -96,7 +96,7 @@ Rectangle {
     }
 
     implicitHeight: cardColumn.implicitHeight
-    radius: Metrics.radiusSmall
+    radius: Metrics.radiusCard
     color: expanded ? Theme.panelRaised
                     : (cardMa.containsMouse ? Theme.controlHover : Theme.control)
     border.width: 1

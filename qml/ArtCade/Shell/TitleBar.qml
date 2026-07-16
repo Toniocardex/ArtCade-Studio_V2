@@ -20,7 +20,7 @@ Rectangle {
         Rectangle {
             Layout.preferredWidth: 18
             Layout.preferredHeight: 18
-            radius: 3
+            radius: Metrics.radiusControl
             color: Theme.accent
             Layout.alignment: Qt.AlignVCenter
 
@@ -36,7 +36,7 @@ Rectangle {
             text: "ArtCade Studio"
             color: Theme.textPrimary
             font.family: Typography.family
-            font.pixelSize: Typography.sizeSm
+            font.pixelSize: Typography.sizeObjectTitle
             font.weight: Font.DemiBold
             Layout.alignment: Qt.AlignVCenter
         }
@@ -47,7 +47,7 @@ Rectangle {
                   : "— No project"
             color: Theme.textSecondary
             font.family: Typography.family
-            font.pixelSize: Typography.sizeSm
+            font.pixelSize: Typography.sizeToolbar
             elide: Text.ElideRight
             Layout.fillWidth: true
             Layout.maximumWidth: 420

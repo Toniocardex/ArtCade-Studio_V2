@@ -14,8 +14,8 @@ int main(int argc, char *argv[])
     QGuiApplication::setOrganizationName(QStringLiteral("ArtCade"));
     QGuiApplication::setApplicationVersion(QStringLiteral("2.0.0-qt-shell"));
 
-    // ArtCadeStyle overrides shared controls (themed ToolTip); Basic backs
-    // everything else — the Ac* controls own the visual look.
+    // ArtCadeStyle overrides shared controls (ToolTip, ScrollBar); Basic
+    // backs everything else — the Ac* controls own the visual look.
     QQuickStyle::setStyle(QStringLiteral("ArtCadeStyle"));
     QQuickStyle::setFallbackStyle(QStringLiteral("Basic"));
 

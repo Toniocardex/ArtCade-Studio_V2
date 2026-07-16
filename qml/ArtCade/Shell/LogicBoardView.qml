@@ -312,6 +312,9 @@ Rectangle {
             model: root.displayItems
             spacing: Metrics.spacingSm
             boundsBehavior: Flickable.StopAtBounds
+            ScrollBar.vertical: ScrollBar {
+                policy: ScrollBar.AsNeeded
+            }
 
             delegate: Loader {
                 id: displayLoader

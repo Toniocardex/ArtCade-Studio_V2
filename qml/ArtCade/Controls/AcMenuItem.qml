@@ -3,26 +3,27 @@ import QtQuick.Controls
 import ArtCade.Ui
 
 /**
- * Themed context-menu row (flat zinc, no system palette).
+ * Themed context-menu row — hover neutral, primary text, no system palette.
  */
 MenuItem {
     id: root
 
-    implicitHeight: 26
+    implicitHeight: 28
+    padding: 0
+    leftPadding: 8
+    rightPadding: 8
 
     contentItem: Text {
-        leftPadding: Metrics.spacingMd
-        rightPadding: Metrics.spacingMd
         text: root.text
-        color: root.enabled ? Theme.textPrimary : Theme.textMuted
+        color: root.enabled ? Theme.textPrimary : Theme.textDisabled
         font.family: Typography.family
-        font.pixelSize: Typography.sizeSm
+        font.pixelSize: Typography.sizeToolbar
         verticalAlignment: Text.AlignVCenter
         elide: Text.ElideRight
     }
 
     background: Rectangle {
-        radius: Metrics.radiusSmall
+        radius: Metrics.radiusControl
         color: root.highlighted ? Theme.controlHover : "transparent"
     }
 }

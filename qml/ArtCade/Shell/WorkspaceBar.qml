@@ -12,6 +12,18 @@ Rectangle {
     color: Theme.chrome
     height: Metrics.workspaceBarHeight
 
+    // Left zone: brand (spec §2 / §19 — independent of title-bar chrome).
+    Text {
+        anchors.left: parent.left
+        anchors.leftMargin: Metrics.spacingLg
+        anchors.verticalCenter: parent.verticalCenter
+        text: "ArtCade"
+        color: Theme.textPrimary
+        font.family: Typography.family
+        font.pixelSize: Typography.sizeWorkspace
+        font.weight: Font.DemiBold
+    }
+
     // Centre zone: the three main workspaces, truly centred in the bar
     // (independent of the left/right zones widths).
     Row {

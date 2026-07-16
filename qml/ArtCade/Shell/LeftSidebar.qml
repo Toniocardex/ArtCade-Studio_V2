@@ -100,6 +100,9 @@ Rectangle {
                     boundsBehavior: Flickable.StopAtBounds
                     delegate: AcTreeDelegate {}
                     visible: EditorSession.hasProject
+                    ScrollBar.vertical: ScrollBar {
+                        policy: ScrollBar.AsNeeded
+                    }
 
                     function expandScenes() {
                         for (let r = 0; r < rows; ++r)
@@ -141,6 +144,9 @@ Rectangle {
                     spacing: 1
                     boundsBehavior: Flickable.StopAtBounds
                     visible: EditorSession.hasProject
+                    ScrollBar.vertical: ScrollBar {
+                        policy: ScrollBar.AsNeeded
+                    }
 
                     delegate: AcLayerRow {
                         onActivateRequested: function(id) { EditorSession.setActiveLayer(id) }

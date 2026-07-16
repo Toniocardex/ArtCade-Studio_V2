@@ -115,10 +115,10 @@ ColumnLayout {
                 }
 
                 background: Rectangle {
-                    color: Theme.panelRaised
-                    border.color: Theme.border
+                    color: Theme.selection
+                    border.color: Theme.borderStrong
                     border.width: 1
-                    radius: Metrics.radiusSmall
+                    radius: Metrics.radiusCard
                 }
             }
             delegate: ItemDelegate {
@@ -130,12 +130,12 @@ ColumnLayout {
                     text: modelData.label
                     color: modelData.value.length > 0 ? Theme.textPrimary : Theme.textMuted
                     font.family: Typography.family
-                    font.pixelSize: Typography.sizeXs
+                    font.pixelSize: Typography.sizeBody
                     elide: Text.ElideRight
                     verticalAlignment: Text.AlignVCenter
                 }
                 background: Rectangle {
-                    radius: Metrics.radiusSmall
+                    radius: Metrics.radiusControl
                     color: parent.highlighted ? Theme.controlHover : "transparent"
                 }
             }
@@ -241,10 +241,10 @@ ColumnLayout {
                 }
 
                 background: Rectangle {
-                    color: Theme.panelRaised
-                    border.color: Theme.border
+                    color: Theme.selection
+                    border.color: Theme.borderStrong
                     border.width: 1
-                    radius: Metrics.radiusSmall
+                    radius: Metrics.radiusCard
                 }
             }
             delegate: ItemDelegate {
@@ -256,11 +256,11 @@ ColumnLayout {
                     text: modelData
                     color: Theme.textPrimary
                     font.family: Typography.family
-                    font.pixelSize: Typography.sizeXs
+                    font.pixelSize: Typography.sizeBody
                     verticalAlignment: Text.AlignVCenter
                 }
                 background: Rectangle {
-                    radius: Metrics.radiusSmall
+                    radius: Metrics.radiusControl
                     color: parent.highlighted ? Theme.controlHover : "transparent"
                 }
             }

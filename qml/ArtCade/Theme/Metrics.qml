@@ -1,6 +1,10 @@
 pragma Singleton
 import QtQuick
 
+/**
+ * Spacing and geometry — UI redesign radius ladder (spec §5):
+ * 0 continuous tabs/separators · 2 controls · 4 cards/popups · 8+ pills.
+ */
 QtObject {
     readonly property int spacingXs: 4
     readonly property int spacingSm: 6
@@ -8,9 +12,15 @@ QtObject {
     readonly property int spacingLg: 12
     readonly property int spacingXl: 16
 
-    readonly property int radiusSmall: 3
-    readonly property int radiusMedium: 5
-    readonly property int borderRadius: radiusSmall
+    readonly property int radiusNone: 0
+    readonly property int radiusControl: 2
+    readonly property int radiusCard: 4
+    readonly property int radiusPill: 8
+    /** @deprecated Prefer radiusControl — kept for gradual call-site migration. */
+    readonly property int radiusSmall: radiusControl
+    /** @deprecated Prefer radiusCard. */
+    readonly property int radiusMedium: radiusCard
+    readonly property int borderRadius: radiusControl
 
     readonly property int controlHeight: 28
     readonly property int toolButtonSize: 30

@@ -36,6 +36,6 @@ T.ToolTip {
         color: Theme.selection
         border.color: Theme.borderStrong
         border.width: 1
-        radius: 4
+        radius: Metrics.radiusCard
     }
 }

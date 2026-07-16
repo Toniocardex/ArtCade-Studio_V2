@@ -13,7 +13,7 @@ TextField {
     selectionColor: Theme.accent
     selectedTextColor: "#FFFFFF"
     font.family: Typography.family
-    font.pixelSize: Typography.sizeSm
+    font.pixelSize: Typography.sizeBody
     selectByMouse: true
 
     background: Rectangle {

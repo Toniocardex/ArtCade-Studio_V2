@@ -31,7 +31,7 @@ ColumnLayout {
                 text: root.uppercase ? root.title.toUpperCase() : root.title
                 color: Theme.textSecondary
                 font.family: Typography.family
-                font.pixelSize: Typography.sizeXs
+                font.pixelSize: Typography.sizePanelTitle
                 font.weight: Font.DemiBold
                 Layout.fillWidth: true
             }

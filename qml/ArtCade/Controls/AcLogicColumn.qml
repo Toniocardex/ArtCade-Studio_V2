@@ -197,10 +197,10 @@ Item {
                         }
 
                         background: Rectangle {
-                            color: Theme.panelRaised
-                            border.color: Theme.border
+                            color: Theme.selection
+                            border.color: Theme.borderStrong
                             border.width: 1
-                            radius: Metrics.radiusSmall
+                            radius: Metrics.radiusCard
                         }
                     }
 

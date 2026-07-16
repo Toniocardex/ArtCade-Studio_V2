@@ -86,6 +86,9 @@ Rectangle {
             clip: true
             visible: root.consoleTab === 0
             model: EditorSession.consoleModel
+            ScrollBar.vertical: ScrollBar {
+                policy: ScrollBar.AsNeeded
+            }
 
             delegate: RowLayout {
                 width: logView.width
