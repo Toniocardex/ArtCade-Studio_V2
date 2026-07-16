@@ -31,19 +31,19 @@ Button {
             anchors.verticalCenter: parent.verticalCenter
             source: root.iconSource
             size: Metrics.iconSize
-            color: root.active ? "#FFFFFF" : Theme.textSecondary
+            color: root.active ? "#FFFFFF" : Theme.textPrimary
         }
         Text {
             visible: root.glyph.length > 0 && root.iconSource.toString().length === 0
             text: root.glyph
-            color: root.active ? "#FFFFFF" : Theme.textSecondary
+            color: root.active ? "#FFFFFF" : Theme.textPrimary
             font.family: Typography.family
             font.pixelSize: Typography.sizeSm
             anchors.verticalCenter: parent.verticalCenter
         }
         Text {
             text: root.text
-            color: root.active ? "#FFFFFF" : Theme.textSecondary
+            color: root.active ? "#FFFFFF" : Theme.textPrimary
             font.family: Typography.family
             font.pixelSize: Typography.sizeSm
             font.weight: root.active ? Font.DemiBold : Font.Normal

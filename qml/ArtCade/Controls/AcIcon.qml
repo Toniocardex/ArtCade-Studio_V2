@@ -4,13 +4,14 @@ import ArtCade.Ui
 
 /**
  * Monochrome SVG icon tinted with @p color (Theme tokens).
- * Source URLs come from Icons.* (qrc assets).
+ * Assets must be light/white ink — MultiEffect colorization leaves black
+ * (zero-luminance) pixels dark on the dark chrome.
  */
 Item {
     id: root
 
     property url source
-    property color color: Theme.textSecondary
+    property color color: Theme.textPrimary
     property int size: Metrics.iconSize
 
     implicitWidth: size
@@ -26,7 +27,7 @@ Item {
         sourceSize.height: root.size * 2
         fillMode: Image.PreserveAspectFit
         visible: false
-        asynchronous: true
+        asynchronous: false
         smooth: true
     }
 

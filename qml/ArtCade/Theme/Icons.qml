@@ -2,7 +2,7 @@ pragma Singleton
 import QtQuick
 
 /**
- * ArtCade icon URLs (monochrome SVG in qrc). Tint at runtime via AcIcon.
+ * ArtCade icon URLs (white monochrome SVG in qrc). Tint at runtime via AcIcon.
  * Property names stay stable for toolbar call sites.
  */
 QtObject {

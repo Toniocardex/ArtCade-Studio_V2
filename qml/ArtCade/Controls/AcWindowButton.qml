@@ -32,7 +32,7 @@ Button {
             source: root.iconSource
             size: Metrics.iconSize
             color: root.destructive && root.hovered ? "#FFFFFF"
-                 : root.enabled ? Theme.textSecondary : Theme.textMuted
+                 : root.enabled ? Theme.textPrimary : Theme.textMuted
             visible: root.iconSource.toString().length > 0
         }
         Text {
@@ -40,7 +40,7 @@ Button {
             visible: root.iconSource.toString().length === 0
             text: root.glyph.length > 0 ? root.glyph : root.text
             color: root.destructive && root.hovered ? "#FFFFFF"
-                 : root.enabled ? Theme.textSecondary : Theme.textMuted
+                 : root.enabled ? Theme.textPrimary : Theme.textMuted
             font.family: Typography.family
             font.pixelSize: Typography.sizeMd
         }

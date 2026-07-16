@@ -22,7 +22,7 @@ ToolButton {
             size: Metrics.iconSize
             color: !root.enabled ? Theme.textMuted
                  : (root.checked || root.active) ? Theme.textPrimary
-                 : Theme.textSecondary
+                 : Theme.textPrimary
             visible: root.iconSource.toString().length > 0
         }
         Text {
@@ -31,7 +31,7 @@ ToolButton {
             text: root.glyph.length > 0 ? root.glyph : root.text
             color: !root.enabled ? Theme.textMuted
                  : (root.checked || root.active) ? Theme.textPrimary
-                 : Theme.textSecondary
+                 : Theme.textPrimary
             font.family: Typography.family
             font.pixelSize: Typography.sizeSm
         }

@@ -170,7 +170,7 @@ Rectangle {
                             visible: locked
                             source: Icons.lock
                             size: 12
-                            color: Theme.textMuted
+                            color: Theme.textSecondary
                         }
                     }
 
@@ -305,7 +305,7 @@ Rectangle {
                     AcIcon {
                         source: Icons.folder
                         size: Metrics.iconSize
-                        color: Theme.textMuted
+                        color: Theme.textSecondary
                         anchors.verticalCenter: parent.verticalCenter
                     }
                     Text {
