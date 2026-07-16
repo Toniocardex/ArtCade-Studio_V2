@@ -69,8 +69,8 @@
           "objectTypeId": "Player",
           "transform": {
             "position": {
-              "x": 665.091796875,
-              "y": 190.68446350097656
+              "x": 10.0,
+              "y": 20.0
             },
             "rotation": 0.0,
             "scale": {
@@ -87,8 +87,8 @@
           "objectTypeId": "Coin",
           "transform": {
             "position": {
-              "x": 827.2120361328125,
-              "y": 389.782958984375
+              "x": 100.0,
+              "y": 40.0
             },
             "rotation": 0.0,
             "scale": {
