@@ -89,6 +89,7 @@ set(ARTCADE_QML_FILES
     ../../qml/ArtCade/Shell/EditorActions.qml
     ../../qml/ArtCade/Shell/LeftSidebar.qml
     ../../qml/ArtCade/Shell/ViewportPlaceholder.qml
+    ../../qml/ArtCade/Shell/LogicBoardView.qml
     ../../qml/ArtCade/Shell/InspectorPane.qml
     ../../qml/ArtCade/Shell/ConsolePane.qml
     ../../qml/ArtCade/Shell/StatusBar.qml
@@ -130,6 +131,7 @@ set_source_files_properties(../../qml/ArtCade/Shell/WorkspaceBar.qml PROPERTIES 
 set_source_files_properties(../../qml/ArtCade/Shell/EditorActions.qml PROPERTIES QT_RESOURCE_ALIAS "Shell/EditorActions.qml")
 set_source_files_properties(../../qml/ArtCade/Shell/LeftSidebar.qml PROPERTIES QT_RESOURCE_ALIAS "Shell/LeftSidebar.qml")
 set_source_files_properties(../../qml/ArtCade/Shell/ViewportPlaceholder.qml PROPERTIES QT_RESOURCE_ALIAS "Shell/ViewportPlaceholder.qml")
+set_source_files_properties(../../qml/ArtCade/Shell/LogicBoardView.qml PROPERTIES QT_RESOURCE_ALIAS "Shell/LogicBoardView.qml")
 set_source_files_properties(../../qml/ArtCade/Shell/InspectorPane.qml PROPERTIES QT_RESOURCE_ALIAS "Shell/InspectorPane.qml")
 set_source_files_properties(../../qml/ArtCade/Shell/ConsolePane.qml PROPERTIES QT_RESOURCE_ALIAS "Shell/ConsolePane.qml")
 set_source_files_properties(../../qml/ArtCade/Shell/StatusBar.qml PROPERTIES QT_RESOURCE_ALIAS "Shell/StatusBar.qml")
@@ -224,6 +226,7 @@ set(ARTCADE_QML_LINT_FILES
     ${ARTCADE_QML_ROOT}/Shell/EditorActions.qml
     ${ARTCADE_QML_ROOT}/Shell/LeftSidebar.qml
     ${ARTCADE_QML_ROOT}/Shell/ViewportPlaceholder.qml
+    ${ARTCADE_QML_ROOT}/Shell/LogicBoardView.qml
     ${ARTCADE_QML_ROOT}/Shell/InspectorPane.qml
     ${ARTCADE_QML_ROOT}/Shell/ConsolePane.qml
     ${ARTCADE_QML_ROOT}/Shell/StatusBar.qml

@@ -138,6 +138,21 @@ bool EditorSession::hasSelection() const
     return m_coordinator->selectedEntityId() != 0;
 }
 
+QString EditorSession::selectedObjectTypeId() const
+{
+    return m_selectedObjectTypeId;
+}
+
+QString EditorSession::selectedObjectTypeName() const
+{
+    return m_selectedObjectTypeName;
+}
+
+int EditorSession::logicRuleCount() const
+{
+    return m_logicRuleCount;
+}
+
 QString EditorSession::activeLayerId() const
 {
     return QString::fromStdString(m_coordinator->activeLayerId());
@@ -299,13 +314,31 @@ void EditorSession::refreshSelectionCache()
     m_selectedName.clear();
     m_selectedX = 0.0;
     m_selectedY = 0.0;
+    m_selectedObjectTypeId.clear();
+    m_selectedObjectTypeName.clear();
+    m_logicRuleCount = 0;
     const auto id = m_coordinator->selectedEntityId();
     if (id != 0) {
-        if (const auto *inst =
-                ArtCade::EditorCore::project_doc_find_instance(m_coordinator->document(), id)) {
+        const ArtCade::ProjectDoc &doc = m_coordinator->document();
+        if (const auto *inst = ArtCade::EditorCore::project_doc_find_instance(doc, id)) {
             m_selectedName = QString::fromStdString(inst->instanceName);
             m_selectedX = inst->transform.position.x;
             m_selectedY = inst->transform.position.y;
+            m_selectedObjectTypeId = QString::fromStdString(inst->objectTypeId);
+            if (!inst->objectTypeId.empty()) {
+                const auto typeIt = doc.objectTypes.find(inst->objectTypeId);
+                if (typeIt != doc.objectTypes.end()) {
+                    const ArtCade::EntityDef &type = typeIt->second;
+                    const std::string &label =
+                        type.name.empty() ? inst->objectTypeId : type.name;
+                    m_selectedObjectTypeName = QString::fromStdString(label);
+                    if (type.logicBoard) {
+                        m_logicRuleCount = static_cast<int>(type.logicBoard->rules.size());
+                    }
+                } else {
+                    m_selectedObjectTypeName = m_selectedObjectTypeId;
+                }
+            }
         }
     }
     emit selectionChanged();

@@ -13,11 +13,12 @@ Rectangle {
         anchors.fill: parent
         spacing: 0
 
-        // Scene document tabs
+        // Scene document tabs (Canvas only)
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: Metrics.panelHeaderHeight
             color: Theme.chrome
+            visible: EditorSession.activeMode === "canvas"
 
             RowLayout {
                 anchors.fill: parent
@@ -66,11 +67,12 @@ Rectangle {
             }
         }
 
-        // Scene toolbar
+        // Scene toolbar (Canvas only)
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: Metrics.toolbarHeight
             color: Theme.chrome
+            visible: EditorSession.activeMode === "canvas"
 
             RowLayout {
                 anchors.fill: parent
@@ -253,14 +255,19 @@ Rectangle {
                 }
             }
 
+            LogicBoardView {
+                anchors.fill: parent
+                visible: EditorSession.activeMode === "logic"
+            }
+
             Column {
                 anchors.centerIn: parent
                 spacing: Metrics.spacingSm
-                visible: EditorSession.activeMode !== "canvas"
+                visible: EditorSession.activeMode === "script"
 
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    text: EditorSession.activeMode === "logic" ? "Logic Board" : "Script Editor"
+                    text: "Script Editor"
                     color: Theme.textPrimary
                     font.family: Typography.family
                     font.pixelSize: Typography.sizeXl

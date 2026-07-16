@@ -45,6 +45,11 @@ class EditorSession : public QObject
     Q_PROPERTY(double selectedX READ selectedX NOTIFY selectionChanged)
     Q_PROPERTY(double selectedY READ selectedY NOTIFY selectionChanged)
     Q_PROPERTY(bool hasSelection READ hasSelection NOTIFY selectionChanged)
+    /** Derived from selection → SceneInstanceDef.objectTypeId (workspace, not a second authority). */
+    Q_PROPERTY(QString selectedObjectTypeId READ selectedObjectTypeId NOTIFY selectionChanged)
+    Q_PROPERTY(QString selectedObjectTypeName READ selectedObjectTypeName NOTIFY selectionChanged)
+    /** Rule count on objectTypes[typeId].logicBoard; 0 until boards are authored/loaded. */
+    Q_PROPERTY(int logicRuleCount READ logicRuleCount NOTIFY selectionChanged)
     Q_PROPERTY(QString activeLayerId READ activeLayerId NOTIFY activeLayerChanged)
     Q_PROPERTY(QString activeSceneName READ activeSceneName NOTIFY projectChanged)
     Q_PROPERTY(double activeSceneWidth READ activeSceneWidth NOTIFY projectChanged)
@@ -77,6 +82,9 @@ public:
     [[nodiscard]] double selectedX() const;
     [[nodiscard]] double selectedY() const;
     [[nodiscard]] bool hasSelection() const;
+    [[nodiscard]] QString selectedObjectTypeId() const;
+    [[nodiscard]] QString selectedObjectTypeName() const;
+    [[nodiscard]] int logicRuleCount() const;
     [[nodiscard]] QString activeLayerId() const;
     [[nodiscard]] QString activeSceneName() const;
     [[nodiscard]] double activeSceneWidth() const;
@@ -166,4 +174,7 @@ private:
     QString m_selectedName;
     double m_selectedX = 0.0;
     double m_selectedY = 0.0;
+    QString m_selectedObjectTypeId;
+    QString m_selectedObjectTypeName;
+    int m_logicRuleCount = 0;
 };

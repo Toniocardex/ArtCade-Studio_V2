@@ -52,7 +52,9 @@ Override: `$env:ARTCADE_GAME_EXE = "D:\path\to\game.exe"`.
 
 ## MVP slice (current)
 
-Open / Fixture → Hierarchy → Select → Rename / SetPosition → Layers/Assets → Scene View (pick/drag) → Save → **Play** (`game.exe`) → unsaved close guard.
+Open / Fixture → Hierarchy → Select → Rename / SetPosition → Layers/Assets → Scene View (pick/drag/snap/rect) → Save → **Play** (`game.exe`) → unsaved close guard.
 
-Next (Qt only): Logic Board, Script, packaging/LGPL notices.  
-Done: shell + Hierarchy + Layers/Assets + Scene View + Play process host.
+**Logic Board (skeleton):** workspace tab shows type-targeted shell (When / Also require… / Then). Binding: selection → `objectTypeId` via `EditorSession` — no document mutations yet.
+
+Next (Qt only): Logic Board add-rule commands + `logicBoard` IO round-trip, Script, packaging/LGPL notices.  
+Done: shell + Hierarchy + Layers/Assets + Scene View + Play process host + Logic Board empty shell.

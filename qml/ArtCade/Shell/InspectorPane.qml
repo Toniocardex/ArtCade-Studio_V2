@@ -105,6 +105,29 @@ Rectangle {
                             }
                         }
                     }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: Metrics.spacingMd
+                        Layout.rightMargin: Metrics.spacingMd
+                        Layout.bottomMargin: Metrics.spacingSm
+                        spacing: Metrics.spacingSm
+
+                        Text {
+                            text: "Type"
+                            color: Theme.textSecondary
+                            font.pixelSize: Typography.sizeXs
+                            Layout.preferredWidth: Metrics.labelColumnWidth
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            text: EditorSession.selectedObjectTypeName
+                            color: Theme.textPrimary
+                            font.family: Typography.family
+                            font.pixelSize: Typography.sizeSm
+                            elide: Text.ElideRight
+                        }
+                    }
                 }
 
                 AcPanelHeader {
