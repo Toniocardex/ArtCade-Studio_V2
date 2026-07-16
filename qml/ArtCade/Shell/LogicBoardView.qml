@@ -68,6 +68,18 @@ Rectangle {
                     ToolTip.delay: 400
                     ToolTip.text: "Add a default When / Then rule on this object type"
                 }
+
+                AcButton {
+                    text: "Delete Rule"
+                    destructive: true
+                    enabled: EditorSession.hasProject && root.hasTypeTarget
+                             && EditorSession.selectedLogicRuleId.length > 0
+                             && !EditorSession.playing
+                    onClicked: EditorSession.removeLogicRule(EditorSession.selectedLogicRuleId)
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 400
+                    ToolTip.text: "Delete the selected Logic rule (undoable)"
+                }
             }
 
             Rectangle {
@@ -127,24 +139,41 @@ Rectangle {
                                    ? Theme.selection
                                    : (ruleMa.containsMouse ? Theme.controlHover : "transparent")
 
-                            Text {
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.verticalCenter: parent.verticalCenter
-                                anchors.leftMargin: Metrics.spacingMd
-                                anchors.rightMargin: Metrics.spacingMd
-                                text: modelData
-                                color: Theme.textPrimary
-                                font.family: Typography.family
-                                font.pixelSize: Typography.sizeSm
-                                elide: Text.ElideRight
-                            }
-
                             MouseArea {
                                 id: ruleMa
                                 anchors.fill: parent
+                                anchors.rightMargin: 28
                                 hoverEnabled: true
+                                z: 0
                                 onClicked: EditorSession.selectedLogicRuleId = modelData
+                            }
+
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: Metrics.spacingMd
+                                anchors.rightMargin: Metrics.spacingXs
+                                spacing: Metrics.spacingXs
+                                z: 1
+
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: modelData
+                                    color: Theme.textPrimary
+                                    font.family: Typography.family
+                                    font.pixelSize: Typography.sizeSm
+                                    elide: Text.ElideRight
+                                }
+
+                                AcToolButton {
+                                    iconSource: Icons.close
+                                    implicitWidth: 22
+                                    implicitHeight: 22
+                                    enabled: !EditorSession.playing
+                                    ToolTip.visible: hovered
+                                    ToolTip.delay: 400
+                                    ToolTip.text: "Delete this rule"
+                                    onClicked: EditorSession.removeLogicRule(modelData)
+                                }
                             }
                         }
 

@@ -349,6 +349,47 @@ bool EditorCoordinator::addLogicRule(const ObjectTypeId &object_type_id,
     return true;
 }
 
+bool EditorCoordinator::removeLogicRule(const ObjectTypeId &object_type_id,
+                                        const LogicRuleId &rule_id,
+                                        std::string &error_message)
+{
+    if (!m_has_project) {
+        error_message = "No project open";
+        return false;
+    }
+    if (object_type_id.empty()) {
+        error_message = "Empty object type id";
+        return false;
+    }
+    if (rule_id.empty()) {
+        error_message = "Empty rule id";
+        return false;
+    }
+    auto type_it = m_doc.objectTypes.find(object_type_id);
+    if (type_it == m_doc.objectTypes.end()) {
+        error_message = "Object type not found";
+        return false;
+    }
+    if (!type_it->second.logicBoard) {
+        error_message = "Object type has no Logic Board";
+        return false;
+    }
+    bool found = false;
+    for (const LogicRuleDef &rule : type_it->second.logicBoard->rules) {
+        if (rule.id == rule_id) {
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        error_message = "Logic rule not found";
+        return false;
+    }
+    m_commands.execute(std::make_unique<RemoveLogicRuleCommand>(object_type_id, rule_id), m_doc);
+    bumpRevision();
+    return true;
+}
+
 bool EditorCoordinator::renameSelected(const std::string &new_name, std::string &error_message)
 {
     if (m_selected_entity_id == 0) {

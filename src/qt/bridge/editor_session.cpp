@@ -649,6 +649,42 @@ void EditorSession::addLogicRule()
     setStatus(QStringLiteral("Added Logic rule %1").arg(QString::fromStdString(new_rule_id)));
 }
 
+void EditorSession::removeLogicRule(const QString &ruleId)
+{
+    QString guard_error;
+    if (!guardAuthoring(&guard_error)) {
+        setStatus(guard_error, false);
+        emit errorOccurred(guard_error);
+        return;
+    }
+    if (m_selectedObjectTypeId.isEmpty()) {
+        const QString msg = QStringLiteral("Select an object to remove a Logic rule from its type");
+        setStatus(msg, false);
+        emit errorOccurred(msg);
+        return;
+    }
+    const QString target = ruleId;
+    if (target.isEmpty()) {
+        const QString msg = QStringLiteral("No Logic rule selected to delete");
+        setStatus(msg, false);
+        emit errorOccurred(msg);
+        return;
+    }
+    std::string error;
+    if (!m_coordinator->removeLogicRule(
+            m_selectedObjectTypeId.toStdString(), target.toStdString(), error)) {
+        setStatus(QString::fromStdString(error));
+        emit errorOccurred(QString::fromStdString(error));
+        return;
+    }
+    if (m_selectedLogicRuleId == target) {
+        m_selectedLogicRuleId.clear();
+    }
+    refreshSelectionCache();
+    emit dirtyChanged();
+    setStatus(QStringLiteral("Deleted Logic rule %1").arg(target));
+}
+
 quint32 EditorSession::pickEntityAt(double worldX, double worldY)
 {
     return m_coordinator->pickEntityAt(static_cast<float>(worldX), static_cast<float>(worldY));

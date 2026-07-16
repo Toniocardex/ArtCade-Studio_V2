@@ -139,6 +139,11 @@ public:
      * Dirties ProjectDoc; undoable.
      */
     Q_INVOKABLE void addLogicRule();
+    /**
+     * Removes Logic rule @p ruleId from the selected instance's object type.
+     * Dirties ProjectDoc; undoable.
+     */
+    Q_INVOKABLE void removeLogicRule(const QString &ruleId);
     Q_INVOKABLE quint32 pickEntityAt(double worldX, double worldY);
     /**
      * Selects the topmost instance whose placeholder AABB intersects the world rect.

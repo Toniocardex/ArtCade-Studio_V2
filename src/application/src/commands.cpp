@@ -1,34 +1,6 @@
 #include "artcade/editor_core/editor_core.h"
 
-#include "logic-core.h"
-
-#include <algorithm>
-#include <sstream>
-
 namespace ArtCade::EditorCore {
-namespace {
-
-LogicRuleId allocate_logic_rule_id(const LogicBoardDef &board)
-{
-    int max_n = 0;
-    for (const LogicRuleDef &rule : board.rules) {
-        if (rule.id.rfind("rule-", 0) != 0) {
-            continue;
-        }
-        try {
-            const int n = std::stoi(rule.id.substr(5));
-            if (n > max_n) {
-                max_n = n;
-            }
-        } catch (...) {
-        }
-    }
-    std::ostringstream oss;
-    oss << "rule-" << (max_n + 1);
-    return oss.str();
-}
-
-} // namespace
 
 void CommandStack::execute(std::unique_ptr<ICommand> command, ProjectDoc &doc)
 {
@@ -175,68 +147,6 @@ void SetLayerVisibleCommand::undo(ProjectDoc &doc)
         return;
     }
     scene.layerSettings[m_layer_id].visible = m_old_visible;
-}
-
-AddLogicRuleCommand::AddLogicRuleCommand(ObjectTypeId object_type_id)
-    : m_object_type_id(std::move(object_type_id))
-{
-}
-
-void AddLogicRuleCommand::execute(ProjectDoc &doc)
-{
-    auto type_it = doc.objectTypes.find(m_object_type_id);
-    if (type_it == doc.objectTypes.end() || m_object_type_id.empty()) {
-        return;
-    }
-    EntityDef &type = type_it->second;
-    if (!type.logicBoard) {
-        LogicBoardDef board;
-        board.id = "logic:" + m_object_type_id;
-        board.schemaVersion = ArtCade::Logic::kLogicBoardSchemaVersion;
-        board.apiVersion = ArtCade::Logic::kLogicApiVersion;
-        type.logicBoard = std::move(board);
-        m_created_board = true;
-    }
-    LogicBoardDef &board = *type.logicBoard;
-    if (board.rules.size() >= ArtCade::Logic::kMaxRulesPerBoard) {
-        if (m_created_board && board.rules.empty()) {
-            type.logicBoard.reset();
-            m_created_board = false;
-        }
-        return;
-    }
-    if (m_rule_id.empty()) {
-        m_rule_id = allocate_logic_rule_id(board);
-    }
-    // Avoid duplicate id if redo after external edits (should not happen in stack).
-    for (const LogicRuleDef &existing : board.rules) {
-        if (existing.id == m_rule_id) {
-            m_applied = true;
-            return;
-        }
-    }
-    board.rules.push_back(ArtCade::Logic::makeDefaultRule(m_rule_id));
-    m_applied = true;
-}
-
-void AddLogicRuleCommand::undo(ProjectDoc &doc)
-{
-    if (!m_applied || m_rule_id.empty()) {
-        return;
-    }
-    auto type_it = doc.objectTypes.find(m_object_type_id);
-    if (type_it == doc.objectTypes.end() || !type_it->second.logicBoard) {
-        return;
-    }
-    EntityDef &type = type_it->second;
-    LogicBoardDef &board = *type.logicBoard;
-    board.rules.erase(std::remove_if(board.rules.begin(),
-                                     board.rules.end(),
-                                     [&](const LogicRuleDef &r) { return r.id == m_rule_id; }),
-                      board.rules.end());
-    if (m_created_board && board.rules.empty()) {
-        type.logicBoard.reset();
-    }
 }
 
 } // namespace ArtCade::EditorCore

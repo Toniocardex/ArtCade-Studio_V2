@@ -4,6 +4,7 @@
 add_library(artcade_editor_core STATIC
     src/project_file_io.cpp
     src/commands.cpp
+    src/logic_board_commands.cpp
     src/editor_coordinator.cpp
 )
 

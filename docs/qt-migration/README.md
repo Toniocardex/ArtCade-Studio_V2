@@ -54,7 +54,7 @@ Override: `$env:ARTCADE_GAME_EXE = "D:\path\to\game.exe"`.
 
 Open / Fixture → Hierarchy → Select → Rename / SetPosition → Layers/Assets → Scene View (pick/drag/snap/rect) → Save → **Play** (`game.exe`) → unsaved close guard.
 
-**Logic Board:** type-targeted shell + **Add Rule** (`AddLogicRuleCommand`, undo/dirty) + `objectTypes[].logicBoard` IO round-trip. Default rule = When `event.on_start` / Then `entity.set_visible`. Block picker next.
+**Logic Board:** type-targeted shell + Add/Delete Rule (undo/dirty) + `objectTypes[].logicBoard` IO. Default rule = When `event.on_start` / Then `entity.set_visible`. Block picker next.
 
-Next (Qt only): Logic Board block editing / delete rule, Script, packaging/LGPL notices.  
-Done: shell + Hierarchy + Layers/Assets + Scene View + Play + Logic Board Add Rule.
+Next (Qt only): Logic Board block editing, Script, packaging/LGPL notices.  
+Done: shell + Hierarchy + Layers/Assets + Scene View + Play + Logic Board Add/Delete Rule.

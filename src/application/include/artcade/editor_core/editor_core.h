@@ -98,6 +98,29 @@ private:
     bool m_applied = false;
 };
 
+/**
+ * Removes a Logic Rule by id from objectTypes[typeId].logicBoard.
+ * Clears the board when the last rule is removed. Undo restores rule (+ board if needed).
+ */
+class RemoveLogicRuleCommand final : public ICommand {
+public:
+    RemoveLogicRuleCommand(ObjectTypeId object_type_id, LogicRuleId rule_id);
+    void execute(ProjectDoc &doc) override;
+    void undo(ProjectDoc &doc) override;
+
+private:
+    ObjectTypeId m_object_type_id;
+    LogicRuleId m_rule_id;
+    LogicRuleDef m_removed_rule;
+    LogicBoardId m_board_id;
+    std::uint32_t m_schema_version = 1;
+    std::uint32_t m_api_version = 2;
+    std::size_t m_index = 0;
+    bool m_cleared_board = false;
+    bool m_captured = false;
+    bool m_applied = false;
+};
+
 /** C++-owned editor project format. */
 inline constexpr int kCurrentProjectFormatVersion = 5;
 
@@ -152,6 +175,15 @@ public:
     bool addLogicRule(const ObjectTypeId &object_type_id,
                       LogicRuleId &out_rule_id,
                       std::string &error_message);
+
+    /**
+     * Removes a Logic Rule from the object type's board.
+     * @param object_type_id stable object type id
+     * @param rule_id rule to remove
+     */
+    bool removeLogicRule(const ObjectTypeId &object_type_id,
+                         const LogicRuleId &rule_id,
+                         std::string &error_message);
 
     [[nodiscard]] bool layerVisible(const std::string &layer_id) const;
     [[nodiscard]] bool layerLocked(const std::string &layer_id) const;

@@ -112,6 +112,18 @@ int main()
     expect(coord.document().objectTypes.at("Player").logicBoard->rules.size() == 1,
            "redo restores rule");
 
+    ArtCade::LogicRuleId deleted_id = rule_id;
+    expect(coord.removeLogicRule("Player", deleted_id, error), "remove logic rule");
+    expect(!coord.document().objectTypes.at("Player").logicBoard.has_value(),
+           "remove last rule clears board");
+    coord.undo();
+    expect(coord.document().objectTypes.at("Player").logicBoard.has_value(),
+           "undo remove restores board");
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules.size() == 1,
+           "undo remove restores rule");
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules.front().id == deleted_id,
+           "undo remove restores same rule id");
+
     expect(coord.saveProjectAs(out_path.string(), error), "save roundtrip file");
     expect(!coord.isDirty(), "clean after save");
 
