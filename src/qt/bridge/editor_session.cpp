@@ -209,6 +209,44 @@ void EditorSession::setActiveMode(const QString &mode)
     emit activeModeChanged();
 }
 
+QString EditorSession::activeTool() const
+{
+    return m_activeTool;
+}
+
+void EditorSession::setActiveTool(const QString &tool)
+{
+    QString normalized = tool;
+    if (normalized != QLatin1String("select") && normalized != QLatin1String("pan")
+        && normalized != QLatin1String("move") && normalized != QLatin1String("rect")) {
+        normalized = QStringLiteral("select");
+    }
+    if (m_activeTool == normalized) {
+        return;
+    }
+    m_activeTool = normalized;
+    emit activeToolChanged();
+}
+
+bool EditorSession::snapEnabled() const
+{
+    return m_snap_enabled;
+}
+
+void EditorSession::setSnapEnabled(bool enabled)
+{
+    if (m_snap_enabled == enabled) {
+        return;
+    }
+    m_snap_enabled = enabled;
+    emit snapEnabledChanged();
+}
+
+double EditorSession::sceneGridStep() const
+{
+    return static_cast<double>(ArtCade::EditorCore::EditorCoordinator::kSceneViewPlaceholderExtent);
+}
+
 QString EditorSession::normalizePath(const QString &pathOrUrl) const
 {
     const QUrl url(pathOrUrl);
@@ -473,6 +511,19 @@ void EditorSession::setLayerVisible(const QString &layerId, bool visible)
 quint32 EditorSession::pickEntityAt(double worldX, double worldY)
 {
     return m_coordinator->pickEntityAt(static_cast<float>(worldX), static_cast<float>(worldY));
+}
+
+void EditorSession::selectInWorldRect(double x0, double y0, double x1, double y1)
+{
+    const auto id = m_coordinator->pickEntityInRect(static_cast<float>(x0),
+                                                    static_cast<float>(y0),
+                                                    static_cast<float>(x1),
+                                                    static_cast<float>(y1));
+    if (id == 0) {
+        clearSelection();
+        return;
+    }
+    selectEntity(id);
 }
 
 void EditorSession::fitSceneView(SceneViewItem *view) const

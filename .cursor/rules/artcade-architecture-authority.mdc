@@ -12,14 +12,15 @@ Canonical product+architecture contract. Outranks generic React/web advice. Orig
 - Authoring engine: **Scene | Logic | Script** (not a Raylib wrapper).
 - Logic Board = accessible visual gameplay; Script Editor = advanced Lua.
 - Editor Play and exported game must share the **same gameplay semantics**.
+- **Qt-first editor** (`artcade-editor-qt` + `artcade_editor_core`): QML is presentation; C++ `EditorSession` / `EditorCoordinator` own workspace + ProjectDoc. The old React/Tauri tree is removed — do not reintroduce a parallel editor stack.
 
 ## Stack roles
 
 | Layer | Role |
 |---|---|
-| React UI | Presentation only — show, input, emit Intent/Command, ephemeral local UI state |
-| Tauri / FS services | Native I/O boundary (scripts, assets, project files) |
-| Editor TS domain | ProjectDocument, commands, validators, workspace, play orchestration |
+| Qt QML UI | Presentation only — show, input, emit Intent via `EditorSession`, ephemeral gesture UI |
+| `EditorSession` (Qt bridge) | Single voice for tools, snap, selection intents, Play host, derived models |
+| `artcade_editor_core` | ProjectDoc authority, commands, undo, validation |
 | Runtime C++/WASM | World, sim, input, render, physics, Lua, audio — **not** editorial UI |
 | Raylib | Technical backend under platform abstraction — **not** architecture core |
 
@@ -34,7 +35,7 @@ Domain code must not call Raylib except at dedicated boundaries.
 | State | Persists? | Undo? | Examples |
 |---|---|---|---|
 | `ProjectDocument` / `ProjectDoc` | Yes | Project history | scenes, object types, instances, assets, layers, Logic Board, script attachments, settings |
-| `EditorWorkspaceState` | No | No | selection, active scene, tool, pan/zoom per scene, grid UI, open tabs, tile paint workspace |
+| `EditorWorkspaceState` | No | No | selection, active scene, **activeTool**, **snapEnabled**, pan/zoom per scene, grid UI, open tabs |
 | `EditorUiState` / layout prefs | Preferences only | No | splitters, console open, panel layout, filters |
 | `PlaySession` | No (lost on Stop) | Blocked | runtime positions, velocities, Lua scopes, collision, audio queue |
 
@@ -46,6 +47,13 @@ UI → Intent/Command → store/coordinator → ProjectDocument → DomainChange
 ```
 
 Forbidden: panels, Scene View, Logic/Script UI, asset editors, or Play mutating the document directly.
+
+### Single voice — no dual paths / duplicates
+
+- Every toolbar button, shortcut, and Scene View gesture for the same action must hit the **same** session/coordinator API.
+- Do not keep a QML-local `activeTool` / `snapOn` that is manually copied into C++ (or the reverse). Bind both sides to one workspace property.
+- Derived models (Hierarchy, Layers, Assets, Console) refresh from ProjectDoc/session — they are not a second document.
+- Adapters are thin forwards — no duplicated system logic across Qt and a legacy React path.
 
 ## Non-negotiable paletti
 

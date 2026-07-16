@@ -183,11 +183,20 @@ These rules are project-specific and outrank generic web-app guidance.
 ### Editor state vs game state
 
 - `ProjectDocument` / `ProjectDoc`: saved authoring data.
-- `EditorWorkspaceState`: temporary editor state such as selection, zoom, visible grid, rulers, panel layout, focus mode, active tool, and open tabs.
+- `EditorWorkspaceState`: temporary editor state such as selection, zoom, visible grid, rulers, panel layout, focus mode, active tool, snap, and open tabs.
 - `EditorUiState` (layout prefs): splitters, console, filters — not project undo.
 - `PlaySession`: runtime state during play/test; materializes once; lost on Stop; authoring commands blocked while playing.
 - `PlaySession` must never dirty or mutate `ProjectDocument` unless the user performs an explicit authoring command.
 - UI-only toggles, zoom, selection, visible grid/rulers, panel state, and focus mode must not produce undo/redo entries or dirty the project.
+
+### Single voice (no dual paths)
+
+**One control surface → one authority → one write path.** Applies to Qt QML, C++ bridge, and `artcade_editor_core`.
+
+- Toolbar buttons, shortcuts, and Scene View gestures that mean the same action must call the **same** `EditorSession` / coordinator API — never a parallel QML-local copy of tool/snap/selection that is manually synced.
+- Workspace fields (`activeTool`, `snapEnabled`, selection, active layer) live in **one** place (`EditorSession` / coordinator workspace). Views bind and display; they do not own a second mutable mirror.
+- Ephemeral gesture state (drag preview, marquee in progress) may live on the Scene View surface, but the **result** (select, commit position) always goes through the session intent path.
+- Forbidden: two buttons or two code paths that both mutate the same authoring/workspace fact through different stacks.
 
 ### Undo/redo and dirty state
 

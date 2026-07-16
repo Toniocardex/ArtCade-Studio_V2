@@ -1,12 +1,12 @@
 /**
- * Authoring scene canvas: pan/zoom (workspace), pick, drag-move via EditorSession.
+ * Authoring scene canvas: pan/zoom (workspace), pick, drag-move, marquee via EditorSession.
+ * Tool + snap are session workspace SoT — this view does not own a second copy.
  * Draws placeholder AABBs from ProjectDoc — not a second document authority.
  */
 #pragma once
 
 #include <QPointF>
 #include <QQuickPaintedItem>
-#include <QString>
 #include <QtQml/qqmlregistration.h>
 
 class EditorSession;
@@ -22,7 +22,6 @@ class SceneViewItem : public QQuickPaintedItem
     Q_PROPERTY(qreal zoom READ zoom WRITE setZoom NOTIFY viewChanged)
     Q_PROPERTY(bool gridVisible READ gridVisible WRITE setGridVisible NOTIFY viewChanged)
     Q_PROPERTY(bool rulersVisible READ rulersVisible WRITE setRulersVisible NOTIFY viewChanged)
-    Q_PROPERTY(QString interactionTool READ interactionTool WRITE setInteractionTool NOTIFY interactionToolChanged)
 
 public:
     explicit SceneViewItem(QQuickItem *parent = nullptr);
@@ -40,8 +39,6 @@ public:
     void setGridVisible(bool visible);
     [[nodiscard]] bool rulersVisible() const;
     void setRulersVisible(bool visible);
-    [[nodiscard]] QString interactionTool() const;
-    void setInteractionTool(const QString &tool);
 
     /** Screen-space ruler thickness (0 when rulers hidden). */
     [[nodiscard]] qreal rulerSize() const;
@@ -64,7 +61,6 @@ public:
 signals:
     void sessionChanged();
     void viewChanged();
-    void interactionToolChanged();
 
 protected:
     void mousePressEvent(QMouseEvent *event) override;
@@ -75,6 +71,8 @@ protected:
 private:
     void bindSessionSignals();
     void onSessionDocumentChanged();
+    [[nodiscard]] QString activeTool() const;
+    [[nodiscard]] QPointF snapWorld(const QPointF &world) const;
 
     EditorSession *m_session = nullptr;
     qreal m_pan_x = 0.0;
@@ -82,14 +80,16 @@ private:
     qreal m_zoom = 1.0;
     bool m_grid_visible = true;
     bool m_rulers_visible = true;
-    QString m_interaction_tool{QStringLiteral("select")};
 
     bool m_panning = false;
     bool m_dragging = false;
+    bool m_marquee = false;
     QPointF m_last_screen;
     QPointF m_drag_start_world;
     QPointF m_drag_origin_world;
     quint32 m_drag_entity_id = 0;
     QPointF m_drag_preview_world;
     bool m_has_drag_preview = false;
+    QPointF m_marquee_start_world;
+    QPointF m_marquee_end_world;
 };

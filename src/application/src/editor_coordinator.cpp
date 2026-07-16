@@ -1,5 +1,7 @@
 #include "artcade/editor_core/editor_core.h"
 
+#include <algorithm>
+
 namespace ArtCade::EditorCore {
 
 bool EditorCoordinator::openProject(const std::string &project_json_path, std::string &error_message)
@@ -182,6 +184,41 @@ EntityId EditorCoordinator::pickEntityAt(float world_x, float world_y) const
         const float left = inst.transform.position.x;
         const float top = inst.transform.position.y;
         if (world_x >= left && world_x <= left + w && world_y >= top && world_y <= top + h) {
+            return inst.id;
+        }
+    }
+    return 0;
+}
+
+EntityId EditorCoordinator::pickEntityInRect(float x0, float y0, float x1, float y1) const
+{
+    const SceneDef *scene = activeScene();
+    if (!scene) {
+        return 0;
+    }
+    const float left = std::min(x0, x1);
+    const float right = std::max(x0, x1);
+    const float top = std::min(y0, y1);
+    const float bottom = std::max(y0, y1);
+
+    for (auto it = scene->instances.rbegin(); it != scene->instances.rend(); ++it) {
+        const SceneInstanceDef &inst = *it;
+        if (!inst.visible) {
+            continue;
+        }
+        if (!inst.layerId.empty()) {
+            if (!layerVisible(inst.layerId) || layerLocked(inst.layerId)) {
+                continue;
+            }
+        }
+        const float w = kSceneViewPlaceholderExtent * inst.transform.scale.x;
+        const float h = kSceneViewPlaceholderExtent * inst.transform.scale.y;
+        const float il = inst.transform.position.x;
+        const float itop = inst.transform.position.y;
+        const float ir = il + w;
+        const float ib = itop + h;
+        const bool overlaps = !(ir < left || il > right || ib < top || itop > bottom);
+        if (overlaps) {
             return inst.id;
         }
     }

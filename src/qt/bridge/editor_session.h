@@ -51,6 +51,10 @@ class EditorSession : public QObject
     Q_PROPERTY(double activeSceneHeight READ activeSceneHeight NOTIFY projectChanged)
     Q_PROPERTY(double worldGravity READ worldGravity NOTIFY projectChanged)
     Q_PROPERTY(double worldPixelsPerMeter READ worldPixelsPerMeter NOTIFY projectChanged)
+    /** Workspace: scene interaction tool — select | pan | move | rect (does not dirty). */
+    Q_PROPERTY(QString activeTool READ activeTool WRITE setActiveTool NOTIFY activeToolChanged)
+    /** Workspace: snap Move commits to scene grid (does not dirty). */
+    Q_PROPERTY(bool snapEnabled READ snapEnabled WRITE setSnapEnabled NOTIFY snapEnabledChanged)
 
 public:
     explicit EditorSession(QObject *parent = nullptr);
@@ -79,8 +83,12 @@ public:
     [[nodiscard]] double activeSceneHeight() const;
     [[nodiscard]] double worldGravity() const;
     [[nodiscard]] double worldPixelsPerMeter() const;
+    [[nodiscard]] QString activeTool() const;
+    [[nodiscard]] bool snapEnabled() const;
 
     void setActiveMode(const QString &mode);
+    void setActiveTool(const QString &tool);
+    void setSnapEnabled(bool enabled);
 
     Q_INVOKABLE void openProject(const QString &pathOrUrl);
     /** Opens the W2 slice fixture (formatVersion 5). No-ops with status if missing. */
@@ -102,6 +110,13 @@ public:
     Q_INVOKABLE void setActiveLayer(const QString &layerId);
     Q_INVOKABLE void setLayerVisible(const QString &layerId, bool visible);
     Q_INVOKABLE quint32 pickEntityAt(double worldX, double worldY);
+    /**
+     * Selects the topmost instance whose placeholder AABB intersects the world rect.
+     * Clears selection when none hit. Workspace-only (no dirty).
+     */
+    Q_INVOKABLE void selectInWorldRect(double x0, double y0, double x1, double y1);
+    /** Grid step used for snap + scene grid paint (matches placeholder extent). */
+    [[nodiscard]] Q_INVOKABLE double sceneGridStep() const;
     Q_INVOKABLE void startPlay();
     Q_INVOKABLE void stopPlay();
 
@@ -120,6 +135,8 @@ signals:
     void selectionChanged();
     void activeLayerChanged();
     void projectChanged();
+    void activeToolChanged();
+    void snapEnabledChanged();
     void errorOccurred(const QString &message);
     void closeBlockedByDirty();
     void closeAccepted();
@@ -144,6 +161,8 @@ private:
     QString m_activeMode;
     QString m_statusMessage;
     bool m_playing = false;
+    QString m_activeTool{QStringLiteral("select")};
+    bool m_snap_enabled = false;
     QString m_selectedName;
     double m_selectedX = 0.0;
     double m_selectedY = 0.0;

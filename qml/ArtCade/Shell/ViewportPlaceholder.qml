@@ -7,8 +7,7 @@ Rectangle {
     id: root
 
     color: Theme.viewport
-    property string activeTool: "select"
-    property bool snapOn: false
+    // Tool + snap live on EditorSession (workspace SoT) — no local mirror.
 
     ColumnLayout {
         anchors.fill: parent
@@ -82,8 +81,8 @@ Rectangle {
                 AcToolButton {
                     iconSource: Icons.select
                     checkable: true
-                    checked: root.activeTool === "select"
-                    onClicked: root.activeTool = "select"
+                    checked: EditorSession.activeTool === "select"
+                    onClicked: EditorSession.activeTool = "select"
                     ToolTip.visible: hovered
                     ToolTip.delay: 400
                     ToolTip.text: "Select — click objects to pick them"
@@ -91,8 +90,8 @@ Rectangle {
                 AcToolButton {
                     iconSource: Icons.pan
                     checkable: true
-                    checked: root.activeTool === "pan"
-                    onClicked: root.activeTool = "pan"
+                    checked: EditorSession.activeTool === "pan"
+                    onClicked: EditorSession.activeTool = "pan"
                     ToolTip.visible: hovered
                     ToolTip.delay: 400
                     ToolTip.text: "Pan — drag to move the view\n(also Middle mouse or Alt+Left)"
@@ -100,8 +99,8 @@ Rectangle {
                 AcToolButton {
                     iconSource: Icons.move
                     checkable: true
-                    checked: root.activeTool === "move"
-                    onClicked: root.activeTool = "move"
+                    checked: EditorSession.activeTool === "move"
+                    onClicked: EditorSession.activeTool = "move"
                     ToolTip.visible: hovered
                     ToolTip.delay: 400
                     ToolTip.text: "Move — drag objects to change position"
@@ -109,11 +108,11 @@ Rectangle {
                 AcToolButton {
                     iconSource: Icons.rect
                     checkable: true
-                    checked: root.activeTool === "rect"
-                    onClicked: root.activeTool = "rect"
+                    checked: EditorSession.activeTool === "rect"
+                    onClicked: EditorSession.activeTool = "rect"
                     ToolTip.visible: hovered
                     ToolTip.delay: 400
-                    ToolTip.text: "Rectangle select — coming next"
+                    ToolTip.text: "Rectangle select — drag a box; picks topmost hit"
                 }
 
                 Rectangle {
@@ -172,11 +171,13 @@ Rectangle {
                 AcToolButton {
                     iconSource: Icons.snap
                     checkable: true
-                    checked: root.snapOn
-                    onClicked: root.snapOn = !root.snapOn
+                    checked: EditorSession.snapEnabled
+                    onClicked: EditorSession.snapEnabled = !EditorSession.snapEnabled
                     ToolTip.visible: hovered
                     ToolTip.delay: 400
-                    ToolTip.text: "Snap to grid — coming next"
+                    ToolTip.text: EditorSession.snapEnabled
+                                 ? "Snap to grid — on"
+                                 : "Snap to grid — off"
                 }
                 AcButton {
                     text: "Fit"
@@ -206,7 +207,6 @@ Rectangle {
                 anchors.fill: parent
                 visible: EditorSession.activeMode === "canvas" && EditorSession.hasProject
                 session: EditorSession
-                interactionTool: root.activeTool
             }
 
             // Empty / mode placeholders

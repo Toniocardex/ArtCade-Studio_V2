@@ -135,6 +135,13 @@ public:
      */
     [[nodiscard]] EntityId pickEntityAt(float world_x, float world_y) const;
 
+    /**
+     * Topmost visible, unlocked instance whose placeholder AABB intersects the
+     * axis-aligned world rectangle (any order of corners).
+     * @returns entity id, or 0 if none
+     */
+    [[nodiscard]] EntityId pickEntityInRect(float x0, float y0, float x1, float y1) const;
+
     /** World AABB for scene-view placeholders (authoring preview, not runtime sprite size). */
     static constexpr float kSceneViewPlaceholderExtent = 32.f;
 
