@@ -25,6 +25,20 @@ public:
     virtual bool stopAnimation(EntityId owner) = 0;
     virtual bool setAnimationPlaybackSpeed(EntityId owner, float speed) = 0;
     virtual bool playSound(EntityId owner, const AssetId& audioAssetId, float volume) = 0;
+    /** Sets a global Number variable (creates the key as Number if missing). */
+    virtual bool setStateNumber(const std::string& key, double value) = 0;
+    /** Adds delta to a global Number variable (creates the key as Number if missing). */
+    virtual bool addStateNumber(const std::string& key, double delta) = 0;
+    /** Reads a global Number variable (default when missing or non-number). */
+    virtual double getStateNumber(const std::string& key, double defaultValue = 0.0) = 0;
+    virtual bool setVelocity(EntityId owner, Vec2 velocity) = 0;
+    virtual bool isKeyDown(LogicKey key) = 0;
+    /**
+     * Spawns an Object Type instance at world position. Returns INVALID_ENTITY on failure.
+     * Implementations should install Logic/Script scopes for the new entity when applicable.
+     */
+    virtual EntityId spawnObjectType(EntityId owner, const ObjectTypeId& objectTypeId,
+                                     float x, float y) = 0;
 };
 
 } // namespace ArtCade

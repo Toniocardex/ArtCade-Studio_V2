@@ -178,14 +178,43 @@ void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
                 out.push_back(makeError(objectTypeId, board, "LB_AUDIO_VOLUME_RANGE",
                                         "Audio volume must be between 0 and 1",
                                         &rule, &block, property.key));
+            } else if ((block.typeId == kEverySeconds || block.typeId == kWait)
+                       && property.key == "seconds" && *value <= 0.0) {
+                out.push_back(makeError(objectTypeId, board, "LB_TIMER_INTERVAL",
+                                        "Seconds must be greater than 0",
+                                        &rule, &block, property.key));
             }
         }
-        if (block.typeId == kOtherIsObjectType && property.key == "objectTypeId") {
+        if ((block.typeId == kOtherIsObjectType || block.typeId == kSpawnObject)
+            && property.key == "objectTypeId") {
             const auto* referencedType = std::get_if<LogicStringValue>(&property.value);
             if (!referencedType || referencedType->value.empty()
                 || (project && project->objectTypes.count(referencedType->value) == 0)) {
                 out.push_back(makeError(objectTypeId, board, "LB_OBJECT_TYPE_REFERENCE",
-                                        "Collision object type must reference an existing Object Type",
+                                        block.typeId == kSpawnObject
+                                            ? "Spawn must reference an existing Object Type"
+                                            : "Collision object type must reference an existing Object Type",
+                                        &rule, &block, property.key));
+            }
+        }
+        if ((block.typeId == kStateSet || block.typeId == kStateAdd
+             || block.typeId == kStateSubtract || block.typeId == kStateCompare)
+            && property.key == "key") {
+            const auto* key = std::get_if<LogicStringValue>(&property.value);
+            if (!key || key->value.empty()) {
+                out.push_back(makeError(objectTypeId, board, "LB_STATE_KEY",
+                                        "Variable key cannot be empty",
+                                        &rule, &block, property.key));
+            }
+        }
+        if (block.typeId == kStateCompare && property.key == "op") {
+            const auto* op = std::get_if<LogicStringValue>(&property.value);
+            const bool ok = op
+                && (op->value == "==" || op->value == "!=" || op->value == "<"
+                    || op->value == "<=" || op->value == ">" || op->value == ">=");
+            if (!ok) {
+                out.push_back(makeError(objectTypeId, board, "LB_COMPARE_OP",
+                                        "Compare operator must be == != < <= > >=",
                                         &rule, &block, property.key));
             }
         }
@@ -277,6 +306,18 @@ void emitAction(std::ostringstream& lua, const LogicBlockDef& action,
         const LogicPropertyDef* p = findProperty(action, "position");
         const Vec2 value = std::get<Vec2>(p->value);
         lua << "      context.self:set_position(" << value.x << ", " << value.y << ")\n";
+    } else if (action.typeId == kSetVelocity) {
+        const LogicPropertyDef* p = findProperty(action, "velocity");
+        const Vec2 value = std::get<Vec2>(p->value);
+        lua << "      context.self:set_velocity(" << value.x << ", " << value.y << ")\n";
+    } else if (action.typeId == kSpawnObject) {
+        const LogicPropertyDef* typeProp = findProperty(action, "objectTypeId");
+        const LogicPropertyDef* posProp = findProperty(action, "position");
+        const auto* type = typeProp ? std::get_if<LogicStringValue>(&typeProp->value) : nullptr;
+        const Vec2 position = posProp ? std::get<Vec2>(posProp->value) : Vec2{};
+        lua << "      context.self:spawn(\""
+            << escapeLua(type ? type->value : std::string{}) << "\", "
+            << position.x << ", " << position.y << ")\n";
     } else if (action.typeId == kMoveHorizontal) {
         const LogicPropertyDef* p = findProperty(action, "axis");
         lua << "      context.self:platformer_move(" << std::get<double>(p->value) << ")\n";
@@ -306,9 +347,43 @@ void emitAction(std::ostringstream& lua, const LogicBlockDef& action,
         lua << "      context.self:play_sound(\""
             << escapeLua(assetRef ? assetRef->id : std::string{}) << "\", "
             << volumeValue << ")\n";
+    } else if (action.typeId == kStateSet) {
+        const LogicPropertyDef* keyProp = findProperty(action, "key");
+        const LogicPropertyDef* valueProp = findProperty(action, "value");
+        const auto* key = keyProp ? std::get_if<LogicStringValue>(&keyProp->value) : nullptr;
+        const double value = valueProp ? std::get<double>(valueProp->value) : 0.0;
+        lua << "      context:state_set(\"" << escapeLua(key ? key->value : std::string{})
+            << "\", " << value << ")\n";
+    } else if (action.typeId == kStateAdd || action.typeId == kStateSubtract) {
+        const LogicPropertyDef* keyProp = findProperty(action, "key");
+        const LogicPropertyDef* amountProp = findProperty(action, "amount");
+        const auto* key = keyProp ? std::get_if<LogicStringValue>(&keyProp->value) : nullptr;
+        double amount = amountProp ? std::get<double>(amountProp->value) : 0.0;
+        if (action.typeId == kStateSubtract) amount = -amount;
+        lua << "      context:state_add(\"" << escapeLua(key ? key->value : std::string{})
+            << "\", " << amount << ")\n";
     }
     if (const LogicBlockDescriptor* descriptor = findDescriptor(action.typeId))
         if (!descriptor->requiredFeature.empty()) features.insert(descriptor->requiredFeature);
+}
+
+void emitActions(std::ostringstream& lua, const std::vector<LogicBlockDef>& actions,
+                 std::size_t start, std::set<std::string>& features) {
+    for (std::size_t i = start; i < actions.size(); ++i) {
+        const LogicBlockDef& action = actions[i];
+        if (action.typeId == kWait) {
+            const LogicPropertyDef* secondsProp = findProperty(action, "seconds");
+            const double seconds = secondsProp ? std::get<double>(secondsProp->value) : 1.0;
+            if (const LogicBlockDescriptor* descriptor = findDescriptor(action.typeId))
+                if (!descriptor->requiredFeature.empty())
+                    features.insert(descriptor->requiredFeature);
+            lua << "      context:wait(" << seconds << ", function()\n";
+            emitActions(lua, actions, i + 1, features);
+            lua << "      end)\n";
+            return;
+        }
+        emitAction(lua, action, features);
+    }
 }
 
 // Conditions gate the rule's actions behind a single `if ... then` guard,
@@ -331,6 +406,20 @@ bool emitConditionGuard(std::ostringstream& lua, const std::vector<LogicBlockDef
             const auto* type = p ? std::get_if<LogicStringValue>(&p->value) : nullptr;
             lua << "context:other_is_object_type(other, \""
                 << escapeLua(type ? type->value : std::string{}) << "\")";
+        } else if (condition.typeId == kKeyDown) {
+            const LogicPropertyDef* key = findProperty(condition, "key");
+            lua << "context:is_key_down(\""
+                << logicKeyName(std::get<LogicKey>(key->value)) << "\")";
+        } else if (condition.typeId == kStateCompare) {
+            const LogicPropertyDef* keyProp = findProperty(condition, "key");
+            const LogicPropertyDef* opProp = findProperty(condition, "op");
+            const LogicPropertyDef* valueProp = findProperty(condition, "value");
+            const auto* key = keyProp ? std::get_if<LogicStringValue>(&keyProp->value) : nullptr;
+            const auto* op = opProp ? std::get_if<LogicStringValue>(&opProp->value) : nullptr;
+            const double value = valueProp ? std::get<double>(valueProp->value) : 0.0;
+            lua << "context:state_compare(\""
+                << escapeLua(key ? key->value : std::string{}) << "\", \""
+                << escapeLua(op ? op->value : std::string{"=="}) << "\", " << value << ")";
         }
         if (const LogicBlockDescriptor* descriptor = findDescriptor(condition.typeId))
             if (!descriptor->requiredFeature.empty()) features.insert(descriptor->requiredFeature);
@@ -350,6 +439,13 @@ const std::vector<LogicBlockDescriptor>& registry() {
     static const std::vector<LogicBlockDescriptor> value{
         {kOnStart, "system", "On Start", "Runs once when Play begins.",
             BlockKind::Trigger, {}, {}, {}, {LogicContextCapability::Self}, "event.start"},
+        {kEveryFrame, "system", "Every Frame", "Runs once every simulation frame.",
+            BlockKind::Trigger, {}, {}, {}, {LogicContextCapability::Self, LogicContextCapability::DeltaTime},
+            "event.on_update", true},
+        {kEverySeconds, "system", "Every Second",
+            "Runs on a repeating timer. Default interval is 1 second.",
+            BlockKind::Trigger, {{"seconds", LogicValueKind::Number, 1.0}}, {}, {},
+            {LogicContextCapability::Self}, "event.every_seconds", true},
         {kKeyPressed, "input", "Key Pressed", "Runs when the selected key is pressed.",
             BlockKind::Trigger, {{"key", LogicValueKind::Key, LogicKey::Space}}, {}, {},
             {LogicContextCapability::Self}, "input.key_pressed"},
@@ -359,6 +455,9 @@ const std::vector<LogicBlockDescriptor>& registry() {
         {kKeyHeld, "input", "While Key Held", "Runs once per tick while the selected key is held.",
             BlockKind::Trigger, {{"key", LogicValueKind::Key, LogicKey::Space}}, {}, {},
             {LogicContextCapability::Self}, "input.key_held", true},
+        {kKeyDown, "input", "Is Key Down", "True while the selected key is held.",
+            BlockKind::Condition, {{"key", LogicValueKind::Key, LogicKey::Space}}, {},
+            {LogicContextCapability::Self}, {}, "input.key_down"},
         {kSetVisible, "entity", "Set Visible", "Shows or hides Self.",
             BlockKind::Action,
             {{"target", LogicValueKind::Entity, selfReference()},
@@ -369,6 +468,14 @@ const std::vector<LogicBlockDescriptor>& registry() {
             {{"target", LogicValueKind::Entity, selfReference()},
              {"position", LogicValueKind::Vec2, Vec2{}}},
             {}, {LogicContextCapability::Self}, {}, "entity.transform"},
+        {kSetVelocity, "physics", "Set Velocity", "Sets Self's linear velocity.",
+            BlockKind::Action, {{"velocity", LogicValueKind::Vec2, Vec2{}}},
+            {}, {LogicContextCapability::Self}, {}, "physics.set_velocity"},
+        {kSpawnObject, "entity", "Spawn Object", "Spawns an Object Type at a world position.",
+            BlockKind::Action,
+            {{"objectTypeId", LogicValueKind::String, LogicStringValue{}},
+             {"position", LogicValueKind::Vec2, Vec2{}}},
+            {}, {LogicContextCapability::Self}, {}, "entity.spawn"},
         {kIsGrounded, "platformer", "Is Grounded", "Checks whether Self is touching valid ground.",
             BlockKind::Condition, {{"expected", LogicValueKind::Bool, true}},
             {LogicRequiredComponent::PlatformerController}, {LogicContextCapability::Self}, {},
@@ -408,11 +515,42 @@ const std::vector<LogicBlockDescriptor>& registry() {
             BlockKind::Action, {{"speed", LogicValueKind::Number, 1.0}},
             {LogicRequiredComponent::SpriteAnimator}, {LogicContextCapability::Self}, {},
             "animation.set_playback_speed"},
+        {kAnimationStarted, "animation", "Animation Started", "Runs when Self begins playing a clip.",
+            BlockKind::Trigger, {}, {LogicRequiredComponent::SpriteAnimator}, {},
+            {LogicContextCapability::Self}, "animation.on_started"},
+        {kAnimationFinished, "animation", "Animation Finished",
+            "Runs when Self finishes a non-looping clip.",
+            BlockKind::Trigger, {}, {LogicRequiredComponent::SpriteAnimator}, {},
+            {LogicContextCapability::Self}, "animation.on_finished"},
         {kAudioPlaySound, "audio", "Play Sound", "Plays a short audio asset.",
             BlockKind::Action,
             {{"audioAssetId", LogicValueKind::Asset, LogicAssetReference{}},
              {"volume", LogicValueKind::Number, 1.0}},
             {}, {LogicContextCapability::Self}, {}, "audio.play_sound"},
+        {kWait, "flow", "Wait", "Waits, then continues with the following actions.",
+            BlockKind::Action, {{"seconds", LogicValueKind::Number, 1.0}},
+            {}, {LogicContextCapability::Self}, {}, "flow.wait", true},
+        {kStateSet, "state", "Set Variable", "Sets a global Number variable.",
+            BlockKind::Action,
+            {{"key", LogicValueKind::String, LogicStringValue{"score"}},
+             {"value", LogicValueKind::Number, 0.0}},
+            {}, {}, {}, "state.set"},
+        {kStateAdd, "state", "Add Variable", "Adds to a global Number variable.",
+            BlockKind::Action,
+            {{"key", LogicValueKind::String, LogicStringValue{"score"}},
+             {"amount", LogicValueKind::Number, 1.0}},
+            {}, {}, {}, "state.add"},
+        {kStateSubtract, "state", "Subtract Variable", "Subtracts from a global Number variable.",
+            BlockKind::Action,
+            {{"key", LogicValueKind::String, LogicStringValue{"health"}},
+             {"amount", LogicValueKind::Number, 1.0}},
+            {}, {}, {}, "state.subtract"},
+        {kStateCompare, "state", "Compare Variable", "Compares a global Number variable.",
+            BlockKind::Condition,
+            {{"key", LogicValueKind::String, LogicStringValue{"score"}},
+             {"op", LogicValueKind::String, LogicStringValue{"=="}},
+             {"value", LogicValueKind::Number, 0.0}},
+            {}, {}, {}, "state.compare"},
     };
     return value;
 }
@@ -545,24 +683,46 @@ LogicCompileResult compileBoard(const ObjectTypeId& objectTypeId,
         if (!rule.enabled) continue;
         if (rule.trigger.typeId == kOnStart) {
             lua << "  context:on_start(\"" << escapeLua(rule.id) << "\", function()\n";
+        } else if (rule.trigger.typeId == kEveryFrame) {
+            lua << "  context:on_update(\"" << escapeLua(rule.id) << "\", function()\n";
+        } else if (rule.trigger.typeId == kEverySeconds) {
+            const LogicPropertyDef* seconds = findProperty(rule.trigger, "seconds");
+            const double interval = seconds ? std::get<double>(seconds->value) : 1.0;
+            lua << "  context:on_every_seconds(\"" << escapeLua(rule.id) << "\", "
+                << interval << ", function()\n";
+        } else if (rule.trigger.typeId == kAnimationStarted) {
+            lua << "  context:on_animation_started(\"" << escapeLua(rule.id)
+                << "\", function()\n";
+        } else if (rule.trigger.typeId == kAnimationFinished) {
+            lua << "  context:on_animation_finished(\"" << escapeLua(rule.id)
+                << "\", function()\n";
         } else if (rule.trigger.typeId == kCollisionEnter || rule.trigger.typeId == kCollisionExit) {
             const char* registerMethod = rule.trigger.typeId == kCollisionEnter
                 ? "on_collision_enter" : "on_collision_exit";
             lua << "  context:" << registerMethod << "(\"" << escapeLua(rule.id)
                 << "\", function(other)\n";
-        } else {
+        } else if (rule.trigger.typeId == kKeyPressed || rule.trigger.typeId == kKeyReleased
+                   || rule.trigger.typeId == kKeyHeld) {
             const LogicPropertyDef* key = findProperty(rule.trigger, "key");
             const char* registerMethod = rule.trigger.typeId == kKeyReleased ? "on_key_released"
                 : rule.trigger.typeId == kKeyHeld ? "on_key_held" : "on_key_pressed";
             lua << "  context:" << registerMethod << "(\"" << escapeLua(rule.id) << "\", \""
                 << logicKeyName(std::get<LogicKey>(key->value)) << "\", function()\n";
+        } else {
+            result.diagnostics.push_back(makeError(
+                objectTypeId, board, "LB_UNKNOWN_TRIGGER",
+                "Unsupported Logic Board trigger: " + rule.trigger.typeId, &rule,
+                &rule.trigger, {}));
+            return result;
         }
         if (const LogicBlockDescriptor* descriptor = findDescriptor(rule.trigger.typeId)) {
             if (!descriptor->requiredFeature.empty()) features.insert(descriptor->requiredFeature);
             result.requiresTick = result.requiresTick || descriptor->requiresTick;
         }
         const bool guarded = emitConditionGuard(lua, rule.conditions, features);
-        for (const LogicBlockDef& action : rule.actions) emitAction(lua, action, features);
+        emitActions(lua, rule.actions, 0, features);
+        // Wait is an action (not a trigger) but still needs the tick path.
+        if (features.count("flow.wait")) result.requiresTick = true;
         if (guarded) lua << "    end\n";
         lua << "  end)\n";
     }

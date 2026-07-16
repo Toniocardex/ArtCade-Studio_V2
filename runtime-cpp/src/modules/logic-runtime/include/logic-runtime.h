@@ -43,15 +43,21 @@ public:
     /** Resets the aggregate per-frame event budget before input dispatch. */
     void beginFrame();
     void dispatchStart();
+    /** Fires On Start only for subscriptions owned by @p owner (spawn path). */
+    void dispatchStartForOwner(EntityId owner);
     void dispatchKeyPressed(LogicKey key);
     void dispatchKeyReleased(LogicKey key);
     void dispatchKeyHeld(LogicKey key);
     void dispatchCollisionEnter(EntityId owner, EntityId other);
     void dispatchCollisionExit(EntityId owner, EntityId other);
+    /** Advances Every Second / Every Frame / Wait subscriptions. */
+    void dispatchTick(float dt);
+    void dispatchAnimationStarted(EntityId owner);
+    void dispatchAnimationFinished(EntityId owner);
     void shutdown() noexcept;
 
     bool isEnabled() const;
-    bool requiresTick() const { return false; }
+    bool requiresTick() const;
     const std::vector<std::string>& diagnostics() const;
 
 private:

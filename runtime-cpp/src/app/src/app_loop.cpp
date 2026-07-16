@@ -105,11 +105,23 @@ void Application::tickFixedStep(float dt) {
         }
         profiler_.addGameplayMs(elapsedMs(start));
     }
+    // Drain animator events once; feed Logic Runtime then GameAPI Lua handlers.
     {
+        const auto finished = mod_->spriteAnimator->pollFinished();
+        const auto events = mod_->spriteAnimator->pollEvents();
+        if (mod_->logicRuntime) {
+            for (const auto& ev : events) {
+                if (ev.kind == ArtCade::Modules::SpriteAnimator::AnimEventKind::Start)
+                    mod_->logicRuntime->dispatchAnimationStarted(ev.entityId);
+            }
+            for (const auto& ev : finished)
+                mod_->logicRuntime->dispatchAnimationFinished(ev.entityId);
+            mod_->logicRuntime->dispatchTick(dt);
+        }
         const auto start = Clock::now();
-        const uint32_t events = mod_->gameAPI->dispatchAnimationEvents();
+        const uint32_t luaEvents = mod_->gameAPI->dispatchAnimationEvents(finished, events);
         profiler_.addLuaMs(elapsedMs(start));
-        profiler_.addLuaEvents(events);
+        profiler_.addLuaEvents(luaEvents);
     }
     {
         const auto start = Clock::now();

@@ -374,6 +374,24 @@ bool Application::installLogicScopesForActiveScene() {
     return true;
 }
 
+bool Application::installLogicScopeForEntity(EntityId entityId) {
+    if (!mod_ || !mod_->logicRuntime || !mod_->entityGateway || entityId == INVALID_ENTITY)
+        return false;
+    if (mod_->logicScopes.count(entityId) != 0) return true;
+    const ObjectTypeId typeId = mod_->entityGateway->className(entityId);
+    if (mod_->logicObjectTypes.find(typeId) == mod_->logicObjectTypes.end()) return true;
+    std::string error;
+    const auto token = mod_->logicRuntime->install(typeId, entityId, &error);
+    if (!token) {
+        std::cerr << "[App] Could not install Logic Board scope for spawn: " << error << "\n";
+        return false;
+    }
+    mod_->logicScopes.emplace(entityId, *token);
+    // Owner-scoped Start only — never re-fire On Start for the whole scene.
+    mod_->logicRuntime->dispatchStartForOwner(entityId);
+    return true;
+}
+
 bool Application::installScriptScopesForActiveScene() {
     if (!mod_ || !mod_->entityGateway) return false;
     if (!mod_->logicHost) return false;

@@ -206,11 +206,16 @@ void GameAPI::bindAnimationAPI(sol::state& lua) {
 }
 
 uint32_t GameAPI::dispatchAnimationEvents() {
-    if (!luaState_ || !ctx_.spriteAnimator) return 0;
-
-    // pollEvents/pollFinished drain unconditionally so the buffers never grow.
+    if (!ctx_.spriteAnimator) return 0;
     const auto finished = ctx_.spriteAnimator->pollFinished();
-    const auto events   = ctx_.spriteAnimator->pollEvents();
+    const auto events = ctx_.spriteAnimator->pollEvents();
+    return dispatchAnimationEvents(finished, events);
+}
+
+uint32_t GameAPI::dispatchAnimationEvents(
+    const std::vector<SpriteAnimator::FinishEvent>& finished,
+    const std::vector<SpriteAnimator::AnimEvent>& events) {
+    if (!luaState_ || !ctx_.spriteAnimator) return 0;
 
     sol::state& lua = *luaState_;
     sol::table animation = lua["animation"];

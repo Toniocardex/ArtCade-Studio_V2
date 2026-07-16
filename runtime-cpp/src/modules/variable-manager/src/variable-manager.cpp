@@ -148,6 +148,17 @@ float VariableManager::addFloat(const std::string& key, float delta,
     return static_cast<float>(value);
 }
 
+bool VariableManager::ensureNumber(const std::string& key) {
+    if (key.empty()) return false;
+    const auto typeIt = globalTypes_.find(key);
+    if (typeIt != globalTypes_.end()) {
+        return typeIt->second == GameVariableDefinition::Type::Number;
+    }
+    globalTypes_[key] = GameVariableDefinition::Type::Number;
+    vars_[key] = 0.0;
+    return true;
+}
+
 std::optional<double> VariableManager::addEntity(
     EntityId id, const std::string& key, double delta) {
     if (!entityExists(id, key)) return std::nullopt;

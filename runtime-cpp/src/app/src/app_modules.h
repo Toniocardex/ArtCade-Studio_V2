@@ -30,8 +30,10 @@
 #include "../../world/include/world.h"
 
 #include <cmath>
+#include <functional>
 #include <memory>
 #include <set>
+#include <string>
 #include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
@@ -41,10 +43,17 @@ namespace ArtCade {
 
 class RuntimeLogicHostAdapter final : public Logic::ILogicRuntimeHost {
 public:
+    using SpawnInstaller = std::function<void(EntityId)>;
+
     RuntimeLogicHostAdapter(Modules::RuntimeEntityGateway& gateway, Modules::Audio& audio)
         : gateway_(gateway), audio_(audio) {}
     /** World is constructed after this adapter; wired in once available. */
     void setWorld(World* world) { world_ = world; }
+    void setVariableManager(Modules::VariableManager* variables) { variables_ = variables; }
+    void setInput(Modules::Input* input) { input_ = input; }
+    void setPhysics(Modules::Physics* physics) { physics_ = physics; }
+    void setSpawnInstaller(SpawnInstaller installer) { spawnInstaller_ = std::move(installer); }
+
     bool setVisible(EntityId owner, bool value) override {
         return gateway_.setRuntimeVisible(owner, value);
     }
@@ -98,10 +107,62 @@ public:
         return world_ && world_->isActiveEntity(owner)
             && audio_.playResolvedAsset(audioAssetId, volume);
     }
+    bool setStateNumber(const std::string& key, double value) override {
+        if (!variables_ || !variables_->ensureNumber(key)) return false;
+        variables_->setFloat(key, static_cast<float>(value));
+        return true;
+    }
+    bool addStateNumber(const std::string& key, double delta) override {
+        if (!variables_ || !variables_->ensureNumber(key)) return false;
+        variables_->addFloat(key, static_cast<float>(delta));
+        return true;
+    }
+    double getStateNumber(const std::string& key, double defaultValue = 0.0) override {
+        if (!variables_) return defaultValue;
+        return static_cast<double>(
+            variables_->getFloat(key, static_cast<float>(defaultValue)));
+    }
+    bool setVelocity(EntityId owner, Vec2 velocity) override {
+        if (!std::isfinite(velocity.x) || !std::isfinite(velocity.y)) return false;
+        Transform transform{};
+        if (!gateway_.getTransform(owner, transform)) return false;
+        transform.velocity = velocity;
+        if (!gateway_.setTransform(owner, transform)) return false;
+        const uint32_t handle = gateway_.physicsHandle(owner);
+        if (handle != 0 && physics_) physics_->setLinearVelocity(handle, velocity);
+        return true;
+    }
+    bool isKeyDown(LogicKey key) override {
+        return input_ && input_->isKeyDown(logicInputCode(key));
+    }
+    EntityId spawnObjectType(EntityId owner, const ObjectTypeId& objectTypeId,
+                             float x, float y) override {
+        if (!world_ || !world_->isActiveEntity(owner) || objectTypeId.empty())
+            return INVALID_ENTITY;
+        if (!std::isfinite(x) || !std::isfinite(y)) return INVALID_ENTITY;
+        const EntityId spawned = gateway_.spawnFromClass(objectTypeId, x, y);
+        if (spawned == INVALID_ENTITY) return INVALID_ENTITY;
+        if (spawnInstaller_) spawnInstaller_(spawned);
+        return spawned;
+    }
+
 private:
+    static std::string logicInputCode(LogicKey key) {
+        const int value = static_cast<int>(key);
+        if (value >= static_cast<int>(LogicKey::A) && value <= static_cast<int>(LogicKey::Z))
+            return "Key" + Logic::logicKeyName(key);
+        if (value >= static_cast<int>(LogicKey::Num0) && value <= static_cast<int>(LogicKey::Num9))
+            return "Digit" + Logic::logicKeyName(key);
+        return Logic::logicKeyName(key);
+    }
+
     Modules::RuntimeEntityGateway& gateway_;
     Modules::Audio& audio_;
     World* world_ = nullptr;
+    Modules::VariableManager* variables_ = nullptr;
+    Modules::Input* input_ = nullptr;
+    Modules::Physics* physics_ = nullptr;
+    SpawnInstaller spawnInstaller_;
 };
 
 static_assert(!std::is_abstract_v<RuntimeLogicHostAdapter>,

@@ -5,7 +5,9 @@
 #include <algorithm>
 #include <iostream>
 #include <limits>
+#include <optional>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -23,6 +25,8 @@ struct Host final : ILogicRuntimeHost {
     std::optional<ScopeToken> cancelOnVisible;
     bool failVisible = false;
     std::unordered_set<EntityId> grounded;
+    std::unordered_map<std::string, double> state;
+    bool keyDown = false;
     bool setVisible(EntityId owner, bool value) override {
         calls.push_back("visible:" + std::to_string(owner) + ":" + (value ? "1" : "0"));
         if (runtime && cancelOnVisible) runtime->cancelScope(*cancelOnVisible);
@@ -73,6 +77,34 @@ struct Host final : ILogicRuntimeHost {
         calls.push_back("play_sound:" + std::to_string(owner) + ":" + audioAssetId + ":"
                        + std::to_string(volume));
         return true;
+    }
+    bool setStateNumber(const std::string& key, double value) override {
+        state[key] = value;
+        calls.push_back("state_set:" + key + ":" + std::to_string(static_cast<int>(value)));
+        return true;
+    }
+    bool addStateNumber(const std::string& key, double delta) override {
+        state[key] = (state.count(key) ? state[key] : 0.0) + delta;
+        calls.push_back("state_add:" + key + ":" + std::to_string(static_cast<int>(delta)));
+        return true;
+    }
+    double getStateNumber(const std::string& key, double defaultValue = 0.0) override {
+        const auto it = state.find(key);
+        return it == state.end() ? defaultValue : it->second;
+    }
+    bool setVelocity(EntityId owner, Vec2 velocity) override {
+        calls.push_back("velocity:" + std::to_string(owner) + ":"
+                        + std::to_string(static_cast<int>(velocity.x)) + ","
+                        + std::to_string(static_cast<int>(velocity.y)));
+        return true;
+    }
+    bool isKeyDown(LogicKey) override { return keyDown; }
+    EntityId spawnObjectType(EntityId owner, const ObjectTypeId& objectTypeId,
+                             float x, float y) override {
+        calls.push_back("spawn:" + std::to_string(owner) + ":" + objectTypeId + ":"
+                        + std::to_string(static_cast<int>(x)) + ","
+                        + std::to_string(static_cast<int>(y)));
+        return 99;
     }
 };
 
@@ -562,6 +594,192 @@ static void testCombinedGameplaySmoke() {
         && host.calls[2].rfind("play_sound:42:jump-sound:", 0) == 0);
 }
 
+static void testP1EverySecondsAndTick() {
+    LogicBoardDef board;
+    board.id = "logic:Timer";
+    LogicRuleDef rule = makeDefaultRule("every");
+    rule.trigger = makeDefaultBlock(kEverySeconds, BlockKind::Trigger);
+    for (LogicPropertyDef& p : rule.trigger.properties) {
+        if (p.key == "seconds") p.value = 0.5;
+    }
+    rule.actions[0] = {kSetPosition,
+        {{"target", LogicEntityReference{}}, {"position", Vec2{1.f, 2.f}}}};
+    board.rules.push_back(rule);
+
+    LogicCompileResult compiled = compileBoard("Timer", board);
+    CHECK(compiled.ok());
+    CHECK(compiled.programs[0].requiresTick);
+    CHECK(compiled.programs[0].source.find("on_every_seconds") != std::string::npos);
+
+    Host host;
+    LogicRuntime runtime(host);
+    std::string error;
+    CHECK(runtime.loadPrograms(compiled.programs, &error));
+    CHECK(runtime.requiresTick());
+    CHECK(runtime.install("Timer", 7, &error).has_value());
+    runtime.beginFrame();
+    runtime.dispatchTick(0.25f);
+    CHECK(host.calls.empty());
+    runtime.dispatchTick(0.30f);
+    CHECK(host.calls.size() == 1);
+    CHECK(host.calls[0] == "position:7:1,2");
+}
+
+static void testP1StateAndWaitAndVelocity() {
+    {
+        LogicBoardDef board;
+        board.id = "logic:State";
+        LogicRuleDef rule = makeDefaultRule("state");
+        LogicBlockDef set = makeDefaultBlock(kStateSet, BlockKind::Action);
+        for (LogicPropertyDef& p : set.properties) {
+            if (p.key == "key") p.value = LogicStringValue{"score"};
+            else if (p.key == "value") p.value = 10.0;
+        }
+        LogicBlockDef add = makeDefaultBlock(kStateAdd, BlockKind::Action);
+        for (LogicPropertyDef& p : add.properties) {
+            if (p.key == "key") p.value = LogicStringValue{"score"};
+            else if (p.key == "amount") p.value = 3.0;
+        }
+        LogicBlockDef sub = makeDefaultBlock(kStateSubtract, BlockKind::Action);
+        for (LogicPropertyDef& p : sub.properties) {
+            if (p.key == "key") p.value = LogicStringValue{"score"};
+            else if (p.key == "amount") p.value = 1.0;
+        }
+        rule.actions = {set, add, sub};
+        board.rules.push_back(rule);
+
+        LogicCompileResult compiled = compileBoard("State", board);
+        CHECK(compiled.ok());
+        Host host;
+        LogicRuntime runtime(host);
+        std::string error;
+        CHECK(runtime.loadPrograms(compiled.programs, &error));
+        CHECK(runtime.install("State", 1, &error).has_value());
+        runtime.beginFrame();
+        runtime.dispatchStart();
+        CHECK(host.state["score"] == 12.0);
+        CHECK(std::count_if(host.calls.begin(), host.calls.end(),
+            [](const std::string& c) { return c.rfind("state_", 0) == 0; }) == 3);
+    }
+    {
+        LogicBoardDef board;
+        board.id = "logic:Compare";
+        LogicRuleDef rule = makeDefaultRule("cmp");
+        rule.trigger = {kKeyPressed, {{"key", LogicKey::Space}}};
+        LogicBlockDef cond = makeDefaultBlock(kStateCompare, BlockKind::Condition);
+        for (LogicPropertyDef& p : cond.properties) {
+            if (p.key == "key") p.value = LogicStringValue{"score"};
+            else if (p.key == "op") p.value = LogicStringValue{">="};
+            else if (p.key == "value") p.value = 5.0;
+        }
+        rule.conditions = {cond};
+        rule.actions[0] = {kSetVisible,
+            {{"target", LogicEntityReference{}}, {"visible", false}}};
+        board.rules.push_back(rule);
+
+        LogicCompileResult compiled = compileBoard("Compare", board);
+        CHECK(compiled.ok());
+        Host host;
+        host.state["score"] = 4.0;
+        LogicRuntime runtime(host);
+        std::string error;
+        CHECK(runtime.loadPrograms(compiled.programs, &error));
+        CHECK(runtime.install("Compare", 1, &error).has_value());
+        runtime.beginFrame();
+        runtime.dispatchKeyPressed(LogicKey::Space);
+        CHECK(host.calls.empty());
+        host.state["score"] = 5.0;
+        runtime.beginFrame();
+        runtime.dispatchKeyPressed(LogicKey::Space);
+        CHECK(host.calls.size() == 1);
+    }
+    {
+        LogicBoardDef board;
+        board.id = "logic:Wait";
+        LogicRuleDef rule = makeDefaultRule("wait");
+        LogicBlockDef wait = makeDefaultBlock(kWait, BlockKind::Action);
+        for (LogicPropertyDef& p : wait.properties) {
+            if (p.key == "seconds") p.value = 0.4;
+        }
+        LogicBlockDef pos = {kSetPosition,
+            {{"target", LogicEntityReference{}}, {"position", Vec2{9.f, 8.f}}}};
+        rule.actions = {wait, pos};
+        board.rules.push_back(rule);
+
+        LogicCompileResult compiled = compileBoard("Wait", board);
+        CHECK(compiled.ok());
+        CHECK(compiled.programs[0].requiresTick);
+        Host host;
+        LogicRuntime runtime(host);
+        std::string error;
+        CHECK(runtime.loadPrograms(compiled.programs, &error));
+        CHECK(runtime.install("Wait", 3, &error).has_value());
+        runtime.beginFrame();
+        runtime.dispatchStart();
+        CHECK(host.calls.empty());
+        runtime.dispatchTick(0.2f);
+        CHECK(host.calls.empty());
+        runtime.dispatchTick(0.3f);
+        CHECK(host.calls.size() == 1);
+        CHECK(host.calls[0] == "position:3:9,8");
+    }
+    {
+        LogicBoardDef board;
+        board.id = "logic:Vel";
+        LogicRuleDef rule = makeDefaultRule("vel");
+        LogicBlockDef vel = makeDefaultBlock(kSetVelocity, BlockKind::Action);
+        for (LogicPropertyDef& p : vel.properties) {
+            if (p.key == "velocity") p.value = Vec2{5.f, -3.f};
+        }
+        rule.actions = {vel};
+        board.rules.push_back(rule);
+
+        LogicCompileResult compiled = compileBoard("Vel", board);
+        CHECK(compiled.ok());
+        Host host;
+        LogicRuntime runtime(host);
+        std::string error;
+        CHECK(runtime.loadPrograms(compiled.programs, &error));
+        CHECK(runtime.install("Vel", 4, &error).has_value());
+        runtime.beginFrame();
+        runtime.dispatchStart();
+        CHECK(host.calls.size() == 1);
+        CHECK(host.calls[0] == "velocity:4:5,-3");
+    }
+}
+
+static void testP1KeyDownCondition() {
+    LogicBoardDef board;
+    board.id = "logic:KeyDown";
+    LogicRuleDef rule = makeDefaultRule("held-gate");
+    rule.trigger = {kKeyPressed, {{"key", LogicKey::Space}}};
+    LogicBlockDef cond = makeDefaultBlock(kKeyDown, BlockKind::Condition);
+    for (LogicPropertyDef& p : cond.properties) {
+        if (p.key == "key") p.value = LogicKey::A;
+    }
+    rule.conditions = {cond};
+    rule.actions[0] = {kSetVisible,
+        {{"target", LogicEntityReference{}}, {"visible", false}}};
+    board.rules.push_back(rule);
+
+    LogicCompileResult compiled = compileBoard("KeyDown", board);
+    CHECK(compiled.ok());
+    CHECK(compiled.programs[0].source.find("is_key_down(\"A\")") != std::string::npos);
+
+    Host host;
+    LogicRuntime runtime(host);
+    std::string error;
+    CHECK(runtime.loadPrograms(compiled.programs, &error));
+    CHECK(runtime.install("KeyDown", 1, &error).has_value());
+    runtime.beginFrame();
+    runtime.dispatchKeyPressed(LogicKey::Space);
+    CHECK(host.calls.empty());
+    host.keyDown = true;
+    runtime.beginFrame();
+    runtime.dispatchKeyPressed(LogicKey::Space);
+    CHECK(host.calls.size() == 1);
+}
+
 int main() {
     testCompilerAndJson();
     testRuntime();
@@ -570,6 +788,9 @@ int main() {
     testIsGroundedCondition();
     testPlaySoundAction();
     testCombinedGameplaySmoke();
+    testP1EverySecondsAndTick();
+    testP1StateAndWaitAndVelocity();
+    testP1KeyDownCondition();
     std::cout << passed << " passed, " << failed << " failed\n";
     return failed == 0 ? 0 : 1;
 }

@@ -112,6 +112,12 @@ bool Application::initSubsystems() {
         *mod_->entityGateway, *mod_->physics, *mod_->variableManager);
     mod_->entityGateway->setPhysics(mod_->physics.get());
     mod_->logicHost->setWorld(mod_->world.get());
+    mod_->logicHost->setVariableManager(mod_->variableManager.get());
+    mod_->logicHost->setInput(mod_->input.get());
+    mod_->logicHost->setPhysics(mod_->physics.get());
+    mod_->logicHost->setSpawnInstaller([this](EntityId id) {
+        installLogicScopeForEntity(id);
+    });
     mod_->world->setSpriteAnimator(mod_->spriteAnimator.get());
     mod_->world->setEntityDestroyedHandler([this](EntityId id) {
         const auto it = mod_->logicScopes.find(id);
