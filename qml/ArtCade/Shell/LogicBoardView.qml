@@ -4,9 +4,9 @@ import QtQuick.Layouts
 import ArtCade.Ui
 
 /**
- * Logic Board workspace — type-targeted rulesheet, compact-first.
- * Rules render as compact rows; the selected rule expands inline.
- * Mutations only via EditorSession Logic commands (single write path).
+ * Logic Board workspace — event sheet for the selected Object Type.
+ * Four body states via StackLayout (no ListView overlay). Mutations only
+ * via EditorSession Logic commands (single write path).
  */
 Rectangle {
     id: root
@@ -16,14 +16,16 @@ Rectangle {
     readonly property bool hasTypeTarget: EditorSession.selectedObjectTypeId.length > 0
     /** UI density preference (presentation only — never dirties the project). */
     property bool comfortable: false
-    /** View state: collapsed section ids ({id: true}) — never dirties the project. */
     property var collapsedSections: ({})
-    /** View state: rule search query (operators: trigger: condition: action: uses: is:). */
     property string searchText: ""
+
+    readonly property int logicOuterPadding: comfortable ? Metrics.spacingMd : Metrics.spacingSm
+    readonly property int logicFooterMargin: comfortable ? Metrics.spacingLg : Metrics.spacingMd
 
     readonly property var searchTokens: logicSearch.parse(searchText)
     readonly property bool filtering: searchTokens.length > 0
     readonly property var searchHighlightTerms: logicSearch.highlightTerms(searchTokens)
+    readonly property int totalLogicCount: EditorSession.logicRuleCount
     readonly property int matchCount: {
         if (!filtering)
             return 0
@@ -35,6 +37,21 @@ Rectangle {
         }
         return n
     }
+    readonly property int filteredLogicCount: filtering ? matchCount : totalLogicCount
+
+    /**
+     * 0 = no target, 1 = empty board, 2 = search no match, 3 = populated.
+     * Derived from authoritative counts — never from filtered model alone.
+     */
+    readonly property int bodyState: {
+        if (!EditorSession.hasProject || !root.hasTypeTarget)
+            return 0
+        if (root.totalLogicCount === 0)
+            return 1
+        if (root.filtering && root.filteredLogicCount === 0)
+            return 2
+        return 3
+    }
 
     function toggleSectionCollapsed(sectionId) {
         const next = {}
@@ -44,13 +61,11 @@ Rectangle {
         collapsedSections = next
     }
 
-    /**
-     * Flattened display list in execution order: contiguous runs of rules
-     * sharing a sectionId become a header + its rules; empty sections render
-     * as headers at the end so they stay renamable/removable. While a search
-     * is active only matching rules render, collapse is ignored (matches stay
-     * visible) and empty sections are hidden.
-     */
+    function clearSearch() {
+        searchField.text = ""
+        root.searchText = ""
+    }
+
     readonly property var displayItems: {
         const rules = EditorSession.logicRules
         const sections = EditorSession.logicSections
@@ -102,6 +117,7 @@ Rectangle {
         anchors.fill: parent
         spacing: 0
 
+        // —— Header: context + secondary tools (no Add Logic) ——
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: headerRow.implicitHeight + Metrics.spacingMd * 2
@@ -125,7 +141,7 @@ Rectangle {
                         text: "Objects / " + EditorSession.selectedObjectTypeName
                         color: Theme.textMuted
                         font.family: Typography.family
-                        font.pixelSize: Typography.sizeXs
+                        font.pixelSize: Typography.sizeMeta
                     }
 
                     Row {
@@ -136,47 +152,40 @@ Rectangle {
                                                      : "Logic Board"
                             color: Theme.textPrimary
                             font.family: Typography.family
-                            font.pixelSize: Typography.sizeLg
+                            font.pixelSize: Typography.sizeObjectTitle
                             font.weight: Font.DemiBold
                         }
 
-                        Rectangle {
+                        Text {
                             visible: root.hasTypeTarget
                             anchors.verticalCenter: parent.verticalCenter
-                            width: badgeText.implicitWidth + Metrics.spacingMd
-                            height: 16
-                            radius: 2
-                            color: Qt.alpha(Theme.accent, 0.16)
-
-                            Text {
-                                id: badgeText
-                                anchors.centerIn: parent
-                                text: "OBJECT TYPE LOGIC"
-                                color: Theme.accent
-                                font.family: Typography.family
-                                font.pixelSize: 9
-                                font.weight: Font.DemiBold
-                                font.letterSpacing: 0.5
-                            }
+                            text: "· OBJECT TYPE LOGIC"
+                            color: Theme.textMuted
+                            font.family: Typography.family
+                            font.pixelSize: Typography.sizeMeta
+                            font.weight: Font.DemiBold
+                            font.letterSpacing: 0.4
                         }
                     }
 
                     Text {
                         text: {
                             if (!EditorSession.hasProject)
-                                return "Open a project to author gameplay rules"
+                                return "Create or open a project to author logic"
                             if (!root.hasTypeTarget)
-                                return "Select a scene object — rules apply to its object type"
-                            const rules = EditorSession.logicRuleCount
+                                return "Select an Object Type to edit its logic"
+                            const n = root.totalLogicCount
                             if (root.filtering)
-                                return root.matchCount + " of " + rules + " rules match"
-                            const ruleLabel = rules === 1 ? "1 rule" : (rules + " rules")
+                                return root.matchCount + " of " + n
+                                       + (n === 1 ? " logic item" : " logic items")
+                                       + " match"
+                            const label = n === 1 ? "1 logic item" : (n + " logic items")
                             return "Applies to all " + EditorSession.selectedObjectTypeName
-                                   + " instances  ·  " + ruleLabel
+                                   + " instances  ·  " + label
                         }
                         color: Theme.textSecondary
                         font.family: Typography.family
-                        font.pixelSize: Typography.sizeXs
+                        font.pixelSize: Typography.sizeMeta
                         elide: Text.ElideRight
                         width: parent.width
                     }
@@ -187,13 +196,12 @@ Rectangle {
                     text: "Selected instance: " + EditorSession.selectedName
                     color: Theme.textMuted
                     font.family: Typography.family
-                    font.pixelSize: Typography.sizeXs
+                    font.pixelSize: Typography.sizeMeta
                     ToolTip.visible: instanceMa.containsMouse
                     ToolTip.delay: 400
                     ToolTip.text: "This logic is shared by every " +
                                   EditorSession.selectedObjectTypeName +
                                   " instance. Runtime variables stay per-instance."
-
                     MouseArea {
                         id: instanceMa
                         anchors.fill: parent
@@ -202,11 +210,26 @@ Rectangle {
                     }
                 }
 
+                AcTextField {
+                    id: searchField
+                    visible: root.hasTypeTarget
+                    Layout.preferredWidth: 230
+                    placeholderText: "Search logic…"
+                    font.pixelSize: Typography.sizeToolbar
+                    onTextChanged: root.searchText = text
+                    Keys.onEscapePressed: root.clearSearch()
+                    ToolTip.visible: hovered && !activeFocus
+                    ToolTip.delay: 600
+                    ToolTip.text: "Filters logic items. Operators: trigger:x  "
+                                  + "condition:x  action:\"Play Sound\"  uses:value  "
+                                  + "is:disabled|enabled|error|warning. Esc clears."
+                }
+
                 Rectangle {
                     visible: root.hasTypeTarget
                     Layout.preferredWidth: densityRow.implicitWidth + 2
                     Layout.preferredHeight: Metrics.controlHeight - 4
-                    radius: Metrics.radiusSmall
+                    radius: Metrics.radiusControl
                     color: Theme.control
                     border.width: 1
                     border.color: Theme.borderSubtle
@@ -217,7 +240,6 @@ Rectangle {
 
                         Repeater {
                             model: ["Compact", "Comfortable"]
-
                             delegate: Rectangle {
                                 id: densityItem
                                 required property string modelData
@@ -227,7 +249,7 @@ Rectangle {
                                     comfortableChoice === root.comfortable
                                 width: densityLabel.implicitWidth + Metrics.spacingMd * 2
                                 height: Metrics.controlHeight - 6
-                                radius: Metrics.radiusSmall
+                                radius: Metrics.radiusControl
                                 color: active ? Theme.selection
                                      : densityMa.containsMouse ? Theme.controlHover
                                      : "transparent"
@@ -239,7 +261,7 @@ Rectangle {
                                     color: densityItem.active ? Theme.textPrimary
                                                               : Theme.textSecondary
                                     font.family: Typography.family
-                                    font.pixelSize: Typography.sizeXs
+                                    font.pixelSize: Typography.sizeToolbar
                                 }
 
                                 MouseArea {
@@ -254,22 +276,6 @@ Rectangle {
                     }
                 }
 
-                AcTextField {
-                    id: searchField
-                    visible: root.hasTypeTarget
-                    Layout.preferredWidth: 230
-                    placeholderText: "Search rules…"
-                    font.pixelSize: Typography.sizeXs
-                    onTextChanged: root.searchText = text
-                    Keys.onEscapePressed: text = ""
-                    ToolTip.visible: hovered && !activeFocus
-                    ToolTip.delay: 600
-                    ToolTip.text: "Filters rules as you type. Operators: trigger:x  "
-                                  + "condition:x  action:\"Play Sound\"  uses:value  "
-                                  + "is:disabled|enabled|error|warning. "
-                                  + "Terms are ANDed; Esc clears."
-                }
-
                 AcButton {
                     text: "+ Section"
                     enabled: EditorSession.hasProject && root.hasTypeTarget
@@ -277,19 +283,8 @@ Rectangle {
                     onClicked: EditorSession.addLogicSection()
                     ToolTip.visible: hovered
                     ToolTip.delay: 400
-                    ToolTip.text: "Add a display section — group rules for readability "
+                    ToolTip.text: "Add a display section — group logic for readability "
                                   + "(never changes execution order)"
-                }
-
-                AcButton {
-                    text: "+ Add Rule"
-                    primary: true
-                    enabled: EditorSession.hasProject && root.hasTypeTarget
-                             && !EditorSession.playing
-                    onClicked: EditorSession.addLogicRule()
-                    ToolTip.visible: hovered
-                    ToolTip.delay: 400
-                    ToolTip.text: "Add a default When / Then rule on this object type"
                 }
             }
 
@@ -302,47 +297,187 @@ Rectangle {
             }
         }
 
-        ListView {
-            id: rulesList
+        // —— Body: exclusive states (no overlay on ListView) ——
+        StackLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            Layout.margins: Metrics.spacingMd
-            clip: true
-            visible: EditorSession.hasProject && root.hasTypeTarget
-            model: root.displayItems
-            spacing: Metrics.spacingSm
-            boundsBehavior: Flickable.StopAtBounds
-            ScrollBar.vertical: ScrollBar {
-                policy: ScrollBar.AsNeeded
+            currentIndex: root.bodyState
+
+            // 0 — No Object Type
+            Item {
+                Column {
+                    anchors.centerIn: parent
+                    width: Math.min(parent.width - Metrics.spacingXl * 2, 360)
+                    spacing: Metrics.spacingSm
+
+                    Text {
+                        width: parent.width
+                        horizontalAlignment: Text.AlignHCenter
+                        text: "Select an Object Type"
+                        color: Theme.textPrimary
+                        font.family: Typography.family
+                        font.pixelSize: Typography.sizeObjectTitle
+                        font.weight: Font.DemiBold
+                    }
+                    Text {
+                        width: parent.width
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.WordWrap
+                        text: "Choose an instance or Object Type to edit its logic."
+                        color: Theme.textSecondary
+                        font.family: Typography.family
+                        font.pixelSize: Typography.sizeBody
+                    }
+                }
             }
 
-            delegate: Loader {
-                id: displayLoader
-                required property var modelData
-                width: rulesList.width
-                sourceComponent: modelData.kind === "header" ? sectionHeaderComponent
-                                                             : ruleCardComponent
+            // 1 — Empty board
+            Item {
+                Column {
+                    anchors.centerIn: parent
+                    width: Math.min(parent.width - Metrics.spacingXl * 2, 400)
+                    spacing: Metrics.spacingMd
+
+                    Text {
+                        width: parent.width
+                        horizontalAlignment: Text.AlignHCenter
+                        text: "No logic yet"
+                        color: Theme.textPrimary
+                        font.family: Typography.family
+                        font.pixelSize: Typography.sizeObjectTitle
+                        font.weight: Font.DemiBold
+                    }
+                    Text {
+                        width: parent.width
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.WordWrap
+                        text: "Add your first logic to define how "
+                              + EditorSession.selectedObjectTypeName + " behaves."
+                        color: Theme.textSecondary
+                        font.family: Typography.family
+                        font.pixelSize: Typography.sizeBody
+                    }
+                    Column {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        spacing: 2
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: "WHEN something happens"
+                            color: Theme.textMuted
+                            font.family: Typography.family
+                            font.pixelSize: Typography.sizeMeta
+                        }
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: "IF optional conditions are true"
+                            color: Theme.textMuted
+                            font.family: Typography.family
+                            font.pixelSize: Typography.sizeMeta
+                        }
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: "THEN perform one or more actions"
+                            color: Theme.textMuted
+                            font.family: Typography.family
+                            font.pixelSize: Typography.sizeMeta
+                        }
+                    }
+                    AcButton {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: 160
+                        text: "+ Add Logic"
+                        primary: true
+                        enabled: !EditorSession.playing
+                        onClicked: EditorSession.addLogicRule()
+                    }
+                }
             }
 
-            AcEmptyHint {
-                visible: EditorSession.logicRuleCount === 0
-                         && EditorSession.logicSections.length === 0
-                message: "No logic yet"
-                hint: "Add your first logic block — When something happens, Then perform actions"
+            // 2 — Search no match
+            Item {
+                Column {
+                    anchors.centerIn: parent
+                    width: Math.min(parent.width - Metrics.spacingXl * 2, 400)
+                    spacing: Metrics.spacingMd
+
+                    Text {
+                        width: parent.width
+                        horizontalAlignment: Text.AlignHCenter
+                        text: "No matching logic"
+                        color: Theme.textPrimary
+                        font.family: Typography.family
+                        font.pixelSize: Typography.sizeObjectTitle
+                        font.weight: Font.DemiBold
+                    }
+                    Text {
+                        width: parent.width
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.WordWrap
+                        text: "No logic matches \"" + root.searchText + "\"."
+                        color: Theme.textSecondary
+                        font.family: Typography.family
+                        font.pixelSize: Typography.sizeBody
+                    }
+                    Row {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        spacing: Metrics.spacingSm
+                        AcButton {
+                            text: "Clear Search"
+                            onClicked: root.clearSearch()
+                        }
+                        AcButton {
+                            width: 160
+                            text: "+ Add Logic"
+                            primary: true
+                            enabled: !EditorSession.playing
+                            onClicked: EditorSession.addLogicRule()
+                        }
+                    }
+                }
             }
-        }
 
-        Item {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            visible: !EditorSession.hasProject || !root.hasTypeTarget
+            // 3 — Populated list + footer CTA
+            ListView {
+                id: rulesList
+                clip: true
+                model: root.displayItems
+                spacing: Metrics.spacingSm
+                boundsBehavior: Flickable.StopAtBounds
+                topMargin: root.logicOuterPadding
+                leftMargin: root.logicOuterPadding
+                rightMargin: root.logicOuterPadding
+                bottomMargin: root.logicFooterMargin
+                ScrollBar.vertical: ScrollBar {
+                    policy: ScrollBar.AsNeeded
+                }
 
-            AcEmptyHint {
-                message: !EditorSession.hasProject ? "No project"
-                                                   : "No object type selected"
-                hint: !EditorSession.hasProject
-                      ? "Create or open a project, then select an object"
-                      : "Pick an object in Hierarchy or on the Canvas — logic belongs to the type"
+                delegate: Loader {
+                    id: displayLoader
+                    required property var modelData
+                    width: rulesList.width - root.logicOuterPadding * 2
+                    sourceComponent: modelData.kind === "header" ? sectionHeaderComponent
+                                                                 : ruleCardComponent
+                }
+
+                footer: Item {
+                    width: rulesList.width - root.logicOuterPadding * 2
+                    implicitHeight: addLogicFooter.visible
+                                    ? (addLogicFooter.implicitHeight + root.logicFooterMargin * 2)
+                                    : 0
+                    height: implicitHeight
+
+                    AcButton {
+                        id: addLogicFooter
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 160
+                        text: "+ Add Logic"
+                        primary: true
+                        visible: true
+                        enabled: !EditorSession.playing
+                        onClicked: EditorSession.addLogicRule()
+                    }
+                }
             }
         }
     }
@@ -438,7 +573,19 @@ Rectangle {
         }
 
         AcMenuItem {
-            text: "Delete rule"
+            text: "Duplicate Logic"
+            enabled: false
+        }
+        AcMenuItem {
+            text: "Move Up"
+            enabled: false
+        }
+        AcMenuItem {
+            text: "Move Down"
+            enabled: false
+        }
+        AcMenuItem {
+            text: "Delete Logic"
             enabled: !EditorSession.playing
             onTriggered: EditorSession.removeLogicRule(ruleMenu.targetRuleId)
         }

@@ -4,22 +4,17 @@ import QtQuick.Layouts
 import ArtCade.Ui
 
 /**
- * One Logic rule as a compact row that expands inline when selected.
- * Presentation only — mutations are emitted as signals; the parent routes
- * them to EditorSession commands (single write path).
+ * One Logic item as an event-sheet card.
+ * Collapsed: Logic NN · Trigger → Action. Expanded: Logic NN + WHEN|IF|THEN body.
+ * Presentation only — mutations via signals → EditorSession.
  */
 Rectangle {
     id: root
 
-    /** Summary map from EditorSession.logicRules ({id, enabled, trigger…}). */
     property var rule: ({})
-    /** Zero-based execution index; rendered as the 1-based order number. */
     property int orderIndex: 0
-    /** Selected rule — shows the inline When / Conditions / Then editor. */
     property bool expanded: false
-    /** Comfortable density: conditions and actions on their own lines. */
     property bool comfortable: false
-    /** Active search terms — matches inside summaries render accent-colored. */
     property var searchTerms: []
 
     signal selectRequested()
@@ -37,19 +32,27 @@ Rectangle {
     readonly property var triggerProperties: rule.triggerProperties || []
     readonly property var conditionProperties: rule.conditionProperties || []
     readonly property var actionProperties: rule.actionProperties || []
-    readonly property int maxPropertyCount: Math.max(
-        triggerProperties.length,
-        conditionProperties.length,
-        actionProperties.length)
     readonly property real summaryOpacity: ruleEnabled ? 1.0 : 0.45
-
     readonly property bool highlighting: searchTerms && searchTerms.length > 0
 
-    /**
-     * HTML-escapes @p text and wraps search-term matches in accent color.
-     * Used with Text.StyledText only while a search is active (elide needs
-     * plain text, so idle summaries stay plain).
-     */
+    readonly property int logicOuterPadding: comfortable ? Metrics.spacingMd : Metrics.spacingSm
+    readonly property int logicSectionSpacing: comfortable ? Metrics.spacingMd : Metrics.spacingSm
+    readonly property string logicLabel: "Logic "
+            + String(root.orderIndex + 1).padStart(2, "0")
+    readonly property string collapsedSummary: {
+        const trigger = EditorSession.logicBlockDisplayName(root.rule.triggerTypeId || "")
+        const action = root.actionIds.length > 0
+                       ? EditorSession.logicBlockDisplayName(root.actionIds[0])
+                       : ""
+        if (trigger.length === 0 && action.length === 0)
+            return root.logicLabel
+        if (action.length === 0)
+            return root.logicLabel + " · " + trigger
+        return root.logicLabel + " · " + trigger + " → " + action
+    }
+    /** Stack WHEN/IF/THEN below this width (Inspector open / narrow center). */
+    readonly property bool stackedColumns: width > 0 && width < 720
+
     function highlightText(text) {
         if (!highlighting)
             return text
@@ -68,39 +71,13 @@ Rectangle {
         return out.replace(re, "<font color=\"" + Theme.accent + "\">$1</font>")
     }
 
-    /** " · <value>" suffix from the primary block's first authorable property. */
-    function primaryDetail(props) {
-        if (!props || props.length === 0)
-            return ""
-        const row = props[0]
-        const label = String(row.valueLabel !== undefined ? row.valueLabel : row.value)
-        return label.length > 0 ? " · " + label : ""
-    }
-
-    /**
-     * Joins display names, capping at @p max entries plus a "+N more" tail.
-     * The first (primary) entry carries its leading property value.
-     */
-    function blockSummary(ids, max, primaryProps) {
-        const shown = Math.min(ids.length, max)
-        const parts = []
-        for (let i = 0; i < shown; ++i) {
-            let name = EditorSession.logicBlockDisplayName(ids[i])
-            if (i === 0)
-                name += primaryDetail(primaryProps)
-            parts.push(name)
-        }
-        if (ids.length > shown)
-            parts.push("+" + (ids.length - shown) + " more")
-        return parts.join(" · ")
-    }
-
     implicitHeight: cardColumn.implicitHeight
     radius: Metrics.radiusCard
     color: expanded ? Theme.panelRaised
                     : (cardMa.containsMouse ? Theme.controlHover : Theme.control)
     border.width: 1
     border.color: expanded ? Theme.border : Theme.borderSubtle
+    clip: true
 
     MouseArea {
         id: cardMa
@@ -115,12 +92,10 @@ Rectangle {
     }
 
     Rectangle {
-        // Selection marker: 2px accent bar, no bright full border.
         anchors.left: parent.left
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         width: 2
-        radius: 1
         color: Theme.accent
         visible: root.expanded
     }
@@ -131,10 +106,11 @@ Rectangle {
         anchors.right: parent.right
         spacing: 0
 
+        // —— Header ——
         RowLayout {
             Layout.fillWidth: true
             Layout.preferredHeight: 36
-            Layout.leftMargin: Metrics.spacingMd
+            Layout.leftMargin: root.logicOuterPadding
             Layout.rightMargin: Metrics.spacingXs
             spacing: Metrics.spacingSm
 
@@ -151,7 +127,7 @@ Rectangle {
                     anchors.centerIn: parent
                     width: 14
                     height: 14
-                    radius: 3
+                    radius: Metrics.radiusControl
                     color: "transparent"
                     border.width: 1
                     border.color: toggleMa.containsMouse ? Theme.accent : Theme.border
@@ -176,14 +152,6 @@ Rectangle {
             }
 
             Text {
-                text: String(root.orderIndex + 1).padStart(2, "0")
-                color: Theme.textMuted
-                font.family: Typography.familyMono
-                font.pixelSize: Typography.sizeXs
-                opacity: root.summaryOpacity
-            }
-
-            Text {
                 visible: (root.rule.errorCount || 0) > 0 || (root.rule.warningCount || 0) > 0
                 text: "⚠"
                 color: (root.rule.errorCount || 0) > 0 ? Theme.error : Theme.warning
@@ -197,7 +165,6 @@ Rectangle {
                         parts.push(rows[i].severity + ": " + rows[i].message)
                     return parts.join("\n")
                 }
-
                 MouseArea {
                     id: diagMa
                     anchors.fill: parent
@@ -207,118 +174,96 @@ Rectangle {
             }
 
             Text {
+                Layout.fillWidth: true
                 text: root.highlightText(
-                          EditorSession.logicBlockDisplayName(root.rule.triggerTypeId || "")
-                          + root.primaryDetail(root.triggerProperties))
+                          root.expanded ? root.logicLabel : root.collapsedSummary)
                 textFormat: root.highlighting ? Text.StyledText : Text.PlainText
                 color: Theme.textPrimary
                 font.family: Typography.family
-                font.pixelSize: Typography.sizeSm
+                font.pixelSize: Typography.sizeBody
                 font.weight: Font.DemiBold
                 elide: Text.ElideRight
-                Layout.maximumWidth: 260
                 opacity: root.summaryOpacity
             }
 
-            Text {
-                visible: !root.comfortable && !root.expanded && root.conditionIds.length > 0
-                text: root.highlightText(
-                          "IF " + root.blockSummary(root.conditionIds, 2,
-                                                    root.conditionProperties))
-                textFormat: root.highlighting ? Text.StyledText : Text.PlainText
-                color: Theme.textSecondary
-                font.family: Typography.family
-                font.pixelSize: Typography.sizeXs
-                elide: Text.ElideRight
-                Layout.maximumWidth: 260
-                opacity: root.summaryOpacity
-            }
-
-            Text {
-                visible: !root.comfortable && !root.expanded && root.actionIds.length > 0
-                Layout.fillWidth: true
-                text: root.highlightText(
-                          "DO " + root.blockSummary(root.actionIds, 3,
-                                                    root.actionProperties))
-                textFormat: root.highlighting ? Text.StyledText : Text.PlainText
-                color: Theme.textSecondary
-                font.family: Typography.family
-                font.pixelSize: Typography.sizeXs
-                elide: Text.ElideRight
-                opacity: root.summaryOpacity
-            }
-
-            Item {
-                Layout.fillWidth: true
-                visible: root.comfortable || root.expanded || root.actionIds.length === 0
-            }
-
-            AcToolButton {
-                iconSource: Icons.close
-                implicitWidth: 22
-                implicitHeight: 22
-                visible: cardMa.containsMouse || hovered || root.expanded
+            // Overflow — Delete Logic wired; Duplicate/Move coming next
+            Button {
+                id: overflowBtn
+                flat: true
+                text: "⋯"
+                implicitWidth: 28
+                implicitHeight: 28
                 enabled: !EditorSession.playing
-                ToolTip.visible: hovered
-                ToolTip.delay: 400
-                ToolTip.text: "Delete this rule (undoable)"
-                onClicked: root.deleteRequested()
+                onClicked: {
+                    root.selectRequested()
+                    overflowMenu.open()
+                }
+
+                contentItem: Text {
+                    text: overflowBtn.text
+                    color: Theme.textSecondary
+                    font.pixelSize: Typography.sizeObjectTitle
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+                background: Rectangle {
+                    radius: Metrics.radiusControl
+                    color: overflowBtn.hovered ? Theme.controlHover : "transparent"
+                }
+
+                AcMenu {
+                    id: overflowMenu
+                    AcMenuItem {
+                        text: "Duplicate Logic"
+                        enabled: false
+                        ToolTip.visible: hovered
+                        ToolTip.text: "Coming next"
+                    }
+                    AcMenuItem {
+                        text: "Move Up"
+                        enabled: false
+                        ToolTip.visible: hovered
+                        ToolTip.text: "Coming next"
+                    }
+                    AcMenuItem {
+                        text: "Move Down"
+                        enabled: false
+                        ToolTip.visible: hovered
+                        ToolTip.text: "Coming next"
+                    }
+                    AcMenuItem {
+                        text: "Delete Logic"
+                        enabled: !EditorSession.playing
+                        onTriggered: root.deleteRequested()
+                    }
+                }
             }
         }
 
-        ColumnLayout {
+        // —— Expanded body: WHEN | IF | THEN ——
+        Loader {
             Layout.fillWidth: true
-            Layout.leftMargin: Metrics.spacingMd + 16 + Metrics.spacingSm
-            Layout.rightMargin: Metrics.spacingMd
-            Layout.bottomMargin: Metrics.spacingSm
-            spacing: 2
-            visible: root.comfortable && !root.expanded
-
-            Text {
-                visible: root.conditionIds.length > 0
-                Layout.fillWidth: true
-                text: root.highlightText(
-                          "IF " + root.blockSummary(root.conditionIds, 3,
-                                                    root.conditionProperties))
-                textFormat: root.highlighting ? Text.StyledText : Text.PlainText
-                color: Theme.textSecondary
-                font.family: Typography.family
-                font.pixelSize: Typography.sizeXs
-                elide: Text.ElideRight
-                opacity: root.summaryOpacity
-            }
-            Text {
-                visible: root.actionIds.length > 0
-                Layout.fillWidth: true
-                text: root.highlightText(
-                          "DO " + root.blockSummary(root.actionIds, 3,
-                                                    root.actionProperties))
-                textFormat: root.highlighting ? Text.StyledText : Text.PlainText
-                color: Theme.textSecondary
-                font.family: Typography.family
-                font.pixelSize: Typography.sizeXs
-                elide: Text.ElideRight
-                opacity: root.summaryOpacity
-            }
-        }
-
-        RowLayout {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 190 + root.maxPropertyCount * 44
             Layout.leftMargin: Metrics.spacingXs
             Layout.rightMargin: Metrics.spacingXs
-            Layout.bottomMargin: Metrics.spacingXs
+            Layout.bottomMargin: root.logicOuterPadding
+            active: root.expanded
+            sourceComponent: root.stackedColumns ? stackedBody : rowBody
+        }
+    }
+
+    Component {
+        id: rowBody
+        RowLayout {
             spacing: 0
-            visible: root.expanded
+            width: root.width - Metrics.spacingXs * 2
 
             AcLogicColumn {
                 Layout.fillWidth: true
-                Layout.fillHeight: true
-                title: "When"
+                Layout.alignment: Qt.AlignTop
+                slotKind: "trigger"
+                title: "WHEN"
                 subtitle: "Trigger"
-                accent: Theme.accent
-                emptyText: "No trigger"
-                boardHasRules: true
+                comfortable: root.comfortable
                 blocks: (root.rule.triggerTypeId || "").length > 0
                         ? [root.rule.triggerTypeId] : []
                 editable: true
@@ -330,24 +275,21 @@ Rectangle {
                     root.propertyEdited("trigger", key, value)
                 }
             }
-
             Rectangle {
                 Layout.fillHeight: true
                 Layout.preferredWidth: 1
+                Layout.minimumHeight: 48
                 color: Theme.borderSubtle
             }
-
             AcLogicColumn {
                 Layout.fillWidth: true
-                Layout.fillHeight: true
-                title: "Also require…"
+                Layout.alignment: Qt.AlignTop
+                slotKind: "condition"
+                title: "IF"
                 subtitle: "Conditions (optional)"
-                accent: Theme.warning
-                emptyText: "None — this rule always runs when the trigger fires"
-                boardHasRules: true
+                comfortable: root.comfortable
                 blocks: root.conditionIds
                 editable: true
-                allowNone: true
                 catalogTypeIds: EditorSession.logicConditionCatalog
                 currentTypeId: root.conditionIds.length > 0 ? root.conditionIds[0] : ""
                 propertyRows: root.conditionProperties
@@ -356,21 +298,87 @@ Rectangle {
                     root.propertyEdited("condition", key, value)
                 }
             }
-
             Rectangle {
                 Layout.fillHeight: true
                 Layout.preferredWidth: 1
+                Layout.minimumHeight: 48
                 color: Theme.borderSubtle
             }
+            AcLogicColumn {
+                Layout.fillWidth: true
+                Layout.alignment: Qt.AlignTop
+                slotKind: "action"
+                title: "THEN"
+                subtitle: "Actions"
+                comfortable: root.comfortable
+                blocks: root.actionIds
+                editable: true
+                catalogTypeIds: EditorSession.logicActionCatalog
+                currentTypeId: root.actionIds.length > 0 ? root.actionIds[0] : ""
+                propertyRows: root.actionProperties
+                onTypeChosen: function(typeId) { root.actionChosen(typeId) }
+                onPropertyEdited: function(key, value) {
+                    root.propertyEdited("action", key, value)
+                }
+            }
+        }
+    }
+
+    Component {
+        id: stackedBody
+        ColumnLayout {
+            spacing: 0
+            width: root.width - Metrics.spacingXs * 2
 
             AcLogicColumn {
                 Layout.fillWidth: true
-                Layout.fillHeight: true
-                title: "Then"
+                slotKind: "trigger"
+                title: "WHEN"
+                subtitle: "Trigger"
+                comfortable: root.comfortable
+                blocks: (root.rule.triggerTypeId || "").length > 0
+                        ? [root.rule.triggerTypeId] : []
+                editable: true
+                catalogTypeIds: EditorSession.logicTriggerCatalog
+                currentTypeId: root.rule.triggerTypeId || ""
+                propertyRows: root.triggerProperties
+                onTypeChosen: function(typeId) { root.triggerChosen(typeId) }
+                onPropertyEdited: function(key, value) {
+                    root.propertyEdited("trigger", key, value)
+                }
+            }
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 1
+                color: Theme.borderSubtle
+            }
+            AcLogicColumn {
+                Layout.fillWidth: true
+                slotKind: "condition"
+                title: "IF"
+                subtitle: "Conditions (optional)"
+                comfortable: root.comfortable
+                blocks: root.conditionIds
+                editable: true
+                catalogTypeIds: EditorSession.logicConditionCatalog
+                currentTypeId: root.conditionIds.length > 0 ? root.conditionIds[0] : ""
+                propertyRows: root.conditionProperties
+                onTypeChosen: function(typeId) { root.conditionChosen(typeId) }
+                onPropertyEdited: function(key, value) {
+                    root.propertyEdited("condition", key, value)
+                }
+            }
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 1
+                color: Theme.borderSubtle
+            }
+            AcLogicColumn {
+                Layout.fillWidth: true
+                slotKind: "action"
+                title: "THEN"
                 subtitle: "Actions"
-                accent: Theme.success
-                emptyText: "No actions — this rule has no effect"
-                boardHasRules: true
+                comfortable: root.comfortable
                 blocks: root.actionIds
                 editable: true
                 catalogTypeIds: EditorSession.logicActionCatalog

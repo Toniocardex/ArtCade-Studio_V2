@@ -4,253 +4,276 @@ import QtQuick.Layouts
 import ArtCade.Ui
 
 /**
- * One Logic Board column (When / Also require / Then) — presentation + optional catalog picker.
- * Mutations are emitted as typeChosen; parent routes to EditorSession commands.
+ * One Logic Board column (WHEN / IF / THEN) — flat event-sheet cell.
+ * No nested card chrome; Column+Repeater (never a nested ListView).
+ * Slot-specific anti-duplication: trigger = single ComboBox; IF empty =
+ * compact empty + Add Condition; THEN = one editable unit per primary action.
  */
 Item {
     id: root
 
+    /** "trigger" | "condition" | "action" — drives empty/picker rules. */
+    property string slotKind: "trigger"
     property string title: ""
     property string subtitle: ""
-    property color accent: Theme.accent
-    property string emptyText: "Empty"
-    property string boardEmptyHint: "Add a rule to start"
-    property bool boardHasRules: false
+    property bool comfortable: false
+    property bool showDescriptions: comfortable
     property var blocks: []
     property bool editable: false
     property var catalogTypeIds: []
     property string currentTypeId: ""
-    /** When true, ComboBox includes an empty entry meaning “no condition”. */
-    property bool allowNone: false
-    property string noneLabel: "None (always)"
-    /**
-     * Authorable property rows for the primary block:
-     * [{ key, kind, value }, ...] from EditorSession.logicRules.
-     */
     property var propertyRows: []
+    /** Local: after "+ Add Condition" until a type is chosen or cancelled. */
+    property bool pickingCondition: false
 
-    readonly property var comboModel: {
-        if (!root.allowNone)
-            return root.catalogTypeIds
-        const out = [""]
-        for (let i = 0; i < root.catalogTypeIds.length; ++i)
-            out.push(root.catalogTypeIds[i])
-        return out
-    }
+    readonly property int columnPadding: comfortable ? Metrics.spacingMd : Metrics.spacingXs
+    readonly property int rowSpacing: comfortable ? Metrics.spacingSm : Metrics.spacingXs
+
+    readonly property bool isTrigger: slotKind === "trigger"
+    readonly property bool isCondition: slotKind === "condition"
+    readonly property bool isAction: slotKind === "action"
+    readonly property bool hasBlocks: blocks && blocks.length > 0
+    readonly property bool showEmptyCondition: isCondition && !hasBlocks && !pickingCondition
+    readonly property bool showTypePicker: editable && catalogTypeIds.length > 0
+            && (isTrigger || isAction || (isCondition && (hasBlocks || pickingCondition)))
+
+    /** Catalog model — IF empty-picker has no leading "None" entry. */
+    readonly property var comboModel: catalogTypeIds
 
     signal typeChosen(string typeId)
     signal propertyEdited(string propertyKey, string valueText)
 
+    implicitHeight: col.implicitHeight + columnPadding * 2
+    implicitWidth: 120
+
     function labelForTypeId(typeId) {
         if (!typeId || typeId.length === 0)
-            return root.noneLabel
+            return "—"
         return EditorSession.logicBlockDisplayName(typeId)
     }
 
     function descriptionForTypeId(typeId) {
         if (!typeId || typeId.length === 0)
-            return "Always true — no extra check required"
+            return ""
         return EditorSession.logicBlockDescription(typeId)
     }
 
     ColumnLayout {
-        anchors.fill: parent
-        anchors.margins: Metrics.spacingMd
-        spacing: Metrics.spacingSm
+        id: col
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.margins: root.columnPadding
+        spacing: root.rowSpacing
 
-        RowLayout {
-            spacing: Metrics.spacingSm
+        Column {
             Layout.fillWidth: true
+            spacing: 1
 
-            Rectangle {
-                width: 3
-                height: 14
-                radius: 1
-                color: root.accent
+            Text {
+                text: root.title
+                color: Theme.textPrimary
+                font.family: Typography.family
+                font.pixelSize: Typography.sizePanelTitle
+                font.weight: Font.DemiBold
             }
-            Column {
-                Layout.fillWidth: true
-                spacing: 1
-                Text {
-                    text: root.title
-                    color: Theme.textPrimary
-                    font.family: Typography.family
-                    font.pixelSize: Typography.sizeSm
-                    font.weight: Font.DemiBold
+            Text {
+                visible: root.comfortable && root.subtitle.length > 0
+                text: root.subtitle
+                color: Theme.textMuted
+                font.family: Typography.family
+                font.pixelSize: Typography.sizeMeta
+            }
+        }
+
+        // IF empty — compact, no "None (always)" combo
+        Column {
+            Layout.fillWidth: true
+            spacing: Metrics.spacingXs
+            visible: root.showEmptyCondition
+
+            Text {
+                width: parent.width
+                text: "No conditions"
+                color: Theme.textSecondary
+                font.family: Typography.family
+                font.pixelSize: Typography.sizeBody
+                font.weight: Font.DemiBold
+            }
+            Text {
+                width: parent.width
+                wrapMode: Text.WordWrap
+                text: "Runs whenever the event occurs."
+                color: Theme.textMuted
+                font.family: Typography.family
+                font.pixelSize: Typography.sizeMeta
+            }
+            AcButton {
+                text: "+ Add Condition"
+                enabled: !EditorSession.playing
+                onClicked: root.pickingCondition = true
+            }
+        }
+
+        // Trigger / Action / Condition-with-type: single ComboBox (no chip list)
+        ComboBox {
+            id: catalogBox
+            Layout.fillWidth: true
+            visible: root.showTypePicker
+            model: root.comboModel
+            enabled: !EditorSession.playing
+            palette.mid: Theme.panel
+            palette.window: Theme.panel
+            palette.base: Theme.panel
+            palette.button: Theme.panelRaised
+            palette.highlight: Theme.controlHover
+            palette.highlightedText: Theme.textPrimary
+            palette.text: Theme.textPrimary
+            palette.buttonText: Theme.textPrimary
+
+            contentItem: Text {
+                leftPadding: Metrics.spacingSm
+                rightPadding: catalogBox.indicator.width + Metrics.spacingSm
+                text: root.labelForTypeId(catalogBox.displayText)
+                color: Theme.textPrimary
+                font.family: Typography.family
+                font.pixelSize: Typography.sizeBody
+                verticalAlignment: Text.AlignVCenter
+                elide: Text.ElideRight
+            }
+
+            background: Rectangle {
+                implicitHeight: Metrics.controlHeight
+                radius: Metrics.radiusControl
+                color: catalogBox.hovered ? Theme.controlHover : Theme.control
+                border.color: catalogBox.popup.visible ? Theme.accent : Theme.borderSubtle
+                border.width: 1
+            }
+
+            popup: Popup {
+                y: catalogBox.height + 2
+                width: Math.max(catalogBox.width, 220)
+                implicitHeight: Math.min(contentItem.implicitHeight + 8, 300)
+                padding: 4
+                closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutsideParent
+
+                contentItem: ListView {
+                    clip: true
+                    implicitHeight: contentHeight
+                    boundsBehavior: Flickable.StopAtBounds
+                    model: catalogBox.popup.visible ? catalogBox.delegateModel : null
+                    currentIndex: catalogBox.highlightedIndex
+                    ScrollIndicator.vertical: ScrollIndicator {}
+                    spacing: 2
                 }
-                Text {
-                    text: root.subtitle
-                    color: Theme.textMuted
+
+                background: Rectangle {
+                    color: Theme.selection
+                    border.color: Theme.borderStrong
+                    border.width: 1
+                    radius: Metrics.radiusCard
+                }
+            }
+
+            delegate: AcLogicCatalogItem {
+                required property string modelData
+                required property int index
+                width: ListView.view ? ListView.view.width : catalogBox.width
+                typeId: modelData
+                title: root.labelForTypeId(modelData)
+                description: root.showDescriptions ? root.descriptionForTypeId(modelData) : ""
+                isCurrent: (modelData || "") === (root.currentTypeId || "")
+                highlighted: catalogBox.highlightedIndex === index
+            }
+
+            Component.onCompleted: syncIndex()
+            onActivated: function(index) {
+                const id = root.comboModel[index]
+                const current = root.currentTypeId || ""
+                if (id !== current)
+                    root.typeChosen(id)
+                root.pickingCondition = false
+            }
+
+            function syncIndex() {
+                const current = root.currentTypeId || ""
+                const i = root.comboModel.indexOf(current)
+                if (i >= 0)
+                    catalogBox.currentIndex = i
+                else if (root.pickingCondition)
+                    catalogBox.currentIndex = -1
+            }
+        }
+
+        // Extra THEN actions beyond the primary — label only (API edits primary)
+        Column {
+            Layout.fillWidth: true
+            spacing: root.rowSpacing
+            visible: root.isAction && root.blocks.length > 1
+
+            Repeater {
+                model: {
+                    const out = []
+                    for (let i = 1; i < root.blocks.length; ++i)
+                        out.push(root.blocks[i])
+                    return out
+                }
+                delegate: Text {
+                    required property string modelData
+                    width: parent.width
+                    text: EditorSession.logicBlockDisplayName(modelData)
+                    color: Theme.textSecondary
                     font.family: Typography.family
-                    font.pixelSize: Typography.sizeXs
+                    font.pixelSize: Typography.sizeMeta
+                    elide: Text.ElideRight
                 }
             }
         }
 
-        Rectangle {
+        ColumnLayout {
             Layout.fillWidth: true
-            Layout.fillHeight: true
-            radius: Metrics.radiusSmall
-            color: Theme.control
-            border.color: Theme.borderSubtle
-            border.width: 1
+            spacing: root.rowSpacing
+            visible: root.showTypePicker && root.hasBlocks
 
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: Metrics.spacingSm
-                spacing: Metrics.spacingXs
-
-                ListView {
+            Repeater {
+                model: root.editable ? root.propertyRows : []
+                delegate: AcLogicPropertyEditor {
+                    required property var modelData
                     Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    clip: true
-                    model: root.blocks
-                    spacing: Metrics.spacingXs
-                    visible: root.blocks.length > 0
-
-                    delegate: Rectangle {
-                        required property string modelData
-                        width: ListView.view.width
-                        height: Metrics.controlHeight
-                        radius: Metrics.radiusSmall
-                        color: Theme.panelRaised
-                        border.color: Theme.borderSubtle
-                        border.width: 1
-
-                        Text {
-                            anchors.fill: parent
-                            anchors.leftMargin: Metrics.spacingSm
-                            anchors.rightMargin: Metrics.spacingSm
-                            verticalAlignment: Text.AlignVCenter
-                            text: EditorSession.logicBlockDisplayName(modelData)
-                            color: Theme.textPrimary
-                            font.family: Typography.family
-                            font.pixelSize: Typography.sizeXs
-                            elide: Text.ElideRight
-                        }
-                    }
-                }
-
-                Text {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    visible: root.blocks.length === 0
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                    wrapMode: Text.WordWrap
-                    text: root.boardHasRules ? root.emptyText : root.boardEmptyHint
-                    color: Theme.textMuted
-                    font.family: Typography.family
-                    font.pixelSize: Typography.sizeXs
-                }
-
-                ComboBox {
-                    id: catalogBox
-                    Layout.fillWidth: true
-                    visible: root.editable && root.comboModel.length > 0 && root.boardHasRules
-                    model: root.comboModel
-                    enabled: !EditorSession.playing
-                    // Suppress Fusion/system highlight blue; row chrome is custom.
-                    palette.mid: Theme.panel
-                    palette.window: Theme.panel
-                    palette.base: Theme.panel
-                    palette.button: Theme.panelRaised
-                    palette.highlight: Theme.controlHover
-                    palette.highlightedText: Theme.textPrimary
-                    palette.text: Theme.textPrimary
-                    palette.buttonText: Theme.textPrimary
-
-                    contentItem: Text {
-                        leftPadding: Metrics.spacingSm
-                        rightPadding: catalogBox.indicator.width + Metrics.spacingSm
-                        text: root.labelForTypeId(catalogBox.displayText)
-                        color: Theme.textPrimary
-                        font.family: Typography.family
-                        font.pixelSize: Typography.sizeXs
-                        verticalAlignment: Text.AlignVCenter
-                        elide: Text.ElideRight
-                    }
-
-                    background: Rectangle {
-                        implicitHeight: Metrics.controlHeight
-                        radius: Metrics.radiusSmall
-                        color: catalogBox.hovered ? Theme.controlHover : Theme.panelRaised
-                        border.color: catalogBox.popup.visible ? Theme.accent : Theme.borderSubtle
-                        border.width: 1
-                    }
-
-                    popup: Popup {
-                        y: catalogBox.height + 2
-                        width: Math.max(catalogBox.width, 220)
-                        implicitHeight: Math.min(contentItem.implicitHeight + 8, 300)
-                        padding: 4
-                        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutsideParent
-
-                        contentItem: ListView {
-                            clip: true
-                            implicitHeight: contentHeight
-                            boundsBehavior: Flickable.StopAtBounds
-                            model: catalogBox.popup.visible ? catalogBox.delegateModel : null
-                            currentIndex: catalogBox.highlightedIndex
-                            ScrollIndicator.vertical: ScrollIndicator {}
-                            spacing: 2
-                        }
-
-                        background: Rectangle {
-                            color: Theme.selection
-                            border.color: Theme.borderStrong
-                            border.width: 1
-                            radius: Metrics.radiusCard
-                        }
-                    }
-
-                    delegate: AcLogicCatalogItem {
-                        required property string modelData
-                        required property int index
-                        width: ListView.view ? ListView.view.width : catalogBox.width
-                        typeId: modelData
-                        title: root.labelForTypeId(modelData)
-                        description: root.descriptionForTypeId(modelData)
-                        isCurrent: (modelData || "") === (root.currentTypeId || "")
-                        highlighted: catalogBox.highlightedIndex === index
-                    }
-
-                    Component.onCompleted: syncIndex()
-                    onActivated: function(index) {
-                        const id = root.comboModel[index]
-                        const current = root.currentTypeId || ""
-                        if (id !== current)
-                            root.typeChosen(id)
-                    }
-
-                    function syncIndex() {
-                        const current = root.currentTypeId || ""
-                        const i = root.comboModel.indexOf(current)
-                        if (i >= 0)
-                            catalogBox.currentIndex = i
-                        else if (root.allowNone && current.length === 0)
-                            catalogBox.currentIndex = 0
-                    }
-                }
-
-                Repeater {
-                    model: root.editable ? root.propertyRows : []
-                    delegate: AcLogicPropertyEditor {
-                        required property var modelData
-                        Layout.fillWidth: true
-                        propertyKey: modelData.key || ""
-                        kind: modelData.kind || "string"
-                        valueText: modelData.value || ""
-                        choices: modelData.choices || []
-                        onEdited: function(valueText) {
-                            root.propertyEdited(propertyKey, valueText)
-                        }
+                    propertyKey: modelData.key || ""
+                    kind: modelData.kind || "string"
+                    valueText: modelData.value || ""
+                    choices: modelData.choices || []
+                    onEdited: function(valueText) {
+                        root.propertyEdited(propertyKey, valueText)
                     }
                 }
             }
+        }
+
+        // Trigger with no type yet
+        Text {
+            Layout.fillWidth: true
+            visible: root.isTrigger && !root.hasBlocks && root.editable
+            text: "No trigger"
+            color: Theme.textMuted
+            font.family: Typography.family
+            font.pixelSize: Typography.sizeMeta
         }
     }
 
-    onCurrentTypeIdChanged: catalogBox.syncIndex()
-    onCatalogTypeIdsChanged: catalogBox.syncIndex()
+    onCurrentTypeIdChanged: {
+        if (catalogBox.visible)
+            catalogBox.syncIndex()
+        if (root.hasBlocks)
+            root.pickingCondition = false
+    }
+    onCatalogTypeIdsChanged: {
+        if (catalogBox.visible)
+            catalogBox.syncIndex()
+    }
+    onBlocksChanged: {
+        if (root.hasBlocks)
+            root.pickingCondition = false
+    }
 }
