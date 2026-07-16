@@ -108,7 +108,7 @@ void AddLogicRuleCommand::undo(ProjectDoc &doc)
                                      board.rules.end(),
                                      [&](const LogicRuleDef &r) { return r.id == m_rule_id; }),
                       board.rules.end());
-    if (m_created_board && board.rules.empty()) {
+    if (m_created_board && board.rules.empty() && board.sections.empty()) {
         type->logicBoard.reset();
     }
 }
@@ -142,7 +142,7 @@ void RemoveLogicRuleCommand::execute(ProjectDoc &doc)
     }
     m_cleared_board = false;
     board.rules.erase(it);
-    if (board.rules.empty()) {
+    if (board.rules.empty() && board.sections.empty()) {
         type->logicBoard.reset();
         m_cleared_board = true;
     }

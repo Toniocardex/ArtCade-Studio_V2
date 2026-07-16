@@ -12,6 +12,7 @@ namespace ArtCade::Logic {
 inline constexpr uint32_t kLogicBoardSchemaVersion = 1;
 inline constexpr uint32_t kLogicApiVersion = 2;
 inline constexpr std::size_t kMaxRulesPerBoard = 128;
+inline constexpr std::size_t kMaxSectionsPerBoard = 64;
 inline constexpr std::size_t kMaxConditionsPerRule = 16;
 inline constexpr std::size_t kMaxActionsPerRule = 16;
 inline constexpr std::size_t kMaxBlocksPerProject = 8192;

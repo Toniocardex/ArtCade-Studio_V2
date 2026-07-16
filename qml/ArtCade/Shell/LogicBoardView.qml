@@ -16,6 +16,62 @@ Rectangle {
     readonly property bool hasTypeTarget: EditorSession.selectedObjectTypeId.length > 0
     /** UI density preference (presentation only — never dirties the project). */
     property bool comfortable: false
+    /** View state: collapsed section ids ({id: true}) — never dirties the project. */
+    property var collapsedSections: ({})
+
+    function toggleSectionCollapsed(sectionId) {
+        const next = {}
+        for (const key in collapsedSections)
+            next[key] = collapsedSections[key]
+        next[sectionId] = !next[sectionId]
+        collapsedSections = next
+    }
+
+    /**
+     * Flattened display list in execution order: contiguous runs of rules
+     * sharing a sectionId become a header + its rules; empty sections render
+     * as headers at the end so they stay renamable/removable.
+     */
+    readonly property var displayItems: {
+        const rules = EditorSession.logicRules
+        const sections = EditorSession.logicSections
+        const nameById = {}
+        for (let s = 0; s < sections.length; ++s)
+            nameById[sections[s].id] = sections[s].name
+        const items = []
+        let started = false
+        let openSection = ""
+        for (let i = 0; i < rules.length; ++i) {
+            const rule = rules[i]
+            const sid = (rule.sectionId && nameById[rule.sectionId] !== undefined)
+                        ? rule.sectionId : ""
+            if (!started || sid !== openSection) {
+                started = true
+                openSection = sid
+                if (sid !== "") {
+                    let count = 0
+                    for (let j = i; j < rules.length; ++j) {
+                        if (rules[j].sectionId === sid) { count += 1 } else { break }
+                    }
+                    items.push({ kind: "header", sectionId: sid,
+                                 name: nameById[sid], count: count })
+                }
+            }
+            if (sid === "" || !collapsedSections[sid])
+                items.push({ kind: "rule", rule: rule, ruleIndex: i })
+        }
+        for (let s = 0; s < sections.length; ++s) {
+            const id = sections[s].id
+            let used = false
+            for (let i = 0; i < rules.length; ++i) {
+                if (rules[i].sectionId === id) { used = true; break }
+            }
+            if (!used)
+                items.push({ kind: "header", sectionId: id,
+                             name: sections[s].name, count: 0 })
+        }
+        return items
+    }
 
     ColumnLayout {
         anchors.fill: parent
@@ -172,6 +228,17 @@ Rectangle {
                 }
 
                 AcButton {
+                    text: "+ Section"
+                    enabled: EditorSession.hasProject && root.hasTypeTarget
+                             && !EditorSession.playing
+                    onClicked: EditorSession.addLogicSection()
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 400
+                    ToolTip.text: "Add a display section — group rules for readability "
+                                  + "(never changes execution order)"
+                }
+
+                AcButton {
                     text: "+ Add Rule"
                     primary: true
                     enabled: EditorSession.hasProject && root.hasTypeTarget
@@ -199,40 +266,21 @@ Rectangle {
             Layout.margins: Metrics.spacingMd
             clip: true
             visible: EditorSession.hasProject && root.hasTypeTarget
-            model: EditorSession.logicRules
+            model: root.displayItems
             spacing: Metrics.spacingSm
             boundsBehavior: Flickable.StopAtBounds
 
-            delegate: AcLogicRuleCard {
+            delegate: Loader {
+                id: displayLoader
                 required property var modelData
-                required property int index
-
                 width: rulesList.width
-                rule: modelData
-                orderIndex: index
-                expanded: modelData.id === EditorSession.selectedLogicRuleId
-                comfortable: root.comfortable
-                onSelectRequested: EditorSession.selectedLogicRuleId = modelData.id
-                onEnabledToggled: function(enabled) {
-                    EditorSession.setLogicRuleEnabled(modelData.id, enabled)
-                }
-                onDeleteRequested: EditorSession.removeLogicRule(modelData.id)
-                onTriggerChosen: function(typeId) {
-                    EditorSession.setLogicRuleTrigger(typeId)
-                }
-                onConditionChosen: function(typeId) {
-                    EditorSession.setLogicRulePrimaryCondition(typeId)
-                }
-                onActionChosen: function(typeId) {
-                    EditorSession.setLogicRulePrimaryAction(typeId)
-                }
-                onPropertyEdited: function(slot, key, value) {
-                    EditorSession.setLogicRuleBlockProperty(modelData.id, slot, key, value)
-                }
+                sourceComponent: modelData.kind === "header" ? sectionHeaderComponent
+                                                             : ruleCardComponent
             }
 
             AcEmptyHint {
                 visible: EditorSession.logicRuleCount === 0
+                         && EditorSession.logicSections.length === 0
                 message: "This board has no rules yet"
                 hint: "Click + Add Rule — a rule runs its Then actions when the When trigger fires"
             }
@@ -250,6 +298,98 @@ Rectangle {
                       ? "Open a project or load Fixture, then switch back to Logic Board"
                       : "Pick an object in Hierarchy or on the Canvas — rules belong to the type"
             }
+        }
+    }
+
+    Component {
+        id: sectionHeaderComponent
+
+        AcLogicSectionHeader {
+            sectionId: displayLoader.modelData.sectionId
+            name: displayLoader.modelData.name
+            ruleCount: displayLoader.modelData.count
+            collapsed: root.collapsedSections[displayLoader.modelData.sectionId] === true
+            onToggleRequested: root.toggleSectionCollapsed(sectionId)
+            onRenameCommitted: function(newName) {
+                EditorSession.renameLogicSection(sectionId, newName)
+            }
+            onDeleteRequested: EditorSession.removeLogicSection(sectionId)
+        }
+    }
+
+    Component {
+        id: ruleCardComponent
+
+        AcLogicRuleCard {
+            readonly property string ruleId: displayLoader.modelData.rule.id
+
+            rule: displayLoader.modelData.rule
+            orderIndex: displayLoader.modelData.ruleIndex
+            expanded: ruleId === EditorSession.selectedLogicRuleId
+            comfortable: root.comfortable
+            onSelectRequested: EditorSession.selectedLogicRuleId = ruleId
+            onEnabledToggled: function(enabled) {
+                EditorSession.setLogicRuleEnabled(ruleId, enabled)
+            }
+            onDeleteRequested: EditorSession.removeLogicRule(ruleId)
+            onTriggerChosen: function(typeId) {
+                EditorSession.setLogicRuleTrigger(typeId)
+            }
+            onConditionChosen: function(typeId) {
+                EditorSession.setLogicRulePrimaryCondition(typeId)
+            }
+            onActionChosen: function(typeId) {
+                EditorSession.setLogicRulePrimaryAction(typeId)
+            }
+            onPropertyEdited: function(slot, key, value) {
+                EditorSession.setLogicRuleBlockProperty(ruleId, slot, key, value)
+            }
+            onContextMenuRequested: ruleMenu.openFor(ruleId)
+        }
+    }
+
+    AcMenu {
+        id: ruleMenu
+
+        property string targetRuleId: ""
+
+        function openFor(ruleId) {
+            targetRuleId = ruleId
+            popup()
+        }
+
+        AcMenu {
+            id: moveToSectionMenu
+            title: "Move to section"
+
+            AcMenuItem {
+                text: "None (unsectioned)"
+                enabled: !EditorSession.playing
+                onTriggered: EditorSession.setLogicRuleSection(ruleMenu.targetRuleId, "")
+            }
+
+            Instantiator {
+                model: EditorSession.logicSections
+                delegate: AcMenuItem {
+                    required property var modelData
+                    text: modelData.name
+                    enabled: !EditorSession.playing
+                    onTriggered: EditorSession.setLogicRuleSection(
+                                     ruleMenu.targetRuleId, modelData.id)
+                }
+                onObjectAdded: function(index, object) {
+                    moveToSectionMenu.insertItem(index + 1, object)
+                }
+                onObjectRemoved: function(index, object) {
+                    moveToSectionMenu.removeItem(object)
+                }
+            }
+        }
+
+        AcMenuItem {
+            text: "Delete rule"
+            enabled: !EditorSession.playing
+            onTriggered: EditorSession.removeLogicRule(ruleMenu.targetRuleId)
         }
     }
 }

@@ -420,6 +420,51 @@ int main()
            "clear bad condition for save");
     expect(coord.validateLogicForPlay(error), "cleared board validates again");
 
+    // Display sections: grouping metadata only, undoable, persisted.
+    std::string section_id;
+    expect(coord.addLogicSection("Player", "", section_id, error), "add section");
+    expect(!section_id.empty(), "section id assigned");
+    expect(coord.document().objectTypes.at("Player").logicBoard->sections.size() == 1,
+           "one section");
+    expect(coord.renameLogicSection("Player", section_id, "  Collection  ", error),
+           "rename section (trims)");
+    expect(coord.document().objectTypes.at("Player").logicBoard->sections.front().name
+               == "Collection",
+           "section name trimmed");
+    expect(!coord.renameLogicSection("Player", section_id, "   ", error),
+           "blank section name rejected");
+    coord.undo();
+    expect(coord.document().objectTypes.at("Player").logicBoard->sections.front().name
+               == "Section 1",
+           "undo rename restores default name");
+    coord.redo();
+
+    expect(coord.setLogicRuleSection("Player", deleted_id, section_id, error),
+           "assign rule to section");
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules.front().sectionId
+               == section_id,
+           "rule sectionId set");
+    expect(!coord.setLogicRuleSection("Player", deleted_id, "section-missing", error),
+           "unknown section rejected");
+    const std::uint64_t rev_before_section_noop = coord.revision();
+    expect(coord.setLogicRuleSection("Player", deleted_id, section_id, error),
+           "no-op section assign succeeds");
+    expect(coord.revision() == rev_before_section_noop,
+           "no-op section assign does not bump revision");
+
+    expect(coord.removeLogicSection("Player", section_id, error), "remove section");
+    expect(coord.document().objectTypes.at("Player").logicBoard->sections.empty(),
+           "sections empty after remove");
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules.front().sectionId.empty(),
+           "member rule unsectioned after remove");
+    coord.undo();
+    expect(coord.document().objectTypes.at("Player").logicBoard->sections.size() == 1,
+           "undo remove restores section");
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules.front().sectionId
+               == section_id,
+           "undo remove restores rule membership");
+    expect(coord.validateLogicForPlay(error), "sections do not affect Play validation");
+
     expect(coord.saveProjectAs(out_path.string(), error), "save roundtrip file");
     expect(!coord.isDirty(), "clean after save");
 
@@ -445,6 +490,13 @@ int main()
            "persisted rule id");
     expect(!reloaded_player->second.logicBoard->rules.front().enabled,
            "persisted rule disabled state");
+    expect(reloaded_player->second.logicBoard->sections.size() == 1,
+           "persisted section count");
+    expect(reloaded_player->second.logicBoard->sections.front().id == section_id
+               && reloaded_player->second.logicBoard->sections.front().name == "Collection",
+           "persisted section id and name");
+    expect(reloaded_player->second.logicBoard->rules.front().sectionId == section_id,
+           "persisted rule section membership");
 
     std::error_code ec;
     fs::remove(out_path, ec);

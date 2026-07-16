@@ -27,6 +27,7 @@ Rectangle {
     signal conditionChosen(string typeId)
     signal actionChosen(string typeId)
     signal propertyEdited(string slot, string propertyKey, string valueText)
+    signal contextMenuRequested()
 
     readonly property bool ruleEnabled: rule.enabled === true
     readonly property var conditionIds: rule.conditionTypeIds || []
@@ -78,7 +79,12 @@ Rectangle {
         id: cardMa
         anchors.fill: parent
         hoverEnabled: true
-        onClicked: root.selectRequested()
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
+        onClicked: function(mouse) {
+            root.selectRequested()
+            if (mouse.button === Qt.RightButton)
+                root.contextMenuRequested()
+        }
     }
 
     Rectangle {

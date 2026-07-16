@@ -64,6 +64,11 @@ class EditorSession : public QObject
      * project-backed pickers (assets, clips, object types), empty = free-form.
      */
     Q_PROPERTY(QVariantList logicRules READ logicRules NOTIFY logicRulesChanged)
+    /**
+     * Display sections on the selected type's board, in board order:
+     * [{ id, name }]. Grouping metadata only — never affects execution order.
+     */
+    Q_PROPERTY(QVariantList logicSections READ logicSections NOTIFY logicRulesChanged)
     /** Workspace: which rule is focused in Logic Board (does not dirty). */
     Q_PROPERTY(QString selectedLogicRuleId READ selectedLogicRuleId WRITE setSelectedLogicRuleId
                    NOTIFY selectedLogicRuleChanged)
@@ -110,6 +115,7 @@ public:
     [[nodiscard]] QString selectedObjectTypeName() const;
     [[nodiscard]] int logicRuleCount() const;
     [[nodiscard]] QVariantList logicRules() const;
+    [[nodiscard]] QVariantList logicSections() const;
     [[nodiscard]] QString selectedLogicRuleId() const;
     [[nodiscard]] QStringList logicTriggerCatalog() const;
     [[nodiscard]] QStringList logicConditionCatalog() const;
@@ -185,6 +191,14 @@ public:
      * Disabled rules persist but are skipped by compile/Play. Undoable.
      */
     Q_INVOKABLE void setLogicRuleEnabled(const QString &ruleId, bool enabled);
+    /** Adds a display section ("Section N") on the selected type's board. Undoable. */
+    Q_INVOKABLE void addLogicSection();
+    /** Renames display section @p sectionId (empty names rejected). Undoable. */
+    Q_INVOKABLE void renameLogicSection(const QString &sectionId, const QString &name);
+    /** Removes section @p sectionId; its rules become unsectioned. Undoable. */
+    Q_INVOKABLE void removeLogicSection(const QString &sectionId);
+    /** Assigns rule @p ruleId to @p sectionId ("" = unsectioned). Undoable. */
+    Q_INVOKABLE void setLogicRuleSection(const QString &ruleId, const QString &sectionId);
     /**
      * Sets a property on a primary block of @p ruleId.
      * @p slot is "trigger" | "condition" | "action".
@@ -271,5 +285,6 @@ private:
     int m_logicRuleCount = 0;
     QStringList m_logicRuleIds;
     QVariantList m_logicRules;
+    QVariantList m_logicSections;
     QString m_selectedLogicRuleId;
 };

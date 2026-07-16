@@ -88,9 +88,17 @@ struct LogicBlockDef {
     std::vector<LogicPropertyDef> properties;
 };
 
+// Display-only grouping header for board readability. Sections never affect
+// runtime semantics: rule execution order stays the board rule order.
+struct LogicSectionDef {
+    std::string id;    // stable id ("section-1"); name is a display label only
+    std::string name;
+};
+
 struct LogicRuleDef {
     LogicRuleId               id;
     bool                      enabled = true;
+    std::string               sectionId;  // optional LogicSectionDef.id; empty = unsectioned
     LogicBlockDef             trigger;
     std::vector<LogicBlockDef> conditions;
     std::vector<LogicBlockDef> actions;
@@ -100,6 +108,7 @@ struct LogicBoardDef {
     LogicBoardId              id;
     uint32_t                  schemaVersion = 1;
     uint32_t                  apiVersion = 2;
+    std::vector<LogicSectionDef> sections;  // display grouping; optional
     std::vector<LogicRuleDef> rules;
 };
 

@@ -594,6 +594,186 @@ bool EditorCoordinator::setLogicRuleEnabled(const ObjectTypeId &object_type_id,
     return true;
 }
 
+bool EditorCoordinator::addLogicSection(const ObjectTypeId &object_type_id,
+                                        const std::string &name,
+                                        std::string &out_section_id,
+                                        std::string &error_message)
+{
+    out_section_id.clear();
+    if (!m_has_project) {
+        error_message = "No project open";
+        return false;
+    }
+    if (object_type_id.empty()) {
+        error_message = "Empty object type id";
+        return false;
+    }
+    auto type_it = m_doc.objectTypes.find(object_type_id);
+    if (type_it == m_doc.objectTypes.end()) {
+        error_message = "Object type not found";
+        return false;
+    }
+    if (type_it->second.logicBoard
+        && type_it->second.logicBoard->sections.size()
+               >= ArtCade::Logic::kMaxSectionsPerBoard) {
+        error_message = "Logic Board section limit reached";
+        return false;
+    }
+    auto command = std::make_unique<AddLogicSectionCommand>(object_type_id, name);
+    command->execute(m_doc);
+    out_section_id = command->sectionId();
+    if (!command->applied() || out_section_id.empty()) {
+        error_message = "Failed to add Logic section";
+        return false;
+    }
+    m_commands.pushExecuted(std::move(command));
+    bumpRevision();
+    return true;
+}
+
+bool EditorCoordinator::renameLogicSection(const ObjectTypeId &object_type_id,
+                                           const std::string &section_id,
+                                           const std::string &new_name,
+                                           std::string &error_message)
+{
+    if (!m_has_project) {
+        error_message = "No project open";
+        return false;
+    }
+    if (object_type_id.empty() || section_id.empty()) {
+        error_message = "Missing Logic section target";
+        return false;
+    }
+    const auto first = new_name.find_first_not_of(" \t");
+    if (first == std::string::npos) {
+        error_message = "Section name cannot be empty";
+        return false;
+    }
+    const auto last = new_name.find_last_not_of(" \t");
+    const std::string trimmed = new_name.substr(first, last - first + 1);
+    auto type_it = m_doc.objectTypes.find(object_type_id);
+    if (type_it == m_doc.objectTypes.end() || !type_it->second.logicBoard) {
+        error_message = "Logic Board not found";
+        return false;
+    }
+    LogicSectionDef *section = nullptr;
+    for (LogicSectionDef &s : type_it->second.logicBoard->sections) {
+        if (s.id == section_id) {
+            section = &s;
+            break;
+        }
+    }
+    if (!section) {
+        error_message = "Logic section not found";
+        return false;
+    }
+    if (section->name == trimmed) {
+        return true; // no-op — do not dirty
+    }
+    auto command =
+        std::make_unique<RenameLogicSectionCommand>(object_type_id, section_id, trimmed);
+    command->execute(m_doc);
+    if (section->name != trimmed) {
+        error_message = "Failed to rename Logic section";
+        return false;
+    }
+    m_commands.pushExecuted(std::move(command));
+    bumpRevision();
+    return true;
+}
+
+bool EditorCoordinator::removeLogicSection(const ObjectTypeId &object_type_id,
+                                           const std::string &section_id,
+                                           std::string &error_message)
+{
+    if (!m_has_project) {
+        error_message = "No project open";
+        return false;
+    }
+    if (object_type_id.empty() || section_id.empty()) {
+        error_message = "Missing Logic section target";
+        return false;
+    }
+    auto type_it = m_doc.objectTypes.find(object_type_id);
+    if (type_it == m_doc.objectTypes.end() || !type_it->second.logicBoard) {
+        error_message = "Logic Board not found";
+        return false;
+    }
+    bool found = false;
+    for (const LogicSectionDef &section : type_it->second.logicBoard->sections) {
+        if (section.id == section_id) {
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        error_message = "Logic section not found";
+        return false;
+    }
+    m_commands.execute(std::make_unique<RemoveLogicSectionCommand>(object_type_id, section_id),
+                       m_doc);
+    bumpRevision();
+    return true;
+}
+
+bool EditorCoordinator::setLogicRuleSection(const ObjectTypeId &object_type_id,
+                                            const LogicRuleId &rule_id,
+                                            const std::string &section_id,
+                                            std::string &error_message)
+{
+    if (!m_has_project) {
+        error_message = "No project open";
+        return false;
+    }
+    if (object_type_id.empty() || rule_id.empty()) {
+        error_message = "Missing Logic Board target";
+        return false;
+    }
+    auto type_it = m_doc.objectTypes.find(object_type_id);
+    if (type_it == m_doc.objectTypes.end() || !type_it->second.logicBoard) {
+        error_message = "Logic Board not found";
+        return false;
+    }
+    LogicBoardDef &board = *type_it->second.logicBoard;
+    LogicRuleDef *rule = nullptr;
+    for (LogicRuleDef &r : board.rules) {
+        if (r.id == rule_id) {
+            rule = &r;
+            break;
+        }
+    }
+    if (!rule) {
+        error_message = "Logic rule not found";
+        return false;
+    }
+    if (!section_id.empty()) {
+        bool section_found = false;
+        for (const LogicSectionDef &section : board.sections) {
+            if (section.id == section_id) {
+                section_found = true;
+                break;
+            }
+        }
+        if (!section_found) {
+            error_message = "Logic section not found";
+            return false;
+        }
+    }
+    if (rule->sectionId == section_id) {
+        return true; // no-op — do not dirty
+    }
+    auto command =
+        std::make_unique<SetLogicRuleSectionCommand>(object_type_id, rule_id, section_id);
+    command->execute(m_doc);
+    if (rule->sectionId != section_id) {
+        error_message = "Failed to set rule section";
+        return false;
+    }
+    m_commands.pushExecuted(std::move(command));
+    bumpRevision();
+    return true;
+}
+
 bool EditorCoordinator::setLogicRulePrimaryCondition(const ObjectTypeId &object_type_id,
                                                      const LogicRuleId &rule_id,
                                                      const std::string &block_type_id,
