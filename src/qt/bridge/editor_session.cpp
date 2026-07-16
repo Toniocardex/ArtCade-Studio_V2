@@ -176,6 +176,17 @@ QStringList EditorSession::logicTriggerCatalog() const
     return ids;
 }
 
+QStringList EditorSession::logicConditionCatalog() const
+{
+    QStringList ids;
+    for (const ArtCade::Logic::LogicBlockDescriptor &desc : ArtCade::Logic::registry()) {
+        if (desc.kind == ArtCade::Logic::BlockKind::Condition) {
+            ids.append(QString::fromStdString(desc.typeId));
+        }
+    }
+    return ids;
+}
+
 QStringList EditorSession::logicActionCatalog() const
 {
     QStringList ids;
@@ -744,6 +755,47 @@ void EditorSession::setLogicRulePrimaryAction(const QString &blockTypeId)
     refreshSelectionCache();
     emit dirtyChanged();
     setStatus(QStringLiteral("Then: %1").arg(logicBlockDisplayName(blockTypeId)));
+}
+
+void EditorSession::setLogicRulePrimaryCondition(const QString &blockTypeId)
+{
+    QString guard_error;
+    if (!guardAuthoring(&guard_error)) {
+        setStatus(guard_error, false);
+        emit errorOccurred(guard_error);
+        return;
+    }
+    if (m_selectedObjectTypeId.isEmpty() || m_selectedLogicRuleId.isEmpty()) {
+        const QString msg = QStringLiteral("Select a Logic rule to edit Also require…");
+        setStatus(msg, false);
+        emit errorOccurred(msg);
+        return;
+    }
+    std::string error;
+    if (blockTypeId.isEmpty()) {
+        if (!m_coordinator->clearLogicRuleConditions(m_selectedObjectTypeId.toStdString(),
+                                                     m_selectedLogicRuleId.toStdString(),
+                                                     error)) {
+            setStatus(QString::fromStdString(error));
+            emit errorOccurred(QString::fromStdString(error));
+            return;
+        }
+        refreshSelectionCache();
+        emit dirtyChanged();
+        setStatus(QStringLiteral("Also require… cleared (always)"));
+        return;
+    }
+    if (!m_coordinator->setLogicRulePrimaryCondition(m_selectedObjectTypeId.toStdString(),
+                                                     m_selectedLogicRuleId.toStdString(),
+                                                     blockTypeId.toStdString(),
+                                                     error)) {
+        setStatus(QString::fromStdString(error));
+        emit errorOccurred(QString::fromStdString(error));
+        return;
+    }
+    refreshSelectionCache();
+    emit dirtyChanged();
+    setStatus(QStringLiteral("Also require…: %1").arg(logicBlockDisplayName(blockTypeId)));
 }
 
 void EditorSession::setLogicRuleEnabled(const QString &ruleId, bool enabled)

@@ -220,6 +220,9 @@ Rectangle {
                 onTriggerChosen: function(typeId) {
                     EditorSession.setLogicRuleTrigger(typeId)
                 }
+                onConditionChosen: function(typeId) {
+                    EditorSession.setLogicRulePrimaryCondition(typeId)
+                }
                 onActionChosen: function(typeId) {
                     EditorSession.setLogicRulePrimaryAction(typeId)
                 }

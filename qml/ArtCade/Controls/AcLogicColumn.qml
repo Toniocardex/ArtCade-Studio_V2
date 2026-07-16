@@ -20,8 +20,26 @@ Item {
     property bool editable: false
     property var catalogTypeIds: []
     property string currentTypeId: ""
+    /** When true, ComboBox includes an empty entry meaning “no condition”. */
+    property bool allowNone: false
+    property string noneLabel: "None (always)"
+
+    readonly property var comboModel: {
+        if (!root.allowNone)
+            return root.catalogTypeIds
+        const out = [""]
+        for (let i = 0; i < root.catalogTypeIds.length; ++i)
+            out.push(root.catalogTypeIds[i])
+        return out
+    }
 
     signal typeChosen(string typeId)
+
+    function labelForTypeId(typeId) {
+        if (!typeId || typeId.length === 0)
+            return root.noneLabel
+        return EditorSession.logicBlockDisplayName(typeId)
+    }
 
     ColumnLayout {
         anchors.fill: parent
@@ -117,16 +135,14 @@ Item {
                 ComboBox {
                     id: catalogBox
                     Layout.fillWidth: true
-                    visible: root.editable && root.catalogTypeIds.length > 0 && root.boardHasRules
-                    model: root.catalogTypeIds
+                    visible: root.editable && root.comboModel.length > 0 && root.boardHasRules
+                    model: root.comboModel
                     enabled: !EditorSession.playing
 
                     contentItem: Text {
                         leftPadding: Metrics.spacingSm
                         rightPadding: catalogBox.indicator.width + Metrics.spacingSm
-                        text: catalogBox.displayText.length > 0
-                              ? EditorSession.logicBlockDisplayName(catalogBox.displayText)
-                              : ""
+                        text: root.labelForTypeId(catalogBox.displayText)
                         color: Theme.textPrimary
                         font.family: Typography.family
                         font.pixelSize: Typography.sizeXs
@@ -166,7 +182,7 @@ Item {
                         width: catalogBox.width
                         highlighted: catalogBox.highlightedIndex === index
                         contentItem: Text {
-                            text: EditorSession.logicBlockDisplayName(modelData)
+                            text: root.labelForTypeId(modelData)
                             color: Theme.textPrimary
                             font.family: Typography.family
                             font.pixelSize: Typography.sizeXs
@@ -179,15 +195,19 @@ Item {
 
                     Component.onCompleted: syncIndex()
                     onActivated: function(index) {
-                        const id = root.catalogTypeIds[index]
-                        if (id && id !== root.currentTypeId)
+                        const id = root.comboModel[index]
+                        const current = root.currentTypeId || ""
+                        if (id !== current)
                             root.typeChosen(id)
                     }
 
                     function syncIndex() {
-                        const i = root.catalogTypeIds.indexOf(root.currentTypeId)
+                        const current = root.currentTypeId || ""
+                        const i = root.comboModel.indexOf(current)
                         if (i >= 0)
                             catalogBox.currentIndex = i
+                        else if (root.allowNone && current.length === 0)
+                            catalogBox.currentIndex = 0
                     }
                 }
             }

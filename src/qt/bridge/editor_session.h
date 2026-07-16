@@ -62,6 +62,7 @@ class EditorSession : public QObject
                    NOTIFY selectedLogicRuleChanged)
     /** Catalog typeIds from logic-core registry (stable; not project data). */
     Q_PROPERTY(QStringList logicTriggerCatalog READ logicTriggerCatalog CONSTANT)
+    Q_PROPERTY(QStringList logicConditionCatalog READ logicConditionCatalog CONSTANT)
     Q_PROPERTY(QStringList logicActionCatalog READ logicActionCatalog CONSTANT)
     Q_PROPERTY(QString activeLayerId READ activeLayerId NOTIFY activeLayerChanged)
     Q_PROPERTY(QString activeSceneName READ activeSceneName NOTIFY projectChanged)
@@ -101,6 +102,7 @@ public:
     [[nodiscard]] QVariantList logicRules() const;
     [[nodiscard]] QString selectedLogicRuleId() const;
     [[nodiscard]] QStringList logicTriggerCatalog() const;
+    [[nodiscard]] QStringList logicConditionCatalog() const;
     [[nodiscard]] QStringList logicActionCatalog() const;
     void setSelectedLogicRuleId(const QString &ruleId);
     [[nodiscard]] QString activeLayerId() const;
@@ -149,6 +151,11 @@ public:
     Q_INVOKABLE void setLogicRuleTrigger(const QString &blockTypeId);
     /** Sets primary Then action block type on the selected rule. */
     Q_INVOKABLE void setLogicRulePrimaryAction(const QString &blockTypeId);
+    /**
+     * Sets primary Also-require condition on the selected rule.
+     * Empty @p blockTypeId clears all conditions (None / always).
+     */
+    Q_INVOKABLE void setLogicRulePrimaryCondition(const QString &blockTypeId);
     /**
      * Enables/disables Logic rule @p ruleId on the selected type.
      * Disabled rules persist but are skipped by compile/Play. Undoable.

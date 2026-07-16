@@ -144,6 +144,34 @@ int main()
            "action updated");
     coord.undo();
 
+    expect(coord.setLogicRulePrimaryCondition("Player",
+                                              rule_id,
+                                              ArtCade::Logic::kIsGrounded,
+                                              error),
+           "set primary condition");
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].conditions.size() == 1,
+           "one condition");
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].conditions.front().typeId
+               == ArtCade::Logic::kIsGrounded,
+           "condition is grounded");
+    coord.undo();
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].conditions.empty(),
+           "undo clears inserted condition");
+    expect(coord.setLogicRulePrimaryCondition("Player",
+                                              rule_id,
+                                              ArtCade::Logic::kIsGrounded,
+                                              error),
+           "set condition again");
+    expect(coord.clearLogicRuleConditions("Player", rule_id, error), "clear conditions");
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].conditions.empty(),
+           "conditions cleared");
+    coord.undo();
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].conditions.size() == 1,
+           "undo clear restores condition");
+    coord.redo();
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].conditions.empty(),
+           "redo clear");
+
     expect(coord.removeLogicRule("Player", rule_id, error), "remove first rule");
     expect(coord.document().objectTypes.at("Player").logicBoard->rules.size() == 1,
            "one rule remains");

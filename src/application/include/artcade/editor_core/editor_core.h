@@ -184,6 +184,44 @@ private:
     bool m_applied = false;
 };
 
+/**
+ * Replaces the first Also-require (condition) block on a Logic Rule (or inserts one if empty).
+ */
+class SetLogicRulePrimaryConditionCommand final : public ICommand {
+public:
+    SetLogicRulePrimaryConditionCommand(ObjectTypeId object_type_id,
+                                        LogicRuleId rule_id,
+                                        std::string block_type_id);
+    void execute(ProjectDoc &doc) override;
+    void undo(ProjectDoc &doc) override;
+
+private:
+    ObjectTypeId m_object_type_id;
+    LogicRuleId m_rule_id;
+    std::string m_block_type_id;
+    LogicBlockDef m_old_condition;
+    bool m_had_condition = false;
+    bool m_captured = false;
+    bool m_applied = false;
+};
+
+/**
+ * Clears all Also-require conditions on a Logic Rule (optional block → none).
+ */
+class ClearLogicRuleConditionsCommand final : public ICommand {
+public:
+    ClearLogicRuleConditionsCommand(ObjectTypeId object_type_id, LogicRuleId rule_id);
+    void execute(ProjectDoc &doc) override;
+    void undo(ProjectDoc &doc) override;
+
+private:
+    ObjectTypeId m_object_type_id;
+    LogicRuleId m_rule_id;
+    std::vector<LogicBlockDef> m_old_conditions;
+    bool m_captured = false;
+    bool m_applied = false;
+};
+
 /** C++-owned editor project format. */
 inline constexpr int kCurrentProjectFormatVersion = 5;
 
@@ -271,6 +309,21 @@ public:
                              const LogicRuleId &rule_id,
                              bool enabled,
                              std::string &error_message);
+
+    /**
+     * Sets the primary Also-require condition type on a rule (index 0).
+     */
+    bool setLogicRulePrimaryCondition(const ObjectTypeId &object_type_id,
+                                      const LogicRuleId &rule_id,
+                                      const std::string &block_type_id,
+                                      std::string &error_message);
+
+    /**
+     * Clears all Also-require conditions on a rule (no-op if already empty).
+     */
+    bool clearLogicRuleConditions(const ObjectTypeId &object_type_id,
+                                  const LogicRuleId &rule_id,
+                                  std::string &error_message);
 
     [[nodiscard]] bool layerVisible(const std::string &layer_id) const;
     [[nodiscard]] bool layerLocked(const std::string &layer_id) const;

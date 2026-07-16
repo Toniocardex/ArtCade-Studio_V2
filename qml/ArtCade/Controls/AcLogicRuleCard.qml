@@ -24,6 +24,7 @@ Rectangle {
     signal deleteRequested()
     signal enabledToggled(bool enabled)
     signal triggerChosen(string typeId)
+    signal conditionChosen(string typeId)
     signal actionChosen(string typeId)
 
     readonly property bool ruleEnabled: rule.enabled === true
@@ -246,6 +247,11 @@ Rectangle {
                 emptyText: "None — this rule always runs when the trigger fires"
                 boardHasRules: true
                 blocks: root.conditionIds
+                editable: true
+                allowNone: true
+                catalogTypeIds: EditorSession.logicConditionCatalog
+                currentTypeId: root.conditionIds.length > 0 ? root.conditionIds[0] : ""
+                onTypeChosen: function(typeId) { root.conditionChosen(typeId) }
             }
 
             Rectangle {

@@ -341,4 +341,113 @@ void SetLogicRuleEnabledCommand::undo(ProjectDoc &doc)
     rule->enabled = m_old_enabled;
 }
 
+SetLogicRulePrimaryConditionCommand::SetLogicRulePrimaryConditionCommand(
+    ObjectTypeId object_type_id,
+    LogicRuleId rule_id,
+    std::string block_type_id)
+    : m_object_type_id(std::move(object_type_id))
+    , m_rule_id(std::move(rule_id))
+    , m_block_type_id(std::move(block_type_id))
+{
+}
+
+void SetLogicRulePrimaryConditionCommand::execute(ProjectDoc &doc)
+{
+    EntityDef *type = find_object_type(doc, m_object_type_id);
+    if (!type || !type->logicBoard || m_rule_id.empty() || m_block_type_id.empty()) {
+        return;
+    }
+    LogicRuleDef *rule = find_rule(*type->logicBoard, m_rule_id);
+    if (!rule) {
+        return;
+    }
+    LogicBlockDef next = ArtCade::Logic::makeDefaultBlock(
+        m_block_type_id, ArtCade::Logic::BlockKind::Condition);
+    if (next.typeId.empty()) {
+        return;
+    }
+    if (!m_captured) {
+        m_had_condition = !rule->conditions.empty();
+        if (m_had_condition) {
+            m_old_condition = rule->conditions.front();
+        }
+        m_captured = true;
+    }
+    if (m_had_condition && !rule->conditions.empty()
+        && rule->conditions.front().typeId == next.typeId) {
+        return; // no-op
+    }
+    if (rule->conditions.empty()) {
+        rule->conditions.push_back(std::move(next));
+    } else {
+        rule->conditions.front() = std::move(next);
+    }
+    m_applied = true;
+}
+
+void SetLogicRulePrimaryConditionCommand::undo(ProjectDoc &doc)
+{
+    if (!m_applied || !m_captured) {
+        return;
+    }
+    EntityDef *type = find_object_type(doc, m_object_type_id);
+    if (!type || !type->logicBoard) {
+        return;
+    }
+    LogicRuleDef *rule = find_rule(*type->logicBoard, m_rule_id);
+    if (!rule) {
+        return;
+    }
+    if (!m_had_condition) {
+        rule->conditions.clear();
+        return;
+    }
+    if (rule->conditions.empty()) {
+        rule->conditions.push_back(m_old_condition);
+    } else {
+        rule->conditions.front() = m_old_condition;
+    }
+}
+
+ClearLogicRuleConditionsCommand::ClearLogicRuleConditionsCommand(ObjectTypeId object_type_id,
+                                                                 LogicRuleId rule_id)
+    : m_object_type_id(std::move(object_type_id))
+    , m_rule_id(std::move(rule_id))
+{
+}
+
+void ClearLogicRuleConditionsCommand::execute(ProjectDoc &doc)
+{
+    EntityDef *type = find_object_type(doc, m_object_type_id);
+    if (!type || !type->logicBoard || m_rule_id.empty()) {
+        return;
+    }
+    LogicRuleDef *rule = find_rule(*type->logicBoard, m_rule_id);
+    if (!rule || rule->conditions.empty()) {
+        return;
+    }
+    if (!m_captured) {
+        m_old_conditions = rule->conditions;
+        m_captured = true;
+    }
+    rule->conditions.clear();
+    m_applied = true;
+}
+
+void ClearLogicRuleConditionsCommand::undo(ProjectDoc &doc)
+{
+    if (!m_applied || !m_captured) {
+        return;
+    }
+    EntityDef *type = find_object_type(doc, m_object_type_id);
+    if (!type || !type->logicBoard) {
+        return;
+    }
+    LogicRuleDef *rule = find_rule(*type->logicBoard, m_rule_id);
+    if (!rule) {
+        return;
+    }
+    rule->conditions = m_old_conditions;
+}
+
 } // namespace ArtCade::EditorCore
