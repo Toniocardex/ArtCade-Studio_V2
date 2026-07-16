@@ -5,11 +5,11 @@ import ArtCade.Ui
 
 /**
  * One Logic block property row (Bool / Key / Number / Integer / String /
- * Vec2 / Asset). Project-backed rows carry choices ({value,label}) and render
- * a picker; ids stay the stored value, labels are display only.
+ * Vec2 / Asset). Compact event-sheet layout: label | editor.
+ * Project-backed rows carry choices ({value,label}); ids stay the stored value.
  * Emits edited(valueText); parent routes to EditorSession.setLogicRuleBlockProperty.
  */
-ColumnLayout {
+RowLayout {
     id: root
 
     property string propertyKey: ""
@@ -20,11 +20,13 @@ ColumnLayout {
 
     signal edited(string valueText)
 
-    spacing: 2
+    spacing: Metrics.spacingSm
     Layout.fillWidth: true
 
     Text {
-        Layout.fillWidth: true
+        Layout.preferredWidth: 72
+        Layout.maximumWidth: 96
+        Layout.alignment: Qt.AlignVCenter
         text: root.propertyKey
         color: Theme.textMuted
         font.family: Typography.family
@@ -35,6 +37,7 @@ ColumnLayout {
     Loader {
         id: editorLoader
         Layout.fillWidth: true
+        Layout.alignment: Qt.AlignVCenter
         sourceComponent: {
             if (root.choices && root.choices.length > 0)
                 return choiceEditor

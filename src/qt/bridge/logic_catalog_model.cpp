@@ -109,10 +109,24 @@ void LogicCatalogModel::reload()
         row.displayName = QString::fromStdString(desc.displayName);
         row.description = QString::fromStdString(desc.description);
         for (const auto component : desc.requiredComponents) {
-            row.requiredComponents.append(ArtCade::QtBridge::logic_catalog_component_label(component));
+            const auto *component_descriptor =
+                ArtCade::Logic::requiredComponentDescriptor(component);
+            if (!component_descriptor) {
+                continue;
+            }
+            row.requiredComponents.append(
+                QString::fromStdString(component_descriptor->displayName));
+            const QString component_id = QString::fromStdString(component_descriptor->id);
+            row.requiredComponentIds.append(component_id);
+            if (owner && !ArtCade::Logic::hasRequiredComponent(*owner, component)) {
+                row.missingComponentIds.append(component_id);
+            }
         }
         for (const auto capability : desc.requiredContext) {
             row.requiredContext.append(ArtCade::QtBridge::logic_catalog_capability_label(capability));
+        }
+        for (const std::string &synonym : desc.searchSynonyms) {
+            row.searchSynonyms.append(QString::fromStdString(synonym));
         }
         QStringList prop_labels;
         for (const auto &property : desc.properties) {
@@ -189,12 +203,18 @@ QVariant LogicCatalogModel::data(const QModelIndex &index, int role) const
         return row.unavailableReason;
     case RequiredComponentsRole:
         return row.requiredComponents;
+    case RequiredComponentIdsRole:
+        return row.requiredComponentIds;
+    case MissingComponentIdsRole:
+        return row.missingComponentIds;
     case RequiredContextRole:
         return row.requiredContext;
     case PropertyKeysRole:
         return row.propertyKeys;
     case PropertySummaryRole:
         return row.propertySummary;
+    case SearchSynonymsRole:
+        return row.searchSynonyms;
     default:
         return {};
     }
@@ -212,9 +232,12 @@ QHash<int, QByteArray> LogicCatalogModel::roleNames() const
         {AvailableRole, "available"},
         {UnavailableReasonRole, "unavailableReason"},
         {RequiredComponentsRole, "requiredComponents"},
+        {RequiredComponentIdsRole, "requiredComponentIds"},
+        {MissingComponentIdsRole, "missingComponentIds"},
         {RequiredContextRole, "requiredContext"},
         {PropertyKeysRole, "propertyKeys"},
         {PropertySummaryRole, "propertySummary"},
+        {SearchSynonymsRole, "searchSynonyms"},
     };
 }
 
@@ -234,9 +257,12 @@ QVariantMap LogicCatalogModel::entryMap(int row) const
         {QStringLiteral("available"), entry.available},
         {QStringLiteral("unavailableReason"), entry.unavailableReason},
         {QStringLiteral("requiredComponents"), entry.requiredComponents},
+        {QStringLiteral("requiredComponentIds"), entry.requiredComponentIds},
+        {QStringLiteral("missingComponentIds"), entry.missingComponentIds},
         {QStringLiteral("requiredContext"), entry.requiredContext},
         {QStringLiteral("propertyKeys"), entry.propertyKeys},
         {QStringLiteral("propertySummary"), entry.propertySummary},
+        {QStringLiteral("searchSynonyms"), entry.searchSynonyms},
     };
 }
 

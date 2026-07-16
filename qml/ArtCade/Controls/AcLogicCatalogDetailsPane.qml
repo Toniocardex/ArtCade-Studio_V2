@@ -10,6 +10,28 @@ Item {
     property string currentTypeId: ""
     property string replaceDiscardHint: ""
 
+    readonly property var missingComponentIds: {
+        const out = []
+        if (!selectedEntry)
+            return out
+        const ids = selectedEntry.missingComponentIds || []
+        const requiredIds = selectedEntry.requiredComponentIds || []
+        const labels = selectedEntry.requiredComponents || []
+        for (let i = 0; i < ids.length; ++i) {
+            const id = String(ids[i] || "")
+            if (id.length === 0)
+                continue
+            const labelIndex = requiredIds.indexOf(id)
+            out.push({
+                id: id,
+                label: labelIndex >= 0 ? (labels[labelIndex] || id) : id,
+            })
+        }
+        return out
+    }
+
+    signal addComponentRequested(string componentId)
+
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: Metrics.spacingMd
@@ -93,6 +115,24 @@ Item {
             font.pixelSize: Typography.sizeToolbar
             wrapMode: Text.WordWrap
         }
+
+        Column {
+            Layout.fillWidth: true
+            spacing: Metrics.spacingXs
+            visible: root.missingComponentIds.length > 0 && !EditorSession.playing
+
+            Repeater {
+                model: root.missingComponentIds
+                delegate: AcButton {
+                    required property var modelData
+                    width: parent.width
+                    text: "Add " + modelData.label
+                    enabled: !EditorSession.playing
+                    onClicked: root.addComponentRequested(modelData.id)
+                }
+            }
+        }
+
         Text {
             visible: root.selectedEntry && String(root.selectedEntry.propertySummary || "").length > 0
             text: "Properties"

@@ -469,6 +469,53 @@ int main()
                                             error),
            "platformer action without component is rejected");
 
+    // Object-type components: authorable + persisted (Logic Catalog "Add …").
+    const std::uint64_t rev_before_platformer = coord.revision();
+    expect(coord.ensureObjectTypeComponent("Player", "platformerController", error),
+           "add Platformer Controller");
+    expect(coord.document().objectTypes.at("Player").platformerController.has_value(),
+           "platformerController present");
+    expect(coord.revision() > rev_before_platformer, "add component bumps revision");
+    coord.undo();
+    expect(!coord.document().objectTypes.at("Player").platformerController.has_value(),
+           "undo removes added Platformer Controller");
+    coord.redo();
+    expect(coord.document().objectTypes.at("Player").platformerController.has_value(),
+           "redo restores added Platformer Controller");
+    const std::uint64_t rev_before_platformer_noop = coord.revision();
+    expect(coord.ensureObjectTypeComponent("Player", "platformerController", error),
+           "duplicate Platformer is a no-op");
+    expect(coord.revision() == rev_before_platformer_noop,
+           "no-op component ensure does not bump revision");
+    expect(coord.setLogicRulePrimaryAction("Player",
+                                           deleted_id,
+                                           ArtCade::Logic::kJump,
+                                           error),
+           "Jump available after Platformer Controller");
+    coord.undo(); // undo Jump
+    ArtCade::SpriteRendererComponent original_renderer;
+    original_renderer.imageAssetId = "hero-image";
+    original_renderer.animationAssetId = "hero-animation";
+    original_renderer.visible = false;
+    coord.document().objectTypes.at("Player").spriteRenderer = original_renderer;
+    expect(coord.ensureObjectTypeComponent("Player", "spriteAnimator", error),
+           "add Sprite Animator");
+    expect(coord.document().objectTypes.at("Player").spriteRenderer.has_value()
+               && coord.document().objectTypes.at("Player").spriteAnimator.has_value(),
+           "spriteRenderer + spriteAnimator present");
+    coord.undo();
+    const auto &renderer_after_undo =
+        *coord.document().objectTypes.at("Player").spriteRenderer;
+    expect(!coord.document().objectTypes.at("Player").spriteAnimator.has_value(),
+           "undo removes added Sprite Animator");
+    expect(renderer_after_undo.imageAssetId == original_renderer.imageAssetId
+               && renderer_after_undo.animationAssetId == original_renderer.animationAssetId
+               && renderer_after_undo.visible == original_renderer.visible,
+           "undo preserves pre-existing Sprite Renderer");
+    coord.redo();
+    expect(coord.document().objectTypes.at("Player").spriteAnimator.has_value(),
+           "redo restores Sprite Animator");
+
     // Display sections: grouping metadata only, undoable, persisted.
     std::string section_id;
     expect(coord.addLogicSection("Player", "", section_id, error), "add section");
@@ -519,6 +566,17 @@ int main()
 
     EditorCoordinator reloaded;
     expect(reloaded.openProject(out_path.string(), error), "reload saved file");
+    expect(reloaded.document().objectTypes.at("Player").platformerController.has_value(),
+           "platformerController persisted");
+    expect(reloaded.document().objectTypes.at("Player").spriteRenderer.has_value()
+               && reloaded.document().objectTypes.at("Player").spriteAnimator.has_value(),
+           "spriteAnimator persisted");
+    const auto &reloaded_renderer =
+        *reloaded.document().objectTypes.at("Player").spriteRenderer;
+    expect(reloaded_renderer.imageAssetId == original_renderer.imageAssetId
+               && reloaded_renderer.animationAssetId == original_renderer.animationAssetId
+               && reloaded_renderer.visible == original_renderer.visible,
+           "Sprite Renderer values persisted");
     const ArtCade::SceneInstanceDef *again =
         project_doc_find_instance(reloaded.document(), 1);
     expect(again != nullptr, "reloaded instance");

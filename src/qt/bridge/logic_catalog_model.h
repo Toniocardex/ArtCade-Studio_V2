@@ -43,9 +43,12 @@ public:
         AvailableRole,
         UnavailableReasonRole,
         RequiredComponentsRole,
+        RequiredComponentIdsRole,
+        MissingComponentIdsRole,
         RequiredContextRole,
         PropertyKeysRole,
         PropertySummaryRole,
+        SearchSynonymsRole,
     };
 
     explicit LogicCatalogModel(QObject *parent = nullptr);
@@ -88,9 +91,12 @@ private:
         bool available = true;
         QString unavailableReason;
         QStringList requiredComponents;
+        QStringList requiredComponentIds;
+        QStringList missingComponentIds;
         QStringList requiredContext;
         QStringList propertyKeys;
         QString propertySummary;
+        QStringList searchSynonyms;
     };
 
     ArtCade::EditorCore::EditorCoordinator *m_coordinator = nullptr;

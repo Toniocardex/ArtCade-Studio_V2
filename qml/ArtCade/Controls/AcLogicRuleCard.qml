@@ -342,7 +342,6 @@ Rectangle {
                 Layout.alignment: Qt.AlignTop
                 slotKind: "trigger"
                 title: "WHEN"
-                subtitle: "Trigger"
                 comfortable: root.comfortable
                 blocks: (root.rule.triggerTypeId || "").length > 0
                         ? [root.rule.triggerTypeId] : []
@@ -365,7 +364,6 @@ Rectangle {
                 Layout.alignment: Qt.AlignTop
                 slotKind: "condition"
                 title: "IF"
-                subtitle: "Conditions (optional)"
                 comfortable: root.comfortable
                 blocks: root.conditionIds
                 editable: true
@@ -387,7 +385,6 @@ Rectangle {
                 Layout.alignment: Qt.AlignTop
                 slotKind: "action"
                 title: "THEN"
-                subtitle: "Actions"
                 comfortable: root.comfortable
                 blocks: root.actionIds
                 editable: true
@@ -411,7 +408,6 @@ Rectangle {
                 Layout.fillWidth: true
                 slotKind: "trigger"
                 title: "WHEN"
-                subtitle: "Trigger"
                 comfortable: root.comfortable
                 blocks: (root.rule.triggerTypeId || "").length > 0
                         ? [root.rule.triggerTypeId] : []
@@ -432,7 +428,6 @@ Rectangle {
                 Layout.fillWidth: true
                 slotKind: "condition"
                 title: "IF"
-                subtitle: "Conditions (optional)"
                 comfortable: root.comfortable
                 blocks: root.conditionIds
                 editable: true
@@ -452,7 +447,6 @@ Rectangle {
                 Layout.fillWidth: true
                 slotKind: "action"
                 title: "THEN"
-                subtitle: "Actions"
                 comfortable: root.comfortable
                 blocks: root.actionIds
                 editable: true

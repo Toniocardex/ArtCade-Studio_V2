@@ -52,17 +52,6 @@ Logic::BlockKind logic_catalog_parse_kind(const QString &kind)
     return Logic::BlockKind::Action;
 }
 
-QString logic_catalog_component_label(Logic::LogicRequiredComponent component)
-{
-    switch (component) {
-    case Logic::LogicRequiredComponent::PlatformerController:
-        return QStringLiteral("Platformer Controller");
-    case Logic::LogicRequiredComponent::SpriteAnimator:
-        return QStringLiteral("Sprite Animator");
-    }
-    return QStringLiteral("Component");
-}
-
 QString logic_catalog_capability_label(Logic::LogicContextCapability capability)
 {
     using Cap = Logic::LogicContextCapability;

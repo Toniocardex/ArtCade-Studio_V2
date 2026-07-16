@@ -170,6 +170,13 @@ Popup {
                 replacingConfigured: root.replacingConfigured
                 currentTypeId: root.currentTypeId
                 replaceDiscardHint: root.replaceDiscardHint
+                onAddComponentRequested: function(componentId) {
+                    if (!EditorSession.ensureObjectTypeComponent(componentId))
+                        return
+                    if (root.catalog)
+                        root.catalog.reload()
+                    resultsPane.syncSelection()
+                }
             }
         }
 

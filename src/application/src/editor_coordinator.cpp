@@ -1182,6 +1182,39 @@ bool EditorCoordinator::setSelectedRotation(float radians, std::string &error_me
     return setEntityRotation(scene_id, m_selected_entity_id, radians, error_message);
 }
 
+bool EditorCoordinator::ensureObjectTypeComponent(const ObjectTypeId &object_type_id,
+                                                  const std::string &component_id,
+                                                  std::string &error_message)
+{
+    if (!m_has_project) {
+        error_message = "No project open";
+        return false;
+    }
+    if (object_type_id.empty()) {
+        error_message = "Select an Object Type first";
+        return false;
+    }
+    const auto *component = ArtCade::Logic::requiredComponentDescriptor(component_id);
+    if (!component) {
+        error_message = "Unknown component: " + component_id;
+        return false;
+    }
+    auto type_it = m_doc.objectTypes.find(object_type_id);
+    if (type_it == m_doc.objectTypes.end()) {
+        error_message = "Object Type not found";
+        return false;
+    }
+    auto command =
+        std::make_unique<EnsureObjectTypeComponentCommand>(object_type_id, component->component);
+    command->execute(m_doc);
+    if (!command->applied()) {
+        return true; // no-op — already present
+    }
+    m_commands.pushExecuted(std::move(command));
+    bumpRevision();
+    return true;
+}
+
 bool EditorCoordinator::canUndo() const
 {
     return m_commands.canUndo();

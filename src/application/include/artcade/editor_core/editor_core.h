@@ -119,6 +119,32 @@ private:
 };
 
 /**
+ * Ensures an Object Type has a required gameplay component (Platformer / Sprite Animator).
+ * No-op when already present. Undo restores the previous optional component state.
+ */
+class EnsureObjectTypeComponentCommand final : public ICommand {
+public:
+    EnsureObjectTypeComponentCommand(ObjectTypeId object_type_id,
+                                     Logic::LogicRequiredComponent component);
+    void execute(ProjectDoc &doc) override;
+    void undo(ProjectDoc &doc) override;
+
+    [[nodiscard]] bool applied() const { return m_applied; }
+
+private:
+    ObjectTypeId m_object_type_id;
+    Logic::LogicRequiredComponent m_component;
+    bool m_had_platformer = false;
+    bool m_had_sprite_renderer = false;
+    bool m_had_sprite_animator = false;
+    PlatformerControllerComponent m_old_platformer{};
+    SpriteRendererComponent m_old_sprite_renderer{};
+    SpriteAnimatorComponent m_old_sprite_animator{};
+    bool m_captured = false;
+    bool m_applied = false;
+};
+
+/**
  * Appends a default Logic Rule to objectTypes[typeId].logicBoard.
  * Creates the board on first rule. Undo removes the rule (and the board if created empty).
  */
@@ -602,6 +628,15 @@ public:
                                    LogicRuleBlockSlot slot,
                                    const std::string &property_key,
                                    const std::string &value_text,
+                                   std::string &error_message);
+
+    /**
+     * Ensures the Object Type owns a required component used by Logic Catalog blocks.
+     * Supported ids: "platformerController", "spriteAnimator".
+     * Already-present components are a no-op (no dirty / revision).
+     */
+    bool ensureObjectTypeComponent(const ObjectTypeId &object_type_id,
+                                   const std::string &component_id,
                                    std::string &error_message);
 
     /**

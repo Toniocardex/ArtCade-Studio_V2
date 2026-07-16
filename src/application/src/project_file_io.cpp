@@ -62,6 +62,34 @@ nlohmann::json object_type_to_json(const std::string &key, const EntityDef &type
     if (type.logicBoard) {
         j["logicBoard"] = ArtCade::Logic::logicBoardToJson(*type.logicBoard);
     }
+    // Persist optional components that load already supports (Logic Catalog availability).
+    if (type.platformerController) {
+        const PlatformerControllerComponent &pc = *type.platformerController;
+        j["platformerController"] = {
+            {"maxSpeed", pc.maxSpeed},
+            {"jumpForce", pc.jumpForce},
+            {"customGravity", pc.customGravity},
+            {"coyoteTime", pc.coyoteTime},
+            {"jumpBuffer", pc.jumpBuffer},
+            {"climbSpeed", pc.climbSpeed},
+        };
+    }
+    if (type.spriteRenderer) {
+        const SpriteRendererComponent &sr = *type.spriteRenderer;
+        j["spriteRenderer"] = {
+            {"imageAssetId", sr.imageAssetId},
+            {"animationAssetId", sr.animationAssetId},
+            {"visible", sr.visible},
+        };
+    }
+    if (type.spriteAnimator) {
+        const SpriteAnimatorComponent &sa = *type.spriteAnimator;
+        j["spriteAnimator"] = {
+            {"initialClipId", sa.initialClipId},
+            {"autoPlay", sa.autoPlay},
+            {"playbackSpeed", sa.playbackSpeed},
+        };
+    }
     return j;
 }
 

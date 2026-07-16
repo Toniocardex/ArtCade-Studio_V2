@@ -1424,6 +1424,44 @@ void EditorSession::setLogicRuleBlockProperty(const QString &ruleId,
     setStatus(QStringLiteral("%1 = %2").arg(propertyKey, valueText));
 }
 
+bool EditorSession::ensureObjectTypeComponent(const QString &componentId)
+{
+    QString guard_error;
+    if (!guardAuthoring(&guard_error)) {
+        setStatus(guard_error, false);
+        emit errorOccurred(guard_error);
+        return false;
+    }
+    if (m_selectedObjectTypeId.isEmpty() || componentId.isEmpty()) {
+        const QString msg = QStringLiteral("Select an Object Type to add a component");
+        setStatus(msg, false);
+        emit errorOccurred(msg);
+        return false;
+    }
+    const std::uint64_t rev_before = m_coordinator->revision();
+    std::string error;
+    if (!m_coordinator->ensureObjectTypeComponent(m_selectedObjectTypeId.toStdString(),
+                                                  componentId.toStdString(),
+                                                  error)) {
+        setStatus(QString::fromStdString(error));
+        emit errorOccurred(QString::fromStdString(error));
+        return false;
+    }
+    if (m_coordinator->revision() == rev_before) {
+        return true; // no-op
+    }
+    refreshSelectionCache();
+    reloadDerivedModels();
+    emit dirtyChanged();
+    const QString label = componentId == QLatin1String("platformerController")
+                              ? QStringLiteral("Platformer Controller")
+                              : componentId == QLatin1String("spriteAnimator")
+                                    ? QStringLiteral("Sprite Animator")
+                                    : componentId;
+    setStatus(QStringLiteral("Added %1").arg(label));
+    return true;
+}
+
 void EditorSession::setLogicRuleEnabled(const QString &ruleId, bool enabled)
 {
     QString guard_error;

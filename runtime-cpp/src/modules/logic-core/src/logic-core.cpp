@@ -12,6 +12,19 @@ namespace {
 
 LogicEntityReference selfReference() { return {}; }
 
+const std::vector<LogicRequiredComponentDescriptor>& requiredComponentRegistry()
+{
+    static const std::vector<LogicRequiredComponentDescriptor> value{
+        {LogicRequiredComponent::PlatformerController,
+         "platformerController",
+         "Platformer Controller"},
+        {LogicRequiredComponent::SpriteAnimator,
+         "spriteAnimator",
+         "Sprite Animator"},
+    };
+    return value;
+}
+
 LogicDiagnostic makeError(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
                           std::string code, std::string message,
                           const LogicRuleDef* rule = nullptr,
@@ -44,16 +57,6 @@ bool validId(const std::string& id) {
     return !id.empty() && id.size() <= kMaxLogicIdLength;
 }
 
-bool ownerHasComponent(const EntityDef& owner, LogicRequiredComponent component) {
-    switch (component) {
-        case LogicRequiredComponent::PlatformerController:
-            return owner.platformerController.has_value();
-        case LogicRequiredComponent::SpriteAnimator:
-            return owner.spriteRenderer.has_value() && owner.spriteAnimator.has_value();
-    }
-    return false;
-}
-
 bool containsCapability(const std::vector<LogicContextCapability>& values,
                         LogicContextCapability expected) {
     return std::find(values.begin(), values.end(), expected) != values.end();
@@ -63,13 +66,11 @@ LogicBlockAvailability availabilityFor(const EntityDef& owner,
                                        const LogicBlockDescriptor& candidate,
                                        const LogicBlockDescriptor* trigger) {
     for (const LogicRequiredComponent component : candidate.requiredComponents) {
-        if (!ownerHasComponent(owner, component)) {
-            switch (component) {
-                case LogicRequiredComponent::PlatformerController:
-                    return {false, "Requires Platformer Controller"};
-                case LogicRequiredComponent::SpriteAnimator:
-                    return {false, "Requires Sprite Animator"};
-            }
+        if (!hasRequiredComponent(owner, component)) {
+            const LogicRequiredComponentDescriptor *descriptor =
+                requiredComponentDescriptor(component);
+            return {false, descriptor ? "Requires " + descriptor->displayName
+                                      : "Requires an unsupported component"};
         }
     }
     for (const LogicContextCapability capability : candidate.requiredContext) {
@@ -435,78 +436,117 @@ bool LogicCompileResult::ok() const {
         [](const LogicDiagnostic& d) { return d.severity == DiagnosticSeverity::Error; });
 }
 
+const LogicRequiredComponentDescriptor* requiredComponentDescriptor(LogicRequiredComponent component)
+{
+    const auto &value = requiredComponentRegistry();
+    const auto it = std::find_if(value.begin(), value.end(),
+                                 [component](const LogicRequiredComponentDescriptor &descriptor) {
+                                     return descriptor.component == component;
+                                 });
+    return it == value.end() ? nullptr : &*it;
+}
+
+const LogicRequiredComponentDescriptor* requiredComponentDescriptor(const std::string& id)
+{
+    const auto &value = requiredComponentRegistry();
+    const auto it = std::find_if(value.begin(), value.end(),
+                                 [&id](const LogicRequiredComponentDescriptor &descriptor) {
+                                     return descriptor.id == id;
+                                 });
+    return it == value.end() ? nullptr : &*it;
+}
+
+bool hasRequiredComponent(const EntityDef& owner, LogicRequiredComponent component)
+{
+    switch (component) {
+    case LogicRequiredComponent::PlatformerController:
+        return owner.platformerController.has_value();
+    case LogicRequiredComponent::SpriteAnimator:
+        return owner.spriteRenderer.has_value() && owner.spriteAnimator.has_value();
+    }
+    return false;
+}
+
 const std::vector<LogicBlockDescriptor>& registry() {
     static const std::vector<LogicBlockDescriptor> value{
         {kOnStart, "system", "On Start", "Runs once when Play begins.",
-            BlockKind::Trigger, {}, {}, {}, {LogicContextCapability::Self}, "event.start"},
+            BlockKind::Trigger, {}, {}, {}, {LogicContextCapability::Self}, "event.start",
+            false, {"begin", "startup", "init"}},
         {kEveryFrame, "system", "Every Frame", "Runs once every simulation frame.",
             BlockKind::Trigger, {}, {}, {}, {LogicContextCapability::Self, LogicContextCapability::DeltaTime},
-            "event.on_update", true},
+            "event.on_update", true, {"tick", "update", "frame"}},
         {kEverySeconds, "system", "Every Second",
             "Runs on a repeating timer. Default interval is 1 second.",
             BlockKind::Trigger, {{"seconds", LogicValueKind::Number, 1.0}}, {}, {},
-            {LogicContextCapability::Self}, "event.every_seconds", true},
+            {LogicContextCapability::Self}, "event.every_seconds", true, {"timer", "interval"}},
         {kKeyPressed, "input", "Key Pressed", "Runs when the selected key is pressed.",
             BlockKind::Trigger, {{"key", LogicValueKind::Key, LogicKey::Space}}, {}, {},
-            {LogicContextCapability::Self}, "input.key_pressed"},
+            {LogicContextCapability::Self}, "input.key_pressed", false, {"keyboard", "input"}},
         {kKeyReleased, "input", "Key Released", "Runs when the selected key is released.",
             BlockKind::Trigger, {{"key", LogicValueKind::Key, LogicKey::Space}}, {}, {},
-            {LogicContextCapability::Self}, "input.key_released"},
+            {LogicContextCapability::Self}, "input.key_released", false, {"keyboard", "input"}},
         {kKeyHeld, "input", "While Key Held", "Runs once per tick while the selected key is held.",
             BlockKind::Trigger, {{"key", LogicValueKind::Key, LogicKey::Space}}, {}, {},
-            {LogicContextCapability::Self}, "input.key_held", true},
+            {LogicContextCapability::Self}, "input.key_held", true, {"keyboard", "input", "hold"}},
         {kKeyDown, "input", "Is Key Down", "True while the selected key is held.",
             BlockKind::Condition, {{"key", LogicValueKind::Key, LogicKey::Space}}, {},
-            {LogicContextCapability::Self}, {}, "input.key_down"},
+            {LogicContextCapability::Self}, {}, "input.key_down", false, {"keyboard", "input"}},
         {kSetVisible, "entity", "Set Visible", "Shows or hides Self.",
             BlockKind::Action,
             {{"target", LogicValueKind::Entity, selfReference()},
              {"visible", LogicValueKind::Bool, true}},
-            {}, {LogicContextCapability::Self}, {}, "entity.visibility"},
+            {}, {LogicContextCapability::Self}, {}, "entity.visibility", false,
+            {"visibility", "show", "hide"}},
         {kSetPosition, "entity", "Set Position", "Moves Self to a world position.",
             BlockKind::Action,
             {{"target", LogicValueKind::Entity, selfReference()},
              {"position", LogicValueKind::Vec2, Vec2{}}},
-            {}, {LogicContextCapability::Self}, {}, "entity.transform"},
+            {}, {LogicContextCapability::Self}, {}, "entity.transform", false,
+            {"move", "teleport", "coords"}},
         {kSetVelocity, "physics", "Set Velocity", "Sets Self's linear velocity.",
             BlockKind::Action, {{"velocity", LogicValueKind::Vec2, Vec2{}}},
-            {}, {LogicContextCapability::Self}, {}, "physics.set_velocity"},
+            {}, {LogicContextCapability::Self}, {}, "physics.set_velocity", false,
+            {"speed", "motion"}},
         {kSpawnObject, "entity", "Spawn Object", "Spawns an Object Type at a world position.",
             BlockKind::Action,
             {{"objectTypeId", LogicValueKind::String, LogicStringValue{}},
              {"position", LogicValueKind::Vec2, Vec2{}}},
-            {}, {LogicContextCapability::Self}, {}, "entity.spawn"},
+            {}, {LogicContextCapability::Self}, {}, "entity.spawn", false,
+            {"create", "instantiate"}},
         {kIsGrounded, "platformer", "Is Grounded", "Checks whether Self is touching valid ground.",
             BlockKind::Condition, {{"expected", LogicValueKind::Bool, true}},
             {LogicRequiredComponent::PlatformerController}, {LogicContextCapability::Self}, {},
-            "platformer.grounded"},
+            "platformer.grounded", false, {"floor", "landing"}},
         {kMoveHorizontal, "platformer", "Move Horizontal", "Requests horizontal platformer movement.",
             BlockKind::Action, {{"axis", LogicValueKind::Number, 0.0}},
             {LogicRequiredComponent::PlatformerController}, {LogicContextCapability::Self}, {},
-            "platformer.move"},
+            "platformer.move", false, {"walk", "run", "strafe"}},
         {kJump, "platformer", "Jump", "Requests a platformer jump.",
             BlockKind::Action, {}, {LogicRequiredComponent::PlatformerController},
-            {LogicContextCapability::Self}, {}, "platformer.jump"},
+            {LogicContextCapability::Self}, {}, "platformer.jump", false, {"leap", "hop"}},
         {kCollisionEnter, "collision", "On Collision Enter", "Runs once when Self begins overlapping another collider.",
             BlockKind::Trigger, {}, {}, {},
             {LogicContextCapability::Self, LogicContextCapability::EventOther,
-             LogicContextCapability::CollisionContact}, "collision.enter"},
+             LogicContextCapability::CollisionContact}, "collision.enter", false,
+            {"hit", "overlap", "touch"}},
         {kCollisionExit, "collision", "On Collision Exit", "Runs once when Self stops overlapping another collider.",
             BlockKind::Trigger, {}, {}, {},
             {LogicContextCapability::Self, LogicContextCapability::EventOther,
-             LogicContextCapability::CollisionContact}, "collision.exit"},
+             LogicContextCapability::CollisionContact}, "collision.exit", false,
+            {"leave", "overlap"}},
         {kOtherIsObjectType, "collision", "Other Is Object Type", "Checks the Object Type of collision Other.",
             BlockKind::Condition,
             {{"objectTypeId", LogicValueKind::String, LogicStringValue{}}},
             {}, {LogicContextCapability::EventOther}, {}, "collision.other_type"},
         {kDestroySelf, "entity", "Destroy Self", "Removes Self from the runtime world after event dispatch.",
-            BlockKind::Action, {}, {}, {LogicContextCapability::Self}, {}, "entity.destroy"},
+            BlockKind::Action, {}, {}, {LogicContextCapability::Self}, {}, "entity.destroy", false,
+            {"delete", "remove", "kill"}},
         {kAnimationPlayClip, "animation", "Play Clip", "Plays an animation clip on Self.",
             BlockKind::Action,
             {{"animationAssetId", LogicValueKind::Asset, LogicAssetReference{}},
              {"clipId", LogicValueKind::String, LogicStringValue{}}},
             {LogicRequiredComponent::SpriteAnimator}, {LogicContextCapability::Self}, {},
-            "animation.play_clip"},
+            "animation.play_clip", false, {"animate", "sprite", "clip"}},
         {kAnimationStop, "animation", "Stop Animation", "Stops Self's animation playback.",
             BlockKind::Action, {}, {LogicRequiredComponent::SpriteAnimator},
             {LogicContextCapability::Self}, {}, "animation.stop"},
@@ -526,31 +566,32 @@ const std::vector<LogicBlockDescriptor>& registry() {
             BlockKind::Action,
             {{"audioAssetId", LogicValueKind::Asset, LogicAssetReference{}},
              {"volume", LogicValueKind::Number, 1.0}},
-            {}, {LogicContextCapability::Self}, {}, "audio.play_sound"},
+            {}, {LogicContextCapability::Self}, {}, "audio.play_sound", false,
+            {"sfx", "sound", "audio"}},
         {kWait, "flow", "Wait", "Waits, then continues with the following actions.",
             BlockKind::Action, {{"seconds", LogicValueKind::Number, 1.0}},
-            {}, {LogicContextCapability::Self}, {}, "flow.wait", true},
+            {}, {LogicContextCapability::Self}, {}, "flow.wait", true, {"delay", "pause", "sleep"}},
         {kStateSet, "state", "Set Variable", "Sets a global Number variable.",
             BlockKind::Action,
             {{"key", LogicValueKind::String, LogicStringValue{"score"}},
              {"value", LogicValueKind::Number, 0.0}},
-            {}, {}, {}, "state.set"},
+            {}, {}, {}, "state.set", false, {"variable", "score"}},
         {kStateAdd, "state", "Add Variable", "Adds to a global Number variable.",
             BlockKind::Action,
             {{"key", LogicValueKind::String, LogicStringValue{"score"}},
              {"amount", LogicValueKind::Number, 1.0}},
-            {}, {}, {}, "state.add"},
+            {}, {}, {}, "state.add", false, {"variable", "increment"}},
         {kStateSubtract, "state", "Subtract Variable", "Subtracts from a global Number variable.",
             BlockKind::Action,
             {{"key", LogicValueKind::String, LogicStringValue{"health"}},
              {"amount", LogicValueKind::Number, 1.0}},
-            {}, {}, {}, "state.subtract"},
+            {}, {}, {}, "state.subtract", false, {"variable", "decrement"}},
         {kStateCompare, "state", "Compare Variable", "Compares a global Number variable.",
             BlockKind::Condition,
             {{"key", LogicValueKind::String, LogicStringValue{"score"}},
              {"op", LogicValueKind::String, LogicStringValue{"=="}},
              {"value", LogicValueKind::Number, 0.0}},
-            {}, {}, {}, "state.compare"},
+            {}, {}, {}, "state.compare", false, {"variable", "equals", "compare"}},
     };
     return value;
 }

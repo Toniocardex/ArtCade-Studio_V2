@@ -5,7 +5,7 @@ import ArtCade.Ui
 
 /**
  * One Logic Board column (WHEN / IF / THEN) — flat event-sheet cell.
- * Block type exploration happens in AcLogicCatalogDialog (IDE catalog).
+ * Catalog exploration lives in AcLogicCatalogDialog; this shows the result + properties.
  */
 Item {
     id: root
@@ -13,14 +13,13 @@ Item {
     /** "trigger" | "condition" | "action" */
     property string slotKind: "trigger"
     property string title: ""
-    property string subtitle: ""
     property bool comfortable: false
     property var blocks: []
     property bool editable: false
     property string currentTypeId: ""
     property var propertyRows: []
 
-    readonly property int columnPadding: comfortable ? Metrics.spacingMd : Metrics.spacingXs
+    readonly property int columnPadding: comfortable ? Metrics.spacingMd : Metrics.spacingSm
     readonly property int rowSpacing: comfortable ? Metrics.spacingSm : Metrics.spacingXs
 
     readonly property bool isTrigger: slotKind === "trigger"
@@ -33,12 +32,51 @@ Item {
             return ""
         return EditorSession.logicBlockDisplayName(currentTypeId)
     }
+    readonly property string catalogButtonLabel: {
+        if (showEmptyCondition)
+            return "+ Add"
+        if (typeLabel.length > 0)
+            return "Change"
+        return "Select…"
+    }
+    readonly property bool catalogEnabled: root.editable && !EditorSession.playing
 
     signal catalogRequested()
     signal propertyEdited(string propertyKey, string valueText)
 
     implicitHeight: col.implicitHeight + columnPadding * 2
     implicitWidth: 120
+
+    component CatalogCta: Item {
+        id: cta
+        property string label: ""
+        property bool interactive: true
+
+        implicitWidth: ctaLabel.implicitWidth + Metrics.spacingXs
+        implicitHeight: Math.max(22, ctaLabel.implicitHeight + 4)
+
+        Text {
+            id: ctaLabel
+            anchors.centerIn: parent
+            text: cta.label
+            color: cta.interactive ? Theme.accent : Theme.textDisabled
+            font.family: Typography.family
+            font.pixelSize: Typography.sizeToolbar
+            font.weight: Font.DemiBold
+            opacity: ctaMa.containsMouse && cta.interactive ? 0.85 : 1.0
+        }
+
+        // MouseArea (not TapHandler): ListView/Flickable steals TapHandler presses.
+        MouseArea {
+            id: ctaMa
+            anchors.fill: parent
+            enabled: cta.interactive
+            hoverEnabled: true
+            cursorShape: cta.interactive ? Qt.PointingHandCursor : Qt.ArrowCursor
+            preventStealing: true
+            onClicked: root.catalogRequested()
+        }
+    }
 
     ColumnLayout {
         id: col
@@ -48,59 +86,52 @@ Item {
         anchors.margins: root.columnPadding
         spacing: root.rowSpacing
 
-        Column {
+        Text {
             Layout.fillWidth: true
-            spacing: 1
-
-            Text {
-                text: root.title
-                color: Theme.textPrimary
-                font.family: Typography.family
-                font.pixelSize: Typography.sizePanelTitle
-                font.weight: Font.DemiBold
-            }
-            Text {
-                visible: root.comfortable && root.subtitle.length > 0
-                text: root.subtitle
-                color: Theme.textMuted
-                font.family: Typography.family
-                font.pixelSize: Typography.sizeMeta
-            }
+            text: root.title
+            color: Theme.textMuted
+            font.family: Typography.family
+            font.pixelSize: Typography.sizeMeta
+            font.weight: Font.DemiBold
+            font.letterSpacing: 0.6
         }
 
-        // IF empty
-        Column {
+        // IF empty — result + quiet CTA
+        RowLayout {
             Layout.fillWidth: true
-            spacing: Metrics.spacingXs
+            spacing: Metrics.spacingSm
             visible: root.showEmptyCondition
 
             Text {
-                width: parent.width
+                Layout.fillWidth: true
                 text: "No conditions"
                 color: Theme.textSecondary
                 font.family: Typography.family
                 font.pixelSize: Typography.sizeBody
                 font.weight: Font.DemiBold
+                elide: Text.ElideRight
             }
-            Text {
-                width: parent.width
-                wrapMode: Text.WordWrap
-                text: "Runs whenever the event occurs."
-                color: Theme.textMuted
-                font.family: Typography.family
-                font.pixelSize: Typography.sizeMeta
+
+            CatalogCta {
+                label: root.catalogButtonLabel
+                interactive: root.catalogEnabled
             }
-            AcButton {
-                text: "+ Add Condition"
-                enabled: root.editable && !EditorSession.playing
-                onClicked: root.catalogRequested()
-            }
+        }
+
+        Text {
+            Layout.fillWidth: true
+            visible: root.showEmptyCondition && root.comfortable
+            wrapMode: Text.WordWrap
+            text: "Runs whenever the event occurs."
+            color: Theme.textMuted
+            font.family: Typography.family
+            font.pixelSize: Typography.sizeMeta
         }
 
         // Chosen block + Change / Select
         RowLayout {
             Layout.fillWidth: true
-            spacing: Metrics.spacingXs
+            spacing: Metrics.spacingSm
             visible: root.editable && !root.showEmptyCondition
 
             Text {
@@ -117,10 +148,9 @@ Item {
                 elide: Text.ElideRight
             }
 
-            AcButton {
-                text: root.typeLabel.length > 0 ? "Change" : "Select…"
-                enabled: !EditorSession.playing
-                onClicked: root.catalogRequested()
+            CatalogCta {
+                label: root.catalogButtonLabel
+                interactive: !EditorSession.playing
             }
         }
 

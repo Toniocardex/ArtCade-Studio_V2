@@ -27,6 +27,8 @@ Item {
                 continue
             let haystack = (entry.displayName + " " + entry.description + " "
                             + entry.categoryLabel).toLowerCase()
+            if (entry.searchSynonyms && entry.searchSynonyms.length > 0)
+                haystack += " " + entry.searchSynonyms.join(" ").toLowerCase()
             if (showTypeId)
                 haystack += " " + String(entry.typeId).toLowerCase()
             if (query.length === 0 || haystack.indexOf(query) >= 0)

@@ -85,6 +85,18 @@ struct LogicBlockDescriptor {
     std::vector<LogicContextCapability>  providedContext;
     std::string                          requiredFeature;
     bool                                 requiresTick = false;
+    /** Extra case-insensitive search terms for the Logic Catalog (registry-owned). */
+    std::vector<std::string>             searchSynonyms;
+};
+
+/**
+ * Canonical authoring metadata for a component required by a Logic block.
+ * @p id is the stable bridge/command value; @p displayName is user-facing.
+ */
+struct LogicRequiredComponentDescriptor {
+    LogicRequiredComponent component = LogicRequiredComponent::PlatformerController;
+    std::string            id;
+    std::string            displayName;
 };
 
 struct LogicBlockAvailability {
@@ -128,6 +140,12 @@ struct LogicJsonResult {
 
 const std::vector<LogicBlockDescriptor>& registry();
 const LogicBlockDescriptor* findDescriptor(const std::string& typeId);
+/** Returns canonical metadata for @p component, or nullptr when unsupported. */
+const LogicRequiredComponentDescriptor* requiredComponentDescriptor(LogicRequiredComponent component);
+/** Returns canonical metadata for stable authoring @p id, or nullptr when unknown. */
+const LogicRequiredComponentDescriptor* requiredComponentDescriptor(const std::string& id);
+/** Returns whether @p owner satisfies the complete requirement for @p component. */
+bool hasRequiredComponent(const EntityDef& owner, LogicRequiredComponent component);
 const LogicPropertyDef* findProperty(const LogicBlockDef& block, const std::string& key);
 LogicBlockDef makeDefaultBlock(const LogicBlockTypeId& typeId, BlockKind expected);
 LogicBlockAvailability blockAvailability(const EntityDef& owner,
