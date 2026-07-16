@@ -9,7 +9,7 @@ Rectangle {
     color: Theme.panel
 
     /** Captured at edit start so mid-edit selection change cannot apply to the wrong entity. */
-    property quint32 transformEditTargetId: 0
+    property int transformEditTargetId: 0
 
     function captureTransformTarget() {
         transformEditTargetId = EditorSession.selectedEntityId
