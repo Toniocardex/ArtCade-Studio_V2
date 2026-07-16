@@ -1,4 +1,4 @@
-# Deploy Qt DLLs next to artcade-editor-qt.exe and launch it (LGPL dynamic linking).
+﻿# Deploy Qt DLLs next to artcade-editor-qt.exe and launch it (LGPL dynamic linking).
 # Usage:
 #   powershell -File scripts\run-artcade-editor-qt.ps1
 #   powershell -File scripts\run-artcade-editor-qt.ps1 -DeployOnly
@@ -33,7 +33,8 @@ if (-not (Test-Path -LiteralPath $windeploy)) {
 }
 
 Write-Host "windeployqt -> $exe"
-& $windeploy --qmldir $qmlDir --release:$($Config -eq "Release") --debug:$($Config -eq "Debug") $exe
+$modeFlag = if ($Config -eq "Debug") { "--debug" } else { "--release" }
+& $windeploy --qmldir $qmlDir $modeFlag $exe
 if ($LASTEXITCODE -ne 0) {
     throw "windeployqt failed with exit $LASTEXITCODE"
 }
