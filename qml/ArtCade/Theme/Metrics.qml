@@ -15,6 +15,7 @@ QtObject {
     readonly property int controlHeight: 28
     readonly property int toolButtonSize: 30
     readonly property int iconSize: 16
+    readonly property int iconSizeSm: 12
     readonly property int titleBarHeight: 34
     readonly property int workspaceBarHeight: 48
     readonly property int toolbarHeight: 38

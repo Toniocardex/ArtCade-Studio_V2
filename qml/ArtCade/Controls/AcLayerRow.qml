@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import ArtCade.Ui
 
 /**
- * Polished Layers panel row — eye toggle, lock badge, active accent.
+ * Polished Layers panel row — compact eye toggle, lock badge, active accent.
  * Model roles are required properties (ListView injects them).
  * Intents only: visibility / active layer → EditorSession.
  */
@@ -21,7 +21,7 @@ Item {
     signal visibilityToggled(string layerId, bool visible)
 
     width: ListView.view ? ListView.view.width : 200
-    implicitHeight: Metrics.controlHeight + 4
+    implicitHeight: Metrics.controlHeight + 2
     height: implicitHeight
 
     Rectangle {
@@ -56,12 +56,12 @@ Item {
         RowLayout {
             anchors.fill: parent
             anchors.leftMargin: Metrics.spacingSm + (root.active ? 2 : 0)
-            anchors.rightMargin: Metrics.spacingXs
+            anchors.rightMargin: Metrics.spacingSm
             spacing: Metrics.spacingXs
 
             AcIcon {
                 source: Icons.layer
-                size: 14
+                size: Metrics.iconSizeSm
                 color: root.active ? Theme.textPrimary
                      : root.layerVisible ? Theme.textSecondary : Theme.textMuted
                 Layout.alignment: Qt.AlignVCenter
@@ -82,8 +82,8 @@ Item {
 
             ToolButton {
                 id: eyeBtn
-                implicitWidth: 26
-                implicitHeight: 26
+                implicitWidth: 22
+                implicitHeight: 22
                 padding: 0
                 focusPolicy: Qt.NoFocus
                 z: 2
@@ -96,27 +96,32 @@ Item {
                     color: eyeBtn.down ? Theme.controlPressed
                          : eyeBtn.hovered ? Theme.control : "transparent"
                 }
-                contentItem: AcIcon {
-                    anchors.centerIn: parent
-                    source: root.layerVisible ? Icons.eye : Icons.eyeOff
-                    size: 14
-                    color: root.layerVisible ? Theme.textPrimary : Theme.textMuted
+                contentItem: Item {
+                    implicitWidth: Metrics.iconSizeSm
+                    implicitHeight: Metrics.iconSizeSm
+                    AcIcon {
+                        anchors.centerIn: parent
+                        source: root.layerVisible ? Icons.eye : Icons.eyeOff
+                        size: Metrics.iconSizeSm
+                        color: root.layerVisible ? Theme.textSecondary : Theme.textMuted
+                    }
                 }
                 onClicked: root.visibilityToggled(root.layerId, !root.layerVisible)
             }
 
             Item {
-                implicitWidth: 22
-                implicitHeight: 26
+                implicitWidth: 18
+                implicitHeight: 22
                 Layout.alignment: Qt.AlignVCenter
+                Layout.rightMargin: Metrics.spacingXs
                 z: 2
 
                 AcIcon {
                     anchors.centerIn: parent
                     source: Icons.lock
-                    size: 13
+                    size: Metrics.iconSizeSm
                     color: root.locked ? Theme.warning : Theme.textMuted
-                    opacity: root.locked ? 1.0 : (rowMa.containsMouse || root.active ? 0.5 : 0.28)
+                    opacity: root.locked ? 1.0 : (rowMa.containsMouse || root.active ? 0.55 : 0.3)
                 }
                 ToolTip.visible: lockHover.hovered
                 ToolTip.delay: 400
@@ -128,7 +133,7 @@ Item {
         MouseArea {
             id: rowMa
             anchors.fill: parent
-            anchors.rightMargin: 52 // leave eye + lock hit targets alone
+            anchors.rightMargin: 48
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: root.activateRequested(root.layerId)

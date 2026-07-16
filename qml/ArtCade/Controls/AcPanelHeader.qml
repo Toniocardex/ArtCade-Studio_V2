@@ -38,7 +38,7 @@ ColumnLayout {
 
             AcIcon {
                 source: Icons.chevron
-                size: 12
+                size: Metrics.iconSizeSm
                 color: Theme.textSecondary
                 rotation: root.expanded ? 0 : -90
             }

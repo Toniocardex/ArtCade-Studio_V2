@@ -3,27 +3,56 @@ import QtQuick.Controls
 import ArtCade.Ui
 
 /**
- * Compact tree row for Hierarchy (TreeView + QAbstractItemModel).
- * Model roles are accessed via model.* — do not redeclare role names as
- * required properties (FINAL in Qt 6.8 TreeViewDelegate).
+ * Hierarchy tree row — ArtCade chevron indicator (not Basic-style dark triangle).
+ * Model roles via model.*; expand/collapse uses TreeViewDelegate defaults.
  */
 TreeViewDelegate {
     id: root
 
     implicitHeight: Metrics.controlHeight
-    indentation: Metrics.spacingMd
+    indentation: Metrics.spacingLg
+    leftMargin: Metrics.spacingXs
+    rightMargin: Metrics.spacingSm
+    spacing: Metrics.spacingXs
 
     readonly property string displayText: model.display ?? ""
     readonly property string nodeKind: model.nodeKind ?? ""
     readonly property var stableId: model.stableId ?? 0
 
     background: Rectangle {
+        anchors.fill: parent
+        anchors.leftMargin: Metrics.spacingXs
+        anchors.rightMargin: Metrics.spacingXs
+        radius: Metrics.radiusSmall
         color: {
             if (root.nodeKind === "instance" && EditorSession.selectedEntityId === root.stableId)
                 return Theme.selection
             if (root.hovered)
                 return Theme.controlHover
             return "transparent"
+        }
+        border.width: (root.nodeKind === "instance"
+                       && EditorSession.selectedEntityId === root.stableId) ? 1 : 0
+        border.color: Theme.accent
+    }
+
+    // Custom indicator: thin white chevron matching AcPanelHeader / Assets style.
+    indicator: Item {
+        id: indicatorRoot
+        implicitWidth: Metrics.iconSizeSm
+        implicitHeight: Metrics.iconSizeSm
+        width: Metrics.iconSizeSm
+        height: root.height
+        x: root.leftMargin + (root.depth * root.indentation)
+
+        AcIcon {
+            anchors.centerIn: parent
+            visible: root.isTreeNode && root.hasChildren
+            source: Icons.chevron
+            size: Metrics.iconSizeSm
+            color: Theme.textSecondary
+            rotation: root.expanded ? 0 : -90
+            Behavior on rotation { NumberAnimation { duration: 100; easing.type: Easing.OutCubic } }
         }
     }
 
