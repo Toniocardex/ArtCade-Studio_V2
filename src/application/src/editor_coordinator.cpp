@@ -1,5 +1,7 @@
 #include "artcade/editor_core/editor_core.h"
 
+#include "logic-core.h"
+
 #include <algorithm>
 
 namespace ArtCade::EditorCore {
@@ -307,6 +309,42 @@ bool EditorCoordinator::setLayerVisible(const std::string &layer_id,
     }
     m_commands.execute(
         std::make_unique<SetLayerVisibleCommand>(scene_id, layer_id, visible), m_doc);
+    bumpRevision();
+    return true;
+}
+
+bool EditorCoordinator::addLogicRule(const ObjectTypeId &object_type_id,
+                                     LogicRuleId &out_rule_id,
+                                     std::string &error_message)
+{
+    out_rule_id.clear();
+    if (!m_has_project) {
+        error_message = "No project open";
+        return false;
+    }
+    if (object_type_id.empty()) {
+        error_message = "Empty object type id";
+        return false;
+    }
+    auto type_it = m_doc.objectTypes.find(object_type_id);
+    if (type_it == m_doc.objectTypes.end()) {
+        error_message = "Object type not found";
+        return false;
+    }
+    if (type_it->second.logicBoard
+        && type_it->second.logicBoard->rules.size() >= ArtCade::Logic::kMaxRulesPerBoard) {
+        error_message = "Logic Board rule limit reached";
+        return false;
+    }
+    auto command = std::make_unique<AddLogicRuleCommand>(object_type_id);
+    const AddLogicRuleCommand *raw = command.get();
+    m_commands.execute(std::move(command), m_doc);
+    out_rule_id = raw->ruleId();
+    if (out_rule_id.empty()) {
+        error_message = "Failed to add Logic rule";
+        m_commands.undo(m_doc);
+        return false;
+    }
     bumpRevision();
     return true;
 }

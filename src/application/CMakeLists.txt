@@ -19,6 +19,7 @@ target_include_directories(artcade_editor_core
 target_link_libraries(artcade_editor_core
     PUBLIC
         artcade-project-json
+        artcade-logic-core
 )
 
 target_compile_features(artcade_editor_core PUBLIC cxx_std_17)

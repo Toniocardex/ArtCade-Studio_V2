@@ -153,6 +153,74 @@ int EditorSession::logicRuleCount() const
     return m_logicRuleCount;
 }
 
+QStringList EditorSession::logicRuleIds() const
+{
+    return m_logicRuleIds;
+}
+
+QString EditorSession::selectedLogicRuleId() const
+{
+    return m_selectedLogicRuleId;
+}
+
+QString EditorSession::selectedRuleTriggerTypeId() const
+{
+    return m_selectedRuleTriggerTypeId;
+}
+
+QStringList EditorSession::selectedRuleConditionTypeIds() const
+{
+    return m_selectedRuleConditionTypeIds;
+}
+
+QStringList EditorSession::selectedRuleActionTypeIds() const
+{
+    return m_selectedRuleActionTypeIds;
+}
+
+void EditorSession::setSelectedLogicRuleId(const QString &ruleId)
+{
+    if (m_selectedLogicRuleId == ruleId) {
+        return;
+    }
+    if (!ruleId.isEmpty() && !m_logicRuleIds.contains(ruleId)) {
+        return;
+    }
+    m_selectedLogicRuleId = ruleId;
+    refreshSelectedLogicRuleCache();
+    emit selectedLogicRuleChanged();
+}
+
+void EditorSession::refreshSelectedLogicRuleCache()
+{
+    m_selectedRuleTriggerTypeId.clear();
+    m_selectedRuleConditionTypeIds.clear();
+    m_selectedRuleActionTypeIds.clear();
+    if (m_selectedLogicRuleId.isEmpty() || m_selectedObjectTypeId.isEmpty()
+        || !m_coordinator->hasProject()) {
+        return;
+    }
+    const ArtCade::ProjectDoc &doc = m_coordinator->document();
+    const auto typeIt = doc.objectTypes.find(m_selectedObjectTypeId.toStdString());
+    if (typeIt == doc.objectTypes.end() || !typeIt->second.logicBoard) {
+        return;
+    }
+    const std::string want = m_selectedLogicRuleId.toStdString();
+    for (const ArtCade::LogicRuleDef &rule : typeIt->second.logicBoard->rules) {
+        if (rule.id != want) {
+            continue;
+        }
+        m_selectedRuleTriggerTypeId = QString::fromStdString(rule.trigger.typeId);
+        for (const ArtCade::LogicBlockDef &block : rule.conditions) {
+            m_selectedRuleConditionTypeIds.append(QString::fromStdString(block.typeId));
+        }
+        for (const ArtCade::LogicBlockDef &block : rule.actions) {
+            m_selectedRuleActionTypeIds.append(QString::fromStdString(block.typeId));
+        }
+        break;
+    }
+}
+
 QString EditorSession::activeLayerId() const
 {
     return QString::fromStdString(m_coordinator->activeLayerId());
@@ -311,12 +379,15 @@ void EditorSession::reloadDerivedModels()
 
 void EditorSession::refreshSelectionCache()
 {
+    const QString previous_rule = m_selectedLogicRuleId;
     m_selectedName.clear();
     m_selectedX = 0.0;
     m_selectedY = 0.0;
     m_selectedObjectTypeId.clear();
     m_selectedObjectTypeName.clear();
     m_logicRuleCount = 0;
+    m_logicRuleIds.clear();
+    m_selectedLogicRuleId.clear();
     const auto id = m_coordinator->selectedEntityId();
     if (id != 0) {
         const ArtCade::ProjectDoc &doc = m_coordinator->document();
@@ -334,6 +405,9 @@ void EditorSession::refreshSelectionCache()
                     m_selectedObjectTypeName = QString::fromStdString(label);
                     if (type.logicBoard) {
                         m_logicRuleCount = static_cast<int>(type.logicBoard->rules.size());
+                        for (const ArtCade::LogicRuleDef &rule : type.logicBoard->rules) {
+                            m_logicRuleIds.append(QString::fromStdString(rule.id));
+                        }
                     }
                 } else {
                     m_selectedObjectTypeName = m_selectedObjectTypeId;
@@ -341,7 +415,14 @@ void EditorSession::refreshSelectionCache()
             }
         }
     }
+    if (!previous_rule.isEmpty() && m_logicRuleIds.contains(previous_rule)) {
+        m_selectedLogicRuleId = previous_rule;
+    } else if (!m_logicRuleIds.isEmpty()) {
+        m_selectedLogicRuleId = m_logicRuleIds.first();
+    }
+    refreshSelectedLogicRuleCache();
     emit selectionChanged();
+    emit selectedLogicRuleChanged();
 }
 
 QString EditorSession::sliceFixturePath() const
@@ -539,6 +620,33 @@ void EditorSession::setLayerVisible(const QString &layerId, bool visible)
     m_layers->reload();
     emit dirtyChanged();
     setStatus(visible ? QStringLiteral("Layer shown") : QStringLiteral("Layer hidden"));
+}
+
+void EditorSession::addLogicRule()
+{
+    QString guard_error;
+    if (!guardAuthoring(&guard_error)) {
+        setStatus(guard_error, false);
+        emit errorOccurred(guard_error);
+        return;
+    }
+    if (m_selectedObjectTypeId.isEmpty()) {
+        const QString msg = QStringLiteral("Select an object to add a Logic rule to its type");
+        setStatus(msg, false);
+        emit errorOccurred(msg);
+        return;
+    }
+    std::string error;
+    ArtCade::LogicRuleId new_rule_id;
+    if (!m_coordinator->addLogicRule(m_selectedObjectTypeId.toStdString(), new_rule_id, error)) {
+        setStatus(QString::fromStdString(error));
+        emit errorOccurred(QString::fromStdString(error));
+        return;
+    }
+    m_selectedLogicRuleId = QString::fromStdString(new_rule_id);
+    refreshSelectionCache();
+    emit dirtyChanged();
+    setStatus(QStringLiteral("Added Logic rule %1").arg(QString::fromStdString(new_rule_id)));
 }
 
 quint32 EditorSession::pickEntityAt(double worldX, double worldY)

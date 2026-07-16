@@ -2,6 +2,7 @@
 
 #include "asset-json.h"
 #include "entity-json.h"
+#include "logic-core.h"
 #include "project-meta-json.h"
 #include "scene-json.h"
 
@@ -53,11 +54,47 @@ nlohmann::json instance_to_json(const SceneInstanceDef &inst)
 
 nlohmann::json object_type_to_json(const std::string &key, const EntityDef &type)
 {
-    return nlohmann::json{
+    nlohmann::json j{
         {"id", key},
         {"displayName", type.name.empty() ? key : type.name},
         {"tags", nlohmann::json::array()},
     };
+    if (type.logicBoard) {
+        j["logicBoard"] = ArtCade::Logic::logicBoardToJson(*type.logicBoard);
+    }
+    return j;
+}
+
+bool read_object_type_logic_boards(const nlohmann::json &root,
+                                   ProjectDoc &out,
+                                   std::string &error_message)
+{
+    if (!root.contains("objectTypes") || !root["objectTypes"].is_object()) {
+        return true;
+    }
+    for (const auto &[map_key, raw_type] : root["objectTypes"].items()) {
+        if (!raw_type.is_object() || !raw_type.contains("logicBoard")) {
+            continue;
+        }
+        const ObjectTypeId type_id = raw_type.value("id", map_key);
+        auto type_it = out.objectTypes.find(type_id);
+        if (type_it == out.objectTypes.end()) {
+            type_it = out.objectTypes.find(map_key);
+        }
+        if (type_it == out.objectTypes.end()) {
+            error_message = "logicBoard refers to unknown object type: " + type_id;
+            return false;
+        }
+        LogicBoardDef board;
+        const ArtCade::Logic::LogicJsonResult parsed =
+            ArtCade::Logic::logicBoardFromJson(raw_type["logicBoard"], board);
+        if (!parsed.ok) {
+            error_message = "Invalid logicBoard on object type " + type_id + ": " + parsed.error;
+            return false;
+        }
+        type_it->second.logicBoard = std::move(board);
+    }
+    return true;
 }
 
 nlohmann::json layer_to_json(const SceneLayerDef &layer)
@@ -144,6 +181,9 @@ bool project_file_io_load(const std::string &project_json_path,
         ProjectJson::read_world_settings(root["world"], out.world);
     }
     ProjectJson::read_object_types_map(root, out.objectTypes);
+    if (!read_object_type_logic_boards(root, out, error_message)) {
+        return false;
+    }
     ProjectJson::read_scenes_map(root, out.scenes);
     ProjectJson::read_global_variables(root, out);
     ProjectJson::read_scene_layers(root, out.layers);

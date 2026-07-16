@@ -79,6 +79,25 @@ private:
     bool m_captured = false;
 };
 
+/**
+ * Appends a default Logic Rule to objectTypes[typeId].logicBoard.
+ * Creates the board on first rule. Undo removes the rule (and the board if created empty).
+ */
+class AddLogicRuleCommand final : public ICommand {
+public:
+    explicit AddLogicRuleCommand(ObjectTypeId object_type_id);
+    void execute(ProjectDoc &doc) override;
+    void undo(ProjectDoc &doc) override;
+
+    [[nodiscard]] const LogicRuleId &ruleId() const { return m_rule_id; }
+
+private:
+    ObjectTypeId m_object_type_id;
+    LogicRuleId m_rule_id;
+    bool m_created_board = false;
+    bool m_applied = false;
+};
+
 /** C++-owned editor project format. */
 inline constexpr int kCurrentProjectFormatVersion = 5;
 
@@ -124,6 +143,15 @@ public:
     bool renameEntity(EntityId entity_id, const std::string &new_name, std::string &error_message);
     bool setEntityPosition(EntityId entity_id, float x, float y, std::string &error_message);
     bool setLayerVisible(const std::string &layer_id, bool visible, std::string &error_message);
+
+    /**
+     * Adds a default When/Then rule on the object type's Logic Board.
+     * @param object_type_id stable object type id (not instance id)
+     * @param out_rule_id filled with the new rule id on success
+     */
+    bool addLogicRule(const ObjectTypeId &object_type_id,
+                      LogicRuleId &out_rule_id,
+                      std::string &error_message);
 
     [[nodiscard]] bool layerVisible(const std::string &layer_id) const;
     [[nodiscard]] bool layerLocked(const std::string &layer_id) const;

@@ -80,6 +80,7 @@ set(ARTCADE_QML_FILES
     ../../qml/ArtCade/Controls/AcTreeDelegate.qml
     ../../qml/ArtCade/Controls/AcLayerRow.qml
     ../../qml/ArtCade/Controls/AcEmptyHint.qml
+    ../../qml/ArtCade/Controls/AcLogicColumn.qml
     ../../qml/ArtCade/Controls/AcNumberField.qml
     ../../qml/ArtCade/Controls/AcInspectorRow.qml
     ../../qml/ArtCade/Controls/AcIcon.qml
@@ -122,6 +123,7 @@ set_source_files_properties(../../qml/ArtCade/Controls/AcWindowResizeFrame.qml P
 set_source_files_properties(../../qml/ArtCade/Controls/AcTreeDelegate.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcTreeDelegate.qml")
 set_source_files_properties(../../qml/ArtCade/Controls/AcLayerRow.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcLayerRow.qml")
 set_source_files_properties(../../qml/ArtCade/Controls/AcEmptyHint.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcEmptyHint.qml")
+set_source_files_properties(../../qml/ArtCade/Controls/AcLogicColumn.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcLogicColumn.qml")
 set_source_files_properties(../../qml/ArtCade/Controls/AcNumberField.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcNumberField.qml")
 set_source_files_properties(../../qml/ArtCade/Controls/AcInspectorRow.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcInspectorRow.qml")
 set_source_files_properties(../../qml/ArtCade/Controls/AcIcon.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcIcon.qml")
@@ -217,6 +219,7 @@ set(ARTCADE_QML_LINT_FILES
     ${ARTCADE_QML_ROOT}/Controls/AcTreeDelegate.qml
     ${ARTCADE_QML_ROOT}/Controls/AcLayerRow.qml
     ${ARTCADE_QML_ROOT}/Controls/AcEmptyHint.qml
+    ${ARTCADE_QML_ROOT}/Controls/AcLogicColumn.qml
     ${ARTCADE_QML_ROOT}/Controls/AcNumberField.qml
     ${ARTCADE_QML_ROOT}/Controls/AcInspectorRow.qml
     ${ARTCADE_QML_ROOT}/Controls/AcIcon.qml

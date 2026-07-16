@@ -11,6 +11,7 @@
 
 #include <QObject>
 #include <QString>
+#include <QStringList>
 #include <QtQml/qqmlregistration.h>
 #include <memory>
 
@@ -50,6 +51,16 @@ class EditorSession : public QObject
     Q_PROPERTY(QString selectedObjectTypeName READ selectedObjectTypeName NOTIFY selectionChanged)
     /** Rule count on objectTypes[typeId].logicBoard; 0 until boards are authored/loaded. */
     Q_PROPERTY(int logicRuleCount READ logicRuleCount NOTIFY selectionChanged)
+    Q_PROPERTY(QStringList logicRuleIds READ logicRuleIds NOTIFY selectionChanged)
+    /** Workspace: which rule is focused in Logic Board (does not dirty). */
+    Q_PROPERTY(QString selectedLogicRuleId READ selectedLogicRuleId WRITE setSelectedLogicRuleId
+                   NOTIFY selectedLogicRuleChanged)
+    Q_PROPERTY(QString selectedRuleTriggerTypeId READ selectedRuleTriggerTypeId
+                   NOTIFY selectedLogicRuleChanged)
+    Q_PROPERTY(QStringList selectedRuleConditionTypeIds READ selectedRuleConditionTypeIds
+                   NOTIFY selectedLogicRuleChanged)
+    Q_PROPERTY(QStringList selectedRuleActionTypeIds READ selectedRuleActionTypeIds
+                   NOTIFY selectedLogicRuleChanged)
     Q_PROPERTY(QString activeLayerId READ activeLayerId NOTIFY activeLayerChanged)
     Q_PROPERTY(QString activeSceneName READ activeSceneName NOTIFY projectChanged)
     Q_PROPERTY(double activeSceneWidth READ activeSceneWidth NOTIFY projectChanged)
@@ -85,6 +96,12 @@ public:
     [[nodiscard]] QString selectedObjectTypeId() const;
     [[nodiscard]] QString selectedObjectTypeName() const;
     [[nodiscard]] int logicRuleCount() const;
+    [[nodiscard]] QStringList logicRuleIds() const;
+    [[nodiscard]] QString selectedLogicRuleId() const;
+    [[nodiscard]] QString selectedRuleTriggerTypeId() const;
+    [[nodiscard]] QStringList selectedRuleConditionTypeIds() const;
+    [[nodiscard]] QStringList selectedRuleActionTypeIds() const;
+    void setSelectedLogicRuleId(const QString &ruleId);
     [[nodiscard]] QString activeLayerId() const;
     [[nodiscard]] QString activeSceneName() const;
     [[nodiscard]] double activeSceneWidth() const;
@@ -117,6 +134,11 @@ public:
     Q_INVOKABLE void commitPosition(double x, double y);
     Q_INVOKABLE void setActiveLayer(const QString &layerId);
     Q_INVOKABLE void setLayerVisible(const QString &layerId, bool visible);
+    /**
+     * Appends a default When/Then rule on the selected instance's object type.
+     * Dirties ProjectDoc; undoable.
+     */
+    Q_INVOKABLE void addLogicRule();
     Q_INVOKABLE quint32 pickEntityAt(double worldX, double worldY);
     /**
      * Selects the topmost instance whose placeholder AABB intersects the world rect.
@@ -141,6 +163,7 @@ signals:
     void statusMessageChanged();
     void hasProjectChanged();
     void selectionChanged();
+    void selectedLogicRuleChanged();
     void activeLayerChanged();
     void projectChanged();
     void activeToolChanged();
@@ -177,4 +200,11 @@ private:
     QString m_selectedObjectTypeId;
     QString m_selectedObjectTypeName;
     int m_logicRuleCount = 0;
+    QStringList m_logicRuleIds;
+    QString m_selectedLogicRuleId;
+    QString m_selectedRuleTriggerTypeId;
+    QStringList m_selectedRuleConditionTypeIds;
+    QStringList m_selectedRuleActionTypeIds;
+
+    void refreshSelectedLogicRuleCache();
 };

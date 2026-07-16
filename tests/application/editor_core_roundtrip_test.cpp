@@ -95,6 +95,23 @@ int main()
     expect(coord.pickEntityAt(0.f, 0.f) == 0, "pick empty world misses");
     expect(coord.pickEntityAt(110.f, 55.f) == 2, "pick Coin_A");
 
+    ArtCade::LogicRuleId rule_id;
+    expect(coord.addLogicRule("Player", rule_id, error), "add logic rule on Player");
+    expect(!rule_id.empty(), "rule id assigned");
+    const auto player_it = coord.document().objectTypes.find("Player");
+    expect(player_it != coord.document().objectTypes.end(), "Player type exists");
+    expect(player_it->second.logicBoard.has_value(), "Player has logicBoard");
+    expect(player_it->second.logicBoard->rules.size() == 1, "one rule after add");
+    expect(player_it->second.logicBoard->rules.front().id == rule_id, "rule id matches");
+    coord.undo();
+    expect(!coord.document().objectTypes.at("Player").logicBoard.has_value(),
+           "undo removes created board");
+    coord.redo();
+    expect(coord.document().objectTypes.at("Player").logicBoard.has_value(),
+           "redo restores board");
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules.size() == 1,
+           "redo restores rule");
+
     expect(coord.saveProjectAs(out_path.string(), error), "save roundtrip file");
     expect(!coord.isDirty(), "clean after save");
 
@@ -109,6 +126,12 @@ int main()
     expect(reloaded.document().layers.size() == 3, "persisted layers");
     expect(reloaded.document().imageAssets.size() == 2, "persisted image assets");
     expect(!reloaded.layerVisible("layer_ui"), "persisted layer visibility");
+    const auto reloaded_player = reloaded.document().objectTypes.find("Player");
+    expect(reloaded_player != reloaded.document().objectTypes.end(), "reloaded Player");
+    expect(reloaded_player->second.logicBoard.has_value(), "persisted logicBoard");
+    expect(reloaded_player->second.logicBoard->rules.size() == 1, "persisted rule count");
+    expect(reloaded_player->second.logicBoard->rules.front().id == rule_id,
+           "persisted rule id");
 
     std::error_code ec;
     fs::remove(out_path, ec);
