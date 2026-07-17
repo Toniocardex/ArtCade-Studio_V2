@@ -447,7 +447,7 @@ int main()
         expect(!coord.setLogicRuleBlockProperty(
                    "Player",
                    rule_id,
-                   ArtCade::EditorCore::LogicRuleBlockSlot::PrimaryAction,
+                   ArtCade::EditorCore::LogicRuleBlockAddress{ArtCade::EditorCore::LogicRuleBlockSlot::Action, 0},
                    "key",
                    "missing_variable",
                    error),
@@ -456,7 +456,7 @@ int main()
         expect(!coord.setLogicRuleBlockProperty(
                    "Player",
                    rule_id,
-                   ArtCade::EditorCore::LogicRuleBlockSlot::PrimaryAction,
+                   ArtCade::EditorCore::LogicRuleBlockAddress{ArtCade::EditorCore::LogicRuleBlockSlot::Action, 0},
                    "key",
                    "flag",
                    error),
@@ -464,7 +464,7 @@ int main()
         expect(coord.setLogicRuleBlockProperty(
                    "Player",
                    rule_id,
-                   ArtCade::EditorCore::LogicRuleBlockSlot::PrimaryAction,
+                   ArtCade::EditorCore::LogicRuleBlockAddress{ArtCade::EditorCore::LogicRuleBlockSlot::Action, 0},
                    "key",
                    "",
                    error),
@@ -549,7 +549,7 @@ int main()
            "trigger updated");
     expect(coord.setLogicRuleBlockProperty("Player",
                                            rule_id,
-                                           ArtCade::EditorCore::LogicRuleBlockSlot::Trigger,
+                                           ArtCade::EditorCore::LogicRuleBlockAddress{ArtCade::EditorCore::LogicRuleBlockSlot::Trigger, 0},
                                            "key",
                                            "W",
                                            error),
@@ -565,7 +565,7 @@ int main()
     const std::uint64_t rev_before_key_noop = coord.revision();
     expect(coord.setLogicRuleBlockProperty("Player",
                                            rule_id,
-                                           ArtCade::EditorCore::LogicRuleBlockSlot::Trigger,
+                                           ArtCade::EditorCore::LogicRuleBlockAddress{ArtCade::EditorCore::LogicRuleBlockSlot::Trigger, 0},
                                            "key",
                                            "W",
                                            error),
@@ -596,7 +596,7 @@ int main()
     coord.undo();
     expect(coord.setLogicRuleBlockProperty("Player",
                                            rule_id,
-                                           ArtCade::EditorCore::LogicRuleBlockSlot::PrimaryAction,
+                                           ArtCade::EditorCore::LogicRuleBlockAddress{ArtCade::EditorCore::LogicRuleBlockSlot::Action, 0},
                                            "visible",
                                            "false",
                                            error),
@@ -618,7 +618,7 @@ int main()
            "set action to Set Position");
     expect(coord.setLogicRuleBlockProperty("Player",
                                            rule_id,
-                                           ArtCade::EditorCore::LogicRuleBlockSlot::PrimaryAction,
+                                           ArtCade::EditorCore::LogicRuleBlockAddress{ArtCade::EditorCore::LogicRuleBlockSlot::Action, 0},
                                            "position",
                                            "12, 34.5",
                                            error),
@@ -634,7 +634,7 @@ int main()
     }
     expect(!coord.setLogicRuleBlockProperty("Player",
                                             rule_id,
-                                            ArtCade::EditorCore::LogicRuleBlockSlot::PrimaryAction,
+                                            ArtCade::EditorCore::LogicRuleBlockAddress{ArtCade::EditorCore::LogicRuleBlockSlot::Action, 0},
                                             "position",
                                             "12",
                                             error),
@@ -657,7 +657,7 @@ int main()
            "set action to Play Sound");
     expect(coord.setLogicRuleBlockProperty("Player",
                                            rule_id,
-                                           ArtCade::EditorCore::LogicRuleBlockSlot::PrimaryAction,
+                                           ArtCade::EditorCore::LogicRuleBlockAddress{ArtCade::EditorCore::LogicRuleBlockSlot::Action, 0},
                                            "audioAssetId",
                                            "sfx-coin",
                                            error),
@@ -692,10 +692,10 @@ int main()
                                       ArtCade::Logic::kCollisionEnter,
                                       error),
            "set collision trigger");
-    expect(coord.setLogicRulePrimaryCondition("Player",
-                                               rule_id,
-                                               ArtCade::Logic::kOtherIsObjectType,
-                                               error),
+    expect(coord.addLogicCondition("Player",
+                                   rule_id,
+                                   ArtCade::Logic::kOtherIsObjectType,
+                                   error),
            "set condition compatible with collision trigger");
     expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].conditions.size() == 1,
            "one condition");
@@ -713,10 +713,10 @@ int main()
     coord.undo();
     expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].conditions.empty(),
             "undo clears inserted condition");
-    expect(coord.setLogicRulePrimaryCondition("Player",
-                                               rule_id,
-                                               ArtCade::Logic::kOtherIsObjectType,
-                                               error),
+    expect(coord.addLogicCondition("Player",
+                                   rule_id,
+                                   ArtCade::Logic::kOtherIsObjectType,
+                                   error),
            "set collision condition again");
     expect(coord.clearLogicRuleConditions("Player", rule_id, error), "clear conditions");
     expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].conditions.empty(),
@@ -727,6 +727,138 @@ int main()
     coord.redo();
     expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].conditions.empty(),
            "redo clear");
+
+    // Multi-condition authoring: add, property, move, remove, no-op, cap.
+    expect(coord.addLogicCondition("Player", rule_id, ArtCade::Logic::kOtherIsObjectType, error),
+           "add condition A (Other Is Object Type)");
+    expect(coord.addLogicCondition("Player", rule_id, ArtCade::Logic::kStateCompare, error),
+           "add condition B (Compare Number)");
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].conditions.size() == 2,
+           "two conditions after add");
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].conditions[0].typeId
+               == ArtCade::Logic::kOtherIsObjectType,
+           "condition A at index 0");
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].conditions[1].typeId
+               == ArtCade::Logic::kStateCompare,
+           "condition B at index 1");
+    expect(coord.setLogicRuleBlockProperty(
+               "Player",
+               rule_id,
+               ArtCade::EditorCore::LogicRuleBlockAddress{
+                   ArtCade::EditorCore::LogicRuleBlockSlot::Condition, 1},
+               "value",
+               "10",
+               error),
+           "set property on condition index 1");
+    {
+        const ArtCade::LogicPropertyDef *val = ArtCade::Logic::findProperty(
+            coord.document().objectTypes.at("Player").logicBoard->rules[0].conditions[1],
+            "value");
+        expect(val != nullptr && std::holds_alternative<double>(val->value)
+                   && std::get<double>(val->value) == 10.0,
+               "condition B value is 10");
+    }
+    expect(coord.moveLogicCondition("Player", rule_id, 1, 0, error), "move condition 1→0");
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].conditions[0].typeId
+               == ArtCade::Logic::kStateCompare,
+           "after move, B at index 0");
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].conditions[1].typeId
+               == ArtCade::Logic::kOtherIsObjectType,
+           "after move, A at index 1");
+    {
+        const ArtCade::LogicPropertyDef *val = ArtCade::Logic::findProperty(
+            coord.document().objectTypes.at("Player").logicBoard->rules[0].conditions[0],
+            "value");
+        expect(val != nullptr && std::holds_alternative<double>(val->value)
+                   && std::get<double>(val->value) == 10.0,
+               "moved condition keeps property");
+    }
+    coord.undo();
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].conditions[0].typeId
+               == ArtCade::Logic::kOtherIsObjectType,
+           "undo move restores A at 0");
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].conditions[1].typeId
+               == ArtCade::Logic::kStateCompare,
+           "undo move restores B at 1");
+    coord.redo();
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].conditions[0].typeId
+               == ArtCade::Logic::kStateCompare,
+           "redo move restores B at 0");
+
+    // Move 0→2 on [A,B,C,D]: final index semantics → [B,C,A,D].
+    expect(coord.clearLogicRuleConditions("Player", rule_id, error),
+           "clear before 0→2 move fixture");
+    expect(coord.addLogicCondition("Player", rule_id, ArtCade::Logic::kOtherIsObjectType, error),
+           "fixture A");
+    expect(coord.addLogicCondition("Player", rule_id, ArtCade::Logic::kStateCompare, error),
+           "fixture B");
+    expect(coord.addLogicCondition("Player", rule_id, ArtCade::Logic::kKeyDown, error),
+           "fixture C");
+    expect(coord.addLogicCondition("Player", rule_id, ArtCade::Logic::kKeyDown, error),
+           "fixture D");
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].conditions.size() == 4,
+           "four conditions for 0→2 move");
+    expect(coord.moveLogicCondition("Player", rule_id, 0, 2, error), "move condition 0→2");
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].conditions[0].typeId
+               == ArtCade::Logic::kStateCompare,
+           "0→2: B at index 0");
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].conditions[1].typeId
+               == ArtCade::Logic::kKeyDown,
+           "0→2: C at index 1");
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].conditions[2].typeId
+               == ArtCade::Logic::kOtherIsObjectType,
+           "0→2: A at index 2");
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].conditions[3].typeId
+               == ArtCade::Logic::kKeyDown,
+           "0→2: D at index 3");
+    coord.undo();
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].conditions[0].typeId
+               == ArtCade::Logic::kOtherIsObjectType,
+           "undo 0→2 restores A at 0");
+
+    expect(coord.clearLogicRuleConditions("Player", rule_id, error),
+           "clear after 0→2 move; keep B for remove tests");
+    expect(coord.addLogicCondition("Player", rule_id, ArtCade::Logic::kStateCompare, error),
+           "re-add B after 0→2 tests");
+    expect(coord.setLogicRuleBlockProperty(
+               "Player",
+               rule_id,
+               ArtCade::EditorCore::LogicRuleBlockAddress{
+                   ArtCade::EditorCore::LogicRuleBlockSlot::Condition, 0},
+               "value",
+               "10",
+               error),
+           "restore B value for remaining tests");
+
+    expect(coord.removeLogicConditionAt("Player", rule_id, 0, error),
+           "remove condition at index 0");
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].conditions.size() == 0,
+           "no conditions after remove");
+    coord.undo();
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].conditions.size() == 1,
+           "undo remove restores one condition");
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].conditions[0].typeId
+               == ArtCade::Logic::kStateCompare,
+           "remaining condition is B");
+
+    const std::uint64_t rev_before_same_type = coord.revision();
+    expect(coord.setLogicConditionAt("Player", rule_id, 0, ArtCade::Logic::kStateCompare, error),
+           "same typeId setLogicConditionAt succeeds");
+    expect(coord.revision() == rev_before_same_type,
+           "same typeId setLogicConditionAt is no-op");
+
+    while (coord.document().objectTypes.at("Player").logicBoard->rules[0].conditions.size()
+           < ArtCade::Logic::kMaxConditionsPerRule) {
+        expect(coord.addLogicCondition("Player", rule_id, ArtCade::Logic::kKeyDown, error),
+               "fill conditions toward max");
+    }
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules[0].conditions.size()
+               == ArtCade::Logic::kMaxConditionsPerRule,
+           "at kMaxConditionsPerRule");
+    expect(!coord.addLogicCondition("Player", rule_id, ArtCade::Logic::kKeyDown, error),
+           "add beyond max fails");
+    expect(coord.clearLogicRuleConditions("Player", rule_id, error),
+           "clear after multi-condition cap test");
 
     expect(coord.removeLogicRule("Player", rule_id, error), "remove first rule");
     expect(coord.document().objectTypes.at("Player").logicBoard->rules.size() == 1,
@@ -774,10 +906,10 @@ int main()
     // Incompatible selections are rejected before they can dirty or invalidate the document.
     expect(coord.validateLogicForPlay(error), "configured rule validates for Play");
     const std::uint64_t rev_before_incompatible_condition = coord.revision();
-    expect(!coord.setLogicRulePrimaryCondition("Player",
-                                               deleted_id,
-                                               ArtCade::Logic::kIsGrounded,
-                                               error),
+    expect(!coord.addLogicCondition("Player",
+                                    deleted_id,
+                                    ArtCade::Logic::kIsGrounded,
+                                    error),
            "grounded without Platformer is rejected");
     expect(coord.revision() == rev_before_incompatible_condition,
            "incompatible condition does not bump revision");
@@ -880,6 +1012,17 @@ int main()
            "undo remove restores rule membership");
     expect(coord.validateLogicForPlay(error), "sections do not affect Play validation");
 
+    // Leave three conditions on the surviving rule for save/reload.
+    expect(coord.addLogicCondition("Player", deleted_id, ArtCade::Logic::kStateCompare, error),
+           "persist condition 1 (Compare Number)");
+    expect(coord.addLogicCondition("Player", deleted_id, ArtCade::Logic::kKeyDown, error),
+           "persist condition 2 (Is Key Down)");
+    expect(coord.addLogicCondition("Player", deleted_id, ArtCade::Logic::kIsGrounded, error),
+           "persist condition 3 (Is Grounded)");
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules.front().conditions.size()
+               == 3,
+           "three conditions before save");
+
     ArtCade::SceneLayerSettings &background_settings =
         coord.document().scenes.at("scene_main").layerSettings["layer_bg"];
     background_settings.parallax = {0.5f, 0.75f};
@@ -952,6 +1095,15 @@ int main()
            "persisted section id and name");
     expect(reloaded_player->second.logicBoard->rules.front().sectionId == section_id,
            "persisted rule section membership");
+    expect(reloaded_player->second.logicBoard->rules.front().conditions.size() == 3,
+           "persisted multi-condition count");
+    expect(reloaded_player->second.logicBoard->rules.front().conditions[0].typeId
+               == ArtCade::Logic::kStateCompare
+           && reloaded_player->second.logicBoard->rules.front().conditions[1].typeId
+                  == ArtCade::Logic::kKeyDown
+           && reloaded_player->second.logicBoard->rules.front().conditions[2].typeId
+                  == ArtCade::Logic::kIsGrounded,
+           "persisted multi-condition order and typeIds");
 
     std::error_code ec;
     fs::remove(out_path, ec);

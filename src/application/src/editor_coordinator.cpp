@@ -1020,10 +1020,10 @@ bool EditorCoordinator::setLogicRuleSection(const ObjectTypeId &object_type_id,
     return true;
 }
 
-bool EditorCoordinator::setLogicRulePrimaryCondition(const ObjectTypeId &object_type_id,
-                                                     const LogicRuleId &rule_id,
-                                                     const std::string &block_type_id,
-                                                     std::string &error_message)
+bool EditorCoordinator::addLogicCondition(const ObjectTypeId &object_type_id,
+                                          const LogicRuleId &rule_id,
+                                          const std::string &block_type_id,
+                                          std::string &error_message)
 {
     if (!m_has_project) {
         error_message = "No project open";
@@ -1049,8 +1049,9 @@ bool EditorCoordinator::setLogicRulePrimaryCondition(const ObjectTypeId &object_
         error_message = "Logic rule not found";
         return false;
     }
-    if (!rule->conditions.empty() && rule->conditions.front().typeId == block_type_id) {
-        return true; // no-op — do not dirty
+    if (rule->conditions.size() >= ArtCade::Logic::kMaxConditionsPerRule) {
+        error_message = "Condition limit reached";
+        return false;
     }
     const ArtCade::Logic::LogicBlockDescriptor *desc =
         ArtCade::Logic::findDescriptor(block_type_id);
@@ -1062,11 +1063,180 @@ bool EditorCoordinator::setLogicRulePrimaryCondition(const ObjectTypeId &object_
     if (!ensure_logic_block_available(type_it->second, *desc, trigger, error_message)) {
         return false;
     }
-    auto command = std::make_unique<SetLogicRulePrimaryConditionCommand>(
-        object_type_id, rule_id, block_type_id);
+    LogicBlockDef block =
+        ArtCade::Logic::makeDefaultBlock(block_type_id, ArtCade::Logic::BlockKind::Condition);
+    if (block.typeId.empty()) {
+        error_message = "Failed to create condition";
+        return false;
+    }
+    ArtCade::Logic::applyDeterministicVariableDefault(m_doc, block);
+    const std::size_t before = rule->conditions.size();
+    auto command = std::make_unique<AddLogicConditionCommand>(
+        object_type_id, rule_id, std::move(block));
     command->execute(m_doc);
-    if (rule->conditions.empty() || rule->conditions.front().typeId != block_type_id) {
+    if (!command->applied() || rule->conditions.size() != before + 1) {
+        error_message = "Failed to add condition";
+        return false;
+    }
+    m_commands.pushExecuted(std::move(command));
+    bumpRevision();
+    return true;
+}
+
+bool EditorCoordinator::setLogicConditionAt(const ObjectTypeId &object_type_id,
+                                            const LogicRuleId &rule_id,
+                                            std::size_t index,
+                                            const std::string &block_type_id,
+                                            std::string &error_message)
+{
+    if (!m_has_project) {
+        error_message = "No project open";
+        return false;
+    }
+    if (object_type_id.empty() || rule_id.empty() || block_type_id.empty()) {
+        error_message = "Missing Logic Board target";
+        return false;
+    }
+    auto type_it = m_doc.objectTypes.find(object_type_id);
+    if (type_it == m_doc.objectTypes.end() || !type_it->second.logicBoard) {
+        error_message = "Logic Board not found";
+        return false;
+    }
+    LogicRuleDef *rule = nullptr;
+    for (LogicRuleDef &r : type_it->second.logicBoard->rules) {
+        if (r.id == rule_id) {
+            rule = &r;
+            break;
+        }
+    }
+    if (!rule) {
+        error_message = "Logic rule not found";
+        return false;
+    }
+    if (index >= rule->conditions.size()) {
+        error_message = "Condition index out of range";
+        return false;
+    }
+    if (rule->conditions[index].typeId == block_type_id) {
+        return true; // same type — preserve properties, no revision
+    }
+    const ArtCade::Logic::LogicBlockDescriptor *desc =
+        ArtCade::Logic::findDescriptor(block_type_id);
+    if (!desc || desc->kind != ArtCade::Logic::BlockKind::Condition) {
+        error_message = "Not a valid condition block type";
+        return false;
+    }
+    const auto *trigger = ArtCade::Logic::findDescriptor(rule->trigger.typeId);
+    if (!ensure_logic_block_available(type_it->second, *desc, trigger, error_message)) {
+        return false;
+    }
+    LogicBlockDef block =
+        ArtCade::Logic::makeDefaultBlock(block_type_id, ArtCade::Logic::BlockKind::Condition);
+    if (block.typeId.empty()) {
+        error_message = "Failed to create condition";
+        return false;
+    }
+    ArtCade::Logic::applyDeterministicVariableDefault(m_doc, block);
+    auto command = std::make_unique<SetLogicConditionAtCommand>(
+        object_type_id, rule_id, index, std::move(block));
+    command->execute(m_doc);
+    if (!command->applied() || rule->conditions[index].typeId != block_type_id) {
         error_message = "Failed to set condition";
+        return false;
+    }
+    m_commands.pushExecuted(std::move(command));
+    bumpRevision();
+    return true;
+}
+
+bool EditorCoordinator::removeLogicConditionAt(const ObjectTypeId &object_type_id,
+                                               const LogicRuleId &rule_id,
+                                               std::size_t index,
+                                               std::string &error_message)
+{
+    if (!m_has_project) {
+        error_message = "No project open";
+        return false;
+    }
+    if (object_type_id.empty() || rule_id.empty()) {
+        error_message = "Missing Logic Board target";
+        return false;
+    }
+    auto type_it = m_doc.objectTypes.find(object_type_id);
+    if (type_it == m_doc.objectTypes.end() || !type_it->second.logicBoard) {
+        error_message = "Logic Board not found";
+        return false;
+    }
+    LogicRuleDef *rule = nullptr;
+    for (LogicRuleDef &r : type_it->second.logicBoard->rules) {
+        if (r.id == rule_id) {
+            rule = &r;
+            break;
+        }
+    }
+    if (!rule) {
+        error_message = "Logic rule not found";
+        return false;
+    }
+    if (index >= rule->conditions.size()) {
+        error_message = "Condition index out of range";
+        return false;
+    }
+    const std::size_t before = rule->conditions.size();
+    auto command =
+        std::make_unique<RemoveLogicConditionAtCommand>(object_type_id, rule_id, index);
+    command->execute(m_doc);
+    if (!command->applied() || rule->conditions.size() != before - 1) {
+        error_message = "Failed to remove condition";
+        return false;
+    }
+    m_commands.pushExecuted(std::move(command));
+    bumpRevision();
+    return true;
+}
+
+bool EditorCoordinator::moveLogicCondition(const ObjectTypeId &object_type_id,
+                                           const LogicRuleId &rule_id,
+                                           std::size_t from,
+                                           std::size_t to,
+                                           std::string &error_message)
+{
+    if (!m_has_project) {
+        error_message = "No project open";
+        return false;
+    }
+    if (object_type_id.empty() || rule_id.empty()) {
+        error_message = "Missing Logic Board target";
+        return false;
+    }
+    auto type_it = m_doc.objectTypes.find(object_type_id);
+    if (type_it == m_doc.objectTypes.end() || !type_it->second.logicBoard) {
+        error_message = "Logic Board not found";
+        return false;
+    }
+    LogicRuleDef *rule = nullptr;
+    for (LogicRuleDef &r : type_it->second.logicBoard->rules) {
+        if (r.id == rule_id) {
+            rule = &r;
+            break;
+        }
+    }
+    if (!rule) {
+        error_message = "Logic rule not found";
+        return false;
+    }
+    if (from == to || rule->conditions.size() < 2) {
+        return true; // no-op
+    }
+    if (from >= rule->conditions.size() || to >= rule->conditions.size()) {
+        error_message = "Condition index out of range";
+        return false;
+    }
+    auto command =
+        std::make_unique<MoveLogicConditionCommand>(object_type_id, rule_id, from, to);
+    command->execute(m_doc);
+    if (!command->applied()) {
+        error_message = "Failed to move condition";
         return false;
     }
     m_commands.pushExecuted(std::move(command));
@@ -1119,7 +1289,7 @@ bool EditorCoordinator::clearLogicRuleConditions(const ObjectTypeId &object_type
 
 bool EditorCoordinator::setLogicRuleBlockProperty(const ObjectTypeId &object_type_id,
                                                   const LogicRuleId &rule_id,
-                                                  LogicRuleBlockSlot slot,
+                                                  LogicRuleBlockAddress address,
                                                   const std::string &property_key,
                                                   const std::string &value_text,
                                                   std::string &error_message)
@@ -1149,23 +1319,23 @@ bool EditorCoordinator::setLogicRuleBlockProperty(const ObjectTypeId &object_typ
         return false;
     }
     const LogicBlockDef *block = nullptr;
-    switch (slot) {
+    switch (address.slot) {
     case LogicRuleBlockSlot::Trigger:
         block = &rule->trigger;
         break;
-    case LogicRuleBlockSlot::PrimaryCondition:
-        if (rule->conditions.empty()) {
+    case LogicRuleBlockSlot::Condition:
+        if (address.index >= rule->conditions.size()) {
             error_message = "No condition block to edit";
             return false;
         }
-        block = &rule->conditions.front();
+        block = &rule->conditions[address.index];
         break;
-    case LogicRuleBlockSlot::PrimaryAction:
-        if (rule->actions.empty()) {
+    case LogicRuleBlockSlot::Action:
+        if (address.index >= rule->actions.size()) {
             error_message = "No action block to edit";
             return false;
         }
-        block = &rule->actions.front();
+        block = &rule->actions[address.index];
         break;
     }
     if (!block || block->typeId.empty()) {
@@ -1199,7 +1369,6 @@ bool EditorCoordinator::setLogicRuleBlockProperty(const ObjectTypeId &object_typ
             error_message = "Invalid variable reference";
             return false;
         }
-        // Empty id remains an authoring draft; Executable validation gates Play.
         if (!ref->id.empty()) {
             const GameVariableDefinition *global =
                 ArtCade::Logic::findGlobalVariable(m_doc, ref->id);
@@ -1220,7 +1389,7 @@ bool EditorCoordinator::setLogicRuleBlockProperty(const ObjectTypeId &object_typ
         }
     }
     auto command = std::make_unique<SetLogicRuleBlockPropertyCommand>(
-        object_type_id, rule_id, slot, property_key, parsed);
+        object_type_id, rule_id, address, property_key, parsed);
     command->execute(m_doc);
     const LogicPropertyDef *after = ArtCade::Logic::findProperty(*block, property_key);
     if (!after || !logic_values_equal(after->value, parsed)) {

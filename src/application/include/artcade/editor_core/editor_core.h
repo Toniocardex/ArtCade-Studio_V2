@@ -435,28 +435,7 @@ private:
 };
 
 /**
- * Replaces the first Also-require (condition) block on a Logic Rule (or inserts one if empty).
- */
-class SetLogicRulePrimaryConditionCommand final : public ICommand {
-public:
-    SetLogicRulePrimaryConditionCommand(ObjectTypeId object_type_id,
-                                        LogicRuleId rule_id,
-                                        std::string block_type_id);
-    void execute(ProjectDoc &doc) override;
-    void undo(ProjectDoc &doc) override;
-
-private:
-    ObjectTypeId m_object_type_id;
-    LogicRuleId m_rule_id;
-    std::string m_block_type_id;
-    LogicBlockDef m_old_condition;
-    bool m_had_condition = false;
-    bool m_captured = false;
-    bool m_applied = false;
-};
-
-/**
- * Clears all Also-require conditions on a Logic Rule (optional block → none).
+ * Clears all conditions on a Logic Rule (optional block → none).
  */
 class ClearLogicRuleConditionsCommand final : public ICommand {
 public:
@@ -472,18 +451,109 @@ private:
     bool m_applied = false;
 };
 
-/** Which primary block on a rule owns a property edit. */
-enum class LogicRuleBlockSlot { Trigger, PrimaryCondition, PrimaryAction };
+/**
+ * Which block on a rule owns a property edit.
+ * Trigger ignores index (always the single trigger). Condition/Action use vector index.
+ */
+enum class LogicRuleBlockSlot { Trigger, Condition, Action };
+
+struct LogicRuleBlockAddress {
+    LogicRuleBlockSlot slot = LogicRuleBlockSlot::Trigger;
+    std::size_t index = 0;
+};
+
+/** Appends one condition (materialized + deterministic variable defaults). */
+class AddLogicConditionCommand final : public ICommand {
+public:
+    AddLogicConditionCommand(ObjectTypeId object_type_id,
+                             LogicRuleId rule_id,
+                             LogicBlockDef block);
+    void execute(ProjectDoc &doc) override;
+    void undo(ProjectDoc &doc) override;
+    [[nodiscard]] bool applied() const { return m_applied; }
+    [[nodiscard]] std::size_t insertIndex() const { return m_insert_index; }
+
+private:
+    ObjectTypeId m_object_type_id;
+    LogicRuleId m_rule_id;
+    LogicBlockDef m_block;
+    std::size_t m_insert_index = 0;
+    bool m_applied = false;
+};
+
+/** Replaces conditions[index] with a new materialized block (same typeId = no-op). */
+class SetLogicConditionAtCommand final : public ICommand {
+public:
+    SetLogicConditionAtCommand(ObjectTypeId object_type_id,
+                               LogicRuleId rule_id,
+                               std::size_t index,
+                               LogicBlockDef new_block);
+    void execute(ProjectDoc &doc) override;
+    void undo(ProjectDoc &doc) override;
+    [[nodiscard]] bool applied() const { return m_applied; }
+
+private:
+    ObjectTypeId m_object_type_id;
+    LogicRuleId m_rule_id;
+    std::size_t m_index = 0;
+    LogicBlockDef m_new_block;
+    LogicBlockDef m_old_block;
+    bool m_captured = false;
+    bool m_applied = false;
+};
+
+/** Removes conditions[index]; undo reinserts at the same index. */
+class RemoveLogicConditionAtCommand final : public ICommand {
+public:
+    RemoveLogicConditionAtCommand(ObjectTypeId object_type_id,
+                                  LogicRuleId rule_id,
+                                  std::size_t index);
+    void execute(ProjectDoc &doc) override;
+    void undo(ProjectDoc &doc) override;
+    [[nodiscard]] bool applied() const { return m_applied; }
+
+private:
+    ObjectTypeId m_object_type_id;
+    LogicRuleId m_rule_id;
+    std::size_t m_index = 0;
+    LogicBlockDef m_removed;
+    bool m_captured = false;
+    bool m_applied = false;
+};
 
 /**
- * Sets one authorable property on a rule's primary trigger / condition / action.
- * Authorable kinds: Bool, Integer, Number, String, Key, Vec2 ("x,y"), Asset (id).
+ * Moves a condition so it ends at @p to (final index after the move).
+ * Example: [A,B,C,D] move 0→2 → [B,C,A,D]. History stores full before/after vectors.
+ */
+class MoveLogicConditionCommand final : public ICommand {
+public:
+    MoveLogicConditionCommand(ObjectTypeId object_type_id,
+                              LogicRuleId rule_id,
+                              std::size_t from,
+                              std::size_t to);
+    void execute(ProjectDoc &doc) override;
+    void undo(ProjectDoc &doc) override;
+    [[nodiscard]] bool applied() const { return m_applied; }
+
+private:
+    ObjectTypeId m_object_type_id;
+    LogicRuleId m_rule_id;
+    std::size_t m_from = 0;
+    std::size_t m_to = 0;
+    std::vector<LogicBlockDef> m_before;
+    bool m_captured = false;
+    bool m_applied = false;
+};
+
+/**
+ * Sets one authorable property on a rule block addressed by slot + index.
+ * Authorable kinds: Bool, Integer, Number, String, Key, Vec2 ("x,y"), Asset, Variable.
  */
 class SetLogicRuleBlockPropertyCommand final : public ICommand {
 public:
     SetLogicRuleBlockPropertyCommand(ObjectTypeId object_type_id,
                                      LogicRuleId rule_id,
-                                     LogicRuleBlockSlot slot,
+                                     LogicRuleBlockAddress address,
                                      std::string property_key,
                                      LogicValue new_value);
     void execute(ProjectDoc &doc) override;
@@ -492,7 +562,7 @@ public:
 private:
     ObjectTypeId m_object_type_id;
     LogicRuleId m_rule_id;
-    LogicRuleBlockSlot m_slot = LogicRuleBlockSlot::Trigger;
+    LogicRuleBlockAddress m_address;
     std::string m_property_key;
     LogicValue m_old_value = false;
     LogicValue m_new_value = false;
@@ -916,28 +986,48 @@ public:
                              std::string &error_message);
 
     /**
-     * Sets the primary Also-require condition type on a rule (index 0).
-     */
-    bool setLogicRulePrimaryCondition(const ObjectTypeId &object_type_id,
-                                      const LogicRuleId &rule_id,
-                                      const std::string &block_type_id,
-                                      std::string &error_message);
-
-    /**
-     * Clears all Also-require conditions on a rule (no-op if already empty).
+     * Clears all conditions on a rule (no-op if already empty).
      */
     bool clearLogicRuleConditions(const ObjectTypeId &object_type_id,
                                   const LogicRuleId &rule_id,
                                   std::string &error_message);
 
+    /** Appends a condition block; refuses at kMaxConditionsPerRule. */
+    bool addLogicCondition(const ObjectTypeId &object_type_id,
+                           const LogicRuleId &rule_id,
+                           const std::string &block_type_id,
+                           std::string &error_message);
+
+    /** Replaces conditions[index]; same typeId preserves properties (no-op). */
+    bool setLogicConditionAt(const ObjectTypeId &object_type_id,
+                             const LogicRuleId &rule_id,
+                             std::size_t index,
+                             const std::string &block_type_id,
+                             std::string &error_message);
+
+    /** Removes conditions[index]. */
+    bool removeLogicConditionAt(const ObjectTypeId &object_type_id,
+                                const LogicRuleId &rule_id,
+                                std::size_t index,
+                                std::string &error_message);
+
     /**
-     * Sets one authorable property on a rule block
-     * (Bool / Integer / Number / String / Key / Vec2 / Asset).
+     * Moves a condition to final index @p to.
+     * Example: [A,B,C,D] from=0 to=2 → [B,C,A,D].
+     */
+    bool moveLogicCondition(const ObjectTypeId &object_type_id,
+                            const LogicRuleId &rule_id,
+                            std::size_t from,
+                            std::size_t to,
+                            std::string &error_message);
+
+    /**
+     * Sets one authorable property on a rule block addressed by slot + index.
      * Same value is a no-op (does not dirty).
      */
     bool setLogicRuleBlockProperty(const ObjectTypeId &object_type_id,
                                    const LogicRuleId &rule_id,
-                                   LogicRuleBlockSlot slot,
+                                   LogicRuleBlockAddress address,
                                    const std::string &property_key,
                                    const std::string &value_text,
                                    std::string &error_message);

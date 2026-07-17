@@ -149,6 +149,8 @@ set(ARTCADE_QML_FILES
     ../../qml/ArtCade/Controls/AcLayerRow.qml
     ../../qml/ArtCade/Controls/AcEmptyHint.qml
     ../../qml/ArtCade/Controls/AcLogicColumn.qml
+    ../../qml/ArtCade/Controls/AcLogicWhenColumn.qml
+    ../../qml/ArtCade/Controls/AcLogicConditionRow.qml
     ../../qml/ArtCade/Controls/AcLogicRuleCard.qml
     ../../qml/ArtCade/Controls/AcLogicPropertyEditor.qml
     ../../qml/ArtCade/Controls/AcLogicKeyCapture.qml
@@ -205,6 +207,8 @@ set_source_files_properties(../../qml/ArtCade/Controls/AcTreeDelegate.qml PROPER
 set_source_files_properties(../../qml/ArtCade/Controls/AcLayerRow.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcLayerRow.qml")
 set_source_files_properties(../../qml/ArtCade/Controls/AcEmptyHint.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcEmptyHint.qml")
 set_source_files_properties(../../qml/ArtCade/Controls/AcLogicColumn.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcLogicColumn.qml")
+set_source_files_properties(../../qml/ArtCade/Controls/AcLogicWhenColumn.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcLogicWhenColumn.qml")
+set_source_files_properties(../../qml/ArtCade/Controls/AcLogicConditionRow.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcLogicConditionRow.qml")
 set_source_files_properties(../../qml/ArtCade/Controls/AcLogicRuleCard.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcLogicRuleCard.qml")
 set_source_files_properties(../../qml/ArtCade/Controls/AcLogicPropertyEditor.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcLogicPropertyEditor.qml")
 set_source_files_properties(../../qml/ArtCade/Controls/AcLogicKeyCapture.qml PROPERTIES QT_RESOURCE_ALIAS "Controls/AcLogicKeyCapture.qml")
@@ -323,6 +327,8 @@ set(ARTCADE_QML_LINT_FILES
     ${ARTCADE_QML_ROOT}/Controls/AcLayerRow.qml
     ${ARTCADE_QML_ROOT}/Controls/AcEmptyHint.qml
     ${ARTCADE_QML_ROOT}/Controls/AcLogicColumn.qml
+    ${ARTCADE_QML_ROOT}/Controls/AcLogicWhenColumn.qml
+    ${ARTCADE_QML_ROOT}/Controls/AcLogicConditionRow.qml
     ${ARTCADE_QML_ROOT}/Controls/AcLogicRuleCard.qml
     ${ARTCADE_QML_ROOT}/Controls/AcLogicPropertyEditor.qml
     ${ARTCADE_QML_ROOT}/Controls/AcLogicKeyCapture.qml

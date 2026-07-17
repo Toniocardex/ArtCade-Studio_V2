@@ -1,6 +1,6 @@
 /**
  * Qt adapter over ArtCade::EditorCore::EditorCoordinator.
- * QML sends IDs/intents only — no ProjectDocument copy in QML.
+ * QML sends IDs/intents only â€” no ProjectDocument copy in QML.
  */
 #pragma once
 
@@ -26,6 +26,7 @@ class PlayProcessHost;
 
 namespace ArtCade::EditorCore {
 class EditorCoordinator;
+struct LogicRuleBlockAddress;
 }
 
 class EditorSession : public QObject
@@ -65,27 +66,29 @@ class EditorSession : public QObject
     Q_PROPERTY(double selectedScaleY READ selectedScaleY NOTIFY selectedTransformChanged)
     Q_PROPERTY(double selectedRotationDeg READ selectedRotationDeg NOTIFY selectedTransformChanged)
     Q_PROPERTY(bool hasSelection READ hasSelection NOTIFY selectionChanged)
-    /** Derived from selection → SceneInstanceDef.objectTypeId (workspace, not a second authority). */
+    /** Derived from selection â†’ SceneInstanceDef.objectTypeId (workspace, not a second authority). */
     Q_PROPERTY(QString selectedObjectTypeId READ selectedObjectTypeId NOTIFY selectionChanged)
     Q_PROPERTY(QString selectedObjectTypeName READ selectedObjectTypeName NOTIFY selectionChanged)
-    /** Derived from selection → SceneInstanceDef.layerId (workspace cache). */
+    /** Derived from selection â†’ SceneInstanceDef.layerId (workspace cache). */
     Q_PROPERTY(QString selectedLayerId READ selectedLayerId NOTIFY selectionChanged)
     /** Rule count on objectTypes[typeId].logicBoard; 0 until boards are authored/loaded. */
     Q_PROPERTY(int logicRuleCount READ logicRuleCount NOTIFY logicRulesChanged)
     /**
      * Per-rule summaries for the selected type's board, in execution order.
-     * Each entry: { id, name, displayName, enabled, triggerTypeId, conditionTypeIds, actionTypeIds,
-     *               triggerProperties, conditionProperties, actionProperties }.
+     * Each entry: { id, name, displayName, enabled, triggerTypeId, triggerDescription,
+     *               conditionTypeIds, actionTypeIds,
+     *               triggerProperties, conditionClauses, actionProperties }.
+     * conditionClauses: [{ index, typeId, displayName, description, properties }].
      * Property rows: { key, kind, value, valueLabel, choices } for
-     * Bool/Integer/Number/String/Key/Vec2/Asset; choices ({value,label}) are
-     * project-backed pickers (assets, clips, object types), empty = free-form.
+     * Bool/Integer/Number/String/Key/Vec2/Asset/Variable; choices ({value,label}) are
+     * project-backed pickers (assets, clips, object types, variables), empty = free-form.
      * Diagnostics per rule (Authoring-mode validateBoard): errorCount,
      * warningCount, diagnostics [{severity, message}].
      */
     Q_PROPERTY(QVariantList logicRules READ logicRules NOTIFY logicRulesChanged)
     /**
      * Display sections on the selected type's board, in board order:
-     * [{ id, name }]. Grouping metadata only — never affects execution order.
+     * [{ id, name }]. Grouping metadata only â€” never affects execution order.
      */
     Q_PROPERTY(QVariantList logicSections READ logicSections NOTIFY logicRulesChanged)
     /** Workspace: which rule is focused in Logic Board (does not dirty). */
@@ -97,7 +100,7 @@ class EditorSession : public QObject
     Q_PROPERTY(double activeSceneHeight READ activeSceneHeight NOTIFY projectChanged)
     Q_PROPERTY(double worldGravity READ worldGravity NOTIFY projectChanged)
     Q_PROPERTY(double worldPixelsPerMeter READ worldPixelsPerMeter NOTIFY projectChanged)
-    /** Workspace: scene interaction tool — select | pan | rect (does not dirty). */
+    /** Workspace: scene interaction tool â€” select | pan | rect (does not dirty). */
     Q_PROPERTY(QString activeTool READ activeTool WRITE setActiveTool NOTIFY activeToolChanged)
     /** Workspace: snap Select-drag commits to scene grid (does not dirty). */
     Q_PROPERTY(bool snapEnabled READ snapEnabled WRITE setSnapEnabled NOTIFY snapEnabledChanged)
@@ -174,7 +177,7 @@ public:
     Q_INVOKABLE void openProject(const QString &pathOrUrl);
     /**
      * Creates a new empty project at @p pathOrUrl (Save dialog path) and opens it.
-     * @p projectName may be empty — derived from the file stem.
+     * @p projectName may be empty â€” derived from the file stem.
      */
     Q_INVOKABLE void createProject(const QString &pathOrUrl, const QString &projectName = QString());
     /** Opens the W2 slice fixture. No-ops unless developerMode is enabled. */
@@ -292,12 +295,16 @@ public:
     Q_INVOKABLE void setLogicRuleTrigger(const QString &ruleId, const QString &blockTypeId);
     /** Sets primary Then action block type on @p ruleId. */
     Q_INVOKABLE void setLogicRulePrimaryAction(const QString &ruleId, const QString &blockTypeId);
-    /**
-     * Sets primary Also-require condition on @p ruleId.
-     * Empty @p blockTypeId clears all conditions (None / always).
-     */
-    Q_INVOKABLE void setLogicRulePrimaryCondition(const QString &ruleId,
-                                                  const QString &blockTypeId);
+    Q_INVOKABLE void addLogicCondition(const QString &ruleId, const QString &blockTypeId);
+    Q_INVOKABLE void setLogicConditionAt(const QString &ruleId,
+                                         int index,
+                                         const QString &blockTypeId);
+    Q_INVOKABLE void removeLogicConditionAt(const QString &ruleId, int index);
+    Q_INVOKABLE void moveLogicCondition(const QString &ruleId, int from, int to);
+    Q_INVOKABLE void setLogicConditionProperty(const QString &ruleId,
+                                               int index,
+                                               const QString &propertyKey,
+                                               const QString &valueText);
     /**
      * Enables/disables Logic rule @p ruleId on the selected type.
      * Disabled rules persist but are skipped by compile/Play. Undoable.
@@ -313,13 +320,18 @@ public:
     Q_INVOKABLE void setLogicRuleSection(const QString &ruleId, const QString &sectionId);
     /**
      * Sets a property on a primary block of @p ruleId.
-     * @p slot is "trigger" | "condition" | "action".
+     * @p slot is "trigger" | "action" (use setLogicConditionProperty for conditions).
      * @p valueText is kind-specific ("true", "Space", "1.0", …). Undoable.
      */
     Q_INVOKABLE void setLogicRuleBlockProperty(const QString &ruleId,
                                                const QString &slot,
                                                const QString &propertyKey,
                                                const QString &valueText);
+    /**
+     * Surfaces an authoring error in the status bar and via errorOccurred.
+     * Used when QML must abort an apply without a coordinator command (e.g. catalog race).
+     */
+    Q_INVOKABLE void notifyAuthoringError(const QString &message);
     /**
      * Ensures the selected Object Type owns a Logic-required component.
      * @p componentId is "platformerController" or "spriteAnimator".
@@ -328,7 +340,7 @@ public:
     Q_INVOKABLE bool ensureObjectTypeComponent(const QString &componentId);
     [[nodiscard]] Q_INVOKABLE QString logicBlockDisplayName(const QString &blockTypeId) const;
     /**
-     * Maps a Qt key code to a Logic key name ("Space", "W", …), or empty if unsupported.
+     * Maps a Qt key code to a Logic key name ("Space", "W", â€¦), or empty if unsupported.
      * Used by the Logic Board key detector (single source with logicKeyFromName).
      */
     [[nodiscard]] Q_INVOKABLE QString logicKeyFromQtKey(int qtKey) const;
@@ -377,6 +389,11 @@ private:
     [[nodiscard]] bool guardAuthoring(QString *errorOut = nullptr) const;
     void emitProjectSignals();
     void refreshSelectionCache();
+    void setLogicRuleBlockPropertyAddressed(
+        const QString &ruleId,
+        ArtCade::EditorCore::LogicRuleBlockAddress address,
+        const QString &propertyKey,
+        const QString &valueText);
     void reloadDerivedModels();
     void refreshProjectCounts();
     void refreshAssetSelectionCache();

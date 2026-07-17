@@ -12,6 +12,7 @@ add_library(artcade_editor_core STATIC
     src/scene_layer_duplicate.cpp
     src/logic_board_names.cpp
     src/logic_board_commands.cpp
+    src/logic_board_condition_commands.cpp
     src/logic_board_property.cpp
     src/logic_board_section_commands.cpp
     src/object_type_component_commands.cpp

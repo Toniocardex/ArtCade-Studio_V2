@@ -388,7 +388,7 @@ Rectangle {
                         }
                         Text {
                             anchors.horizontalCenter: parent.horizontalCenter
-                            text: "IF optional conditions are true"
+                            text: "AND optional requirements are true"
                             color: Theme.textMuted
                             font.family: Typography.family
                             font.pixelSize: Typography.sizeMeta
@@ -513,12 +513,28 @@ Rectangle {
                         onCatalogRequested: function(slot) {
                             catalogHost.openFor(ruleId, slot, rule)
                         }
+                        onConditionCatalogRequested: function(index) {
+                            const clauses = rule.conditionClauses || []
+                            const expected = (index >= 0 && index < clauses.length)
+                                             ? (clauses[index].typeId || "")
+                                             : ""
+                            catalogHost.openConditionCatalog(ruleId, index, expected)
+                        }
                         onEnabledToggled: function(enabled) {
                             EditorSession.setLogicRuleEnabled(ruleId, enabled)
                         }
                         onDeleteRequested: EditorSession.removeLogicRule(ruleId)
                         onPropertyEdited: function(slot, key, value) {
                             EditorSession.setLogicRuleBlockProperty(ruleId, slot, key, value)
+                        }
+                        onConditionPropertyEdited: function(index, key, value) {
+                            EditorSession.setLogicConditionProperty(ruleId, index, key, value)
+                        }
+                        onConditionMoveRequested: function(from, to) {
+                            EditorSession.moveLogicCondition(ruleId, from, to)
+                        }
+                        onConditionDeleteRequested: function(index) {
+                            EditorSession.removeLogicConditionAt(ruleId, index)
                         }
                         onContextMenuRequested: function(anchorItem) {
                             ruleMenu.openFor(ruleId, rule.displayName, anchorItem)
@@ -557,6 +573,9 @@ Rectangle {
         id: catalogHost
         property string targetRuleId: ""
         property string targetSlot: ""
+        /** -1 = Add condition; >= 0 = Change condition at index. */
+        property int targetConditionIndex: -1
+        property string expectedConditionTypeId: ""
 
         function propertyLabels(rows) {
             const labels = []
@@ -569,11 +588,35 @@ Rectangle {
             return labels
         }
 
+        function findRule(ruleId) {
+            const rules = EditorSession.logicRules
+            for (let i = 0; i < rules.length; ++i) {
+                if (rules[i].id === ruleId)
+                    return rules[i]
+            }
+            return null
+        }
+
+        function clauseTypeIdAt(ruleId, index) {
+            const rule = findRule(ruleId)
+            if (!rule)
+                return ""
+            const clauses = rule.conditionClauses || []
+            if (index < 0 || index >= clauses.length)
+                return ""
+            return clauses[index].typeId || ""
+        }
+
         function openFor(ruleId, slot, rule) {
             if (EditorSession.playing || !ruleId || !slot)
                 return
+            // Conditions use openConditionCatalog — never the primary-IF path.
+            if (slot === "condition")
+                return
             targetRuleId = ruleId
             targetSlot = slot
+            targetConditionIndex = -1
+            expectedConditionTypeId = ""
             EditorSession.selectedLogicRuleId = ruleId
 
             let currentTypeId = ""
@@ -581,10 +624,6 @@ Rectangle {
             if (slot === "trigger") {
                 currentTypeId = rule.triggerTypeId || ""
                 rows = rule.triggerProperties || []
-            } else if (slot === "condition") {
-                const ids = rule.conditionTypeIds || []
-                currentTypeId = ids.length > 0 ? ids[0] : ""
-                rows = rule.conditionProperties || []
             } else {
                 const ids = rule.actionTypeIds || []
                 currentTypeId = ids.length > 0 ? ids[0] : ""
@@ -593,6 +632,42 @@ Rectangle {
 
             const labels = propertyLabels(rows)
             catalogDialog.kind = slot
+            catalogDialog.currentTypeId = currentTypeId
+            catalogDialog.contextObjectTypeId = EditorSession.selectedObjectTypeId
+            catalogDialog.triggerTypeId = rule.triggerTypeId || ""
+            catalogDialog.replacingConfigured = currentTypeId.length > 0 && labels.length > 0
+            catalogDialog.replaceDiscardHint = catalogDialog.replacingConfigured
+                ? ("Replacing " + EditorSession.logicBlockDisplayName(currentTypeId)
+                   + " will discard its current "
+                   + labels.join(" and ") + " settings.")
+                : ""
+            catalogDialog.openCatalog()
+        }
+
+        function openConditionCatalog(ruleId, index, expectedTypeId) {
+            if (EditorSession.playing || !ruleId)
+                return
+            const rule = findRule(ruleId)
+            if (!rule)
+                return
+            targetRuleId = ruleId
+            targetSlot = "condition"
+            targetConditionIndex = index
+            expectedConditionTypeId = expectedTypeId || ""
+            EditorSession.selectedLogicRuleId = ruleId
+
+            let currentTypeId = ""
+            let rows = []
+            if (index >= 0) {
+                const clauses = rule.conditionClauses || []
+                if (index < clauses.length) {
+                    currentTypeId = clauses[index].typeId || ""
+                    rows = clauses[index].properties || []
+                }
+            }
+
+            const labels = propertyLabels(rows)
+            catalogDialog.kind = "condition"
             catalogDialog.currentTypeId = currentTypeId
             catalogDialog.contextObjectTypeId = EditorSession.selectedObjectTypeId
             catalogDialog.triggerTypeId = rule.triggerTypeId || ""
@@ -613,12 +688,32 @@ Rectangle {
             const slot = catalogHost.targetSlot
             if (!ruleId || !slot || !typeId)
                 return
-            if (slot === "trigger")
+            if (slot === "trigger") {
                 EditorSession.setLogicRuleTrigger(ruleId, typeId)
-            else if (slot === "condition")
-                EditorSession.setLogicRulePrimaryCondition(ruleId, typeId)
-            else
+                return
+            }
+            if (slot === "action") {
                 EditorSession.setLogicRulePrimaryAction(ruleId, typeId)
+                return
+            }
+            if (slot === "condition") {
+                const index = catalogHost.targetConditionIndex
+                if (index < 0) {
+                    EditorSession.addLogicCondition(ruleId, typeId)
+                    return
+                }
+                const expected = catalogHost.expectedConditionTypeId
+                if (expected.length > 0) {
+                    const actual = catalogHost.clauseTypeIdAt(ruleId, index)
+                    if (actual !== expected) {
+                        // Race: undo/refresh changed the clause since catalog opened.
+                        EditorSession.notifyAuthoringError(
+                            "Condition changed since catalog opened — reopen catalog")
+                        return
+                    }
+                }
+                EditorSession.setLogicConditionAt(ruleId, index, typeId)
+            }
         }
     }
 

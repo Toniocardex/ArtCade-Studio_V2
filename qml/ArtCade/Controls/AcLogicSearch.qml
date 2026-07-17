@@ -63,6 +63,23 @@ QtObject {
         return out
     }
 
+    /** Concatenate property text from every condition clause. */
+    function conditionClausesPropsText(rule) {
+        let out = ""
+        const clauses = rule.conditionClauses || []
+        for (let i = 0; i < clauses.length; ++i)
+            out += propsText(clauses[i].properties)
+        return out
+    }
+
+    function conditionClausesBlockText(rule) {
+        const clauses = rule.conditionClauses || []
+        const ids = []
+        for (let i = 0; i < clauses.length; ++i)
+            ids.push(clauses[i].typeId || "")
+        return blockText(ids)
+    }
+
     function tokenMatches(rule, token) {
         if (token.op === "is") {
             if (token.term === "disabled")
@@ -77,8 +94,8 @@ QtObject {
         }
         const trigger = blockText([rule.triggerTypeId || ""])
                         + propsText(rule.triggerProperties)
-        const conditions = blockText(rule.conditionTypeIds || [])
-                           + propsText(rule.conditionProperties)
+        const conditions = conditionClausesBlockText(rule)
+                           + conditionClausesPropsText(rule)
         const actions = blockText(rule.actionTypeIds || [])
                         + propsText(rule.actionProperties)
         if (token.op === "trigger")
@@ -89,7 +106,7 @@ QtObject {
             return actions.indexOf(token.term) >= 0
         if (token.op === "uses")
             return (propsText(rule.triggerProperties)
-                    + propsText(rule.conditionProperties)
+                    + conditionClausesPropsText(rule)
                     + propsText(rule.actionProperties)).indexOf(token.term) >= 0
         return (String(rule.displayName || "").toLowerCase()
                 + String(rule.name || "").toLowerCase()

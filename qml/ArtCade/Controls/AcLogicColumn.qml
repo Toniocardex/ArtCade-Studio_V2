@@ -4,13 +4,14 @@ import QtQuick.Layouts
 import ArtCade.Ui
 
 /**
- * One Logic Board column (WHEN / IF / THEN) — flat event-sheet cell.
- * Catalog exploration lives in AcLogicCatalogDialog; this shows the result + properties.
+ * One Logic Board column (WHEN trigger bare / THEN) — flat event-sheet cell.
+ * Conditions live in AcLogicWhenColumn. Catalog exploration lives in
+ * AcLogicCatalogDialog; this shows the result + properties.
  */
 Item {
     id: root
 
-    /** "trigger" | "condition" | "action" */
+    /** "trigger" | "action" */
     property string slotKind: "trigger"
     property string title: ""
     property bool comfortable: false
@@ -23,18 +24,14 @@ Item {
     readonly property int rowSpacing: comfortable ? Metrics.spacingSm : Metrics.spacingXs
 
     readonly property bool isTrigger: slotKind === "trigger"
-    readonly property bool isCondition: slotKind === "condition"
     readonly property bool isAction: slotKind === "action"
     readonly property bool hasBlocks: blocks && blocks.length > 0
-    readonly property bool showEmptyCondition: isCondition && !hasBlocks
     readonly property string typeLabel: {
         if (!currentTypeId || currentTypeId.length === 0)
             return ""
         return EditorSession.logicBlockDisplayName(currentTypeId)
     }
     readonly property string catalogButtonLabel: {
-        if (showEmptyCondition)
-            return "+ Add"
         if (typeLabel.length > 0)
             return "Change"
         return "Select…"
@@ -96,43 +93,11 @@ Item {
             font.letterSpacing: 0.6
         }
 
-        // IF empty — result + quiet CTA
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: Metrics.spacingSm
-            visible: root.showEmptyCondition
-
-            Text {
-                Layout.fillWidth: true
-                text: "No conditions"
-                color: Theme.textSecondary
-                font.family: Typography.family
-                font.pixelSize: Typography.sizeBody
-                font.weight: Font.DemiBold
-                elide: Text.ElideRight
-            }
-
-            CatalogCta {
-                label: root.catalogButtonLabel
-                interactive: root.catalogEnabled
-            }
-        }
-
-        Text {
-            Layout.fillWidth: true
-            visible: root.showEmptyCondition && root.comfortable
-            wrapMode: Text.WordWrap
-            text: "Runs whenever the event occurs."
-            color: Theme.textMuted
-            font.family: Typography.family
-            font.pixelSize: Typography.sizeMeta
-        }
-
         // Chosen block + Change / Select
         RowLayout {
             Layout.fillWidth: true
             spacing: Metrics.spacingSm
-            visible: root.editable && !root.showEmptyCondition
+            visible: root.editable
 
             Text {
                 Layout.fillWidth: true
@@ -150,7 +115,7 @@ Item {
 
             CatalogCta {
                 label: root.catalogButtonLabel
-                interactive: !EditorSession.playing
+                interactive: root.catalogEnabled
             }
         }
 

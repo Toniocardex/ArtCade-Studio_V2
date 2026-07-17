@@ -33,15 +33,17 @@ LogicRuleDef *find_rule(LogicBoardDef &board, const LogicRuleId &rule_id)
     return nullptr;
 }
 
-LogicBlockDef *block_for_slot(LogicRuleDef &rule, LogicRuleBlockSlot slot)
+LogicBlockDef *block_for_address(LogicRuleDef &rule, LogicRuleBlockAddress address)
 {
-    switch (slot) {
+    switch (address.slot) {
     case LogicRuleBlockSlot::Trigger:
         return &rule.trigger;
-    case LogicRuleBlockSlot::PrimaryCondition:
-        return rule.conditions.empty() ? nullptr : &rule.conditions.front();
-    case LogicRuleBlockSlot::PrimaryAction:
-        return rule.actions.empty() ? nullptr : &rule.actions.front();
+    case LogicRuleBlockSlot::Condition:
+        if (address.index >= rule.conditions.size()) return nullptr;
+        return &rule.conditions[address.index];
+    case LogicRuleBlockSlot::Action:
+        if (address.index >= rule.actions.size()) return nullptr;
+        return &rule.actions[address.index];
     }
     return nullptr;
 }
@@ -302,12 +304,12 @@ std::vector<LogicPropertySummary> logic_block_authorable_properties(const LogicB
 SetLogicRuleBlockPropertyCommand::SetLogicRuleBlockPropertyCommand(
     ObjectTypeId object_type_id,
     LogicRuleId rule_id,
-    LogicRuleBlockSlot slot,
+    LogicRuleBlockAddress address,
     std::string property_key,
     LogicValue new_value)
     : m_object_type_id(std::move(object_type_id))
     , m_rule_id(std::move(rule_id))
-    , m_slot(slot)
+    , m_address(address)
     , m_property_key(std::move(property_key))
     , m_new_value(std::move(new_value))
 {
@@ -323,7 +325,7 @@ void SetLogicRuleBlockPropertyCommand::execute(ProjectDoc &doc)
     if (!rule) {
         return;
     }
-    LogicBlockDef *block = block_for_slot(*rule, m_slot);
+    LogicBlockDef *block = block_for_address(*rule, m_address);
     if (!block) {
         return;
     }
@@ -359,7 +361,7 @@ void SetLogicRuleBlockPropertyCommand::undo(ProjectDoc &doc)
     if (!rule) {
         return;
     }
-    LogicBlockDef *block = block_for_slot(*rule, m_slot);
+    LogicBlockDef *block = block_for_address(*rule, m_address);
     if (!block) {
         return;
     }

@@ -5,7 +5,8 @@ import ArtCade.Ui
 
 /**
  * One Logic item as an event-sheet card.
- * Collapsed: Logic NN · Trigger → Action. Expanded: Logic NN + WHEN|IF|THEN body.
+ * Collapsed: Logic NN · Trigger AND conditions → Action.
+ * Expanded: Logic NN + WHEN|THEN body (conditions live under WHEN).
  * Presentation only — mutations via signals → EditorSession.
  */
 Rectangle {
@@ -22,17 +23,21 @@ Rectangle {
     signal deleteRequested()
     signal enabledToggled(bool enabled)
     signal catalogRequested(string slot)
+    /** Condition catalog: index -1 means Add. */
+    signal conditionCatalogRequested(int index)
     signal propertyEdited(string slot, string propertyKey, string valueText)
+    signal conditionPropertyEdited(int index, string propertyKey, string valueText)
+    signal conditionMoveRequested(int from, int to)
+    signal conditionDeleteRequested(int index)
     signal contextMenuRequested(var anchorItem)
     signal expansionToggleRequested()
     signal renameRequested()
 
     readonly property bool ruleEnabled: rule.enabled === true
-    readonly property var conditionIds: rule.conditionTypeIds || []
     readonly property var actionIds: rule.actionTypeIds || []
     readonly property var triggerProperties: rule.triggerProperties || []
-    readonly property var conditionProperties: rule.conditionProperties || []
     readonly property var actionProperties: rule.actionProperties || []
+    readonly property var conditionClauses: rule.conditionClauses || []
     readonly property var displayDiagnostics: {
         const entries = []
         const rows = root.rule.diagnostics || []
@@ -71,16 +76,33 @@ Rectangle {
     readonly property string displayName: String(root.rule.displayName)
     readonly property string collapsedSummary: {
         const trigger = EditorSession.logicBlockDisplayName(root.rule.triggerTypeId || "")
+        const clauses = root.conditionClauses
+        let whenPart = trigger
+        if (clauses && clauses.length > 0) {
+            const shown = Math.min(2, clauses.length)
+            for (let i = 0; i < shown; ++i) {
+                const name = String(clauses[i].displayName
+                                    || EditorSession.logicBlockDisplayName(clauses[i].typeId || ""))
+                if (name.length === 0)
+                    continue
+                whenPart += (whenPart.length > 0 ? " AND " : "") + name
+            }
+            const remaining = clauses.length - shown
+            if (remaining > 0)
+                whenPart += " +" + remaining
+        }
         const action = root.actionIds.length > 0
                        ? EditorSession.logicBlockDisplayName(root.actionIds[0])
                        : ""
-        if (trigger.length === 0 && action.length === 0)
+        if (whenPart.length === 0 && action.length === 0)
             return "Not configured"
         if (action.length === 0)
-            return trigger
-        return trigger + " → " + action
+            return whenPart
+        if (whenPart.length === 0)
+            return action
+        return whenPart + " → " + action
     }
-    /** Stack WHEN/IF/THEN below this width (Inspector open / narrow center). */
+    /** Stack WHEN/THEN below this width (Inspector open / narrow center). */
     readonly property bool stackedColumns: width > 0 && width < 720
 
     function highlightText(text) {
@@ -314,7 +336,7 @@ Rectangle {
             }
         }
 
-        // —— Expanded body: WHEN | IF | THEN ——
+        // —— Expanded body: WHEN | THEN ——
         Loader {
             id: bodyLoader
             Layout.fillWidth: true
@@ -337,41 +359,30 @@ Rectangle {
             spacing: 0
             width: root.width - Metrics.spacingXs * 2
 
-            AcLogicColumn {
+            AcLogicWhenColumn {
                 Layout.fillWidth: true
+                Layout.preferredWidth: 45
                 Layout.alignment: Qt.AlignTop
-                slotKind: "trigger"
-                title: "WHEN"
                 comfortable: root.comfortable
-                blocks: (root.rule.triggerTypeId || "").length > 0
-                        ? [root.rule.triggerTypeId] : []
-                editable: true
-                currentTypeId: root.rule.triggerTypeId || ""
-                propertyRows: root.triggerProperties
-                onCatalogRequested: root.catalogRequested("trigger")
-                onPropertyEdited: function(key, value) {
+                triggerTypeId: root.rule.triggerTypeId || ""
+                triggerProperties: root.triggerProperties
+                triggerDescription: root.rule.triggerDescription || ""
+                conditionClauses: root.conditionClauses
+                onTriggerCatalogRequested: root.catalogRequested("trigger")
+                onTriggerPropertyEdited: function(key, value) {
                     root.propertyEdited("trigger", key, value)
                 }
-            }
-            Rectangle {
-                Layout.fillHeight: true
-                Layout.preferredWidth: 1
-                Layout.minimumHeight: 48
-                color: Theme.borderSubtle
-            }
-            AcLogicColumn {
-                Layout.fillWidth: true
-                Layout.alignment: Qt.AlignTop
-                slotKind: "condition"
-                title: "IF"
-                comfortable: root.comfortable
-                blocks: root.conditionIds
-                editable: true
-                currentTypeId: root.conditionIds.length > 0 ? root.conditionIds[0] : ""
-                propertyRows: root.conditionProperties
-                onCatalogRequested: root.catalogRequested("condition")
-                onPropertyEdited: function(key, value) {
-                    root.propertyEdited("condition", key, value)
+                onConditionCatalogRequested: function(index) {
+                    root.conditionCatalogRequested(index)
+                }
+                onConditionPropertyEdited: function(index, key, value) {
+                    root.conditionPropertyEdited(index, key, value)
+                }
+                onConditionMoveRequested: function(from, to) {
+                    root.conditionMoveRequested(from, to)
+                }
+                onConditionDeleteRequested: function(index) {
+                    root.conditionDeleteRequested(index)
                 }
             }
             Rectangle {
@@ -382,6 +393,7 @@ Rectangle {
             }
             AcLogicColumn {
                 Layout.fillWidth: true
+                Layout.preferredWidth: 55
                 Layout.alignment: Qt.AlignTop
                 slotKind: "action"
                 title: "THEN"
@@ -404,38 +416,28 @@ Rectangle {
             spacing: 0
             width: root.width - Metrics.spacingXs * 2
 
-            AcLogicColumn {
+            AcLogicWhenColumn {
                 Layout.fillWidth: true
-                slotKind: "trigger"
-                title: "WHEN"
                 comfortable: root.comfortable
-                blocks: (root.rule.triggerTypeId || "").length > 0
-                        ? [root.rule.triggerTypeId] : []
-                editable: true
-                currentTypeId: root.rule.triggerTypeId || ""
-                propertyRows: root.triggerProperties
-                onCatalogRequested: root.catalogRequested("trigger")
-                onPropertyEdited: function(key, value) {
+                triggerTypeId: root.rule.triggerTypeId || ""
+                triggerProperties: root.triggerProperties
+                triggerDescription: root.rule.triggerDescription || ""
+                conditionClauses: root.conditionClauses
+                onTriggerCatalogRequested: root.catalogRequested("trigger")
+                onTriggerPropertyEdited: function(key, value) {
                     root.propertyEdited("trigger", key, value)
                 }
-            }
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 1
-                color: Theme.borderSubtle
-            }
-            AcLogicColumn {
-                Layout.fillWidth: true
-                slotKind: "condition"
-                title: "IF"
-                comfortable: root.comfortable
-                blocks: root.conditionIds
-                editable: true
-                currentTypeId: root.conditionIds.length > 0 ? root.conditionIds[0] : ""
-                propertyRows: root.conditionProperties
-                onCatalogRequested: root.catalogRequested("condition")
-                onPropertyEdited: function(key, value) {
-                    root.propertyEdited("condition", key, value)
+                onConditionCatalogRequested: function(index) {
+                    root.conditionCatalogRequested(index)
+                }
+                onConditionPropertyEdited: function(index, key, value) {
+                    root.conditionPropertyEdited(index, key, value)
+                }
+                onConditionMoveRequested: function(from, to) {
+                    root.conditionMoveRequested(from, to)
+                }
+                onConditionDeleteRequested: function(index) {
+                    root.conditionDeleteRequested(index)
                 }
             }
             Rectangle {
