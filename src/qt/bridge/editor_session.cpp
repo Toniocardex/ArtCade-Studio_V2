@@ -25,6 +25,7 @@
 #include <algorithm>
 #include <cmath>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #ifndef ARTCADE_QT_SLICE_FIXTURE_PATH
@@ -2026,32 +2027,33 @@ void EditorSession::paintSceneView(QPainter *painter, const SceneViewItem *view)
     // Draw order matches pick/runtime: SceneDef.layers index 0 = background (first),
     // last = foreground (last). Same-layer ties keep instance-array order.
 
+    // Resolve layerId → rank once (empty/unknown = 0), matching pick/runtime.
+    std::unordered_map<std::string, int> layer_rank_by_id;
+    layer_rank_by_id.reserve(scene.layers.size());
+    for (std::size_t i = 0; i < scene.layers.size(); ++i) {
+        layer_rank_by_id.emplace(scene.layers[i].id, static_cast<int>(i));
+    }
+    std::vector<int> ranks(scene.instances.size(), 0);
     std::vector<std::size_t> draw_order;
     draw_order.reserve(scene.instances.size());
     for (std::size_t i = 0; i < scene.instances.size(); ++i) {
         draw_order.push_back(i);
-    }
-    const auto layer_rank = [&scene](std::size_t instance_index) -> int {
-        const std::string &layer_id = scene.instances[instance_index].layerId;
+        const std::string &layer_id = scene.instances[i].layerId;
         if (layer_id.empty()) {
-            return 0;
+            continue;
         }
-        const std::size_t layer_index =
-            ArtCade::EditorCore::EditorCoordinator::sceneLayerIndex(scene, layer_id);
-        if (layer_index == static_cast<std::size_t>(-1)) {
-            return 0;
+        const auto rank_it = layer_rank_by_id.find(layer_id);
+        if (rank_it != layer_rank_by_id.end()) {
+            ranks[i] = rank_it->second;
         }
-        return static_cast<int>(layer_index);
-    };
+    }
     std::stable_sort(draw_order.begin(),
                      draw_order.end(),
                      [&](std::size_t a, std::size_t b) {
-                         const int rank_a = layer_rank(a);
-                         const int rank_b = layer_rank(b);
-                         if (rank_a != rank_b) {
-                             return rank_a < rank_b;
+                         if (ranks[a] != ranks[b]) {
+                             return ranks[a] < ranks[b];
                          }
-                         return a < b;
+                         return false; // keep instance-array order within a layer
                      });
 
     for (const std::size_t instance_index : draw_order) {

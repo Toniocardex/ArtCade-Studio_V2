@@ -443,6 +443,42 @@ int main()
     expect(coord.setLogicRulePrimaryAction("Player", rule_id, ArtCade::Logic::kStateSet, error),
            "set Number variable action");
     expect(coord.logicReferenceCount("score") == 1, "Logic references score");
+    {
+        expect(!coord.setLogicRuleBlockProperty(
+                   "Player",
+                   rule_id,
+                   ArtCade::EditorCore::LogicRuleBlockSlot::PrimaryAction,
+                   "key",
+                   "missing_variable",
+                   error),
+               "unknown Variable key is rejected");
+        expect(coord.addGameVariable("flag", "boolean", error), "add Boolean for type mismatch");
+        expect(!coord.setLogicRuleBlockProperty(
+                   "Player",
+                   rule_id,
+                   ArtCade::EditorCore::LogicRuleBlockSlot::PrimaryAction,
+                   "key",
+                   "flag",
+                   error),
+               "Boolean Variable is rejected on Number state action");
+        expect(coord.setLogicRuleBlockProperty(
+                   "Player",
+                   rule_id,
+                   ArtCade::EditorCore::LogicRuleBlockSlot::PrimaryAction,
+                   "key",
+                   "",
+                   error),
+               "empty Variable key remains an authoring draft");
+        expect(coord.logicReferenceCount("score") == 0,
+               "empty draft clears score reference count");
+        // Pop the applied edits so later undo/redo of StateSet stays intact.
+        coord.undo(); // restore score key
+        coord.undo(); // remove temporary Boolean add
+        expect(coord.logicReferenceCount("score") == 1,
+               "score reference restored after validation undos");
+        expect(coord.document().globalVariables.size() == 1,
+               "temporary Boolean removed from catalog after validation undos");
+    }
     const std::uint64_t revision_before_referenced_variable_change = coord.revision();
     expect(!coord.removeGameVariable("score", error), "referenced variable cannot be removed");
     expect(!coord.setGameVariableType("score", "boolean", error),

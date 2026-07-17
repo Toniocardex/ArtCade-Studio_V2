@@ -1193,6 +1193,27 @@ bool EditorCoordinator::setLogicRuleBlockProperty(const ObjectTypeId &object_typ
     if (!logic_value_parse(prop_desc->valueKind, value_text, parsed, error_message)) {
         return false;
     }
+    if (prop_desc->valueKind == ArtCade::Logic::LogicValueKind::Variable) {
+        const auto *ref = std::get_if<LogicVariableReference>(&parsed);
+        if (!ref) {
+            error_message = "Invalid variable reference";
+            return false;
+        }
+        // Empty id remains an authoring draft; Executable validation gates Play.
+        if (!ref->id.empty()) {
+            const GameVariableDefinition *global =
+                ArtCade::Logic::findGlobalVariable(m_doc, ref->id);
+            if (!global) {
+                error_message = "Unknown project variable";
+                return false;
+            }
+            const auto required = ArtCade::Logic::requiredVariableType(block->typeId);
+            if (required && global->type != *required) {
+                error_message = "Variable type is incompatible with this block";
+                return false;
+            }
+        }
+    }
     if (const LogicPropertyDef *current = ArtCade::Logic::findProperty(*block, property_key)) {
         if (logic_values_equal(current->value, parsed)) {
             return true; // no-op — do not dirty

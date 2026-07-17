@@ -276,16 +276,45 @@ bool DialogManager::evaluateCondition(const DialogNode& node) const {
     return *lhs == rhs;
 }
 
-void DialogManager::applySetVariable(const DialogNode& node) {
-    if (!ctx_ || !ctx_->variableManager) return;
-    auto* vm = ctx_->variableManager;
-    if (node.operation == "+=") {
-        (void)vm->addNumber(node.variable, static_cast<double>(node.value));
-    } else if (node.operation == "-=") {
-        (void)vm->addNumber(node.variable, static_cast<double>(-node.value));
-    } else {
-        (void)vm->setGlobal(node.variable, static_cast<double>(node.value));
+bool DialogManager::applySetVariable(const DialogNode& node) {
+    if (!ctx_ || !ctx_->variableManager) {
+        std::cerr << "[Dialog] SetVariable rejected: VariableManager unavailable ("
+                  << node.variable << ")\n";
+        return false;
     }
+    if (node.variable.empty()) {
+        std::cerr << "[Dialog] SetVariable rejected: empty variable key\n";
+        return false;
+    }
+    auto* vm = ctx_->variableManager;
+    VariableMutationResult result;
+    if (node.operation == "+=") {
+        result = vm->addNumber(node.variable, static_cast<double>(node.value));
+    } else if (node.operation == "-=") {
+        result = vm->addNumber(node.variable, static_cast<double>(-node.value));
+    } else {
+        result = vm->setGlobal(node.variable, static_cast<double>(node.value));
+    }
+    if (result.accepted()) return true;
+
+    const char* reason = "unknown";
+    switch (result.status) {
+    case VariableMutationStatus::MissingVariable:
+        reason = "missing catalog variable";
+        break;
+    case VariableMutationStatus::TypeMismatch:
+        reason = "type mismatch (Number required)";
+        break;
+    case VariableMutationStatus::NonFiniteValue:
+        reason = "non-finite value";
+        break;
+    case VariableMutationStatus::Changed:
+    case VariableMutationStatus::Unchanged:
+        break;
+    }
+    std::cerr << "[Dialog] SetVariable rejected for '" << node.variable << "': " << reason
+              << "\n";
+    return false;
 }
 
 void DialogManager::processInstantNodes() {
@@ -309,7 +338,9 @@ void DialogManager::processInstantNodes() {
             continue;
         }
         case DialogNodeType::SetVariable:
-            applySetVariable(*node);
+            // Catalog-only: rejected mutations are logged; dialog still advances so
+            // a bad authoring key cannot freeze the conversation loop.
+            (void)applySetVariable(*node);
             if (node->next.empty()) {
                 endDialog();
                 return;

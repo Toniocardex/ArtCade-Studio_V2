@@ -32,6 +32,14 @@ struct Host final : ILogicRuntimeHost {
     std::unordered_map<std::string, double> state;
     std::unordered_map<std::string, bool> boolState;
     bool keyDown = false;
+    /** Pre-declare a Number key (mirrors VariableManager catalog materialization). */
+    void declareNumber(const GameVariableId& id, double initial = 0.0) {
+        state[id] = initial;
+    }
+    /** Pre-declare a Boolean key (mirrors VariableManager catalog materialization). */
+    void declareBoolean(const GameVariableId& id, bool initial = false) {
+        boolState[id] = initial;
+    }
     bool setVisible(EntityId owner, bool value) override {
         calls.push_back("visible:" + std::to_string(owner) + ":" + (value ? "1" : "0"));
         if (runtime && cancelOnVisible) runtime->cancelScope(*cancelOnVisible);
@@ -100,19 +108,22 @@ struct Host final : ILogicRuntimeHost {
         return true;
     }
     bool setStateNumber(const GameVariableId& id, double value) override {
+        if (state.find(id) == state.end()) return false;
         state[id] = value;
         calls.push_back("state_set:" + id + ":" + std::to_string(static_cast<int>(value)));
         return true;
     }
     bool addStateNumber(const GameVariableId& id, double delta) override {
-        state[id] = (state.count(id) ? state[id] : 0.0) + delta;
+        if (state.find(id) == state.end()) return false;
+        state[id] = state[id] + delta;
         calls.push_back("state_add:" + id + ":" + std::to_string(static_cast<int>(delta)));
         return true;
     }
     bool toggleStateBoolean(const GameVariableId& id) override {
-        const bool next = !(boolState.count(id) ? boolState[id] : false);
-        boolState[id] = next;
-        calls.push_back("state_toggle:" + id + ":" + (next ? "true" : "false"));
+        const auto it = boolState.find(id);
+        if (it == boolState.end()) return false;
+        it->second = !it->second;
+        calls.push_back("state_toggle:" + id + ":" + (it->second ? "true" : "false"));
         return true;
     }
     std::optional<double> getStateNumber(const GameVariableId& id) const override {
@@ -704,6 +715,7 @@ static void testP1StateAndWaitAndVelocity() {
         LogicCompileResult compiled = compileBoard("State", board);
         CHECK(compiled.ok());
         Host host;
+        host.declareNumber("score", 0.0);
         LogicRuntime runtime(host);
         std::string error;
         CHECK(runtime.loadPrograms(compiled.programs, &error));
@@ -733,7 +745,7 @@ static void testP1StateAndWaitAndVelocity() {
         LogicCompileResult compiled = compileBoard("Compare", board);
         CHECK(compiled.ok());
         Host host;
-        host.state["score"] = 4.0;
+        host.declareNumber("score", 4.0);
         LogicRuntime runtime(host);
         std::string error;
         CHECK(runtime.loadPrograms(compiled.programs, &error));
@@ -987,6 +999,7 @@ static void testStateVariableAndToggle() {
         CHECK(compiled.ok());
         CHECK(compiled.programs[0].source.find("state_toggle_boolean") != std::string::npos);
         Host host;
+        host.declareBoolean("doorOpen", false);
         LogicRuntime runtime(host);
         std::string error;
         CHECK(runtime.loadPrograms(compiled.programs, &error));
@@ -994,6 +1007,12 @@ static void testStateVariableAndToggle() {
         runtime.beginFrame();
         runtime.dispatchStart();
         CHECK(host.boolState["doorOpen"] == true);
+    }
+    {
+        Host host;
+        CHECK(!host.setStateNumber("missing", 1.0));
+        CHECK(!host.addStateNumber("missing", 1.0));
+        CHECK(!host.toggleStateBoolean("missing"));
     }
     {
         ProjectDoc project;

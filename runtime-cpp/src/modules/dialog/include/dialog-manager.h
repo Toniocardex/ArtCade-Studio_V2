@@ -84,7 +84,11 @@ private:
     void syncTriggerSubscriptions();
     void handleTriggerMessage(const std::string& eventName);
     bool evaluateCondition(const DialogNode& node) const;
-    void applySetVariable(const DialogNode& node);
+    /**
+     * Mutates a catalog Number global for a SetVariable node.
+     * @return false when VariableManager is missing or the mutation is rejected
+     */
+    [[nodiscard]] bool applySetVariable(const DialogNode& node);
 };
 
 } // namespace Modules
