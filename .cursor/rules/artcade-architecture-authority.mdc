@@ -1,18 +1,18 @@
 ---
-description: ArtCade authoritative architecture — ProjectDocument, Commands, Play, Logic/Script, React adaptations
+description: ArtCade authoritative architecture — ProjectDocument, Commands, Play, Logic/Script, Qt/QML
 alwaysApply: true
 ---
 
-# ArtCade — architecture authority (React / Tauri stack)
+# ArtCade — architecture authority (Qt/QML stack)
 
-Canonical product+architecture contract. Outranks generic React/web advice. Origin: ArtCade RmlUi recap, adapted for this repo (`editor/` React+Tauri, `runtime-cpp/` Raylib+Lua).
+Canonical product and architecture contract. Outranks generic UI or web advice. ArtCade uses Qt/QML for authoring and C++/Raylib/Lua for runtime.
 
 ## Product shape
 
 - Authoring engine: **Scene | Logic | Script** (not a Raylib wrapper).
 - Logic Board = accessible visual gameplay; Script Editor = advanced Lua.
 - Editor Play and exported game must share the **same gameplay semantics**.
-- **Qt-first editor** (`artcade-editor-qt` + `artcade_editor_core`): QML is presentation; C++ `EditorSession` / `EditorCoordinator` own workspace + ProjectDoc. The old React/Tauri tree is removed — do not reintroduce a parallel editor stack.
+- **Qt/QML editor only** (`artcade-editor-qt` + `artcade_editor_core`): QML is presentation; C++ `EditorSession` / `EditorCoordinator` own workspace + ProjectDoc. Obsolete UI stacks are legacy debt and must not be reintroduced, referenced, or adapted.
 
 ## Stack roles
 
@@ -53,13 +53,13 @@ Forbidden: panels, Scene View, Logic/Script UI, asset editors, or Play mutating 
 - Every toolbar button, shortcut, and Scene View gesture for the same action must hit the **same** session/coordinator API.
 - Do not keep a QML-local `activeTool` / `snapOn` that is manually copied into C++ (or the reverse). Bind both sides to one workspace property.
 - Derived models (Hierarchy, Layers, Assets, Console) refresh from ProjectDoc/session — they are not a second document.
-- Adapters are thin forwards — no duplicated system logic across Qt and a legacy React path.
+- Adapters are thin forwards — no duplicated system logic or legacy compatibility paths.
 
 ## Non-negotiable paletti
 
 1. Stable **IDs** are identity; names are labels; paths are location — never keys.
 2. Object Type owns defaults; EntityInstance owns sparse overrides; **one canonical resolver** for Inspector, Scene View, validator, Play, export.
-3. Layer visual order is authoritative via an ordered layer list (this React stack: `ProjectDoc.layers` + per-scene `layerSettings`; RmlUi wording was `SceneDef.layers`). Instances use `layerId`. No parallel LayerManager as authority.
+3. Layer visual order is authoritative via `SceneDef.layers`; instances use `layerId`. No project-global layer list or parallel LayerManager as authority.
 4. Scene View: **one camera** for render, pick, drag, snap, overlay, grid. During Play: no edit grid, no authoring controls, no document writes.
 5. Play materializes **once** from ProjectDocument; runtime does not continuously re-read the document or use authoring assets as live authority.
 6. Gameplay focus is explicit (enter Play / explicit lose) — not “mouse hovered viewport”.
@@ -72,20 +72,26 @@ Forbidden: panels, Scene View, Logic/Script UI, asset editors, or Play mutating 
 13. Audio: recipe (Generated SFX) ≠ runtime AudioAsset; Play routes via command queue, not direct Raylib from Logic.
 14. Export validates Logic+scripts, materializes programs, does not depend on editor UI state or unsaved buffers.
 15. Unsaved guard on New/Open/Exit/Close: Save All / Discard / Cancel; failed save aborts.
-16. Feature DoD: model → Command → Undo → serializer/migration → validation → UI → Play → export → tests. No editor-only features.
-17. React remains presentation; Raylib remains backend. No parallel managers owning the same data. No polling/hidden bidirectional document mirrors.
+16. Feature DoD: model → Command → Undo → serializer/version bump → validation → UI → Play → export → tests. No editor-only features. Older saved formats are rejected, not converted.
+17. Qt/QML remains presentation; Raylib remains backend. No parallel managers, legacy stacks, polling, or hidden bidirectional document mirrors.
 
-## Scene surface (React adaptation)
+## Scene surface
 
-- One long-lived WASM/Raylib canvas; React hosts measure + overlays only.
-- Never detach the GL canvas; prefer pin-on-body + binder layout over reparent churn.
-- React does not own gameplay pixels.
+- One long-lived runtime/Raylib surface; Qt/QML hosts measurement and overlays only.
+- Never detach or recreate the runtime surface as a UI workaround.
+- QML does not own gameplay pixels.
 
-## Script editor (React adaptation)
+## Script editor
 
 - Abstract text surface (CodeMirror iframe / `ICodeEditorSurface` equivalent).
 - Do not rebuild the editor DOM on every keystroke.
 - Script buffer = workspace; saved file ≠ active buffer; project Undo ≠ text Undo (route by focus).
+
+## Legacy elimination and format policy
+
+- Legacy code, format readers, compatibility aliases, fallback adapters, and obsolete stack references are debt: remove them; do not preserve or extend them.
+- Breaking saved-format changes require an explicit `formatVersion` bump plus current-format fixture/round-trip coverage. Reject older formats with a clear error; do not convert or normalize them.
+- A legacy branch may exist only when the user explicitly authorizes a temporary exception with a tracked removal issue. Otherwise it is a BLOCKER.
 
 ## When implementing or reviewing
 
