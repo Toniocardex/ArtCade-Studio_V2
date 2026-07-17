@@ -1351,7 +1351,10 @@ ArtCade::EditorApiResult loadProjectFromJson(const char* json_utf8, ProjectLoadK
             Parser::parseSpritePathToAssetId(doc));
 
         std::vector<ArtCade::SceneLayerDef> sceneLayers;
-        ArtCade::ProjectJson::read_scene_layers(doc, sceneLayers);
+        auto scene_layers_it = sceneDefs.find(activeId);
+        if (scene_layers_it != sceneDefs.end()) {
+            sceneLayers = scene_layers_it->second.layers;
+        }
         gateway->setSceneLayers(std::move(sceneLayers));
 
         const ArtCade::ProjectRuntimeSettings runtimeSettings =

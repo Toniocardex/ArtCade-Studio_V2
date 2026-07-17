@@ -2,12 +2,9 @@
 
 #include "bridge/editor_session.h"
 
-#include <QCursor>
-#include <QMouseEvent>
 #include <QPainter>
 #include <QPen>
 #include <QString>
-#include <QWheelEvent>
 #include <algorithm>
 #include <cmath>
 
@@ -25,6 +22,8 @@ SceneViewItem::SceneViewItem(QQuickItem *parent)
     setAcceptHoverEvents(true);
     setOpaquePainting(true);
     setAntialiasing(true);
+    setFlag(ItemIsFocusScope, true);
+    setActiveFocusOnTab(true);
 }
 
 EditorSession *SceneViewItem::session() const
@@ -37,6 +36,7 @@ void SceneViewItem::setSession(EditorSession *session)
     if (m_session == session) {
         return;
     }
+    cancelActiveGesture();
     if (m_session) {
         disconnect(m_session, nullptr, this, nullptr);
     }
@@ -55,12 +55,16 @@ void SceneViewItem::bindSessionSignals()
     connect(m_session, &EditorSession::selectionChanged, this, [this]() { update(); });
     connect(m_session, &EditorSession::dirtyChanged, this, [this]() { update(); });
     connect(m_session, &EditorSession::activeLayerChanged, this, [this]() { update(); });
-    connect(m_session, &EditorSession::activeToolChanged, this, [this]() { update(); });
+    connect(m_session, &EditorSession::activeToolChanged, this, [this]() {
+        updateHoverCursor(m_last_screen);
+        update();
+    });
     connect(m_session, &EditorSession::snapEnabledChanged, this, [this]() { update(); });
 }
 
 void SceneViewItem::onSessionDocumentChanged()
 {
+    cancelActiveGesture();
     fitActiveScene();
     update();
 }
@@ -188,7 +192,6 @@ void SceneViewItem::applyFit(qreal world_w, qreal world_h)
         return;
     }
     m_zoom = std::clamp(std::min(avail_w / world_w, avail_h / world_h), kMinZoom, kMaxZoom);
-    // Origin sits just inside the content area (past rulers + pad).
     m_pan_x = -pad / m_zoom;
     m_pan_y = -pad / m_zoom;
     emit viewChanged();
@@ -255,168 +258,4 @@ void SceneViewItem::paint(QPainter *painter)
         painter->setPen(QPen(QColor(75, 143, 247), 1, Qt::DashLine));
         painter->drawRect(box);
     }
-}
-
-void SceneViewItem::mousePressEvent(QMouseEvent *event)
-{
-    if (!m_session || !m_session->hasProject()) {
-        event->ignore();
-        return;
-    }
-
-    const bool playing = m_session->isPlaying();
-    const QString tool = activeTool();
-
-    m_last_screen = event->position();
-
-    const bool pan_gesture =
-        event->button() == Qt::MiddleButton || event->button() == Qt::RightButton
-        || (event->button() == Qt::LeftButton
-            && ((event->modifiers() & Qt::AltModifier) || tool == QLatin1String("pan")));
-
-    if (pan_gesture) {
-        m_panning = true;
-        setCursor(Qt::ClosedHandCursor);
-        event->accept();
-        return;
-    }
-
-    if (event->button() != Qt::LeftButton) {
-        event->ignore();
-        return;
-    }
-
-    const qreal r = rulerSize();
-    if (event->position().x() < r || event->position().y() < r) {
-        event->accept();
-        return;
-    }
-
-    if (playing) {
-        event->accept();
-        return;
-    }
-
-    const QPointF world = screenToWorld(event->position());
-
-    if (tool == QLatin1String("rect")) {
-        m_marquee = true;
-        m_marquee_start_world = world;
-        m_marquee_end_world = world;
-        event->accept();
-        update();
-        return;
-    }
-
-    const quint32 hit = m_session->pickEntityAt(world.x(), world.y());
-    if (hit == 0) {
-        m_session->clearSelection();
-        event->accept();
-        return;
-    }
-
-    m_session->selectEntity(hit);
-    if (tool == QLatin1String("select")) {
-        event->accept();
-        update();
-        return;
-    }
-
-    // move tool (default authoring drag)
-    m_dragging = true;
-    m_drag_entity_id = hit;
-    m_drag_start_world = world;
-    m_drag_origin_world = QPointF(m_session->selectedX(), m_session->selectedY());
-    m_drag_preview_world = m_drag_origin_world;
-    m_has_drag_preview = true;
-    event->accept();
-    update();
-}
-
-void SceneViewItem::mouseMoveEvent(QMouseEvent *event)
-{
-    if (m_panning) {
-        const QPointF delta = event->position() - m_last_screen;
-        m_last_screen = event->position();
-        m_pan_x -= delta.x() / m_zoom;
-        m_pan_y -= delta.y() / m_zoom;
-        emit viewChanged();
-        update();
-        event->accept();
-        return;
-    }
-
-    if (m_marquee) {
-        m_marquee_end_world = screenToWorld(event->position());
-        update();
-        event->accept();
-        return;
-    }
-
-    if (m_dragging && m_has_drag_preview) {
-        const QPointF world = screenToWorld(event->position());
-        const QPointF delta = world - m_drag_start_world;
-        m_drag_preview_world = snapWorld(m_drag_origin_world + delta);
-        update();
-        event->accept();
-        return;
-    }
-
-    event->ignore();
-}
-
-void SceneViewItem::mouseReleaseEvent(QMouseEvent *event)
-{
-    if (m_panning
-        && (event->button() == Qt::MiddleButton || event->button() == Qt::RightButton
-            || event->button() == Qt::LeftButton)) {
-        m_panning = false;
-        unsetCursor();
-        event->accept();
-        return;
-    }
-
-    if (m_marquee && event->button() == Qt::LeftButton) {
-        m_marquee = false;
-        m_marquee_end_world = screenToWorld(event->position());
-        m_session->selectInWorldRect(m_marquee_start_world.x(),
-                                     m_marquee_start_world.y(),
-                                     m_marquee_end_world.x(),
-                                     m_marquee_end_world.y());
-        event->accept();
-        update();
-        return;
-    }
-
-    if (m_dragging && event->button() == Qt::LeftButton) {
-        m_dragging = false;
-        if (m_has_drag_preview && m_drag_entity_id != 0) {
-            const QPointF snapped = snapWorld(m_drag_preview_world);
-            const qreal dx = snapped.x() - m_drag_origin_world.x();
-            const qreal dy = snapped.y() - m_drag_origin_world.y();
-            if (std::abs(dx) > 0.001 || std::abs(dy) > 0.001) {
-                m_session->commitPosition(m_drag_entity_id, snapped.x(), snapped.y());
-            }
-        }
-        m_has_drag_preview = false;
-        m_drag_entity_id = 0;
-        event->accept();
-        update();
-        return;
-    }
-
-    event->ignore();
-}
-
-void SceneViewItem::wheelEvent(QWheelEvent *event)
-{
-    const QPointF before = screenToWorld(event->position());
-    const qreal factor = event->angleDelta().y() > 0 ? 1.1 : (1.0 / 1.1);
-    setZoom(m_zoom * factor);
-    const QPointF after = screenToWorld(event->position());
-    m_pan_x += before.x() - after.x();
-    m_pan_y += before.y() - after.y();
-    emit viewChanged();
-    update();
-    event->accept();
 }

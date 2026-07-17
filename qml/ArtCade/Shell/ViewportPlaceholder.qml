@@ -60,7 +60,7 @@ Rectangle {
                     onClicked: EditorSession.activeTool = "select"
                     ToolTip.visible: hovered
                     ToolTip.delay: 400
-                    ToolTip.text: "Select — click objects to pick them"
+                    ToolTip.text: "Select — click to pick, drag to move"
                 }
                 AcToolButton {
                     iconSource: Icons.pan
@@ -69,16 +69,7 @@ Rectangle {
                     onClicked: EditorSession.activeTool = "pan"
                     ToolTip.visible: hovered
                     ToolTip.delay: 400
-                    ToolTip.text: "Pan — drag to move the view\n(also Middle mouse or Alt+Left)"
-                }
-                AcToolButton {
-                    iconSource: Icons.move
-                    checkable: true
-                    checked: EditorSession.activeTool === "move"
-                    onClicked: EditorSession.activeTool = "move"
-                    ToolTip.visible: hovered
-                    ToolTip.delay: 400
-                    ToolTip.text: "Move — drag objects to change position"
+                    ToolTip.text: "Pan — drag to move the view\nMiddle mouse, Space+drag, or Alt+Left"
                 }
                 AcToolButton {
                     iconSource: Icons.rect

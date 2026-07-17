@@ -135,30 +135,195 @@ Rectangle {
 
             // Layers
             Item {
-                ListView {
-                    id: layersList
+                ColumnLayout {
                     anchors.fill: parent
-                    clip: true
-                    model: EditorSession.layersModel
-                    spacing: 1
-                    boundsBehavior: Flickable.StopAtBounds
-                    visible: EditorSession.hasProject
-                    ScrollBar.vertical: ScrollBar {
-                        policy: ScrollBar.AsNeeded
+                    spacing: 0
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: Metrics.controlHeight
+                        Layout.leftMargin: Metrics.spacingMd
+                        Layout.rightMargin: Metrics.spacingSm
+                        visible: EditorSession.hasProject
+
+                        Text {
+                            text: "LAYERS"
+                            color: Theme.textMuted
+                            font.family: Typography.family
+                            font.pixelSize: Typography.sizeXs
+                            font.weight: Font.DemiBold
+                            Layout.fillWidth: true
+                        }
+
+                        AcToolButton {
+                            iconSource: Icons.add
+                            ToolTip.visible: hovered
+                            ToolTip.delay: 400
+                            ToolTip.text: "New Layer"
+                            onClicked: EditorSession.addSceneLayer()
+                        }
                     }
 
-                    delegate: AcLayerRow {
-                        onActivateRequested: function(id) { EditorSession.setActiveLayer(id) }
-                        onVisibilityToggled: function(id, visible) {
-                            EditorSession.setLayerVisible(id, visible)
+                    ListView {
+                        id: layersList
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        clip: true
+                        model: EditorSession.layersModel
+                        spacing: 1
+                        boundsBehavior: Flickable.StopAtBounds
+                        visible: EditorSession.hasProject
+                        ScrollBar.vertical: ScrollBar {
+                            policy: ScrollBar.AsNeeded
+                        }
+
+                        delegate: AcLayerRow {
+                            onActivateRequested: function(id) { EditorSession.setActiveLayer(id) }
+                            onVisibilityToggled: function(id, visible) {
+                                // Eye is workspace-only; visible=true means show in editor.
+                                EditorSession.setLayerHiddenInEditor(id, !visible)
+                            }
+                            onLockToggled: function(id, locked) {
+                                EditorSession.setLayerLocked(id, locked)
+                            }
+                            onRenameRequested: function(id, currentName) {
+                                renameLayerDialog.layerId = id
+                                renameLayerDialog.initialName = currentName
+                                renameLayerDialog.open()
+                            }
+                            onSetDefaultRequested: function(id) {
+                                EditorSession.setDefaultSceneLayer(id)
+                            }
+                            onMoveRequested: function(id, targetIndex) {
+                                EditorSession.moveSceneLayer(id, targetIndex)
+                            }
+                            onDeleteRequested: function(id, display) {
+                                deleteLayerDialog.openFor(id, display)
+                            }
+                            onDuplicateRequested: function(id) {
+                                EditorSession.duplicateSceneLayer(id)
+                            }
+                        }
+                    }
+
+                    AcEmptyHint {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        visible: !EditorSession.hasProject
+                        message: "No project"
+                        hint: "Create or open a project from the home screen"
+                    }
+                }
+
+                Dialog {
+                    id: renameLayerDialog
+                    property string layerId: ""
+                    property string initialName: ""
+                    title: "Rename Layer"
+                    modal: true
+                    anchors.centerIn: Overlay.overlay
+                    standardButtons: Dialog.Cancel | Dialog.Ok
+                    onAboutToShow: {
+                        renameField.text = initialName
+                        renameField.selectAll()
+                        renameField.forceActiveFocus()
+                    }
+                    onAccepted: EditorSession.renameSceneLayer(layerId, renameField.text)
+
+                    ColumnLayout {
+                        anchors.fill: parent
+                        spacing: Metrics.spacingSm
+                        Text {
+                            text: "Name"
+                            color: Theme.textSecondary
+                            font.family: Typography.family
+                            font.pixelSize: Typography.sizeSm
+                        }
+                        AcTextField {
+                            id: renameField
+                            Layout.preferredWidth: 280
+                            onAccepted: renameLayerDialog.accept()
                         }
                     }
                 }
 
-                AcEmptyHint {
-                    visible: !EditorSession.hasProject
-                    message: "No project"
-                    hint: "Create or open a project from the home screen"
+                Dialog {
+                    id: deleteLayerDialog
+                    property string layerId: ""
+                    property string layerName: ""
+                    property int instanceCount: 0
+                    property var transferChoices: []
+                    property string transferLayerId: ""
+
+                    title: "Delete Layer"
+                    modal: true
+                    anchors.centerIn: Overlay.overlay
+                    standardButtons: Dialog.Cancel | Dialog.Ok
+                    onAboutToShow: {
+                        if (transferChoices.length > 0) {
+                            transferCombo.currentIndex = 0
+                            transferLayerId = transferChoices[0].layerId
+                        }
+                    }
+                    onAccepted: {
+                        if (layerId.length > 0 && transferLayerId.length > 0)
+                            EditorSession.removeSceneLayer(layerId, transferLayerId)
+                    }
+
+                    function openFor(id, display) {
+                        layerId = id
+                        layerName = display
+                        instanceCount = EditorSession.countInstancesOnLayer(id)
+                        transferChoices = EditorSession.layerTransferChoices(id)
+                        if (transferChoices.length === 0)
+                            return
+                        transferLayerId = transferChoices[0].layerId
+                        open()
+                    }
+
+                    ColumnLayout {
+                        anchors.fill: parent
+                        spacing: Metrics.spacingSm
+                        width: 320
+
+                        Text {
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                            color: Theme.textPrimary
+                            font.family: Typography.family
+                            font.pixelSize: Typography.sizeSm
+                            text: {
+                                const name = deleteLayerDialog.layerName.length > 0
+                                             ? "\"" + deleteLayerDialog.layerName + "\""
+                                             : "this layer"
+                                if (deleteLayerDialog.instanceCount <= 0)
+                                    return "Delete " + name + "?"
+                                const n = deleteLayerDialog.instanceCount
+                                const noun = n === 1 ? "object" : "objects"
+                                return "Delete " + name + "?\nThis layer contains "
+                                       + n + " " + noun + "."
+                            }
+                        }
+                        Text {
+                            visible: deleteLayerDialog.instanceCount > 0
+                                   || deleteLayerDialog.transferChoices.length > 0
+                            text: "Its objects will be moved to:"
+                            color: Theme.textSecondary
+                            font.pixelSize: Typography.sizeXs
+                        }
+                        ComboBox {
+                            id: transferCombo
+                            Layout.fillWidth: true
+                            model: deleteLayerDialog.transferChoices
+                            textRole: "display"
+                            valueRole: "layerId"
+                            onActivated: deleteLayerDialog.transferLayerId = currentValue
+                            Component.onCompleted: {
+                                if (model && model.length > 0)
+                                    currentIndex = 0
+                            }
+                        }
+                    }
                 }
             }
         }

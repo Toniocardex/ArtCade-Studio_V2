@@ -66,6 +66,8 @@ class EditorSession : public QObject
     /** Derived from selection → SceneInstanceDef.objectTypeId (workspace, not a second authority). */
     Q_PROPERTY(QString selectedObjectTypeId READ selectedObjectTypeId NOTIFY selectionChanged)
     Q_PROPERTY(QString selectedObjectTypeName READ selectedObjectTypeName NOTIFY selectionChanged)
+    /** Derived from selection → SceneInstanceDef.layerId (workspace cache). */
+    Q_PROPERTY(QString selectedLayerId READ selectedLayerId NOTIFY selectionChanged)
     /** Rule count on objectTypes[typeId].logicBoard; 0 until boards are authored/loaded. */
     Q_PROPERTY(int logicRuleCount READ logicRuleCount NOTIFY logicRulesChanged)
     /**
@@ -93,9 +95,9 @@ class EditorSession : public QObject
     Q_PROPERTY(double activeSceneHeight READ activeSceneHeight NOTIFY projectChanged)
     Q_PROPERTY(double worldGravity READ worldGravity NOTIFY projectChanged)
     Q_PROPERTY(double worldPixelsPerMeter READ worldPixelsPerMeter NOTIFY projectChanged)
-    /** Workspace: scene interaction tool — select | pan | move | rect (does not dirty). */
+    /** Workspace: scene interaction tool — select | pan | rect (does not dirty). */
     Q_PROPERTY(QString activeTool READ activeTool WRITE setActiveTool NOTIFY activeToolChanged)
-    /** Workspace: snap Move commits to scene grid (does not dirty). */
+    /** Workspace: snap Select-drag commits to scene grid (does not dirty). */
     Q_PROPERTY(bool snapEnabled READ snapEnabled WRITE setSnapEnabled NOTIFY snapEnabledChanged)
     /** Workspace: selected asset id in Assets dock (does not dirty). */
     Q_PROPERTY(QString selectedAssetId READ selectedAssetId WRITE setSelectedAssetId
@@ -139,6 +141,7 @@ public:
     [[nodiscard]] bool hasSelection() const;
     [[nodiscard]] QString selectedObjectTypeId() const;
     [[nodiscard]] QString selectedObjectTypeName() const;
+    [[nodiscard]] QString selectedLayerId() const;
     [[nodiscard]] int logicRuleCount() const;
     [[nodiscard]] QVariantList logicRules() const;
     [[nodiscard]] QVariantList logicSections() const;
@@ -193,6 +196,12 @@ public:
      */
     Q_INVOKABLE void commitPosition(quint32 entityId, double x, double y);
     /**
+     * Commits a position captured by an in-progress Scene View drag.
+     * @p entityId must be the stable instance id captured before the gesture;
+     * callers must cancel the gesture when its ProjectDocument changes.
+     */
+    void commitCapturedScenePosition(quint32 entityId, double x, double y);
+    /**
      * Commits scale for @p entityId only if still selected. One undoable command.
      * Scale must be finite and > 0.
      */
@@ -203,7 +212,47 @@ public:
      */
     Q_INVOKABLE void commitRotation(quint32 entityId, double degrees);
     Q_INVOKABLE void setActiveLayer(const QString &layerId);
+    /**
+     * Workspace-only eye toggle: hides the layer in Scene View.
+     * Does not dirty ProjectDoc or touch layerSettings.visible (Play/export).
+     */
+    Q_INVOKABLE void setLayerHiddenInEditor(const QString &layerId, bool hidden);
+    /**
+     * Play/export visibility (layerSettings.visible). Prefer setLayerHiddenInEditor for the eye.
+     */
     Q_INVOKABLE void setLayerVisible(const QString &layerId, bool visible);
+    /** Persistent SceneLayerDef.locked (undoable). */
+    Q_INVOKABLE void setLayerLocked(const QString &layerId, bool locked);
+    /** Adds a layer to the active scene (undoable). Activates the new layer. */
+    Q_INVOKABLE void addSceneLayer();
+    /** Renames a layer in the active scene (undoable). */
+    Q_INVOKABLE void renameSceneLayer(const QString &layerId, const QString &newName);
+    /** Sets the active scene's default layer (undoable). */
+    Q_INVOKABLE void setDefaultSceneLayer(const QString &layerId);
+    /**
+     * Moves a layer in the active scene to @p targetIndex
+     * (0 = background / top of list, last = foreground / bottom). Undoable.
+     */
+    Q_INVOKABLE void moveSceneLayer(const QString &layerId, int targetIndex);
+    /**
+     * Assigns instance @p entityId to @p layerId in its owning scene. Undoable.
+     * Target is the stable entity id (not the current selection).
+     */
+    Q_INVOKABLE void setEntityLayer(quint32 entityId, const QString &layerId);
+    /**
+     * Removes a layer from the active scene, transferring instances to @p transferLayerId.
+     * Undoable. Fails for the default layer or the last remaining layer.
+     */
+    Q_INVOKABLE void removeSceneLayer(const QString &layerId, const QString &transferLayerId);
+    /** Duplicates a layer and its instances in the active scene (undoable). */
+    Q_INVOKABLE void duplicateSceneLayer(const QString &layerId);
+    /** Instance count on @p layerId in the active scene (delete dialog). */
+    [[nodiscard]] Q_INVOKABLE int countInstancesOnLayer(const QString &layerId) const;
+    /**
+     * Other layers in the active scene suitable as delete-transfer targets.
+     * Prefer default layer first. Each entry: { layerId, display }.
+     */
+    [[nodiscard]] Q_INVOKABLE QVariantList layerTransferChoices(const QString &exceptLayerId) const;
     /**
      * Appends a default When/Then rule on the selected instance's object type.
      * Dirties ProjectDoc; undoable.
@@ -302,6 +351,7 @@ signals:
     void closeAccepted();
 
 private:
+    void commitPositionById(quint32 entityId, double x, double y);
     void setStatus(const QString &message, bool logToConsole = true);
     [[nodiscard]] bool guardAuthoring(QString *errorOut = nullptr) const;
     void emitProjectSignals();
@@ -336,6 +386,7 @@ private:
     double m_selectedRotationDeg = 0.0;
     QString m_selectedObjectTypeId;
     QString m_selectedObjectTypeName;
+    QString m_selectedLayerId;
     int m_logicRuleCount = 0;
     int m_sceneCount = 0;
     int m_activeSceneInstanceCount = 0;

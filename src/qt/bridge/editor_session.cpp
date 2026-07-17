@@ -271,6 +271,11 @@ QString EditorSession::selectedName() const
     return m_selectedName;
 }
 
+QString EditorSession::selectedLayerId() const
+{
+    return m_selectedLayerId;
+}
+
 double EditorSession::selectedX() const
 {
     return m_selectedX;
@@ -477,8 +482,12 @@ QString EditorSession::activeTool() const
 void EditorSession::setActiveTool(const QString &tool)
 {
     QString normalized = tool;
+    // Legacy "move" is absorbed into Select (click = pick, drag = move).
+    if (normalized == QLatin1String("move")) {
+        normalized = QStringLiteral("select");
+    }
     if (normalized != QLatin1String("select") && normalized != QLatin1String("pan")
-        && normalized != QLatin1String("move") && normalized != QLatin1String("rect")) {
+        && normalized != QLatin1String("rect")) {
         normalized = QStringLiteral("select");
     }
     if (m_activeTool == normalized) {
@@ -716,6 +725,7 @@ void EditorSession::refreshSelectionCache()
     m_selectedRotationDeg = 0.0;
     m_selectedObjectTypeId.clear();
     m_selectedObjectTypeName.clear();
+    m_selectedLayerId.clear();
     m_logicRuleCount = 0;
     m_logicRuleIds.clear();
     m_logicRules.clear();
@@ -733,6 +743,7 @@ void EditorSession::refreshSelectionCache()
             m_selectedRotationDeg =
                 static_cast<double>(inst->transform.rotation) * (180.0 / 3.14159265358979323846);
             m_selectedObjectTypeId = QString::fromStdString(inst->objectTypeId);
+            m_selectedLayerId = QString::fromStdString(inst->layerId);
             if (!inst->objectTypeId.empty()) {
                 const auto typeIt = doc.objectTypes.find(inst->objectTypeId);
                 if (typeIt != doc.objectTypes.end()) {
@@ -1038,14 +1049,31 @@ void EditorSession::commitRename(const QString &newName)
 
 void EditorSession::commitPosition(quint32 entityId, double x, double y)
 {
+    if (entityId == 0 || entityId != selectedEntityId()) {
+        refreshSelectionCache();
+        return;
+    }
+    commitPositionById(entityId, x, y);
+}
+
+void EditorSession::commitCapturedScenePosition(quint32 entityId, double x, double y)
+{
+    if (entityId == 0) {
+        return;
+    }
+    commitPositionById(entityId, x, y);
+}
+
+void EditorSession::commitPositionById(quint32 entityId, double x, double y)
+{
     QString guard_error;
     if (!guardAuthoring(&guard_error)) {
         setStatus(guard_error, false);
         emit errorOccurred(guard_error);
         return;
     }
-    if (entityId == 0 || entityId != selectedEntityId()) {
-        refreshSelectionCache();
+    // Commit by stable EntityId from the gesture capture — do not require current selection match.
+    if (entityId == 0) {
         return;
     }
     std::string error;
@@ -1150,6 +1178,22 @@ void EditorSession::setActiveLayer(const QString &layerId)
     setStatus(QStringLiteral("Active layer: %1").arg(layerId));
 }
 
+void EditorSession::setLayerHiddenInEditor(const QString &layerId, bool hidden)
+{
+    if (!m_coordinator->hasProject() || layerId.isEmpty()) {
+        return;
+    }
+    const bool already = m_coordinator->layerHiddenInEditor(layerId.toStdString());
+    if (already == hidden) {
+        return;
+    }
+    m_coordinator->setLayerHiddenInEditor(layerId.toStdString(), hidden);
+    m_layers->reload();
+    emit activeLayerChanged(); // refresh derived layer rows (workspace, not dirty)
+    setStatus(hidden ? QStringLiteral("Layer hidden in editor")
+                     : QStringLiteral("Layer shown in editor"));
+}
+
 void EditorSession::setLayerVisible(const QString &layerId, bool visible)
 {
     QString guard_error;
@@ -1165,7 +1209,234 @@ void EditorSession::setLayerVisible(const QString &layerId, bool visible)
     }
     m_layers->reload();
     emit dirtyChanged();
-    setStatus(visible ? QStringLiteral("Layer shown") : QStringLiteral("Layer hidden"));
+    setStatus(visible ? QStringLiteral("Layer visible in play")
+                      : QStringLiteral("Layer hidden in play"));
+}
+
+void EditorSession::setLayerLocked(const QString &layerId, bool locked)
+{
+    QString guard_error;
+    if (!guardAuthoring(&guard_error)) {
+        setStatus(guard_error, false);
+        emit errorOccurred(guard_error);
+        return;
+    }
+    std::string error;
+    if (!m_coordinator->setLayerLocked(layerId.toStdString(), locked, error)) {
+        setStatus(QString::fromStdString(error), false);
+        emit errorOccurred(QString::fromStdString(error));
+        return;
+    }
+    m_layers->reload();
+    emit dirtyChanged();
+    setStatus(locked ? QStringLiteral("Layer locked") : QStringLiteral("Layer unlocked"));
+}
+
+void EditorSession::addSceneLayer()
+{
+    QString guard_error;
+    if (!guardAuthoring(&guard_error)) {
+        setStatus(guard_error, false);
+        emit errorOccurred(guard_error);
+        return;
+    }
+    std::string error;
+    std::string new_id;
+    if (!m_coordinator->addSceneLayer(new_id, error)) {
+        setStatus(QString::fromStdString(error), false);
+        emit errorOccurred(QString::fromStdString(error));
+        return;
+    }
+    m_layers->reload();
+    emit activeLayerChanged();
+    emit dirtyChanged();
+    setStatus(QStringLiteral("Added layer"));
+}
+
+void EditorSession::renameSceneLayer(const QString &layerId, const QString &newName)
+{
+    QString guard_error;
+    if (!guardAuthoring(&guard_error)) {
+        setStatus(guard_error, false);
+        emit errorOccurred(guard_error);
+        return;
+    }
+    std::string error;
+    if (!m_coordinator->renameSceneLayer(layerId.toStdString(), newName.toStdString(), error)) {
+        setStatus(QString::fromStdString(error), false);
+        emit errorOccurred(QString::fromStdString(error));
+        return;
+    }
+    m_layers->reload();
+    emit dirtyChanged();
+    setStatus(QStringLiteral("Layer renamed"));
+}
+
+void EditorSession::setDefaultSceneLayer(const QString &layerId)
+{
+    QString guard_error;
+    if (!guardAuthoring(&guard_error)) {
+        setStatus(guard_error, false);
+        emit errorOccurred(guard_error);
+        return;
+    }
+    std::string error;
+    if (!m_coordinator->setDefaultSceneLayer(layerId.toStdString(), error)) {
+        setStatus(QString::fromStdString(error), false);
+        emit errorOccurred(QString::fromStdString(error));
+        return;
+    }
+    m_layers->reload();
+    emit dirtyChanged();
+    setStatus(QStringLiteral("Default layer updated"));
+}
+
+void EditorSession::moveSceneLayer(const QString &layerId, int targetIndex)
+{
+    QString guard_error;
+    if (!guardAuthoring(&guard_error)) {
+        setStatus(guard_error, false);
+        emit errorOccurred(guard_error);
+        return;
+    }
+    if (targetIndex < 0) {
+        const QString msg = QStringLiteral("Invalid layer index");
+        setStatus(msg, false);
+        emit errorOccurred(msg);
+        return;
+    }
+    std::string error;
+    if (!m_coordinator->moveSceneLayer(layerId.toStdString(),
+                                       static_cast<std::size_t>(targetIndex),
+                                       error)) {
+        setStatus(QString::fromStdString(error), false);
+        emit errorOccurred(QString::fromStdString(error));
+        return;
+    }
+    m_layers->reload();
+    emit dirtyChanged();
+    setStatus(QStringLiteral("Layer order updated"));
+}
+
+void EditorSession::setEntityLayer(quint32 entityId, const QString &layerId)
+{
+    QString guard_error;
+    if (!guardAuthoring(&guard_error)) {
+        setStatus(guard_error, false);
+        emit errorOccurred(guard_error);
+        return;
+    }
+    if (entityId == 0 || layerId.isEmpty()) {
+        const QString msg = QStringLiteral("Invalid entity or layer");
+        setStatus(msg, false);
+        emit errorOccurred(msg);
+        return;
+    }
+    std::string error;
+    if (!m_coordinator->setEntityLayer(static_cast<ArtCade::EntityId>(entityId),
+                                       layerId.toStdString(),
+                                       error)) {
+        setStatus(QString::fromStdString(error), false);
+        emit errorOccurred(QString::fromStdString(error));
+        return;
+    }
+    refreshSelectionCache();
+    emit dirtyChanged();
+    setStatus(QStringLiteral("Entity layer updated"));
+}
+
+void EditorSession::removeSceneLayer(const QString &layerId, const QString &transferLayerId)
+{
+    QString guard_error;
+    if (!guardAuthoring(&guard_error)) {
+        setStatus(guard_error, false);
+        emit errorOccurred(guard_error);
+        return;
+    }
+    std::string error;
+    if (!m_coordinator->removeSceneLayer(layerId.toStdString(),
+                                         transferLayerId.toStdString(),
+                                         error)) {
+        setStatus(QString::fromStdString(error), false);
+        emit errorOccurred(QString::fromStdString(error));
+        return;
+    }
+    m_layers->reload();
+    m_hierarchy->reload();
+    emit activeLayerChanged();
+    emit dirtyChanged();
+    emit projectChanged();
+    setStatus(QStringLiteral("Layer deleted"));
+}
+
+void EditorSession::duplicateSceneLayer(const QString &layerId)
+{
+    QString guard_error;
+    if (!guardAuthoring(&guard_error)) {
+        setStatus(guard_error, false);
+        emit errorOccurred(guard_error);
+        return;
+    }
+    std::string error;
+    std::string new_id;
+    if (!m_coordinator->duplicateSceneLayer(layerId.toStdString(), new_id, error)) {
+        setStatus(QString::fromStdString(error), false);
+        emit errorOccurred(QString::fromStdString(error));
+        return;
+    }
+    m_layers->reload();
+    m_hierarchy->reload();
+    emit activeLayerChanged();
+    emit dirtyChanged();
+    emit projectChanged();
+    setStatus(QStringLiteral("Layer duplicated"));
+}
+
+int EditorSession::countInstancesOnLayer(const QString &layerId) const
+{
+    if (!m_coordinator->hasProject() || layerId.isEmpty()) {
+        return 0;
+    }
+    return m_coordinator->countInstancesOnLayer(layerId.toStdString());
+}
+
+QVariantList EditorSession::layerTransferChoices(const QString &exceptLayerId) const
+{
+    QVariantList out;
+    if (!m_coordinator->hasProject()) {
+        return out;
+    }
+    const ArtCade::SceneDef *scene = m_coordinator->activeScene();
+    if (!scene) {
+        return out;
+    }
+    const QString except = exceptLayerId;
+    const QString default_id = QString::fromStdString(scene->defaultLayerId);
+    auto append_layer = [&](const ArtCade::SceneLayerDef &layer) {
+        const QString id = QString::fromStdString(layer.id);
+        if (id == except) {
+            return;
+        }
+        QVariantMap row;
+        row.insert(QStringLiteral("layerId"), id);
+        row.insert(QStringLiteral("display"),
+                   layer.name.empty() ? id : QString::fromStdString(layer.name));
+        out.append(row);
+    };
+    // Prefer default as first choice when it is not the layer being deleted.
+    for (const ArtCade::SceneLayerDef &layer : scene->layers) {
+        if (QString::fromStdString(layer.id) == default_id) {
+            append_layer(layer);
+            break;
+        }
+    }
+    for (const ArtCade::SceneLayerDef &layer : scene->layers) {
+        if (QString::fromStdString(layer.id) == default_id) {
+            continue;
+        }
+        append_layer(layer);
+    }
+    return out;
 }
 
 void EditorSession::addLogicRule()
@@ -1730,7 +2001,7 @@ void EditorSession::paintSceneView(QPainter *painter, const SceneViewItem *view)
         if (!inst.visible) {
             continue;
         }
-        if (!inst.layerId.empty() && !m_coordinator->layerVisible(inst.layerId)) {
+        if (!inst.layerId.empty() && m_coordinator->layerHiddenInEditor(inst.layerId)) {
             continue;
         }
 

@@ -25,11 +25,10 @@ void draw(Modules::Renderer& renderer,
           const Vec2& viewSize,
           float elapsed)
 {
-    // Back-to-front: the last layer in the stack is the furthest back, so its
-    // background is painted first and higher-priority layers land on top.
-    for (auto it = layerStack.rbegin(); it != layerStack.rend(); ++it) {
+    // Back-to-front: SceneDef.layers index 0 = background, last = foreground.
+    for (const auto& layer : layerStack) {
         SceneLayerSettings settings;
-        const auto sit = layerSettings.find(it->id);
+        const auto sit = layerSettings.find(layer.id);
         if (sit != layerSettings.end()) settings = sit->second;
         if (!settings.visible || settings.opacity <= 0.f) continue;
         const LayerBackground& bg = settings.background;

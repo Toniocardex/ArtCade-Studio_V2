@@ -26,6 +26,12 @@ static void expect(bool ok, const char *msg)
     std::printf("  [ok] %s\n", msg);
 }
 
+static const ArtCade::SceneDef *active_scene(const ArtCade::ProjectDoc &doc)
+{
+    const auto scene = doc.scenes.find(doc.activeSceneId);
+    return scene == doc.scenes.end() ? nullptr : &scene->second;
+}
+
 int main()
 {
     using namespace ArtCade::EditorCore;
@@ -40,7 +46,8 @@ int main()
 
     expect(coord.openProject(fixture.string(), error), "open fixture");
     expect(!coord.isDirty(), "fresh open is clean");
-    expect(coord.document().formatVersion == kCurrentProjectFormatVersion, "format v5");
+    expect(coord.document().formatVersion == kCurrentProjectFormatVersion,
+           "current format version");
 
     const ArtCade::SceneInstanceDef *hero =
         project_doc_find_instance(coord.document(), 1);
@@ -142,23 +149,174 @@ int main()
     coord.selectEntity(2);
     expect(coord.revision() == rev_before_select, "selection does not bump revision");
 
-    expect(coord.document().layers.size() == 3, "fixture has 3 layers");
+    const ArtCade::SceneDef *scene = active_scene(coord.document());
+    expect(scene != nullptr && scene->layers.size() == 3, "fixture has 3 scene layers");
+    expect(scene->defaultLayerId == "layer_main", "fixture defaultLayerId");
     expect(coord.document().imageAssets.size() == 2, "fixture has 2 image assets");
-    expect(coord.activeLayerId() == "layer_bg", "default active layer is first");
-    expect(coord.layerVisible("layer_ui"), "ui layer visible initially");
+    expect(coord.activeLayerId() == "layer_main", "default active layer is defaultLayerId");
+    expect(coord.layerVisible("layer_ui"), "ui layer play-visible initially");
+    expect(!coord.layerHiddenInEditor("layer_ui"), "ui layer not editor-hidden");
 
     const std::uint64_t rev_before_active = coord.revision();
     coord.setActiveLayerId("layer_main");
     expect(coord.activeLayerId() == "layer_main", "active layer workspace change");
     expect(coord.revision() == rev_before_active, "active layer does not bump revision");
 
-    expect(coord.setLayerVisible("layer_ui", false, error), "hide ui layer");
-    expect(!coord.layerVisible("layer_ui"), "ui layer hidden");
-    expect(coord.isDirty(), "layer visibility dirties");
+    // Eye toggle: workspace-only (no dirty / no undo / no ProjectDoc write)
+    const std::uint64_t rev_before_hide = coord.revision();
+    const bool dirty_before_hide = coord.isDirty();
+    coord.setLayerHiddenInEditor("layer_ui", true);
+    expect(coord.layerHiddenInEditor("layer_ui"), "ui layer editor-hidden");
+    expect(coord.layerVisible("layer_ui"), "play visibility unchanged by eye");
+    expect(coord.revision() == rev_before_hide, "editor hide does not bump revision");
+    expect(coord.isDirty() == dirty_before_hide, "editor hide does not dirty");
+    coord.setLayerHiddenInEditor("layer_ui", false);
+    expect(!coord.layerHiddenInEditor("layer_ui"), "ui layer shown in editor again");
+
+    // Lock: persistent SceneLayerDef.locked
+    expect(coord.setLayerLocked("layer_ui", true, error), "lock ui layer");
+    expect(coord.layerLocked("layer_ui"), "ui layer locked");
+    expect(coord.isDirty(), "layer lock dirties");
     coord.undo();
-    expect(coord.layerVisible("layer_ui"), "undo layer visibility");
+    expect(!coord.layerLocked("layer_ui"), "undo layer lock");
+
+    // Play/export visibility remains a ProjectDoc command (not the eye)
+    expect(coord.setLayerVisible("layer_ui", false, error), "hide ui layer in play");
+    expect(!coord.layerVisible("layer_ui"), "ui layer play-hidden");
+    expect(coord.isDirty(), "play visibility dirties");
+    coord.undo();
+    expect(coord.layerVisible("layer_ui"), "undo play visibility");
+
+    // Per-scene layer authoring (Add / Rename / Set Default)
+    std::string added_layer_id;
+    expect(coord.addSceneLayer(added_layer_id, error), "add scene layer");
+    expect(!added_layer_id.empty(), "new layer id assigned");
+    expect(coord.activeLayerId() == added_layer_id, "new layer becomes active");
+    expect(coord.activeScene()->layers.size() == 4, "scene has 4 layers after add");
+    expect(ArtCade::EditorCore::EditorCoordinator::sceneContainsLayer(*coord.activeScene(),
+                                                                      added_layer_id),
+           "new layer in active scene");
+    expect(!coord.renameSceneLayer(added_layer_id, "  ", error), "empty rename rejected");
+    expect(coord.renameSceneLayer(added_layer_id, "Gameplay", error), "rename new layer");
+    expect(coord.activeScene()->layers.size() == 4, "rename keeps count");
+    {
+        const ArtCade::SceneLayerDef *renamed =
+            ArtCade::EditorCore::EditorCoordinator::findSceneLayer(*coord.activeScene(),
+                                                                  added_layer_id);
+        expect(renamed && renamed->name == "Gameplay", "rename applied");
+    }
+    expect(!coord.renameSceneLayer(added_layer_id, "main", error),
+           "case-insensitive duplicate rename rejected");
+    expect(coord.setDefaultSceneLayer(added_layer_id, error), "set default to new layer");
+    expect(coord.activeScene()->defaultLayerId == added_layer_id, "defaultLayerId updated");
+    coord.undo(); // undo set default
+    expect(coord.activeScene()->defaultLayerId == "layer_main", "undo default layer");
+    coord.undo(); // undo rename
+    coord.undo(); // undo add
+    expect(coord.activeScene()->layers.size() == 3, "undo add restores layer count");
+
+    // Reorder: Move Forward / to Front / Undo
+    {
+        const std::string first_id = coord.activeScene()->layers.front().id;
+        const std::string last_id = coord.activeScene()->layers.back().id;
+        expect(coord.moveSceneLayer(first_id, 2, error), "move background to front");
+        expect(coord.activeScene()->layers.back().id == first_id,
+               "moved layer is now foreground");
+        expect(coord.moveSceneLayer(first_id, 0, error), "move back to background");
+        expect(coord.activeScene()->layers.front().id == first_id,
+               "restored background order");
+        expect(coord.moveSceneLayer(last_id, 0, error), "move UI to back");
+        expect(coord.activeScene()->layers.front().id == last_id, "UI is background");
+        coord.undo();
+        expect(coord.activeScene()->layers.back().id == last_id, "undo restores UI to front");
+        expect(coord.moveSceneLayer(last_id, 2, error), "no-op same index");
+    }
+
+    // Assign instance to a different scene layer (SetEntityLayer)
+    {
+        expect(coord.setEntityLayer(1, "layer_ui", error), "move Hero to UI layer");
+        const ArtCade::SceneInstanceDef *hero =
+            ArtCade::EditorCore::project_doc_find_instance(coord.document(), 1);
+        expect(hero && hero->layerId == "layer_ui", "Hero layerId is UI");
+        expect(coord.setEntityLayer(1, "layer_ui", error), "no-op same layer");
+        expect(!coord.setEntityLayer(1, "missing_layer", error), "unknown layer rejected");
+        expect(!coord.setEntityLayer(0, "layer_main", error), "entity 0 rejected");
+        coord.undo();
+        hero = ArtCade::EditorCore::project_doc_find_instance(coord.document(), 1);
+        expect(hero && hero->layerId == "layer_main", "undo restores Hero layer");
+        coord.redo();
+        hero = ArtCade::EditorCore::project_doc_find_instance(coord.document(), 1);
+        expect(hero && hero->layerId == "layer_ui", "redo restores UI layer");
+        expect(coord.setEntityLayer(1, "layer_main", error), "restore Hero to Main");
+    }
+
+    // Delete layer with instance transfer + undo
+    {
+        expect(coord.setEntityLayer(2, "layer_ui", error), "move Coin to UI for delete test");
+        expect(coord.countInstancesOnLayer("layer_ui") == 1, "one instance on UI");
+        expect(!coord.removeSceneLayer("layer_main", "layer_ui", error),
+               "cannot delete default layer");
+        expect(coord.removeSceneLayer("layer_ui", "layer_main", error),
+               "delete UI transferring to Main");
+        expect(coord.activeScene()->layers.size() == 2, "two layers after delete");
+        expect(!ArtCade::EditorCore::EditorCoordinator::sceneContainsLayer(
+                   *coord.activeScene(), "layer_ui"),
+               "UI layer gone");
+        const ArtCade::SceneInstanceDef *coin =
+            ArtCade::EditorCore::project_doc_find_instance(coord.document(), 2);
+        expect(coin && coin->layerId == "layer_main", "Coin transferred to Main");
+        coord.undo();
+        expect(coord.activeScene()->layers.size() == 3, "undo restores layer count");
+        expect(ArtCade::EditorCore::EditorCoordinator::sceneContainsLayer(
+                   *coord.activeScene(), "layer_ui"),
+               "UI layer restored");
+        coin = ArtCade::EditorCore::project_doc_find_instance(coord.document(), 2);
+        expect(coin && coin->layerId == "layer_ui", "Coin membership restored");
+        expect(coord.setEntityLayer(2, "layer_main", error), "restore Coin to Main");
+    }
+
+    // Duplicate layer + instances
+    {
+        expect(coord.setEntityLayer(2, "layer_ui", error), "Coin on UI before duplicate");
+        std::string dup_id;
+        expect(coord.duplicateSceneLayer("layer_ui", dup_id, error), "duplicate UI layer");
+        expect(!dup_id.empty() && dup_id != "layer_ui", "new layer id assigned");
+        expect(coord.activeLayerId() == dup_id, "duplicate becomes active");
+        expect(coord.activeScene()->layers.size() == 4, "four layers after duplicate");
+        const ArtCade::SceneLayerDef *dup =
+            ArtCade::EditorCore::EditorCoordinator::findSceneLayer(*coord.activeScene(),
+                                                                  dup_id);
+        expect(dup && dup->name == "UI Copy", "duplicate name is UI Copy");
+        const std::size_t ui_index =
+            ArtCade::EditorCore::EditorCoordinator::sceneLayerIndex(*coord.activeScene(),
+                                                                   "layer_ui");
+        const std::size_t dup_index =
+            ArtCade::EditorCore::EditorCoordinator::sceneLayerIndex(*coord.activeScene(),
+                                                                   dup_id);
+        expect(dup_index == ui_index + 1, "copy inserted toward foreground of source");
+        expect(coord.countInstancesOnLayer(dup_id) == 1, "instance duplicated onto copy");
+        expect(coord.countInstancesOnLayer("layer_ui") == 1, "source instance kept");
+        ArtCade::EntityId coin_copy_id = 0;
+        for (const ArtCade::SceneInstanceDef &inst : coord.activeScene()->instances) {
+            if (inst.layerId == dup_id) {
+                coin_copy_id = inst.id;
+                expect(inst.id != 2, "duplicated instance has new EntityId");
+                expect(inst.instanceName == "Coin_A Copy", "duplicated instance name");
+                expect(inst.objectTypeId == "Coin", "same object type ref");
+            }
+        }
+        expect(coin_copy_id != 0, "found duplicated Coin");
+        coord.undo();
+        expect(coord.activeScene()->layers.size() == 3, "undo removes duplicated layer");
+        expect(!ArtCade::EditorCore::EditorCoordinator::sceneContainsLayer(
+                   *coord.activeScene(), dup_id),
+               "duplicate layer gone after undo");
+        expect(coord.countInstancesOnLayer("layer_ui") == 1, "source Coin remains");
+        expect(coord.setEntityLayer(2, "layer_main", error), "restore Coin after duplicate test");
+    }
 
     expect(coord.setLayerVisible("layer_ui", false, error), "hide ui again for save");
+    expect(coord.setLayerLocked("layer_bg", true, error), "lock bg for save");
 
     expect(coord.pickEntityAt(60.f, 70.f) == 1, "pick Hero inside placeholder");
     expect(coord.pickEntityAt(0.f, 0.f) == 0, "pick empty world misses");
@@ -586,9 +744,16 @@ int main()
     expect(nearly_equal(again->transform.scale, ArtCade::Vec2{2.f, 3.f}), "persisted scale");
     expect(nearly_equal(again->transform.rotation, 3.14159265358979323846f * 0.5f),
            "persisted rotation");
-    expect(reloaded.document().layers.size() == 3, "persisted layers");
+    const ArtCade::SceneDef *reloaded_scene = active_scene(reloaded.document());
+    expect(reloaded_scene != nullptr && reloaded_scene->layers.size() == 3,
+           "persisted scene layers");
+    expect(reloaded_scene->defaultLayerId == "layer_main",
+           "persisted defaultLayerId");
     expect(reloaded.document().imageAssets.size() == 2, "persisted image assets");
-    expect(!reloaded.layerVisible("layer_ui"), "persisted layer visibility");
+    expect(!reloaded.layerVisible("layer_ui"), "persisted play layer visibility");
+    expect(reloaded.layerLocked("layer_bg"), "persisted layer lock");
+    expect(!reloaded.layerHiddenInEditor("layer_ui"),
+           "editor hide does not survive reload");
     const auto reloaded_player = reloaded.document().objectTypes.find("Player");
     expect(reloaded_player != reloaded.document().objectTypes.end(), "reloaded Player");
     expect(reloaded_player->second.logicBoard.has_value(), "persisted logicBoard");
@@ -617,7 +782,11 @@ int main()
     expect(blank.document().formatVersion == kCurrentProjectFormatVersion,
            "blank formatVersion");
     expect(blank.document().scenes.size() == 1, "blank has one scene");
-    expect(blank.document().layers.size() == 1, "blank has one layer");
+    const ArtCade::SceneDef *blank_scene = active_scene(blank.document());
+    expect(blank_scene != nullptr && blank_scene->layers.size() == 1,
+           "blank has one scene layer");
+    expect(blank_scene->defaultLayerId == "layer_main",
+           "blank defaultLayerId");
     expect(blank.document().scenes.begin()->second.instances.empty(),
            "blank scene has no instances");
     expect(!blank.isDirty(), "fresh create is clean");

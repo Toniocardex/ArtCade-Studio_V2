@@ -31,6 +31,12 @@ void read_scene_layer_settings(const nlohmann::json& sceneJson,
                                std::unordered_map<std::string, SceneLayerSettings>& out);
 
 /**
+ * Parses scene.layers (+ defaultLayerId). Layers are required for a valid scene;
+ * callers may normalize after parse.
+ */
+void read_scene_layer_stack(const nlohmann::json& sceneJson, SceneDef& out);
+
+/**
  * Parses a single scene object (array entry or scenes-map value).
  * Identity defaults to @p fallbackId when id/name are omitted.
  */

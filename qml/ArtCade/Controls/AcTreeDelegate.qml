@@ -93,4 +93,34 @@ TreeViewDelegate {
     }
 
     onClicked: root.activateRow()
+
+    TapHandler {
+        acceptedButtons: Qt.RightButton
+        gesturePolicy: TapHandler.ReleaseWithinBounds
+        onTapped: {
+            if (root.nodeKind !== "instance")
+                return
+            EditorSession.selectEntity(root.stableId)
+            moveToLayerMenu.popup()
+        }
+    }
+
+    Menu {
+        id: moveToLayerMenu
+        title: "Move to Layer"
+
+        Instantiator {
+            model: EditorSession.layersModel
+            delegate: MenuItem {
+                // AbstractButton.display is FINAL — cannot redeclare required property display.
+                required property var model
+                text: model.display
+                checkable: true
+                checked: model.layerId === EditorSession.selectedLayerId
+                onTriggered: EditorSession.setEntityLayer(root.stableId, model.layerId)
+            }
+            onObjectAdded: (index, object) => moveToLayerMenu.insertItem(index, object)
+            onObjectRemoved: (index, object) => moveToLayerMenu.removeItem(object)
+        }
+    }
 }

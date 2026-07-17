@@ -107,15 +107,14 @@ bool entityAllowsCanvasEdit(Modules::RuntimeEntityGateway& gateway,
     return true;
 }
 
-// Stack rank by id (count - index, index 0 = top). Intra-layer ties break on
-// renderOrder then insertion order in choosePickHit, so no magic multiplier.
+// Stack rank by id (SceneDef.layers: index 0 = background, last = foreground).
+// Higher priority wins pick; intra-layer ties break on renderOrder then insertion.
 int layerRenderPriority(Modules::RuntimeEntityGateway& gateway,
                         const std::string& layerId) {
     const auto& layers = gateway.sceneLayers();
-    const int layerCount = static_cast<int>(layers.size());
     for (size_t i = 0; i < layers.size(); ++i) {
         if (layers[i].id != layerId) continue;
-        return layerCount - static_cast<int>(i);
+        return static_cast<int>(i);
     }
     return 0;
 }

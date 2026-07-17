@@ -59,7 +59,6 @@ void execute_scene_entities_pass(SceneFrameContext& ctx) {
     std::unordered_map<std::string, Vec2> parallaxById;
 
     const auto& layers = ctx.sceneManager->sceneLayers();
-    const int layerCount = static_cast<int>(layers.size());
     for (size_t i = 0; i < layers.size(); ++i) {
         const auto& layer = layers[i];
         SceneLayerSettings settings;
@@ -67,7 +66,8 @@ void execute_scene_entities_pass(SceneFrameContext& ctx) {
         if (sit != frame.layerSettings.end())
             settings = sit->second;
         settingsById.emplace(layer.id, settings);
-        layerRankById.emplace(layer.id, layerCount - static_cast<int>(i));
+        // SceneDef.layers: index 0 = background (lowest priority), last = foreground.
+        layerRankById.emplace(layer.id, static_cast<int>(i));
         if (settings.parallax.x != 1.f || settings.parallax.y != 1.f)
             parallaxById.emplace(
                 layer.id, Vec2{ settings.parallax.x, settings.parallax.y });

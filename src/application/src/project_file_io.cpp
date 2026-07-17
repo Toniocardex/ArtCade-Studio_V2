@@ -151,6 +151,49 @@ nlohmann::json image_asset_to_json(const ImageAssetDef &asset)
     };
 }
 
+bool layer_id_exists(const SceneDef &scene, const std::string &layer_id)
+{
+    for (const SceneLayerDef &layer : scene.layers) {
+        if (layer.id == layer_id) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * Enforces per-scene layer invariants for formatVersion 6.
+ * Rejects empty layer stacks; fills missing defaultLayerId from the first layer;
+ * remaps invalid instance.layerId to the scene default.
+ */
+bool normalize_and_validate_scene_layers(ProjectDoc &doc, std::string &error_message)
+{
+    if (doc.scenes.empty()) {
+        return true;
+    }
+    for (auto &[scene_id, scene] : doc.scenes) {
+        if (scene.layers.empty()) {
+            error_message = "Scene \"" + scene_id
+                            + "\" has no layers; every scene requires at least one layer.";
+            return false;
+        }
+        if (scene.defaultLayerId.empty() || !layer_id_exists(scene, scene.defaultLayerId)) {
+            scene.defaultLayerId = scene.layers.front().id;
+        }
+        for (SceneInstanceDef &inst : scene.instances) {
+            if (inst.layerId.empty() || !layer_id_exists(scene, inst.layerId)) {
+                inst.layerId = scene.defaultLayerId;
+            }
+        }
+        for (const SceneLayerDef &layer : scene.layers) {
+            if (scene.layerSettings.find(layer.id) == scene.layerSettings.end()) {
+                scene.layerSettings[layer.id] = SceneLayerSettings{};
+            }
+        }
+    }
+    return true;
+}
+
 } // namespace
 
 SceneInstanceDef *project_doc_find_instance(ProjectDoc &doc, EntityId entity_id)
@@ -242,11 +285,14 @@ bool project_file_io_load(const std::string &project_json_path,
 
     const int format = read_format_version(root);
     if (format != kCurrentProjectFormatVersion) {
-        error_message = "Unsupported project formatVersion "
-                        + std::to_string(format)
-                        + " (editor accepts only "
-                        + std::to_string(kCurrentProjectFormatVersion)
-                        + "; C++-owned schema, React/TS formats unsupported)";
+        error_message =
+            "Unsupported project format.\n"
+            "This version of ArtCade requires the per-scene layer format "
+            "(formatVersion "
+            + std::to_string(kCurrentProjectFormatVersion)
+            + "). Found formatVersion "
+            + std::to_string(format)
+            + ".";
         return false;
     }
 
@@ -262,8 +308,20 @@ bool project_file_io_load(const std::string &project_json_path,
     }
     ProjectJson::read_scenes_map(root, out.scenes);
     ProjectJson::read_global_variables(root, out);
-    ProjectJson::read_scene_layers(root, out.layers);
     ProjectJson::read_image_assets(root, out.imageAssets);
+
+    // Reject root-level render layers (removed in formatVersion 6).
+    if (root.contains("layers")) {
+        error_message =
+            "Unsupported project format.\n"
+            "Root-level \"layers\" are no longer accepted; each scene must "
+            "declare its own layers array.";
+        return false;
+    }
+
+    if (!normalize_and_validate_scene_layers(out, error_message)) {
+        return false;
+    }
     return true;
 }
 
@@ -279,14 +337,6 @@ bool project_file_io_save(const std::string &project_json_path,
     root["activeSceneId"] = doc.activeSceneId;
     root["mainScriptPath"] =
         doc.mainScriptPath.empty() ? "scripts/main.lua" : doc.mainScriptPath;
-
-    nlohmann::json layers = nlohmann::json::array();
-    for (const SceneLayerDef &layer : doc.layers) {
-        if (!layer.id.empty()) {
-            layers.push_back(layer_to_json(layer));
-        }
-    }
-    root["layers"] = std::move(layers);
 
     nlohmann::json image_assets = nlohmann::json::array();
     for (const ImageAssetDef &asset : doc.imageAssets) {
@@ -316,6 +366,15 @@ bool project_file_io_save(const std::string &project_json_path,
             {"z", scene.backgroundColor.b},
             {"w", scene.backgroundColor.a},
         };
+        nlohmann::json layers = nlohmann::json::array();
+        for (const SceneLayerDef &layer : scene.layers) {
+            if (!layer.id.empty()) {
+                layers.push_back(layer_to_json(layer));
+            }
+        }
+        sj["layers"] = std::move(layers);
+        sj["defaultLayerId"] = scene.defaultLayerId;
+
         nlohmann::json instances = nlohmann::json::array();
         nlohmann::json entity_ids = nlohmann::json::array();
         for (const SceneInstanceDef &inst : scene.instances) {

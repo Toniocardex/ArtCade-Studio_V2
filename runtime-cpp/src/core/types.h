@@ -23,13 +23,26 @@ using AssetId   = std::string;
 using ObjectTypeId = std::string;
 using ScriptAttachmentId = std::string;
 
+/**
+ * Stable identity of a project/global game variable.
+ * MVP contract: identical to GameVariableDefinition::key (case-sensitive).
+ * LogicVariableReference::id stores this value. Keys are immutable — no rename
+ * in MVP; future migration may introduce a separate display name.
+ */
+using GameVariableId = std::string;
+
 constexpr EntityId INVALID_ENTITY = 0;
 
 using GameVariableValue = std::variant<double, bool, std::string>;
 
+/**
+ * Authoring definition of a project/global variable.
+ * `key` is the stable identity (GameVariableId) — not a display label.
+ * Comparisons and Logic Board refs are case-sensitive exact match on `key`.
+ */
 struct GameVariableDefinition {
     enum class Type { Number, Boolean, String };
-    std::string       key;
+    GameVariableId    key;   // Immutable identity, not a display label.
     Type              type = Type::Number;
     GameVariableValue initialValue = 0.0;
     std::string       description;
@@ -60,7 +73,8 @@ enum class LogicKey {
 
 struct LogicStringValue { std::string value; };
 struct LogicAssetReference { AssetId id; };
-struct LogicVariableReference { std::string id; };
+/** Logic Board reference to a game variable — `id` holds GameVariableId (key). */
+struct LogicVariableReference { GameVariableId id; };
 
 struct LogicEntityReference {
     enum class Kind { Self };
@@ -508,14 +522,14 @@ struct LayerBackground {
 };
 
 /**
- * Global render layer (editor project.layers; index 0 = highest priority).
- * Identity + display name + editor lock only; visual props live per-scene in
- * SceneLayerSettings.
+ * Per-scene render layer (SceneDef.layers).
+ * Order: index 0 = background (drawn first), last = foreground (drawn on top).
+ * Identity + display name + editor lock; visual props live in SceneLayerSettings.
  */
 struct SceneLayerDef {
-    std::string     id;            // stable layer id (referenced by sprites/tilemaps)
+    std::string     id;            // stable layer id (referenced by instances)
     std::string     name;          // display only
-    bool            locked  = false; // editor-only (pick gating)
+    bool            locked  = false; // editor-only (pick / transform gating)
 };
 
 /** Per-scene visual overrides for a render layer (keyed by layer id). */
@@ -647,10 +661,9 @@ struct SceneDef {
     Vec2                cameraStart  = { 0.f, 0.f };
     Vec4                backgroundColor;
     std::vector<EntityId> entityIds;
-    // Native editor per-scene render layers: `layers` is the SINGLE authority of
-    // render order (index 0 = background, last = foreground). `defaultLayerId` is
-    // the persistent fallback every scene must have. Distinct from the global
-    // ProjectDoc.layers / layerSettings (used by the legacy runtime).
+    // Per-scene render layers — SINGLE authority of draw order
+    // (index 0 = background, last = foreground). `defaultLayerId` is the
+    // persistent fallback every scene must have. No project-global layer list.
     std::vector<SceneLayerDef> layers;
     std::string               defaultLayerId;
     std::vector<SceneInstanceDef> instances;
@@ -816,7 +829,6 @@ struct ProjectDoc {
     std::unordered_map<EntityId, EntityDef> entities;
     std::unordered_map<SceneId,  SceneDef>  scenes;
     std::unordered_map<SceneId,  std::string> thumbnails;
-    std::vector<SceneLayerDef>    layers;        // render stack (index 0 = on top)
     std::vector<PhysicsLayerDef>  physicsLayers; // collision filtering, separate from render layers
     std::unordered_map<std::string, CollisionProfileDef> collisionProfiles;
     std::unordered_map<std::string, std::string> spritePathToAssetId;

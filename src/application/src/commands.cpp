@@ -267,4 +267,53 @@ void SetLayerVisibleCommand::undo(ProjectDoc &doc)
     scene.layerSettings[m_layer_id].visible = m_old_visible;
 }
 
+SetLayerLockedCommand::SetLayerLockedCommand(SceneId scene_id,
+                                             std::string layer_id,
+                                             bool locked)
+    : m_scene_id(std::move(scene_id))
+    , m_layer_id(std::move(layer_id))
+    , m_new_locked(locked)
+{
+}
+
+void SetLayerLockedCommand::execute(ProjectDoc &doc)
+{
+    auto scene_it = doc.scenes.find(m_scene_id);
+    if (scene_it == doc.scenes.end() || m_layer_id.empty()) {
+        return;
+    }
+    SceneLayerDef *layer =
+        EditorCoordinator::findSceneLayer(scene_it->second, m_layer_id);
+    if (!layer) {
+        return;
+    }
+    if (!m_captured) {
+        m_old_locked = layer->locked;
+        m_captured = true;
+    }
+    if (layer->locked == m_new_locked) {
+        return;
+    }
+    layer->locked = m_new_locked;
+    m_applied = true;
+}
+
+void SetLayerLockedCommand::undo(ProjectDoc &doc)
+{
+    if (!m_applied || !m_captured) {
+        return;
+    }
+    auto scene_it = doc.scenes.find(m_scene_id);
+    if (scene_it == doc.scenes.end()) {
+        return;
+    }
+    SceneLayerDef *layer =
+        EditorCoordinator::findSceneLayer(scene_it->second, m_layer_id);
+    if (!layer) {
+        return;
+    }
+    layer->locked = m_old_locked;
+    m_applied = false;
+}
+
 } // namespace ArtCade::EditorCore

@@ -58,9 +58,14 @@ bool EditorCoordinator::openProject(const std::string &project_json_path, std::s
     m_saved_revision = 0;
     m_selected_entity_id = 0;
     m_active_layer_id.clear();
+    m_hidden_layer_ids.clear();
     m_commands.clear();
-    if (!m_doc.layers.empty()) {
-        m_active_layer_id = m_doc.layers.front().id;
+    if (const SceneDef *scene = activeScene(); scene && !scene->layers.empty()) {
+        if (!scene->defaultLayerId.empty()) {
+            m_active_layer_id = scene->defaultLayerId;
+        } else {
+            m_active_layer_id = scene->layers.front().id;
+        }
     }
     return true;
 }
@@ -85,12 +90,14 @@ bool EditorCoordinator::createNewProject(const std::string &project_json_path,
     SceneLayerDef layer;
     layer.id = "layer_main";
     layer.name = "Main";
-    doc.layers.push_back(layer);
 
     SceneDef scene;
     scene.id = "scene_main";
     scene.name = "Main Scene";
     scene.backgroundColor = {0.082f, 0.09f, 0.11f, 1.f};
+    scene.layers.push_back(layer);
+    scene.defaultLayerId = layer.id;
+    scene.layerSettings[layer.id] = SceneLayerSettings{};
     doc.scenes[scene.id] = std::move(scene);
 
     if (!project_file_io_save(project_json_path, doc, error_message)) {
@@ -186,6 +193,26 @@ const std::string &EditorCoordinator::activeLayerId() const
     return m_active_layer_id;
 }
 
+void EditorCoordinator::setLayerHiddenInEditor(const std::string &layer_id, bool hidden)
+{
+    if (layer_id.empty()) {
+        return;
+    }
+    if (hidden) {
+        m_hidden_layer_ids.insert(layer_id);
+    } else {
+        m_hidden_layer_ids.erase(layer_id);
+    }
+}
+
+bool EditorCoordinator::layerHiddenInEditor(const std::string &layer_id) const
+{
+    if (layer_id.empty()) {
+        return false;
+    }
+    return m_hidden_layer_ids.find(layer_id) != m_hidden_layer_ids.end();
+}
+
 void EditorCoordinator::bumpRevision()
 {
     ++m_revision;
@@ -229,7 +256,11 @@ bool EditorCoordinator::layerLocked(const std::string &layer_id) const
     if (layer_id.empty()) {
         return false;
     }
-    for (const SceneLayerDef &layer : m_doc.layers) {
+    const SceneDef *scene = activeScene();
+    if (!scene) {
+        return false;
+    }
+    for (const SceneLayerDef &layer : scene->layers) {
         if (layer.id == layer_id) {
             return layer.locked;
         }
@@ -245,14 +276,17 @@ EntityId EditorCoordinator::pickEntityAt(float world_x, float world_y) const
     }
     // AABB pick uses scaled placeholder size only (not rotation). Visual paint may
     // rotate; hit-testing stays axis-aligned for this MVP — no OBB.
-    // Topmost = last instance in authoring order that contains the point.
-    for (auto it = scene->instances.rbegin(); it != scene->instances.rend(); ++it) {
-        const SceneInstanceDef &inst = *it;
+    // Topmost = highest SceneDef.layers index (foreground), then later instance.
+    EntityId best_id = 0;
+    int best_layer_rank = -1;
+    std::size_t best_instance_index = 0;
+    for (std::size_t i = 0; i < scene->instances.size(); ++i) {
+        const SceneInstanceDef &inst = scene->instances[i];
         if (!inst.visible) {
             continue;
         }
         if (!inst.layerId.empty()) {
-            if (!layerVisible(inst.layerId) || layerLocked(inst.layerId)) {
+            if (layerHiddenInEditor(inst.layerId) || layerLocked(inst.layerId)) {
                 continue;
             }
         }
@@ -260,11 +294,24 @@ EntityId EditorCoordinator::pickEntityAt(float world_x, float world_y) const
         const float h = kSceneViewPlaceholderExtent * inst.transform.scale.y;
         const float left = inst.transform.position.x;
         const float top = inst.transform.position.y;
-        if (world_x >= left && world_x <= left + w && world_y >= top && world_y <= top + h) {
-            return inst.id;
+        if (world_x < left || world_x > left + w || world_y < top || world_y > top + h) {
+            continue;
+        }
+        int rank = 0;
+        if (!inst.layerId.empty()) {
+            const std::size_t layer_index = sceneLayerIndex(*scene, inst.layerId);
+            if (layer_index != static_cast<std::size_t>(-1)) {
+                rank = static_cast<int>(layer_index);
+            }
+        }
+        if (best_id == 0 || rank > best_layer_rank
+            || (rank == best_layer_rank && i > best_instance_index)) {
+            best_id = inst.id;
+            best_layer_rank = rank;
+            best_instance_index = i;
         }
     }
-    return 0;
+    return best_id;
 }
 
 EntityId EditorCoordinator::pickEntityInRect(float x0, float y0, float x1, float y1) const
@@ -278,28 +325,43 @@ EntityId EditorCoordinator::pickEntityInRect(float x0, float y0, float x1, float
     const float top = std::min(y0, y1);
     const float bottom = std::max(y0, y1);
 
-    for (auto it = scene->instances.rbegin(); it != scene->instances.rend(); ++it) {
-        const SceneInstanceDef &inst = *it;
+    EntityId best_id = 0;
+    int best_layer_rank = -1;
+    std::size_t best_instance_index = 0;
+    for (std::size_t i = 0; i < scene->instances.size(); ++i) {
+        const SceneInstanceDef &inst = scene->instances[i];
         if (!inst.visible) {
             continue;
         }
         if (!inst.layerId.empty()) {
-            if (!layerVisible(inst.layerId) || layerLocked(inst.layerId)) {
+            if (layerHiddenInEditor(inst.layerId) || layerLocked(inst.layerId)) {
                 continue;
             }
         }
         const float w = kSceneViewPlaceholderExtent * inst.transform.scale.x;
         const float h = kSceneViewPlaceholderExtent * inst.transform.scale.y;
         const float il = inst.transform.position.x;
-        const float itop = inst.transform.position.y;
+        const float it = inst.transform.position.y;
         const float ir = il + w;
-        const float ib = itop + h;
-        const bool overlaps = !(ir < left || il > right || ib < top || itop > bottom);
-        if (overlaps) {
-            return inst.id;
+        const float ib = it + h;
+        if (ir < left || il > right || ib < top || it > bottom) {
+            continue;
+        }
+        int rank = 0;
+        if (!inst.layerId.empty()) {
+            const std::size_t layer_index = sceneLayerIndex(*scene, inst.layerId);
+            if (layer_index != static_cast<std::size_t>(-1)) {
+                rank = static_cast<int>(layer_index);
+            }
+        }
+        if (best_id == 0 || rank > best_layer_rank
+            || (rank == best_layer_rank && i > best_instance_index)) {
+            best_id = inst.id;
+            best_layer_rank = rank;
+            best_instance_index = i;
         }
     }
-    return 0;
+    return best_id;
 }
 
 bool EditorCoordinator::renameEntity(EntityId entity_id,
@@ -417,10 +479,12 @@ bool EditorCoordinator::setLayerVisible(const std::string &layer_id,
         return false;
     }
     bool known = false;
-    for (const SceneLayerDef &layer : m_doc.layers) {
-        if (layer.id == layer_id) {
-            known = true;
-            break;
+    if (const SceneDef *scene = activeScene()) {
+        for (const SceneLayerDef &layer : scene->layers) {
+            if (layer.id == layer_id) {
+                known = true;
+                break;
+            }
         }
     }
     if (!known) {
@@ -443,6 +507,45 @@ bool EditorCoordinator::setLayerVisible(const std::string &layer_id,
     }
     m_commands.execute(
         std::make_unique<SetLayerVisibleCommand>(scene_id, layer_id, visible), m_doc);
+    bumpRevision();
+    return true;
+}
+
+bool EditorCoordinator::setLayerLocked(const std::string &layer_id,
+                                       bool locked,
+                                       std::string &error_message)
+{
+    if (!m_has_project) {
+        error_message = "No project open";
+        return false;
+    }
+    if (layer_id.empty()) {
+        error_message = "Empty layer id";
+        return false;
+    }
+    SceneDef *scene = activeScene();
+    if (!scene) {
+        error_message = "No active scene";
+        return false;
+    }
+    if (!sceneContainsLayer(*scene, layer_id)) {
+        error_message = "Layer not found";
+        return false;
+    }
+    if (layerLocked(layer_id) == locked) {
+        return true; // no-op
+    }
+    SceneId scene_id = m_doc.activeSceneId;
+    if (m_doc.scenes.find(scene_id) == m_doc.scenes.end()) {
+        scene_id = scene->id.empty() ? m_doc.scenes.begin()->first : scene->id;
+    }
+    auto cmd = std::make_unique<SetLayerLockedCommand>(scene_id, layer_id, locked);
+    SetLayerLockedCommand *raw = cmd.get();
+    m_commands.execute(std::move(cmd), m_doc);
+    if (!raw->applied()) {
+        error_message = "Failed to set layer lock";
+        return false;
+    }
     bumpRevision();
     return true;
 }
@@ -1232,6 +1335,7 @@ void EditorCoordinator::undo()
     }
     m_commands.undo(m_doc);
     bumpRevision();
+    reconcileActiveLayerId();
 }
 
 void EditorCoordinator::redo()
@@ -1241,6 +1345,24 @@ void EditorCoordinator::redo()
     }
     m_commands.redo(m_doc);
     bumpRevision();
+    reconcileActiveLayerId();
+}
+
+void EditorCoordinator::reconcileActiveLayerId()
+{
+    const SceneDef *scene = activeScene();
+    if (!scene || scene->layers.empty()) {
+        m_active_layer_id.clear();
+        return;
+    }
+    if (sceneContainsLayer(*scene, m_active_layer_id)) {
+        return;
+    }
+    if (!scene->defaultLayerId.empty() && sceneContainsLayer(*scene, scene->defaultLayerId)) {
+        m_active_layer_id = scene->defaultLayerId;
+        return;
+    }
+    m_active_layer_id = scene->layers.front().id;
 }
 
 } // namespace ArtCade::EditorCore

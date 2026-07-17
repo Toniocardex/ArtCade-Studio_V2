@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 namespace ArtCade::EditorCore {
@@ -101,7 +102,8 @@ private:
 };
 
 /**
- * Sets per-scene layer visibility for the active scene (layerSettings[layerId].visible).
+ * Sets per-scene Play/export visibility (layerSettings[layerId].visible).
+ * Editor eye hide is workspace-only — use EditorCoordinator::setLayerHiddenInEditor.
  */
 class SetLayerVisibleCommand final : public ICommand {
 public:
@@ -116,6 +118,169 @@ private:
     bool m_old_visible = true;
     bool m_had_entry = false;
     bool m_captured = false;
+};
+
+/**
+ * Sets SceneLayerDef.locked on a scene layer (persistent authoring).
+ * Locked layers block editor pick/drag; not used by exported runtime gameplay.
+ */
+class SetLayerLockedCommand final : public ICommand {
+public:
+    SetLayerLockedCommand(SceneId scene_id, std::string layer_id, bool locked);
+    void execute(ProjectDoc &doc) override;
+    void undo(ProjectDoc &doc) override;
+    [[nodiscard]] bool applied() const { return m_applied; }
+
+private:
+    SceneId m_scene_id;
+    std::string m_layer_id;
+    bool m_new_locked = false;
+    bool m_old_locked = false;
+    bool m_captured = false;
+    bool m_applied = false;
+};
+
+class AddSceneLayerCommand final : public ICommand {
+public:
+    AddSceneLayerCommand(SceneId scene_id,
+                         std::string layer_id,
+                         std::string name,
+                         std::size_t insert_index);
+    void execute(ProjectDoc &doc) override;
+    void undo(ProjectDoc &doc) override;
+    [[nodiscard]] bool applied() const { return m_applied; }
+
+private:
+    SceneId m_scene_id;
+    std::string m_layer_id;
+    std::string m_name;
+    std::size_t m_insert_index = 0;
+    bool m_applied = false;
+};
+
+class RenameSceneLayerCommand final : public ICommand {
+public:
+    RenameSceneLayerCommand(SceneId scene_id, std::string layer_id, std::string new_name);
+    void execute(ProjectDoc &doc) override;
+    void undo(ProjectDoc &doc) override;
+    [[nodiscard]] bool applied() const { return m_applied; }
+
+private:
+    SceneId m_scene_id;
+    std::string m_layer_id;
+    std::string m_new_name;
+    std::string m_old_name;
+    bool m_captured = false;
+    bool m_applied = false;
+};
+
+class SetDefaultSceneLayerCommand final : public ICommand {
+public:
+    SetDefaultSceneLayerCommand(SceneId scene_id, std::string layer_id);
+    void execute(ProjectDoc &doc) override;
+    void undo(ProjectDoc &doc) override;
+    [[nodiscard]] bool applied() const { return m_applied; }
+
+private:
+    SceneId m_scene_id;
+    std::string m_layer_id;
+    std::string m_old_default;
+    bool m_captured = false;
+    bool m_applied = false;
+};
+
+/**
+ * Moves a layer within SceneDef.layers so it ends at @p target_index.
+ * index 0 = background, last = foreground. No-op when already there.
+ */
+class MoveSceneLayerCommand final : public ICommand {
+public:
+    MoveSceneLayerCommand(SceneId scene_id, std::string layer_id, std::size_t target_index);
+    void execute(ProjectDoc &doc) override;
+    void undo(ProjectDoc &doc) override;
+    [[nodiscard]] bool applied() const { return m_applied; }
+
+private:
+    SceneId m_scene_id;
+    std::string m_layer_id;
+    std::size_t m_target_index = 0;
+    std::size_t m_from_index = 0;
+    bool m_captured = false;
+    bool m_applied = false;
+};
+
+/**
+ * Assigns an instance to a layer in the same scene.
+ * Target is SceneId + EntityId (not current selection).
+ */
+class SetEntityLayerCommand final : public ICommand {
+public:
+    SetEntityLayerCommand(SceneId scene_id, EntityId entity_id, std::string layer_id);
+    void execute(ProjectDoc &doc) override;
+    void undo(ProjectDoc &doc) override;
+    [[nodiscard]] bool applied() const { return m_applied; }
+
+private:
+    SceneId m_scene_id;
+    EntityId m_entity_id = 0;
+    std::string m_layer_id;
+    std::string m_old_layer_id;
+    bool m_captured = false;
+    bool m_applied = false;
+};
+
+/**
+ * Removes a layer from SceneDef.layers and transfers its instances to @p transfer_target_id.
+ * Rejected when the scene would be left with zero layers, or when deleting the default.
+ */
+class RemoveSceneLayerCommand final : public ICommand {
+public:
+    RemoveSceneLayerCommand(SceneId scene_id,
+                            std::string layer_id,
+                            std::string transfer_target_id);
+    void execute(ProjectDoc &doc) override;
+    void undo(ProjectDoc &doc) override;
+    [[nodiscard]] bool applied() const { return m_applied; }
+
+private:
+    SceneId m_scene_id;
+    std::string m_layer_id;
+    std::string m_transfer_target_id;
+    std::size_t m_from_index = 0;
+    SceneLayerDef m_removed_def{};
+    SceneLayerSettings m_removed_settings{};
+    bool m_had_settings = false;
+    std::vector<EntityId> m_transferred_ids;
+    bool m_captured = false;
+    bool m_applied = false;
+};
+
+/**
+ * Duplicates a scene layer and its instances (and optional tilemapLayers entry).
+ * Inserts the copy immediately toward the foreground of the source; one undo step.
+ */
+class DuplicateSceneLayerCommand final : public ICommand {
+public:
+    DuplicateSceneLayerCommand(SceneId scene_id, std::string source_layer_id);
+    void execute(ProjectDoc &doc) override;
+    void undo(ProjectDoc &doc) override;
+    [[nodiscard]] bool applied() const { return m_applied; }
+    [[nodiscard]] const std::string &newLayerId() const { return m_new_layer_id; }
+
+private:
+    SceneId m_scene_id;
+    std::string m_source_layer_id;
+    std::string m_new_layer_id;
+    std::string m_new_layer_name;
+    std::size_t m_insert_index = 0;
+    SceneLayerDef m_new_layer_def{};
+    SceneLayerSettings m_new_settings{};
+    bool m_copy_settings = false;
+    bool m_copy_tilemap = false;
+    TilemapData m_new_tilemap{};
+    std::vector<SceneInstanceDef> m_new_instances;
+    bool m_planned = false;
+    bool m_applied = false;
 };
 
 /**
@@ -432,7 +597,7 @@ private:
 };
 
 /** C++-owned editor project format. */
-inline constexpr int kCurrentProjectFormatVersion = 5;
+inline constexpr int kCurrentProjectFormatVersion = 6;
 
 /** Floating-point no-op tolerance for transform compares (~1e-6). */
 inline constexpr float kTransformEpsilon = 1e-6f;
@@ -479,7 +644,7 @@ class EditorCoordinator {
 public:
     bool openProject(const std::string &project_json_path, std::string &error_message);
     /**
-     * Creates a minimal formatVersion-5 project at @p project_json_path and
+     * Creates a minimal formatVersion-current project at @p project_json_path and
      * loads it as the active document. Does not record undo history.
      */
     bool createNewProject(const std::string &project_json_path,
@@ -504,6 +669,13 @@ public:
     void setActiveLayerId(const std::string &layer_id);
     [[nodiscard]] const std::string &activeLayerId() const;
 
+    /**
+     * Workspace-only: hide/show a layer in the Scene View (eye toggle).
+     * Does not dirty, does not undo, does not touch layerSettings.visible.
+     */
+    void setLayerHiddenInEditor(const std::string &layer_id, bool hidden);
+    [[nodiscard]] bool layerHiddenInEditor(const std::string &layer_id) const;
+
     bool renameSelected(const std::string &new_name, std::string &error_message);
     bool setSelectedPosition(float x, float y, std::string &error_message);
     bool setSelectedScale(float scale_x, float scale_y, std::string &error_message);
@@ -520,6 +692,50 @@ public:
                            float radians,
                            std::string &error_message);
     bool setLayerVisible(const std::string &layer_id, bool visible, std::string &error_message);
+    /**
+     * Sets SceneLayerDef.locked on the active scene (undoable, dirties).
+     */
+    bool setLayerLocked(const std::string &layer_id, bool locked, std::string &error_message);
+    bool addSceneLayer(std::string &out_layer_id, std::string &error_message);
+    bool renameSceneLayer(const std::string &layer_id,
+                          const std::string &new_name,
+                          std::string &error_message);
+    bool setDefaultSceneLayer(const std::string &layer_id, std::string &error_message);
+
+    /**
+     * Moves a layer in the active scene to @p target_index (0 = background, last = foreground).
+     * No-op when already at that index.
+     */
+    bool moveSceneLayer(const std::string &layer_id,
+                        std::size_t target_index,
+                        std::string &error_message);
+
+    /**
+     * Moves an instance onto a layer of its owning scene.
+     * @p entity_id is the stable target (not the current selection).
+     */
+    bool setEntityLayer(EntityId entity_id,
+                        const std::string &layer_id,
+                        std::string &error_message);
+
+    /**
+     * Removes a layer from the active scene, moving its instances to @p transfer_target_id.
+     * Fails if the layer is the scene default or the last remaining layer.
+     */
+    bool removeSceneLayer(const std::string &layer_id,
+                          const std::string &transfer_target_id,
+                          std::string &error_message);
+
+    /**
+     * Duplicates @p layer_id and its instances in the active scene.
+     * The copy is inserted toward the foreground of the source and becomes active.
+     */
+    bool duplicateSceneLayer(const std::string &layer_id,
+                             std::string &out_new_layer_id,
+                             std::string &error_message);
+
+    /** Count of instances on @p layer_id in the active scene (for delete dialog copy). */
+    [[nodiscard]] int countInstancesOnLayer(const std::string &layer_id) const;
 
     /**
      * Adds a default When/Then rule on the object type's Logic Board.
@@ -647,18 +863,22 @@ public:
      */
     bool validateLogicForPlay(std::string &error_message) const;
 
+    /**
+     * Play/export visibility from SceneDef.layerSettings[layerId].visible.
+     * Editor Scene View eye uses layerHiddenInEditor instead.
+     */
     [[nodiscard]] bool layerVisible(const std::string &layer_id) const;
     [[nodiscard]] bool layerLocked(const std::string &layer_id) const;
 
     /**
-     * Picks the topmost visible, unlocked instance whose placeholder AABB contains
+     * Picks the topmost editor-visible, unlocked instance whose placeholder AABB contains
      * the world point. Placeholder size is kSceneViewPlaceholderExtent * scale.
      * @returns entity id, or 0 if none
      */
     [[nodiscard]] EntityId pickEntityAt(float world_x, float world_y) const;
 
     /**
-     * Topmost visible, unlocked instance whose placeholder AABB intersects the
+     * Topmost editor-visible, unlocked instance whose placeholder AABB intersects the
      * axis-aligned world rectangle (any order of corners).
      * @returns entity id, or 0 if none
      */
@@ -667,6 +887,19 @@ public:
     /** World AABB for scene-view placeholders (authoring preview, not runtime sprite size). */
     static constexpr float kSceneViewPlaceholderExtent = 32.f;
 
+    /** Active scene for the current ProjectDoc.activeSceneId (or first scene). */
+    [[nodiscard]] SceneDef *activeScene();
+    [[nodiscard]] const SceneDef *activeScene() const;
+
+    [[nodiscard]] static const SceneLayerDef *findSceneLayer(const SceneDef &scene,
+                                                             const std::string &layer_id);
+    [[nodiscard]] static SceneLayerDef *findSceneLayer(SceneDef &scene,
+                                                       const std::string &layer_id);
+    [[nodiscard]] static std::size_t sceneLayerIndex(const SceneDef &scene,
+                                                    const std::string &layer_id);
+    [[nodiscard]] static bool sceneContainsLayer(const SceneDef &scene,
+                                                 const std::string &layer_id);
+
     bool canUndo() const;
     bool canRedo() const;
     void undo();
@@ -674,8 +907,8 @@ public:
 
 private:
     void bumpRevision();
-    [[nodiscard]] SceneDef *activeScene();
-    [[nodiscard]] const SceneDef *activeScene() const;
+    /** If activeLayerId is missing from the active scene, fall back to default/first. */
+    void reconcileActiveLayerId();
 
     ProjectDoc m_doc{};
     std::string m_path;
@@ -684,6 +917,8 @@ private:
     std::uint64_t m_saved_revision = 0;
     EntityId m_selected_entity_id = 0;
     std::string m_active_layer_id;
+    /** Workspace: layer ids hidden by the Layers panel eye (not ProjectDoc). */
+    std::unordered_set<std::string> m_hidden_layer_ids;
     CommandStack m_commands;
 };
 

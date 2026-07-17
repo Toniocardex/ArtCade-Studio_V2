@@ -4,8 +4,8 @@
 // =============================================================================
 //
 // Extracted from app.cpp::renderActiveScene() during the post-phase-6 split.
-// Walks per-layer tilemap grids bottom→top (using project.layers stack),
-// falling back to merged tilemap for legacy projects.
+// Walks per-layer tilemap grids back→front (SceneDef.layers: index 0 =
+// background drawn first, last = foreground), falling back to merged tilemap.
 //
 //   1. If the layer references a tileset and the tileset is found in the
 //      live SceneManager list (or the startup fallback cache), draw the

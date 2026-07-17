@@ -51,6 +51,45 @@ target_link_libraries(artcade-editor-qt
         artcade_editor_core
 )
 
+if(ARTCADE_BUILD_TESTS)
+    add_executable(artcade_scene_view_input_test
+        ${CMAKE_SOURCE_DIR}/tests/qt/scene_view_input_test.cpp
+        bridge/editor_session.cpp
+        bridge/hierarchy_model.cpp
+        bridge/layers_model.cpp
+        bridge/assets_model.cpp
+        bridge/logic_catalog_model.cpp
+        bridge/logic_catalog_metadata.cpp
+        bridge/scene_view_item.cpp
+        bridge/scene_view_item_input.cpp
+        bridge/scene_view_item_keyboard.cpp
+        bridge/play_process_host.cpp
+        bridge/console_model.cpp
+    )
+    target_include_directories(artcade_scene_view_input_test
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}
+            ${CMAKE_CURRENT_SOURCE_DIR}/bridge
+            ${CMAKE_SOURCE_DIR}/src/application/src
+    )
+    target_link_libraries(artcade_scene_view_input_test
+        PRIVATE
+            Qt6::Core
+            Qt6::Gui
+            Qt6::Qml
+            Qt6::Quick
+            Qt6::QuickControls2
+            Qt6::QuickLayouts
+            artcade_editor_core
+    )
+    target_compile_definitions(artcade_scene_view_input_test
+        PRIVATE
+            ARTCADE_DEV_TOOLS=0
+            "ARTCADE_QT_SLICE_FIXTURE_PATH=\"${CMAKE_SOURCE_DIR}/tests/fixtures/qt-slice/project.json\""
+    )
+    add_test(NAME artcade_scene_view_input_test COMMAND artcade_scene_view_input_test)
+endif()
+
 # Style module: QQuickStyle("ArtCadeStyle") control overrides (ToolTip, ScrollBar).
 # QT_RESOURCE_ALIAS must be set *before* qt_add_qml_module reads the source
 # list — setting it after silently keeps the full relative path as the alias
@@ -245,6 +284,8 @@ qt_add_qml_module(artcade-editor-qt
         bridge/logic_catalog_metadata.cpp
         bridge/scene_view_item.h
         bridge/scene_view_item.cpp
+        bridge/scene_view_item_input.cpp
+        bridge/scene_view_item_keyboard.cpp
         bridge/play_process_host.h
         bridge/play_process_host.cpp
         bridge/console_model.h

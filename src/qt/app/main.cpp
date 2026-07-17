@@ -1,8 +1,11 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
+#include <QQmlEngine>
+#include <QQmlError>
 #include <QQuickStyle>
 #include <QQuickWindow>
 #include <QUrl>
+#include <QtLogging>
 
 /**
  * artcade-editor-qt entry — Qt owns the main window and event loop.
@@ -25,6 +28,16 @@ int main(int argc, char *argv[])
 
     QObject::connect(
         &engine,
+        &QQmlEngine::warnings,
+        &app,
+        [](const QList<QQmlError> &warnings) {
+            for (const QQmlError &warning : warnings) {
+                qCritical().noquote() << warning.toString();
+            }
+        });
+
+    QObject::connect(
+        &engine,
         &QQmlApplicationEngine::objectCreationFailed,
         &app,
         []() { QCoreApplication::exit(-1); },
@@ -32,6 +45,7 @@ int main(int argc, char *argv[])
 
     engine.load(url);
     if (engine.rootObjects().isEmpty()) {
+        qCritical().noquote() << "Failed to load" << url.toString();
         return -1;
     }
 

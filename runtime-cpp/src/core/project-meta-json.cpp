@@ -216,12 +216,13 @@ void read_global_variables(const nlohmann::json& doc, ProjectDoc& out) {
         out.globalVariables.clear();
 }
 
-void read_scene_layers(const nlohmann::json& doc, std::vector<SceneLayerDef>& out) {
+void read_scene_layers(const nlohmann::json& container, std::vector<SceneLayerDef>& out) {
     out.clear();
-    if (!doc.contains("layers") || !doc["layers"].is_array())
+    // container is a scene object — root ProjectDoc.layers was removed in formatVersion 6.
+    if (!container.contains("layers") || !container["layers"].is_array())
         return;
 
-    for (const auto& item : doc["layers"]) {
+    for (const auto& item : container["layers"]) {
         SceneLayerDef layer;
         if (item.is_string()) {
             // Legacy string form: use the name as a stable id fallback.

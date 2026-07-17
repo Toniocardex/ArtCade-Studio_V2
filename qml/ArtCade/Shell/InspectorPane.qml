@@ -423,7 +423,7 @@ Rectangle {
                             Layout.fillWidth: true
                             Layout.leftMargin: Metrics.spacingMd
                             Layout.rightMargin: Metrics.spacingMd
-                            Layout.bottomMargin: Metrics.spacingSm
+                            Layout.bottomMargin: Metrics.spacingXs
                             spacing: Metrics.spacingSm
 
                             Text {
@@ -439,6 +439,76 @@ Rectangle {
                                 font.family: Typography.family
                                 font.pixelSize: Typography.sizeSm
                                 elide: Text.ElideRight
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Layout.leftMargin: Metrics.spacingMd
+                            Layout.rightMargin: Metrics.spacingMd
+                            Layout.bottomMargin: Metrics.spacingSm
+                            spacing: Metrics.spacingSm
+
+                            Text {
+                                text: "Layer"
+                                color: Theme.textSecondary
+                                font.pixelSize: Typography.sizeXs
+                                Layout.preferredWidth: Metrics.labelColumnWidth
+                            }
+                            ComboBox {
+                                id: entityLayerCombo
+                                Layout.fillWidth: true
+                                enabled: !EditorSession.playing
+                                model: EditorSession.layersModel
+                                textRole: "display"
+                                valueRole: "layerId"
+                                palette.mid: Theme.panel
+                                palette.window: Theme.panel
+                                palette.base: Theme.panel
+                                palette.button: Theme.panelRaised
+                                palette.highlight: Theme.controlHover
+                                palette.highlightedText: Theme.textPrimary
+                                palette.text: Theme.textPrimary
+                                palette.buttonText: Theme.textPrimary
+
+                                function syncIndex() {
+                                    currentIndex = Math.max(
+                                        0, indexOfValue(EditorSession.selectedLayerId))
+                                }
+
+                                Component.onCompleted: syncIndex()
+                                Connections {
+                                    target: EditorSession
+                                    function onSelectionChanged() {
+                                        entityLayerCombo.syncIndex()
+                                    }
+                                }
+                                onActivated: function(index) {
+                                    const next = currentValue
+                                    if (next !== EditorSession.selectedLayerId)
+                                        EditorSession.setEntityLayer(
+                                            EditorSession.selectedEntityId, next)
+                                }
+
+                                contentItem: Text {
+                                    leftPadding: Metrics.spacingSm
+                                    rightPadding: entityLayerCombo.indicator.width
+                                                  + Metrics.spacingSm
+                                    text: entityLayerCombo.displayText
+                                    color: Theme.textPrimary
+                                    font.pixelSize: Typography.sizeSm
+                                    verticalAlignment: Text.AlignVCenter
+                                    elide: Text.ElideRight
+                                }
+                                background: Rectangle {
+                                    implicitHeight: Metrics.controlHeight
+                                    color: entityLayerCombo.enabled
+                                           ? Theme.panelRaised : Theme.panel
+                                    border.width: 1
+                                    border.color: entityLayerCombo.activeFocus
+                                                  ? Theme.accent : Theme.border
+                                    radius: Metrics.radiusSmall
+                                }
                             }
                         }
                     }

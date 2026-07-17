@@ -1,6 +1,6 @@
 {
   "activeSceneId": "scene_main",
-  "formatVersion": 5,
+  "formatVersion": 6,
   "imageAssets": [
     {
       "assetId": "img_hero",
@@ -11,23 +11,6 @@
       "assetId": "img_coin",
       "name": "Coin",
       "sourcePath": "assets/sprites/coin.png"
-    }
-  ],
-  "layers": [
-    {
-      "id": "layer_bg",
-      "locked": false,
-      "name": "Background"
-    },
-    {
-      "id": "layer_main",
-      "locked": false,
-      "name": "Main"
-    },
-    {
-      "id": "layer_ui",
-      "locked": false,
-      "name": "UI"
     }
   ],
   "mainScriptPath": "scripts/main.lua",
@@ -56,6 +39,7 @@
         "x": 0.0,
         "y": 0.0
       },
+      "defaultLayerId": "layer_main",
       "entityIds": [
         1,
         2
@@ -97,6 +81,23 @@
             }
           },
           "visible": true
+        }
+      ],
+      "layers": [
+        {
+          "id": "layer_bg",
+          "locked": false,
+          "name": "Background"
+        },
+        {
+          "id": "layer_main",
+          "locked": false,
+          "name": "Main"
+        },
+        {
+          "id": "layer_ui",
+          "locked": false,
+          "name": "UI"
         }
       ],
       "layerSettings": {

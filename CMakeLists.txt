@@ -26,6 +26,9 @@ else()
 endif()
 option(ARTCADE_WITH_STEAM "Include Steam SDK integration" OFF)
 option(ARTCADE_ENABLE_DEBUG_UI "Enable ImGui debug visualizer" OFF)
+# Forwarded into runtime-cpp (also defined there). Keep at root so
+# `cmake -DARTCADE_BUILD_TESTS=ON` is discoverable for the monorepo build.
+option(ARTCADE_BUILD_TESTS "Build runtime-cpp unit tests" OFF)
 
 add_subdirectory(runtime-cpp)
 

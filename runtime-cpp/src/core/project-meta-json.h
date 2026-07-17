@@ -45,7 +45,8 @@ void read_global_variables(const nlohmann::json& doc, ProjectDoc& out);
  */
 void read_runtime_settings(const nlohmann::json& doc, ProjectRuntimeSettings& out);
 
-/** Parses project.layers array (name strings or {name} objects). */
-void read_scene_layers(const nlohmann::json& doc, std::vector<SceneLayerDef>& out);
+/** Parses a layers array (name strings or {id,name,locked} objects) into @p out. */
+/** Parses a layers array from a scene JSON object (not ProjectDoc root). */
+void read_scene_layers(const nlohmann::json& container, std::vector<SceneLayerDef>& out);
 
 } // namespace ArtCade::ProjectJson

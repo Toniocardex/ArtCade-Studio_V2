@@ -4,9 +4,9 @@ import QtQuick.Layouts
 import ArtCade.Ui
 
 /**
- * Polished Layers panel row — compact eye toggle, lock badge, active accent.
- * Model roles are required properties (ListView injects them).
- * Intents only: visibility / active layer → EditorSession.
+ * Layers panel row — drag handle, eye, lock, default ★, overflow menu.
+ * Reorder: Move Forward = toward foreground (higher SceneDef.layers index).
+ * Drag: workspace preview on the handle; one moveSceneLayer commit on release.
  */
 Item {
     id: root
@@ -16,34 +16,49 @@ Item {
     required property bool layerVisible
     required property bool locked
     required property bool active
+    required property bool isDefault
+    required property int index
+
+    readonly property int layerCount: ListView.view ? ListView.view.count : 0
+    readonly property bool canMoveBackward: index > 0
+    readonly property bool canMoveForward: index >= 0 && index < layerCount - 1
 
     signal activateRequested(string layerId)
     signal visibilityToggled(string layerId, bool visible)
+    signal lockToggled(string layerId, bool locked)
+    signal renameRequested(string layerId, string currentName)
+    signal setDefaultRequested(string layerId)
+    signal moveRequested(string layerId, int targetIndex)
+    signal deleteRequested(string layerId, string display)
+    signal duplicateRequested(string layerId)
 
     width: ListView.view ? ListView.view.width : 200
     implicitHeight: Metrics.controlHeight + 2
     height: implicitHeight
+    z: gripMa.drag.active ? 10 : 0
 
     Rectangle {
         id: chrome
-        anchors.fill: parent
-        anchors.leftMargin: Metrics.spacingXs
-        anchors.rightMargin: Metrics.spacingXs
-        anchors.topMargin: 1
-        anchors.bottomMargin: 1
+        width: parent.width - Metrics.spacingXs * 2
+        height: parent.height - 2
+        x: Metrics.spacingXs
+        y: 1
         radius: Metrics.radiusSmall
         color: {
+            if (gripMa.drag.active)
+                return Theme.controlHover
             if (root.active)
                 return Theme.selection
-            if (rowMa.containsMouse)
+            if (rowMa.containsMouse || gripMa.containsMouse)
                 return Theme.controlHover
             return "transparent"
         }
-        border.width: root.active ? 1 : 0
+        border.width: root.active || gripMa.drag.active ? 1 : 0
         border.color: Theme.accent
+        opacity: gripMa.drag.active ? 0.92 : 1.0
 
         Rectangle {
-            visible: root.active
+            visible: root.active && !gripMa.drag.active
             anchors.left: parent.left
             anchors.top: parent.top
             anchors.bottom: parent.bottom
@@ -55,9 +70,53 @@ Item {
 
         RowLayout {
             anchors.fill: parent
-            anchors.leftMargin: Metrics.spacingSm + (root.active ? 2 : 0)
+            anchors.leftMargin: Metrics.spacingXs + (root.active ? 2 : 0)
             anchors.rightMargin: Metrics.spacingSm
             spacing: Metrics.spacingXs
+
+            Item {
+                id: grip
+                implicitWidth: 16
+                implicitHeight: 22
+                Layout.alignment: Qt.AlignVCenter
+                z: 3
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "⠿"
+                    color: Theme.textMuted
+                    font.pixelSize: Typography.sizeSm
+                    opacity: gripMa.containsMouse || gripMa.drag.active ? 1.0 : 0.55
+                }
+                ToolTip.visible: gripMa.containsMouse && !gripMa.drag.active
+                ToolTip.delay: 500
+                ToolTip.text: "Drag to reorder"
+
+                MouseArea {
+                    id: gripMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.SizeAllCursor
+                    preventStealing: true
+                    drag.target: chrome
+                    drag.axis: Drag.YAxis
+                    drag.threshold: 4
+                    onReleased: {
+                        if (!drag.active && Math.abs(chrome.y - 1) < 1) {
+                            chrome.y = 1
+                            return
+                        }
+                        const rowH = root.height > 0 ? root.height : Metrics.controlHeight + 2
+                        const deltaRows = Math.round((chrome.y - 1) / rowH)
+                        const target = Math.max(0, Math.min(root.layerCount - 1,
+                                                            root.index + deltaRows))
+                        chrome.y = 1
+                        if (target !== root.index)
+                            root.moveRequested(root.layerId, target)
+                    }
+                    onCanceled: chrome.y = 1
+                }
+            }
 
             AcIcon {
                 source: Icons.layer
@@ -65,7 +124,6 @@ Item {
                 color: root.active ? Theme.textPrimary
                      : root.layerVisible ? Theme.textSecondary : Theme.textMuted
                 Layout.alignment: Qt.AlignVCenter
-                Layout.leftMargin: Metrics.spacingXs
             }
 
             Text {
@@ -80,6 +138,18 @@ Item {
                 verticalAlignment: Text.AlignVCenter
             }
 
+            Text {
+                visible: root.isDefault
+                text: "★"
+                color: Theme.accent
+                font.pixelSize: Typography.sizeSm
+                Layout.alignment: Qt.AlignVCenter
+                ToolTip.visible: defaultHover.hovered
+                ToolTip.delay: 400
+                ToolTip.text: "Default layer"
+                HoverHandler { id: defaultHover }
+            }
+
             ToolButton {
                 id: eyeBtn
                 implicitWidth: 22
@@ -89,7 +159,7 @@ Item {
                 z: 2
                 ToolTip.visible: hovered
                 ToolTip.delay: 400
-                ToolTip.text: root.layerVisible ? "Hide layer" : "Show layer"
+                ToolTip.text: root.layerVisible ? "Hide in editor" : "Show in editor"
 
                 background: Rectangle {
                     radius: Metrics.radiusSmall
@@ -109,34 +179,119 @@ Item {
                 onClicked: root.visibilityToggled(root.layerId, !root.layerVisible)
             }
 
-            Item {
-                implicitWidth: 18
+            ToolButton {
+                id: lockBtn
+                implicitWidth: 22
                 implicitHeight: 22
-                Layout.alignment: Qt.AlignVCenter
-                Layout.rightMargin: Metrics.spacingXs
+                padding: 0
+                focusPolicy: Qt.NoFocus
                 z: 2
-
-                AcIcon {
-                    anchors.centerIn: parent
-                    source: Icons.lock
-                    size: Metrics.iconSizeSm
-                    color: root.locked ? Theme.warning : Theme.textMuted
-                    opacity: root.locked ? 1.0 : (rowMa.containsMouse || root.active ? 0.55 : 0.3)
-                }
-                ToolTip.visible: lockHover.hovered
+                enabled: !EditorSession.playing
+                ToolTip.visible: hovered
                 ToolTip.delay: 400
-                ToolTip.text: root.locked ? "Layer locked (pick blocked)" : "Layer unlocked"
-                HoverHandler { id: lockHover }
+                ToolTip.text: root.locked ? "Unlock layer" : "Lock layer (blocks pick)"
+
+                background: Rectangle {
+                    radius: Metrics.radiusSmall
+                    color: lockBtn.down ? Theme.controlPressed
+                         : lockBtn.hovered ? Theme.control : "transparent"
+                }
+                contentItem: Item {
+                    implicitWidth: Metrics.iconSizeSm
+                    implicitHeight: Metrics.iconSizeSm
+                    AcIcon {
+                        anchors.centerIn: parent
+                        source: Icons.lock
+                        size: Metrics.iconSizeSm
+                        color: root.locked ? Theme.warning : Theme.textMuted
+                        opacity: root.locked ? 1.0
+                               : (lockBtn.hovered || root.active ? 0.7 : 0.35)
+                    }
+                }
+                onClicked: root.lockToggled(root.layerId, !root.locked)
+            }
+
+            ToolButton {
+                id: menuBtn
+                implicitWidth: 22
+                implicitHeight: 22
+                padding: 0
+                focusPolicy: Qt.NoFocus
+                z: 2
+                text: "⋯"
+                ToolTip.visible: hovered
+                ToolTip.delay: 400
+                ToolTip.text: "Layer actions"
+                background: Rectangle {
+                    radius: Metrics.radiusSmall
+                    color: menuBtn.down ? Theme.controlPressed
+                         : menuBtn.hovered ? Theme.control : "transparent"
+                }
+                contentItem: Text {
+                    text: menuBtn.text
+                    color: Theme.textSecondary
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                    font.pixelSize: Typography.sizeMd
+                }
+                onClicked: layerMenu.open()
             }
         }
 
         MouseArea {
             id: rowMa
             anchors.fill: parent
-            anchors.rightMargin: 48
+            anchors.leftMargin: 20
+            anchors.rightMargin: 70
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: root.activateRequested(root.layerId)
+            onDoubleClicked: root.renameRequested(root.layerId, root.display)
+        }
+    }
+
+    Menu {
+        id: layerMenu
+        MenuItem {
+            text: "Rename Layer…"
+            onTriggered: root.renameRequested(root.layerId, root.display)
+        }
+        MenuSeparator {}
+        MenuItem {
+            text: "Move Forward"
+            enabled: root.canMoveForward
+            onTriggered: root.moveRequested(root.layerId, root.index + 1)
+        }
+        MenuItem {
+            text: "Move Backward"
+            enabled: root.canMoveBackward
+            onTriggered: root.moveRequested(root.layerId, root.index - 1)
+        }
+        MenuItem {
+            text: "Move to Front"
+            enabled: root.canMoveForward
+            onTriggered: root.moveRequested(root.layerId, root.layerCount - 1)
+        }
+        MenuItem {
+            text: "Move to Back"
+            enabled: root.canMoveBackward
+            onTriggered: root.moveRequested(root.layerId, 0)
+        }
+        MenuSeparator {}
+        MenuItem {
+            text: "Set as Default Layer"
+            enabled: !root.isDefault
+            onTriggered: root.setDefaultRequested(root.layerId)
+        }
+        MenuItem {
+            text: "Duplicate Layer"
+            onTriggered: root.duplicateRequested(root.layerId)
+        }
+        MenuSeparator {}
+        MenuItem {
+            text: "Delete Layer…"
+            enabled: !root.isDefault && root.layerCount > 1
+            onTriggered: root.deleteRequested(root.layerId, root.display)
         }
     }
 }

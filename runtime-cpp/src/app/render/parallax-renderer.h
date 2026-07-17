@@ -33,7 +33,7 @@ namespace ParallaxRenderer {
  * Paint every layer's repeating background image into the active world pass.
  *
  * @param renderer      active renderer (inside beginFrame/endWorldPass)
- * @param layerStack    scene layers (index 0 = highest priority / drawn last)
+ * @param layerStack    scene layers (index 0 = background / drawn first)
  * @param layerSettings active scene's per-layer visual overrides (keyed by id)
  * @param cameraTopLeft world point shown at the viewport top-left
  * @param viewSize      visible world size (width/height in world units)

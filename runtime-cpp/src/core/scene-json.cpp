@@ -2,6 +2,7 @@
 
 #include "json-primitives.h"
 #include "project-defaults.h"
+#include "project-meta-json.h"
 
 namespace ArtCade::ProjectJson {
 
@@ -239,6 +240,19 @@ void read_scene_def(const nlohmann::json& sceneJson,
     read_tilemap(sceneJson, out.tilemap);
     read_tilemap_layers(sceneJson, out.tilemapLayers);
     read_scene_layer_settings(sceneJson, out.layerSettings);
+    read_scene_layer_stack(sceneJson, out);
+}
+
+void read_scene_layer_stack(const nlohmann::json& sceneJson, SceneDef& out) {
+    read_scene_layers(sceneJson, out.layers);
+    if (sceneJson.contains("defaultLayerId") && sceneJson["defaultLayerId"].is_string()) {
+        out.defaultLayerId = sceneJson["defaultLayerId"].get<std::string>();
+    } else if (sceneJson.contains("default_layer_id")
+               && sceneJson["default_layer_id"].is_string()) {
+        out.defaultLayerId = sceneJson["default_layer_id"].get<std::string>();
+    } else {
+        out.defaultLayerId.clear();
+    }
 }
 
 void read_scenes_map(const nlohmann::json& doc,

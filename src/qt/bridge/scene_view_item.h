@@ -1,5 +1,6 @@
 /**
- * Authoring scene canvas: pan/zoom (workspace), pick, drag-move, marquee via EditorSession.
+ * Authoring scene canvas: pan/zoom (workspace), pick, select-drag move, marquee via EditorSession.
+ * Select click-selects and drag-moves (threshold); Space/MMB/RMB/Alt pan without changing tool.
  * Tool + snap are session workspace SoT — this view does not own a second copy.
  * Draws placeholder AABBs from ProjectDoc — not a second document authority.
  */
@@ -66,6 +67,10 @@ protected:
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
+    void hoverMoveEvent(QHoverEvent *event) override;
+    void keyPressEvent(QKeyEvent *event) override;
+    void keyReleaseEvent(QKeyEvent *event) override;
+    void focusOutEvent(QFocusEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
 
 private:
@@ -73,6 +78,12 @@ private:
     void onSessionDocumentChanged();
     [[nodiscard]] QString activeTool() const;
     [[nodiscard]] QPointF snapWorld(const QPointF &world) const;
+    void beginPan();
+    void endPan();
+    void cancelEntityDrag();
+    void cancelActiveGesture();
+    void updateHoverCursor(const QPointF &screen);
+    void nudgeSelection(qreal dx, qreal dy);
 
     EditorSession *m_session = nullptr;
     qreal m_pan_x = 0.0;
@@ -82,9 +93,12 @@ private:
     bool m_rulers_visible = true;
 
     bool m_panning = false;
+    bool m_space_held = false;
+    bool m_pending_entity_drag = false;
     bool m_dragging = false;
     bool m_marquee = false;
     QPointF m_last_screen;
+    QPointF m_press_screen;
     QPointF m_drag_start_world;
     QPointF m_drag_origin_world;
     quint32 m_drag_entity_id = 0;

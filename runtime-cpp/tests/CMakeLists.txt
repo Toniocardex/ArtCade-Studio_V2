@@ -1,11 +1,15 @@
 cmake_minimum_required(VERSION 3.20)
 
+# Paths must use ARTCADE_RUNTIME_ROOT (set by runtime-cpp/CMakeLists.txt), not
+# CMAKE_SOURCE_DIR — the latter is the monorepo root when runtime-cpp is an
+# add_subdirectory of ArtCade V2, which breaks include and source paths.
+
 # ============================================================================
 # Helper
 # ============================================================================
 function(artcade_test TARGET SOURCES LIBS)
     add_executable(${TARGET} ${SOURCES})
-    target_include_directories(${TARGET} PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_include_directories(${TARGET} PRIVATE ${ARTCADE_RUNTIME_ROOT}/src)
     target_link_libraries(${TARGET} PRIVATE ${LIBS})
     add_test(NAME ${TARGET} COMMAND ${TARGET})
 endfunction()
@@ -28,8 +32,8 @@ artcade_test(variable_manager_test
 
 add_executable(text_value_formatter_test
     text_value_formatter_test.cpp
-    ${CMAKE_SOURCE_DIR}/src/app/render/text_value_formatter.cpp)
-target_include_directories(text_value_formatter_test PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    ${ARTCADE_RUNTIME_ROOT}/src/app/render/text_value_formatter.cpp)
+target_include_directories(text_value_formatter_test PRIVATE ${ARTCADE_RUNTIME_ROOT}/src)
 target_link_libraries(text_value_formatter_test PRIVATE artcade-variable-manager)
 add_test(NAME text_value_formatter_test COMMAND text_value_formatter_test)
 
@@ -69,8 +73,8 @@ add_executable(compositor_layout_test
     compositor-layout-test.cpp
 )
 target_include_directories(compositor_layout_test PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/modules/presentation/include
+    ${ARTCADE_RUNTIME_ROOT}/src
+    ${ARTCADE_RUNTIME_ROOT}/src/modules/presentation/include
 )
 target_link_libraries(compositor_layout_test PRIVATE artcade-presentation)
 add_test(NAME compositor_layout_test COMMAND compositor_layout_test)
@@ -99,9 +103,9 @@ add_executable(presentation_integration_test
     presentation-integration-test.cpp
 )
 target_include_directories(presentation_integration_test PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/modules/renderer/include
-    ${CMAKE_SOURCE_DIR}/src/modules/presentation/include
+    ${ARTCADE_RUNTIME_ROOT}/src
+    ${ARTCADE_RUNTIME_ROOT}/src/modules/renderer/include
+    ${ARTCADE_RUNTIME_ROOT}/src/modules/presentation/include
 )
 target_link_libraries(presentation_integration_test PRIVATE artcade-renderer)
 add_test(NAME presentation_integration_test COMMAND presentation_integration_test)
@@ -110,18 +114,18 @@ add_executable(presentation_camera_modes_test
     presentation-camera-modes-test.cpp
 )
 target_include_directories(presentation_camera_modes_test PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/modules/renderer/include
-    ${CMAKE_SOURCE_DIR}/src/modules/presentation/include
+    ${ARTCADE_RUNTIME_ROOT}/src
+    ${ARTCADE_RUNTIME_ROOT}/src/modules/renderer/include
+    ${ARTCADE_RUNTIME_ROOT}/src/modules/presentation/include
 )
 target_link_libraries(presentation_camera_modes_test PRIVATE artcade-renderer)
 add_test(NAME presentation_camera_modes_test COMMAND presentation_camera_modes_test)
 
 add_executable(render_pipeline_test render_pipeline_test.cpp)
 target_include_directories(render_pipeline_test PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/modules/renderer/include
-    ${CMAKE_SOURCE_DIR}/src/modules/presentation/include
+    ${ARTCADE_RUNTIME_ROOT}/src
+    ${ARTCADE_RUNTIME_ROOT}/src/modules/renderer/include
+    ${ARTCADE_RUNTIME_ROOT}/src/modules/presentation/include
 )
 target_link_libraries(render_pipeline_test PRIVATE artcade-renderer)
 add_test(NAME render_pipeline_test COMMAND render_pipeline_test)
@@ -130,9 +134,9 @@ add_executable(presentation_golden_test
     presentation-golden-test.cpp
 )
 target_include_directories(presentation_golden_test PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/modules/presentation/include
-    ${CMAKE_SOURCE_DIR}/src/modules/renderer/include
+    ${ARTCADE_RUNTIME_ROOT}/src
+    ${ARTCADE_RUNTIME_ROOT}/src/modules/presentation/include
+    ${ARTCADE_RUNTIME_ROOT}/src/modules/renderer/include
 )
 target_link_libraries(presentation_golden_test PRIVATE artcade-presentation)
 add_test(NAME presentation_golden_test COMMAND presentation_golden_test)
@@ -145,7 +149,7 @@ artcade_test(dialog_parser_test
     dialog-parser-test.cpp
     artcade-dialog)
 target_compile_definitions(dialog_parser_test
-    PRIVATE ARTCADE_REPO_ROOT="${CMAKE_SOURCE_DIR}/..")
+    PRIVATE ARTCADE_REPO_ROOT="${ARTCADE_RUNTIME_ROOT}/..")
 
 # ============================================================================
 # TextureManager — compilato con stub Raylib (funziona anche senza GPU).
@@ -154,11 +158,11 @@ target_compile_definitions(dialog_parser_test
 # ============================================================================
 add_executable(texture_manager_test
     texture-manager-test.cpp
-    ${CMAKE_SOURCE_DIR}/src/modules/texture-manager/src/texture-manager.cpp
+    ${ARTCADE_RUNTIME_ROOT}/src/modules/texture-manager/src/texture-manager.cpp
     stubs/raylib-stub.cpp
 )
 target_include_directories(texture_manager_test PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
+    ${ARTCADE_RUNTIME_ROOT}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/stubs   # stub/raylib.h ha priorità sul vero raylib.h
 )
 add_test(NAME texture_manager_test COMMAND texture_manager_test)
@@ -223,9 +227,9 @@ if(ARTCADE_HAS_RAYLIB AND ARTCADE_HAS_LUA)
         scene-mutation-geometry-test.cpp
     )
     target_include_directories(scene_mutation_geometry_test PRIVATE
-        ${CMAKE_SOURCE_DIR}/src
-        ${CMAKE_SOURCE_DIR}/src/modules/renderer/include
-        ${CMAKE_SOURCE_DIR}/src/modules/presentation/include
+        ${ARTCADE_RUNTIME_ROOT}/src
+        ${ARTCADE_RUNTIME_ROOT}/src/modules/renderer/include
+        ${ARTCADE_RUNTIME_ROOT}/src/modules/presentation/include
     )
     target_link_libraries(scene_mutation_geometry_test PRIVATE
         artcade-renderer
@@ -239,15 +243,15 @@ if(ARTCADE_HAS_RAYLIB AND ARTCADE_HAS_LUA)
 
     add_executable(frame_coordinator_test
         frame-coordinator-test.cpp
-        ${CMAKE_SOURCE_DIR}/src/app/render/frame_coordinator.cpp
-        ${CMAKE_SOURCE_DIR}/src/app/render/scene_frame_builder.cpp
+        ${ARTCADE_RUNTIME_ROOT}/src/app/render/frame_coordinator.cpp
+        ${ARTCADE_RUNTIME_ROOT}/src/app/render/scene_frame_builder.cpp
     )
     target_include_directories(frame_coordinator_test PRIVATE
-        ${CMAKE_SOURCE_DIR}/src
-        ${CMAKE_SOURCE_DIR}/src/app/render
-        ${CMAKE_SOURCE_DIR}/src/modules/renderer/include
-        ${CMAKE_SOURCE_DIR}/src/modules/presentation/include
-        ${CMAKE_SOURCE_DIR}/src/modules/editor-api/include
+        ${ARTCADE_RUNTIME_ROOT}/src
+        ${ARTCADE_RUNTIME_ROOT}/src/app/render
+        ${ARTCADE_RUNTIME_ROOT}/src/modules/renderer/include
+        ${ARTCADE_RUNTIME_ROOT}/src/modules/presentation/include
+        ${ARTCADE_RUNTIME_ROOT}/src/modules/editor-api/include
     )
     target_link_libraries(frame_coordinator_test PRIVATE
         artcade-renderer
@@ -259,12 +263,12 @@ if(ARTCADE_HAS_RAYLIB AND ARTCADE_HAS_LUA)
 
     add_executable(scene_frame_snapshot_test
         scene-frame-snapshot-test.cpp
-        ${CMAKE_SOURCE_DIR}/src/app/render/scene_frame_builder.cpp
+        ${ARTCADE_RUNTIME_ROOT}/src/app/render/scene_frame_builder.cpp
     )
     target_include_directories(scene_frame_snapshot_test PRIVATE
-        ${CMAKE_SOURCE_DIR}/src
-        ${CMAKE_SOURCE_DIR}/src/app/render
-        ${CMAKE_SOURCE_DIR}/src/modules/presentation/include
+        ${ARTCADE_RUNTIME_ROOT}/src
+        ${ARTCADE_RUNTIME_ROOT}/src/app/render
+        ${ARTCADE_RUNTIME_ROOT}/src/modules/presentation/include
     )
     target_link_libraries(scene_frame_snapshot_test PRIVATE
         artcade-presentation
@@ -301,9 +305,9 @@ artcade_test(world_tilemap_collision_test
 
 add_executable(artcade_package_test artcade-package-test.cpp)
 target_include_directories(artcade_package_test PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/modules/asset-system/include
-    ${CMAKE_SOURCE_DIR}/src/modules/asset-system/src)
+    ${ARTCADE_RUNTIME_ROOT}/src
+    ${ARTCADE_RUNTIME_ROOT}/src/modules/asset-system/include
+    ${ARTCADE_RUNTIME_ROOT}/src/modules/asset-system/src)
 target_link_libraries(artcade_package_test PRIVATE artcade-asset-system)
 add_test(NAME artcade_package_test COMMAND artcade_package_test)
 
@@ -311,8 +315,8 @@ add_test(NAME artcade_package_test COMMAND artcade_package_test)
     if(ARTCADE_HAS_CRYPTO)
         add_executable(artcade_crypto_test artcade-crypto-test.cpp)
         target_include_directories(artcade_crypto_test PRIVATE
-            ${CMAKE_SOURCE_DIR}/src/modules/asset-system/include
-            ${CMAKE_SOURCE_DIR}/libs/monocypher
+            ${ARTCADE_RUNTIME_ROOT}/src/modules/asset-system/include
+            ${ARTCADE_RUNTIME_ROOT}/libs/monocypher
             ${ARTCADE_GENERATED_INCLUDE_DIR})
         target_compile_definitions(artcade_crypto_test PRIVATE ARTCADE_HAS_CRYPTO=1)
         target_link_libraries(artcade_crypto_test PRIVATE artcade-asset-system monocypher)

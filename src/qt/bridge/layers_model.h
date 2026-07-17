@@ -1,7 +1,7 @@
 /**
- * Render-layer rows derived from EditorCoordinator::document().layers.
- * Visibility comes from the active scene's layerSettings.
- * Not a second ProjectDoc — reload after open / layer commands.
+ * Render-layer rows derived from the active scene's SceneDef.layers.
+ * Eye visibility is workspace-only (hiddenLayerIds); lock comes from SceneLayerDef.
+ * Not a second ProjectDoc — reload after open / scene change / Command / workspace hide.
  */
 #pragma once
 
@@ -28,6 +28,7 @@ public:
         VisibleRole,
         LockedRole,
         ActiveRole,
+        IsDefaultRole,
     };
 
     explicit LayersModel(QObject *parent = nullptr);
@@ -46,6 +47,7 @@ private:
         bool visible = true;
         bool locked = false;
         bool active = false;
+        bool isDefault = false;
     };
 
     ArtCade::EditorCore::EditorCoordinator *m_coordinator = nullptr;

@@ -125,8 +125,8 @@ void draw(Modules::Renderer& renderer,
     const auto& layers = tilemapLayers ? *tilemapLayers : kEmptyLayers;
 
     if (!layers.empty() && !layerStack.empty()) {
-        for (int i = static_cast<int>(layerStack.size()) - 1; i >= 0; --i) {
-            const auto& layer = layerStack[static_cast<size_t>(i)];
+        // SceneDef.layers: index 0 = background → draw first; last = foreground.
+        for (const auto& layer : layerStack) {
             SceneLayerSettings settings;
             const auto sit = layerSettings.find(layer.id);
             if (sit != layerSettings.end()) settings = sit->second;
