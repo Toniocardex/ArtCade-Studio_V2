@@ -301,6 +301,7 @@ void SetLogicRulePrimaryActionCommand::execute(ProjectDoc &doc)
     if (next.typeId.empty()) {
         return;
     }
+    ArtCade::Logic::applyDeterministicVariableDefault(doc, next);
     if (!m_captured) {
         m_had_action = !rule->actions.empty();
         if (m_had_action) {
@@ -414,6 +415,7 @@ void SetLogicRulePrimaryConditionCommand::execute(ProjectDoc &doc)
     if (next.typeId.empty()) {
         return;
     }
+    ArtCade::Logic::applyDeterministicVariableDefault(doc, next);
     if (!m_captured) {
         m_had_condition = !rule->conditions.empty();
         if (m_had_condition) {

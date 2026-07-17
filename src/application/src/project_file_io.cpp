@@ -9,6 +9,7 @@
 
 #include <fstream>
 #include <nlohmann/json.hpp>
+#include <variant>
 
 namespace ArtCade::EditorCore {
 namespace {
@@ -342,6 +343,29 @@ bool project_file_io_save(const std::string &project_json_path,
         {"pixelsPerMeter", doc.world.pixelsPerMeter},
         {"timeScale", doc.world.timeScale},
     };
+
+    nlohmann::json global_variables = nlohmann::json::array();
+    for (const GameVariableDefinition &def : doc.globalVariables) {
+        nlohmann::json item;
+        item["key"] = def.key;
+        switch (def.type) {
+        case GameVariableDefinition::Type::Number:
+            item["type"] = "number";
+            item["initialValue"] = std::get<double>(def.initialValue);
+            break;
+        case GameVariableDefinition::Type::Boolean:
+            item["type"] = "boolean";
+            item["initialValue"] = std::get<bool>(def.initialValue);
+            break;
+        case GameVariableDefinition::Type::String:
+            item["type"] = "string";
+            item["initialValue"] = std::get<std::string>(def.initialValue);
+            break;
+        }
+        if (!def.description.empty()) item["description"] = def.description;
+        global_variables.push_back(std::move(item));
+    }
+    root["globalVariables"] = std::move(global_variables);
 
     std::ofstream file(project_json_path);
     if (!file) {

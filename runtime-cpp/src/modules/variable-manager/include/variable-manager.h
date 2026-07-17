@@ -13,17 +13,37 @@
 namespace ArtCade::Modules {
 
 /**
+ * Outcome of a global variable mutation through VariableManager.
+ * Callers must not treat computed values as applied unless accepted().
+ */
+enum class VariableMutationStatus {
+    Changed,
+    Unchanged,
+    MissingVariable,
+    TypeMismatch,
+    NonFiniteValue
+};
+
+struct VariableMutationResult {
+    VariableMutationStatus status = VariableMutationStatus::MissingVariable;
+    GameVariableValue before = 0.0;
+    GameVariableValue after = 0.0;
+
+    [[nodiscard]] bool accepted() const {
+        return status == VariableMutationStatus::Changed
+            || status == VariableMutationStatus::Unchanged;
+    }
+    [[nodiscard]] bool changed() const {
+        return status == VariableMutationStatus::Changed;
+    }
+};
+
+/**
  * VariableManager — typed global variable store.
  *
- * Stores int32, float, bool and string values under string keys.
- * Supports:
- *   - get / set / add / toggle helpers
- *   - optional default fallback for get
- *   - change observers (key-specific callbacks fired on set)
- *   - snapshot / restore for checkpoint or undo support
- *
- * Intended as the single source of truth for game-wide state
- * (score, lives, flags, dialogue counters, …).
+ * Materializes only definitions from ProjectDoc.globalVariables (via
+ * configureGlobals). Does not create keys implicitly. Mutations return
+ * VariableMutationResult; observers fire only on Changed.
  */
 class VariableManager final : public IModule {
 public:
@@ -33,7 +53,7 @@ public:
     void shutdown() override;
 
     using Value    = GameVariableValue;
-    using Observer = std::function<void(const std::string& key, const Value& newVal)>;
+    using Observer = std::function<void(const GameVariableId& key, const Value& newVal)>;
     using ObsToken = uint32_t;
     using Snapshot = std::unordered_map<std::string, Value>;
     using EntitySnapshot = std::unordered_map<EntityId, Snapshot>;
@@ -43,65 +63,82 @@ public:
         EntitySnapshot entities;
     };
 
+    /** Replaces materialized globals with validated ProjectDoc definitions. */
     void configureGlobals(const std::vector<GameVariableDefinition>& definitions);
+    /** Creates typed local storage for @p id from object-type definitions and overrides. */
     void createEntity(EntityId id,
                       const std::vector<GameVariableDefinition>& definitions,
                       const Snapshot& overrides = {});
+    /** Destroys every local variable belonging to @p id. */
     void destroyEntity(EntityId id);
 
     // ------------------------------------------------------------------ get
 
-    // Returns the stored value or defaultVal if key is absent
-    Value       get(const std::string& key, const Value& defaultVal = {}) const;
-    int32_t     getInt  (const std::string& key, int32_t     def = 0)     const;
-    float       getFloat(const std::string& key, float       def = 0.f)   const;
-    bool        getBool (const std::string& key, bool        def = false)  const;
-    std::string getString(const std::string& key, std::string def = "")   const;
+    /** Returns a global value, or @p defaultVal when the key is absent. */
+    Value get(const GameVariableId& key, const Value& defaultVal = {}) const;
+    /** Converts a Number global to int, or returns @p def when unavailable. */
+    int32_t getInt(const GameVariableId& key, int32_t def = 0) const;
+    /** Converts a Number global to float, or returns @p def when unavailable. */
+    float getFloat(const GameVariableId& key, float def = 0.f) const;
+    /** Returns a Boolean global, or @p def when unavailable. */
+    bool getBool(const GameVariableId& key, bool def = false) const;
+    /** Returns a String global, or @p def when unavailable. */
+    std::string getString(const GameVariableId& key, std::string def = "") const;
 
-    bool exists(const std::string& key) const;
-    bool entityExists(EntityId id, const std::string& key) const;
-    Value getEntity(EntityId id, const std::string& key) const;
-
-    // ------------------------------------------------------------------ set
-
-    void set(const std::string& key, const Value& value);
-    void setInt   (const std::string& key, int32_t     v);
-    void setFloat (const std::string& key, float       v);
-    void setBool  (const std::string& key, bool        v);
-    void setString(const std::string& key, std::string v);
-    bool setEntity(EntityId id, const std::string& key, const Value& value);
-
-    // Convenience: increment int / float by delta; clamps between min and max if provided
-    int32_t addInt  (const std::string& key, int32_t  delta,
-                     std::optional<int32_t> min = {}, std::optional<int32_t> max = {});
-    float   addFloat(const std::string& key, float    delta,
-                     std::optional<float>   min = {}, std::optional<float>   max = {});
-    std::optional<double> addEntity(EntityId id, const std::string& key, double delta);
+    /** Returns whether a catalog global key is materialized. */
+    bool exists(const GameVariableId& key) const;
+    /** Returns whether @p id owns a local variable @p key. */
+    bool entityExists(EntityId id, const GameVariableId& key) const;
+    /** Returns a local value, or Number zero when the entity/key is unavailable. */
+    Value getEntity(EntityId id, const GameVariableId& key) const;
 
     /**
-     * Ensures @p key is a Number global (registers type + 0 initial if absent).
-     * No-op if the key already exists with a compatible Number type.
-     * @return false if the key exists as a non-Number type
+     * Declared type of a materialized global, or nullopt if missing.
      */
-    bool ensureNumber(const std::string& key);
+    std::optional<GameVariableDefinition::Type> globalType(const GameVariableId& id) const;
 
-    // Toggle a bool variable (false → true → false …)
-    bool toggle(const std::string& key);
+    /**
+     * Number value if the key exists and is Number; otherwise nullopt.
+     */
+    std::optional<double> tryGetNumber(const GameVariableId& id) const;
 
-    void remove(const std::string& key);
+    // ------------------------------------------------------------------ set (strict)
+
+    /** Strictly sets a declared global and reports whether it was accepted. */
+    VariableMutationResult setGlobal(const GameVariableId& id, const Value& value);
+    /** Strictly adds a finite delta to a declared Number global. */
+    VariableMutationResult addNumber(const GameVariableId& id, double delta);
+    /** Strictly toggles a declared Boolean global. */
+    VariableMutationResult toggleBoolean(const GameVariableId& id);
+
+    /** Strictly changes a typed local variable. */
+    bool setEntity(EntityId id, const GameVariableId& key, const Value& value);
+    /** Adds a finite delta to a local Number, or returns nullopt on rejection. */
+    std::optional<double> addEntity(EntityId id, const GameVariableId& key, double delta);
+
+    /** Removes one global key and its catalog type. */
+    void remove(const GameVariableId& key);
+    /** Clears all global and local variable state. */
     void clear();
 
     // ------------------------------------------------------------------ observe
 
-    ObsToken observe(const std::string& key, Observer cb);
+    /** Subscribes to changed values for @p key and returns a cancellation token. */
+    ObsToken observe(const GameVariableId& key, Observer cb);
+    /** Cancels a previously returned observation token. */
     void     stopObserving(ObsToken token);
 
     // ------------------------------------------------------------------ snapshot
 
+    /** Captures all current globals. */
     Snapshot takeSnapshot() const;
+    /** Captures local values for one entity. */
     Snapshot takeEntitySnapshot(EntityId id) const;
+    /** Restores matching globals through strict mutation checks. */
     void     restoreSnapshot(const Snapshot& snap);
+    /** Captures globals and local values for persistent entities. */
     GameSnapshot takeGameSnapshot(const std::vector<EntityId>& persistentIds) const;
+    /** Restores an exact catalog-compatible gameplay snapshot. */
     bool restoreGameSnapshot(const GameSnapshot& snapshot,
                              const std::vector<EntityId>& persistentIds);
 
@@ -114,14 +151,16 @@ private:
 
     struct ObsEntry {
         ObsToken token;
-        std::string key;
+        GameVariableId key;
         Observer    cb;
     };
     std::vector<ObsEntry> observers_;
     ObsToken nextToken_ = 1;
 
-    void notifyObservers(const std::string& key, const Value& val);
+    void notifyObservers(const GameVariableId& key, const Value& val);
     static bool valueMatchesType(const Value& value, GameVariableDefinition::Type type);
+    static bool valuesEqual(const Value& a, const Value& b);
+    static bool isFiniteNumber(const Value& value);
 };
 
 } // namespace ArtCade::Modules

@@ -55,8 +55,10 @@ if(ARTCADE_BUILD_TESTS)
     add_executable(artcade_scene_view_input_test
         ${CMAKE_SOURCE_DIR}/tests/qt/scene_view_input_test.cpp
         bridge/editor_session.cpp
+        bridge/editor_session_variables.cpp
         bridge/hierarchy_model.cpp
         bridge/layers_model.cpp
+        bridge/variables_model.cpp
         bridge/assets_model.cpp
         bridge/logic_catalog_model.cpp
         bridge/logic_catalog_metadata.cpp
@@ -169,6 +171,7 @@ set(ARTCADE_QML_FILES
     ../../qml/ArtCade/Shell/ProjectHome.qml
     ../../qml/ArtCade/Shell/ViewportPlaceholder.qml
     ../../qml/ArtCade/Shell/LogicBoardView.qml
+    ../../qml/ArtCade/Shell/AcProjectVariablesPanel.qml
     ../../qml/ArtCade/Shell/InspectorPane.qml
     ../../qml/ArtCade/Shell/ConsolePane.qml
     ../../qml/ArtCade/Shell/StatusBar.qml
@@ -224,6 +227,7 @@ set_source_files_properties(../../qml/ArtCade/Shell/LeftSidebar.qml PROPERTIES Q
 set_source_files_properties(../../qml/ArtCade/Shell/ProjectHome.qml PROPERTIES QT_RESOURCE_ALIAS "Shell/ProjectHome.qml")
 set_source_files_properties(../../qml/ArtCade/Shell/ViewportPlaceholder.qml PROPERTIES QT_RESOURCE_ALIAS "Shell/ViewportPlaceholder.qml")
 set_source_files_properties(../../qml/ArtCade/Shell/LogicBoardView.qml PROPERTIES QT_RESOURCE_ALIAS "Shell/LogicBoardView.qml")
+set_source_files_properties(../../qml/ArtCade/Shell/AcProjectVariablesPanel.qml PROPERTIES QT_RESOURCE_ALIAS "Shell/AcProjectVariablesPanel.qml")
 set_source_files_properties(../../qml/ArtCade/Shell/InspectorPane.qml PROPERTIES QT_RESOURCE_ALIAS "Shell/InspectorPane.qml")
 set_source_files_properties(../../qml/ArtCade/Shell/ConsolePane.qml PROPERTIES QT_RESOURCE_ALIAS "Shell/ConsolePane.qml")
 set_source_files_properties(../../qml/ArtCade/Shell/StatusBar.qml PROPERTIES QT_RESOURCE_ALIAS "Shell/StatusBar.qml")
@@ -275,10 +279,13 @@ qt_add_qml_module(artcade-editor-qt
     SOURCES
         bridge/editor_session.h
         bridge/editor_session.cpp
+        bridge/editor_session_variables.cpp
         bridge/hierarchy_model.h
         bridge/hierarchy_model.cpp
         bridge/layers_model.h
         bridge/layers_model.cpp
+        bridge/variables_model.h
+        bridge/variables_model.cpp
         bridge/assets_model.h
         bridge/assets_model.cpp
         bridge/logic_catalog_model.h
@@ -338,6 +345,7 @@ set(ARTCADE_QML_LINT_FILES
     ${ARTCADE_QML_ROOT}/Shell/ProjectHome.qml
     ${ARTCADE_QML_ROOT}/Shell/ViewportPlaceholder.qml
     ${ARTCADE_QML_ROOT}/Shell/LogicBoardView.qml
+    ${ARTCADE_QML_ROOT}/Shell/AcProjectVariablesPanel.qml
     ${ARTCADE_QML_ROOT}/Shell/InspectorPane.qml
     ${ARTCADE_QML_ROOT}/Shell/ConsolePane.qml
     ${ARTCADE_QML_ROOT}/Shell/StatusBar.qml

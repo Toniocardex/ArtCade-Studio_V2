@@ -299,6 +299,13 @@ artcade_test(world_tilemap_collision_test
         runtime-logic-host-parity-test.cpp
         "artcade-world;artcade-scene-system;artcade-runtime-entity-gateway;artcade-physics;artcade-variable-manager;artcade-sprite-animator")
 
+    artcade_test(game_api_state_test
+        game-api-state-test.cpp
+        "artcade-game-api;artcade-variable-manager;artcade-camera-manager")
+    target_include_directories(game_api_state_test PRIVATE
+        ${ARTCADE_RUNTIME_ROOT}/libs/lua-5.4/src)
+    target_link_libraries(game_api_state_test PRIVATE lua54)
+
 add_executable(artcade_package_test artcade-package-test.cpp)
 target_include_directories(artcade_package_test PRIVATE
     ${ARTCADE_RUNTIME_ROOT}/src

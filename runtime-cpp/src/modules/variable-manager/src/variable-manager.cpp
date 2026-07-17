@@ -1,6 +1,6 @@
 #include "../include/variable-manager.h"
 
-#include <algorithm>
+#include <cmath>
 
 namespace ArtCade::Modules {
 
@@ -26,6 +26,19 @@ bool VariableManager::valueMatchesType(
     return false;
 }
 
+bool VariableManager::valuesEqual(const Value& a, const Value& b) {
+    if (a.index() != b.index()) return false;
+    if (const auto* da = std::get_if<double>(&a)) return *da == std::get<double>(b);
+    if (const auto* ba = std::get_if<bool>(&a)) return *ba == std::get<bool>(b);
+    if (const auto* sa = std::get_if<std::string>(&a)) return *sa == std::get<std::string>(b);
+    return false;
+}
+
+bool VariableManager::isFiniteNumber(const Value& value) {
+    const auto* number = std::get_if<double>(&value);
+    return number && std::isfinite(*number);
+}
+
 void VariableManager::configureGlobals(
     const std::vector<GameVariableDefinition>& definitions) {
     vars_.clear();
@@ -33,6 +46,8 @@ void VariableManager::configureGlobals(
     for (const auto& def : definitions) {
         if (def.key.empty() || globalTypes_.count(def.key)
             || !valueMatchesType(def.initialValue, def.type)) continue;
+        if (def.type == GameVariableDefinition::Type::Number
+            && !isFiniteNumber(def.initialValue)) continue;
         globalTypes_[def.key] = def.type;
         vars_[def.key] = def.initialValue;
     }
@@ -47,12 +62,18 @@ void VariableManager::createEntity(
     for (const auto& def : definitions) {
         if (def.key.empty() || types.count(def.key)
             || !valueMatchesType(def.initialValue, def.type)) continue;
+        if (def.type == GameVariableDefinition::Type::Number
+            && !isFiniteNumber(def.initialValue)) continue;
         types[def.key] = def.type;
         auto overrideIt = overrides.find(def.key);
-        values[def.key] = overrideIt != overrides.end()
+        Value chosen = def.initialValue;
+        if (overrideIt != overrides.end()
             && valueMatchesType(overrideIt->second, def.type)
-            ? overrideIt->second
-            : def.initialValue;
+            && (def.type != GameVariableDefinition::Type::Number
+                || isFiniteNumber(overrideIt->second))) {
+            chosen = overrideIt->second;
+        }
+        values[def.key] = chosen;
     }
     entityTypes_[id] = std::move(types);
     entityVars_[id] = std::move(values);
@@ -64,117 +85,175 @@ void VariableManager::destroyEntity(EntityId id) {
 }
 
 VariableManager::Value VariableManager::get(
-    const std::string& key, const Value& defaultVal) const {
+    const GameVariableId& key, const Value& defaultVal) const {
     auto it = vars_.find(key);
     return it != vars_.end() ? it->second : defaultVal;
 }
 
-int32_t VariableManager::getInt(const std::string& key, int32_t def) const {
+int32_t VariableManager::getInt(const GameVariableId& key, int32_t def) const {
     auto it = vars_.find(key);
     return it != vars_.end() && std::holds_alternative<double>(it->second)
         ? static_cast<int32_t>(std::get<double>(it->second)) : def;
 }
 
-float VariableManager::getFloat(const std::string& key, float def) const {
+float VariableManager::getFloat(const GameVariableId& key, float def) const {
     auto it = vars_.find(key);
     return it != vars_.end() && std::holds_alternative<double>(it->second)
         ? static_cast<float>(std::get<double>(it->second)) : def;
 }
 
-bool VariableManager::getBool(const std::string& key, bool def) const {
+bool VariableManager::getBool(const GameVariableId& key, bool def) const {
     auto it = vars_.find(key);
     return it != vars_.end() && std::holds_alternative<bool>(it->second)
         ? std::get<bool>(it->second) : def;
 }
 
-std::string VariableManager::getString(const std::string& key, std::string def) const {
+std::string VariableManager::getString(const GameVariableId& key, std::string def) const {
     auto it = vars_.find(key);
     return it != vars_.end() && std::holds_alternative<std::string>(it->second)
         ? std::get<std::string>(it->second) : def;
 }
 
-bool VariableManager::exists(const std::string& key) const { return vars_.count(key) != 0; }
+bool VariableManager::exists(const GameVariableId& key) const {
+    return vars_.count(key) != 0;
+}
 
-bool VariableManager::entityExists(EntityId id, const std::string& key) const {
+bool VariableManager::entityExists(EntityId id, const GameVariableId& key) const {
     auto it = entityVars_.find(id);
     return it != entityVars_.end() && it->second.count(key) != 0;
 }
 
-VariableManager::Value VariableManager::getEntity(EntityId id, const std::string& key) const {
+VariableManager::Value VariableManager::getEntity(
+    EntityId id, const GameVariableId& key) const {
     auto entityIt = entityVars_.find(id);
     if (entityIt == entityVars_.end()) return 0.0;
     auto valueIt = entityIt->second.find(key);
     return valueIt != entityIt->second.end() ? valueIt->second : Value{0.0};
 }
 
-void VariableManager::set(const std::string& key, const Value& value) {
-    auto typeIt = globalTypes_.find(key);
-    if (typeIt == globalTypes_.end() || !valueMatchesType(value, typeIt->second)) return;
-    vars_[key] = value;
-    notifyObservers(key, value);
+std::optional<GameVariableDefinition::Type> VariableManager::globalType(
+    const GameVariableId& id) const {
+    auto it = globalTypes_.find(id);
+    if (it == globalTypes_.end()) return std::nullopt;
+    return it->second;
 }
 
-void VariableManager::setInt(const std::string& key, int32_t value) { set(key, static_cast<double>(value)); }
-void VariableManager::setFloat(const std::string& key, float value) { set(key, static_cast<double>(value)); }
-void VariableManager::setBool(const std::string& key, bool value) { set(key, value); }
-void VariableManager::setString(const std::string& key, std::string value) { set(key, std::move(value)); }
+std::optional<double> VariableManager::tryGetNumber(const GameVariableId& id) const {
+    auto typeIt = globalTypes_.find(id);
+    if (typeIt == globalTypes_.end()
+        || typeIt->second != GameVariableDefinition::Type::Number) {
+        return std::nullopt;
+    }
+    auto valueIt = vars_.find(id);
+    if (valueIt == vars_.end() || !std::holds_alternative<double>(valueIt->second)) {
+        return std::nullopt;
+    }
+    return std::get<double>(valueIt->second);
+}
 
-bool VariableManager::setEntity(EntityId id, const std::string& key, const Value& value) {
+VariableMutationResult VariableManager::setGlobal(
+    const GameVariableId& id, const Value& value) {
+    VariableMutationResult result;
+    auto typeIt = globalTypes_.find(id);
+    if (typeIt == globalTypes_.end() || vars_.count(id) == 0) {
+        result.status = VariableMutationStatus::MissingVariable;
+        return result;
+    }
+    result.before = vars_[id];
+    if (!valueMatchesType(value, typeIt->second)) {
+        result.status = VariableMutationStatus::TypeMismatch;
+        result.after = result.before;
+        return result;
+    }
+    if (typeIt->second == GameVariableDefinition::Type::Number
+        && !isFiniteNumber(value)) {
+        result.status = VariableMutationStatus::NonFiniteValue;
+        result.after = result.before;
+        return result;
+    }
+    if (valuesEqual(result.before, value)) {
+        result.status = VariableMutationStatus::Unchanged;
+        result.after = result.before;
+        return result;
+    }
+    vars_[id] = value;
+    result.after = value;
+    result.status = VariableMutationStatus::Changed;
+    notifyObservers(id, value);
+    return result;
+}
+
+VariableMutationResult VariableManager::addNumber(
+    const GameVariableId& id, double delta) {
+    VariableMutationResult result;
+    auto typeIt = globalTypes_.find(id);
+    if (typeIt == globalTypes_.end() || vars_.count(id) == 0) {
+        result.status = VariableMutationStatus::MissingVariable;
+        return result;
+    }
+    result.before = vars_[id];
+    if (typeIt->second != GameVariableDefinition::Type::Number
+        || !std::holds_alternative<double>(result.before)) {
+        result.status = VariableMutationStatus::TypeMismatch;
+        result.after = result.before;
+        return result;
+    }
+    if (!std::isfinite(delta)) {
+        result.status = VariableMutationStatus::NonFiniteValue;
+        result.after = result.before;
+        return result;
+    }
+    const double next = std::get<double>(result.before) + delta;
+    if (!std::isfinite(next)) {
+        result.status = VariableMutationStatus::NonFiniteValue;
+        result.after = result.before;
+        return result;
+    }
+    return setGlobal(id, next);
+}
+
+VariableMutationResult VariableManager::toggleBoolean(const GameVariableId& id) {
+    VariableMutationResult result;
+    auto typeIt = globalTypes_.find(id);
+    if (typeIt == globalTypes_.end() || vars_.count(id) == 0) {
+        result.status = VariableMutationStatus::MissingVariable;
+        return result;
+    }
+    result.before = vars_[id];
+    if (typeIt->second != GameVariableDefinition::Type::Boolean
+        || !std::holds_alternative<bool>(result.before)) {
+        result.status = VariableMutationStatus::TypeMismatch;
+        result.after = result.before;
+        return result;
+    }
+    return setGlobal(id, !std::get<bool>(result.before));
+}
+
+bool VariableManager::setEntity(
+    EntityId id, const GameVariableId& key, const Value& value) {
     auto entityTypeIt = entityTypes_.find(id);
     if (entityTypeIt == entityTypes_.end()) return false;
     auto typeIt = entityTypeIt->second.find(key);
-    if (typeIt == entityTypeIt->second.end() || !valueMatchesType(value, typeIt->second)) return false;
+    if (typeIt == entityTypeIt->second.end() || !valueMatchesType(value, typeIt->second))
+        return false;
+    if (typeIt->second == GameVariableDefinition::Type::Number && !isFiniteNumber(value))
+        return false;
     entityVars_[id][key] = value;
     return true;
 }
 
-int32_t VariableManager::addInt(const std::string& key, int32_t delta,
-                                std::optional<int32_t> min,
-                                std::optional<int32_t> max) {
-    double value = getFloat(key, 0.f) + delta;
-    if (min) value = std::max(value, static_cast<double>(*min));
-    if (max) value = std::min(value, static_cast<double>(*max));
-    set(key, value);
-    return static_cast<int32_t>(value);
-}
-
-float VariableManager::addFloat(const std::string& key, float delta,
-                                std::optional<float> min,
-                                std::optional<float> max) {
-    double value = getFloat(key, 0.f) + delta;
-    if (min) value = std::max(value, static_cast<double>(*min));
-    if (max) value = std::min(value, static_cast<double>(*max));
-    set(key, value);
-    return static_cast<float>(value);
-}
-
-bool VariableManager::ensureNumber(const std::string& key) {
-    if (key.empty()) return false;
-    const auto typeIt = globalTypes_.find(key);
-    if (typeIt != globalTypes_.end()) {
-        return typeIt->second == GameVariableDefinition::Type::Number;
-    }
-    globalTypes_[key] = GameVariableDefinition::Type::Number;
-    vars_[key] = 0.0;
-    return true;
-}
-
 std::optional<double> VariableManager::addEntity(
-    EntityId id, const std::string& key, double delta) {
+    EntityId id, const GameVariableId& key, double delta) {
     if (!entityExists(id, key)) return std::nullopt;
+    if (!std::isfinite(delta)) return std::nullopt;
     const Value current = getEntity(id, key);
     if (!std::holds_alternative<double>(current)) return std::nullopt;
     const double next = std::get<double>(current) + delta;
+    if (!std::isfinite(next)) return std::nullopt;
     return setEntity(id, key, next) ? std::optional<double>{next} : std::nullopt;
 }
 
-bool VariableManager::toggle(const std::string& key) {
-    const bool next = !getBool(key, false);
-    set(key, next);
-    return next;
-}
-
-void VariableManager::remove(const std::string& key) {
+void VariableManager::remove(const GameVariableId& key) {
     vars_.erase(key);
     globalTypes_.erase(key);
 }
@@ -186,7 +265,8 @@ void VariableManager::clear() {
     entityTypes_.clear();
 }
 
-VariableManager::ObsToken VariableManager::observe(const std::string& key, Observer cb) {
+VariableManager::ObsToken VariableManager::observe(
+    const GameVariableId& key, Observer cb) {
     const ObsToken token = nextToken_++;
     observers_.push_back({token, key, std::move(cb)});
     return token;
@@ -197,7 +277,7 @@ void VariableManager::stopObserving(ObsToken token) {
         [token](const ObsEntry& entry) { return entry.token == token; }), observers_.end());
 }
 
-void VariableManager::notifyObservers(const std::string& key, const Value& value) {
+void VariableManager::notifyObservers(const GameVariableId& key, const Value& value) {
     for (auto& entry : observers_) if (entry.key == key) entry.cb(key, value);
 }
 
@@ -209,7 +289,9 @@ VariableManager::Snapshot VariableManager::takeEntitySnapshot(EntityId id) const
 }
 
 void VariableManager::restoreSnapshot(const Snapshot& snapshot) {
-    for (const auto& [key, value] : snapshot) set(key, value);
+    for (const auto& [key, value] : snapshot) {
+        (void)setGlobal(key, value);
+    }
 }
 
 VariableManager::GameSnapshot VariableManager::takeGameSnapshot(
@@ -224,18 +306,17 @@ VariableManager::GameSnapshot VariableManager::takeGameSnapshot(
 
 bool VariableManager::restoreGameSnapshot(
     const GameSnapshot& snapshot, const std::vector<EntityId>& persistentIds) {
-    // Project-defined globals must be present. Extra Number keys created at
-    // runtime (Logic Board ensureNumber) are accepted and re-registered.
+    // Only catalog keys are accepted — no implicit Number registration.
+    if (snapshot.globals.size() != globalTypes_.size()) return false;
     for (const auto& [key, _] : globalTypes_) {
         if (snapshot.globals.count(key) == 0) return false;
     }
     for (const auto& [key, value] : snapshot.globals) {
         auto typeIt = globalTypes_.find(key);
-        if (typeIt == globalTypes_.end()) {
-            if (!std::holds_alternative<double>(value) || !ensureNumber(key)) return false;
-            continue;
-        }
+        if (typeIt == globalTypes_.end()) return false;
         if (!valueMatchesType(value, typeIt->second)) return false;
+        if (typeIt->second == GameVariableDefinition::Type::Number
+            && !isFiniteNumber(value)) return false;
     }
     for (EntityId id : persistentIds) {
         auto savedIt = snapshot.entities.find(id);
@@ -245,14 +326,21 @@ bool VariableManager::restoreGameSnapshot(
             || savedIt->second.size() != typesIt->second.size()) return false;
         for (const auto& [key, value] : savedIt->second) {
             auto typeIt = typesIt->second.find(key);
-            if (typeIt == typesIt->second.end() || !valueMatchesType(value, typeIt->second)) return false;
+            if (typeIt == typesIt->second.end() || !valueMatchesType(value, typeIt->second))
+                return false;
+            if (typeIt->second == GameVariableDefinition::Type::Number
+                && !isFiniteNumber(value)) return false;
         }
     }
-    for (const auto& [key, value] : snapshot.globals) set(key, value);
+    for (const auto& [key, value] : snapshot.globals) {
+        vars_[key] = value;
+    }
     for (EntityId id : persistentIds) {
         auto savedIt = snapshot.entities.find(id);
         if (savedIt == snapshot.entities.end()) continue;
-        for (const auto& [key, value] : savedIt->second) setEntity(id, key, value);
+        for (const auto& [key, value] : savedIt->second) {
+            entityVars_[id][key] = value;
+        }
     }
     return true;
 }

@@ -6,6 +6,7 @@
 
 #include <cctype>
 #include <optional>
+#include <stdexcept>
 #include <string_view>
 
 namespace ArtCade::ProjectJson {
@@ -200,15 +201,34 @@ void read_project_header(const nlohmann::json& doc, ProjectDoc& out) {
 }
 
 void read_global_variables(const nlohmann::json& doc, ProjectDoc& out) {
-    if (doc.contains("globalVariables"))
-        read_variable_definitions(doc["globalVariables"], out.globalVariables);
-    else
-        out.globalVariables.clear();
+    const nlohmann::json& raw = doc.at("globalVariables");
+    out.globalVariables.clear();
+    out.globalVariables.reserve(raw.size());
+    for (const nlohmann::json& item : raw) {
+        GameVariableDefinition definition;
+        definition.key = item.at("key").get<std::string>();
+        const std::string type = item.at("type").get<std::string>();
+        if (type == "number") {
+            definition.type = GameVariableDefinition::Type::Number;
+            definition.initialValue = item.at("initialValue").get<double>();
+        } else if (type == "boolean") {
+            definition.type = GameVariableDefinition::Type::Boolean;
+            definition.initialValue = item.at("initialValue").get<bool>();
+        } else if (type == "string") {
+            definition.type = GameVariableDefinition::Type::String;
+            definition.initialValue = item.at("initialValue").get<std::string>();
+        } else {
+            throw std::logic_error("validated global variable has unsupported type");
+        }
+        if (item.contains("description"))
+            definition.description = item.at("description").get<std::string>();
+        out.globalVariables.push_back(std::move(definition));
+    }
 }
 
 void read_scene_layers(const nlohmann::json& container, std::vector<SceneLayerDef>& out) {
     out.clear();
-    // container is a scene object — root ProjectDoc.layers was removed in formatVersion 6.
+    // Container is a scene object; layers are scoped to their SceneDef.
     if (!container.contains("layers") || !container["layers"].is_array())
         return;
 

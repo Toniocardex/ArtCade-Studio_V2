@@ -32,11 +32,17 @@ void GameAPI::bindStateAPI(sol::state& lua) {
     });
     lua.set_function("global_set", [variables](const std::string& key, const sol::object& value) {
         const auto converted = fromLua(value);
-        if (variables && converted) variables->set(key, *converted);
+        return variables && converted && variables->setGlobal(key, *converted).accepted();
     });
-    lua.set_function("global_add", [variables](const std::string& key, double amount) {
-        if (!variables || !variables->exists(key)) return 0.0;
-        return static_cast<double>(variables->addFloat(key, static_cast<float>(amount)));
+    lua.set_function("global_add", [variables](sol::this_state state,
+                                                 const std::string& key,
+                                                 double amount) -> sol::object {
+        sol::state_view lua(state);
+        if (!variables) return sol::make_object(lua, sol::lua_nil);
+        const auto result = variables->addNumber(key, amount);
+        if (!result.accepted() || !std::holds_alternative<double>(result.after))
+            return sol::make_object(lua, sol::lua_nil);
+        return sol::make_object(lua, std::get<double>(result.after));
     });
 
     lua.set_function("objectvar_get", [variables](sol::this_state state, EntityId id, const std::string& key) {

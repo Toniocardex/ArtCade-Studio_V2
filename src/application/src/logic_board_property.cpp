@@ -67,6 +67,7 @@ bool is_authorable_kind(ArtCade::Logic::LogicValueKind kind)
     case LogicValueKind::Key:
     case LogicValueKind::Vec2:
     case LogicValueKind::Asset:
+    case LogicValueKind::Variable:
         return true;
     default:
         return false;
@@ -91,6 +92,8 @@ std::string logic_value_kind_id(ArtCade::Logic::LogicValueKind kind)
         return "vec2";
     case LogicValueKind::Asset:
         return "asset";
+    case LogicValueKind::Variable:
+        return "variable";
     default:
         return "unknown";
     }
@@ -124,6 +127,9 @@ std::string logic_value_to_text(const LogicValue &value)
     if (std::holds_alternative<LogicAssetReference>(value)) {
         return std::get<LogicAssetReference>(value).id;
     }
+    if (std::holds_alternative<LogicVariableReference>(value)) {
+        return std::get<LogicVariableReference>(value).id;
+    }
     return {};
 }
 
@@ -156,6 +162,9 @@ bool logic_values_equal(const LogicValue &a, const LogicValue &b)
     }
     if (std::holds_alternative<LogicAssetReference>(a)) {
         return std::get<LogicAssetReference>(a).id == std::get<LogicAssetReference>(b).id;
+    }
+    if (std::holds_alternative<LogicVariableReference>(a)) {
+        return std::get<LogicVariableReference>(a).id == std::get<LogicVariableReference>(b).id;
     }
     return false;
 }
@@ -253,6 +262,10 @@ bool logic_value_parse(ArtCade::Logic::LogicValueKind kind,
     case LogicValueKind::Asset:
         // Empty id is a valid authoring draft; Executable validation gates Play.
         out = LogicAssetReference{text};
+        return true;
+    case LogicValueKind::Variable:
+        // Empty id is a valid authoring draft; Executable validation gates Play.
+        out = LogicVariableReference{text};
         return true;
     default:
         error_message = "Property kind is not editable yet";

@@ -24,6 +24,8 @@
 #include <QtGlobal>
 #include <algorithm>
 #include <cmath>
+#include <string>
+#include <vector>
 
 #ifndef ARTCADE_QT_SLICE_FIXTURE_PATH
 #define ARTCADE_QT_SLICE_FIXTURE_PATH ""
@@ -97,6 +99,22 @@ QVariantList logic_property_choices(const ArtCade::ProjectDoc &doc,
                        .localeAwareCompare(
                            b.toMap().value(QStringLiteral("label")).toString()) < 0;
         });
+    } else if ((block.typeId == ArtCade::Logic::kStateSet
+                || block.typeId == ArtCade::Logic::kStateAdd
+                || block.typeId == ArtCade::Logic::kStateSubtract
+                || block.typeId == ArtCade::Logic::kStateCompare
+                || block.typeId == ArtCade::Logic::kStateToggle)
+               && key == "key") {
+        const auto required = ArtCade::Logic::requiredVariableType(block.typeId);
+        if (!required) return choices;
+        std::vector<std::string> keys;
+        for (const ArtCade::GameVariableDefinition &def : doc.globalVariables) {
+            if (def.type == *required && !def.key.empty()) keys.push_back(def.key);
+        }
+        std::sort(keys.begin(), keys.end());
+        for (const std::string &id : keys) {
+            choices.append(logic_choice_entry(id, id));
+        }
     }
     return choices;
 }
@@ -135,6 +153,7 @@ EditorSession::EditorSession(QObject *parent)
     , m_coordinator(std::make_unique<ArtCade::EditorCore::EditorCoordinator>())
     , m_hierarchy(new HierarchyModel(this))
     , m_layers(new LayersModel(this))
+    , m_variables(new VariablesModel(this))
     , m_assets(new AssetsModel(this))
     , m_console(new ConsoleModel(this))
     , m_logicCatalog(new LogicCatalogModel(this))
@@ -144,6 +163,7 @@ EditorSession::EditorSession(QObject *parent)
 {
     m_hierarchy->setCoordinator(m_coordinator.get());
     m_layers->setCoordinator(m_coordinator.get());
+    m_variables->setCoordinator(m_coordinator.get());
     m_assets->setCoordinator(m_coordinator.get());
     m_logicCatalog->setCoordinator(m_coordinator.get());
     connect(m_play, &PlayProcessHost::stopped, this, &EditorSession::onPlayProcessStopped);
@@ -219,6 +239,11 @@ HierarchyModel *EditorSession::hierarchyModel() const
 LayersModel *EditorSession::layersModel() const
 {
     return m_layers;
+}
+
+VariablesModel *EditorSession::variablesModel() const
+{
+    return m_variables;
 }
 
 AssetsModel *EditorSession::assetsModel() const
@@ -661,6 +686,7 @@ void EditorSession::reloadDerivedModels()
 {
     m_hierarchy->reload();
     m_layers->reload();
+    m_variables->reload();
     m_assets->reload();
     refreshAssetSelectionCache();
     if (m_logicCatalog) {
@@ -772,7 +798,7 @@ void EditorSession::refreshSelectionCache()
                             const ArtCade::LogicRuleDef &rule = type.logicBoard->rules[rule_index];
                             const QString name = QString::fromStdString(rule.name);
                             const QString display_name = QString::fromStdString(
-                                ArtCade::EditorCore::logic_rule_display_name(rule, rule_index));
+                                ArtCade::EditorCore::logic_rule_display_name(rule));
                             m_logicRuleIds.append(QString::fromStdString(rule.id));
                             QStringList condition_ids;
                             for (const ArtCade::LogicBlockDef &block : rule.conditions) {
@@ -1997,8 +2023,39 @@ void EditorSession::paintSceneView(QPainter *painter, const SceneViewItem *view)
     const quint32 selected = m_coordinator->selectedEntityId();
     const float extent = ArtCade::EditorCore::EditorCoordinator::kSceneViewPlaceholderExtent;
     // Visual: scale then rotate about placeholder center. Pick stays AABB (no OBB).
+    // Draw order matches pick/runtime: SceneDef.layers index 0 = background (first),
+    // last = foreground (last). Same-layer ties keep instance-array order.
 
-    for (const ArtCade::SceneInstanceDef &inst : scene.instances) {
+    std::vector<std::size_t> draw_order;
+    draw_order.reserve(scene.instances.size());
+    for (std::size_t i = 0; i < scene.instances.size(); ++i) {
+        draw_order.push_back(i);
+    }
+    const auto layer_rank = [&scene](std::size_t instance_index) -> int {
+        const std::string &layer_id = scene.instances[instance_index].layerId;
+        if (layer_id.empty()) {
+            return 0;
+        }
+        const std::size_t layer_index =
+            ArtCade::EditorCore::EditorCoordinator::sceneLayerIndex(scene, layer_id);
+        if (layer_index == static_cast<std::size_t>(-1)) {
+            return 0;
+        }
+        return static_cast<int>(layer_index);
+    };
+    std::stable_sort(draw_order.begin(),
+                     draw_order.end(),
+                     [&](std::size_t a, std::size_t b) {
+                         const int rank_a = layer_rank(a);
+                         const int rank_b = layer_rank(b);
+                         if (rank_a != rank_b) {
+                             return rank_a < rank_b;
+                         }
+                         return a < b;
+                     });
+
+    for (const std::size_t instance_index : draw_order) {
+        const ArtCade::SceneInstanceDef &inst = scene.instances[instance_index];
         if (!inst.visible) {
             continue;
         }

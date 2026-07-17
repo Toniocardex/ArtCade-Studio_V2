@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <limits>
 
 #ifndef ARTCADE_QT_SLICE_FIXTURE_PATH
 #error ARTCADE_QT_SLICE_FIXTURE_PATH must be defined
@@ -89,6 +90,20 @@ int main(int argc, char *argv[])
     view.loseFocus();
     view.release(empty_end);
     expect(session.selectedEntityId() == 1, "focus loss cancels marquee selection");
+
+    expect(session.addGameVariable(QStringLiteral("score"), QStringLiteral("number")),
+           "Variables panel intent adds a Number variable");
+    expect(session.variablesModel()->rowCount() == 1,
+           "Variables model refreshes after add");
+    expect(!session.setGameVariableInitialNumber(
+               QStringLiteral("score"), std::numeric_limits<double>::quiet_NaN()),
+           "Variables bridge rejects a non-finite Number value");
+    expect(session.setGameVariableInitialNumber(QStringLiteral("score"), 42.5),
+           "Variables panel intent sets a finite Number value");
+    expect(session.variablesModel()->data(
+               session.variablesModel()->index(0, 0), VariablesModel::InitialValueRole).toString()
+               == QStringLiteral("42.5"),
+           "Variables model projects the updated Number value");
 
     return 0;
 }

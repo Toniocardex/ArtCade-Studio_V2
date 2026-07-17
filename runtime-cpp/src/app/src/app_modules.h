@@ -130,20 +130,21 @@ public:
         return world_ && world_->isActiveEntity(owner)
             && audio_.playResolvedAsset(audioAssetId, volume);
     }
-    bool setStateNumber(const std::string& key, double value) override {
-        if (!variables_ || !variables_->ensureNumber(key)) return false;
-        variables_->setFloat(key, static_cast<float>(value));
-        return true;
+    bool setStateNumber(const GameVariableId& id, double value) override {
+        if (!variables_) return false;
+        return variables_->setGlobal(id, value).accepted();
     }
-    bool addStateNumber(const std::string& key, double delta) override {
-        if (!variables_ || !variables_->ensureNumber(key)) return false;
-        variables_->addFloat(key, static_cast<float>(delta));
-        return true;
+    bool addStateNumber(const GameVariableId& id, double delta) override {
+        if (!variables_) return false;
+        return variables_->addNumber(id, delta).accepted();
     }
-    double getStateNumber(const std::string& key, double defaultValue = 0.0) override {
-        if (!variables_) return defaultValue;
-        return static_cast<double>(
-            variables_->getFloat(key, static_cast<float>(defaultValue)));
+    bool toggleStateBoolean(const GameVariableId& id) override {
+        if (!variables_) return false;
+        return variables_->toggleBoolean(id).accepted();
+    }
+    std::optional<double> getStateNumber(const GameVariableId& id) const override {
+        if (!variables_) return std::nullopt;
+        return variables_->tryGetNumber(id);
     }
     bool setVelocity(EntityId owner, Vec2 velocity) override {
         if (!std::isfinite(velocity.x) || !std::isfinite(velocity.y)) return false;

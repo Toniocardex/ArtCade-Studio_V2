@@ -1,4 +1,5 @@
 #include "project-current-format.h"
+#include "project-global-variables-format.h"
 
 #include <algorithm>
 #include <cctype>
@@ -110,6 +111,9 @@ bool validate_current_project_document(const ProjectDoc &document, std::string &
         error_message = "Project must declare an activeSceneId that exists in scenes.";
         return false;
     }
+    if (!validate_current_global_variables_document(document.globalVariables, error_message)) {
+        return false;
+    }
     for (const auto &[scene_id, scene] : document.scenes) {
         if (scene_id != scene.id) {
             error_message = "Scene map key and scene id must match.";
@@ -146,6 +150,10 @@ bool validate_current_project_json(const nlohmann::json &root, std::string &erro
     }
     if (!root.contains("scenes") || !root["scenes"].is_object() || root["scenes"].empty()) {
         error_message = "Project requires a non-empty scenes object.";
+        return false;
+    }
+    if (!root.contains("globalVariables")
+        || !validate_current_global_variables_json(root["globalVariables"], error_message)) {
         return false;
     }
 

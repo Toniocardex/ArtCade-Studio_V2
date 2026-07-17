@@ -1,6 +1,7 @@
 {
   "activeSceneId": "scene_main",
-  "formatVersion": 6,
+  "formatVersion": 7,
+  "globalVariables": [],
   "imageAssets": [
     {
       "assetId": "img_hero",

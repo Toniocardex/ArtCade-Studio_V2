@@ -15,6 +15,8 @@ add_library(artcade_editor_core STATIC
     src/logic_board_property.cpp
     src/logic_board_section_commands.cpp
     src/object_type_component_commands.cpp
+    src/game_variable_commands.cpp
+    src/game_variable_coordinator.cpp
     src/editor_coordinator.cpp
 )
 

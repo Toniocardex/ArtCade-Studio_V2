@@ -9,6 +9,7 @@
 #include "bridge/hierarchy_model.h"
 #include "bridge/layers_model.h"
 #include "bridge/logic_catalog_model.h"
+#include "bridge/variables_model.h"
 
 #include <QObject>
 #include <QString>
@@ -40,6 +41,7 @@ class EditorSession : public QObject
     Q_PROPERTY(QString statusMessage READ statusMessage NOTIFY statusMessageChanged)
     Q_PROPERTY(HierarchyModel *hierarchyModel READ hierarchyModel CONSTANT)
     Q_PROPERTY(LayersModel *layersModel READ layersModel CONSTANT)
+    Q_PROPERTY(VariablesModel *variablesModel READ variablesModel CONSTANT)
     Q_PROPERTY(AssetsModel *assetsModel READ assetsModel CONSTANT)
     Q_PROPERTY(ConsoleModel *consoleModel READ consoleModel CONSTANT)
     Q_PROPERTY(LogicCatalogModel *logicCatalogModel READ logicCatalogModel CONSTANT)
@@ -123,6 +125,7 @@ public:
     [[nodiscard]] QString statusMessage() const;
     [[nodiscard]] HierarchyModel *hierarchyModel() const;
     [[nodiscard]] LayersModel *layersModel() const;
+    [[nodiscard]] VariablesModel *variablesModel() const;
     [[nodiscard]] AssetsModel *assetsModel() const;
     [[nodiscard]] ConsoleModel *consoleModel() const;
     [[nodiscard]] LogicCatalogModel *logicCatalogModel() const;
@@ -225,6 +228,24 @@ public:
     Q_INVOKABLE void setLayerLocked(const QString &layerId, bool locked);
     /** Adds a layer to the active scene (undoable). Activates the new layer. */
     Q_INVOKABLE void addSceneLayer();
+    /** Adds a project global variable (undoable). typeId: number|boolean|string. */
+    Q_INVOKABLE bool addGameVariable(const QString &key, const QString &typeId);
+    /** Removes an unreferenced project global by immutable key (undoable). */
+    Q_INVOKABLE bool removeGameVariable(const QString &key);
+    /** Changes an unreferenced global's type and resets its initial value (undoable). */
+    Q_INVOKABLE bool setGameVariableType(const QString &key, const QString &typeId);
+    /** Sets a finite Number initial value (undoable; same value is a no-op). */
+    Q_INVOKABLE bool setGameVariableInitialNumber(const QString &key, double value);
+    /** Sets a Boolean initial value (undoable; same value is a no-op). */
+    Q_INVOKABLE bool setGameVariableInitialBoolean(const QString &key, bool value);
+    /** Sets a String initial value (undoable; same value is a no-op). */
+    Q_INVOKABLE bool setGameVariableInitialString(const QString &key, const QString &value);
+    /** Sets authoring-only description text (undoable; same value is a no-op). */
+    Q_INVOKABLE bool setGameVariableDescription(const QString &key, const QString &description);
+    /** Suggests an unused key like variable1 for Add Variable. */
+    Q_INVOKABLE QString suggestNextGameVariableKey() const;
+    /** How many Logic Board properties reference this variable key. */
+    Q_INVOKABLE int gameVariableLogicReferenceCount(const QString &key) const;
     /** Renames a layer in the active scene (undoable). Returns false on validation failure. */
     Q_INVOKABLE bool renameSceneLayer(const QString &layerId, const QString &newName);
     /** Sets the active scene's default layer (undoable). */
@@ -369,6 +390,7 @@ private:
     std::unique_ptr<ArtCade::EditorCore::EditorCoordinator> m_coordinator;
     HierarchyModel *m_hierarchy = nullptr;
     LayersModel *m_layers = nullptr;
+    VariablesModel *m_variables = nullptr;
     AssetsModel *m_assets = nullptr;
     ConsoleModel *m_console = nullptr;
     LogicCatalogModel *m_logicCatalog = nullptr;

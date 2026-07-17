@@ -30,6 +30,7 @@ struct Host final : ILogicRuntimeHost {
     bool failVisible = false;
     std::unordered_set<EntityId> grounded;
     std::unordered_map<std::string, double> state;
+    std::unordered_map<std::string, bool> boolState;
     bool keyDown = false;
     bool setVisible(EntityId owner, bool value) override {
         calls.push_back("visible:" + std::to_string(owner) + ":" + (value ? "1" : "0"));
@@ -98,19 +99,26 @@ struct Host final : ILogicRuntimeHost {
                        + std::to_string(volume));
         return true;
     }
-    bool setStateNumber(const std::string& key, double value) override {
-        state[key] = value;
-        calls.push_back("state_set:" + key + ":" + std::to_string(static_cast<int>(value)));
+    bool setStateNumber(const GameVariableId& id, double value) override {
+        state[id] = value;
+        calls.push_back("state_set:" + id + ":" + std::to_string(static_cast<int>(value)));
         return true;
     }
-    bool addStateNumber(const std::string& key, double delta) override {
-        state[key] = (state.count(key) ? state[key] : 0.0) + delta;
-        calls.push_back("state_add:" + key + ":" + std::to_string(static_cast<int>(delta)));
+    bool addStateNumber(const GameVariableId& id, double delta) override {
+        state[id] = (state.count(id) ? state[id] : 0.0) + delta;
+        calls.push_back("state_add:" + id + ":" + std::to_string(static_cast<int>(delta)));
         return true;
     }
-    double getStateNumber(const std::string& key, double defaultValue = 0.0) override {
-        const auto it = state.find(key);
-        return it == state.end() ? defaultValue : it->second;
+    bool toggleStateBoolean(const GameVariableId& id) override {
+        const bool next = !(boolState.count(id) ? boolState[id] : false);
+        boolState[id] = next;
+        calls.push_back("state_toggle:" + id + ":" + (next ? "true" : "false"));
+        return true;
+    }
+    std::optional<double> getStateNumber(const GameVariableId& id) const override {
+        const auto it = state.find(id);
+        if (it == state.end()) return std::nullopt;
+        return it->second;
     }
     bool setVelocity(EntityId owner, Vec2 velocity) override {
         calls.push_back("velocity:" + std::to_string(owner) + ":"
@@ -145,6 +153,7 @@ static LogicBoardDef makeBoard() {
     board.rules.push_back(start);
 
     LogicRuleDef key = makeDefaultRule("rule-2");
+    key.name = "Logic 02";
     key.trigger = {kKeyPressed, {{"key", LogicKey::Space}}};
     key.actions[0] = {kSetPosition,
         {{"target", LogicEntityReference{}}, {"position", Vec2{12.f, 34.f}}}};
@@ -168,11 +177,18 @@ static void testCompilerAndJson() {
     CHECK(logicBoardToJson(loaded) == json);
     CHECK(loaded.rules[0].name == "Player Movement");
 
-    auto legacy_json = json;
-    legacy_json["rules"][0].erase("name");
-    LogicBoardDef legacy_loaded;
-    CHECK(logicBoardFromJson(legacy_json, legacy_loaded).ok);
-    CHECK(legacy_loaded.rules[0].name.empty());
+    auto stale_schema = json;
+    stale_schema["schemaVersion"] = 1u;
+    CHECK(!logicBoardFromJson(stale_schema, loaded).ok);
+
+    auto missing_name = json;
+    missing_name["rules"][0].erase("name");
+    CHECK(!logicBoardFromJson(missing_name, loaded).ok);
+
+    auto wrong_variable_kind = json;
+    wrong_variable_kind["rules"][0]["actions"][0]["properties"][0]["value"] = {
+        {"kind", "string"}, {"value", "score"}};
+    CHECK(!logicBoardFromJson(wrong_variable_kind, loaded).ok);
 
     loaded.apiVersion = 999;
     CHECK(!validateBoard("Hero", loaded).empty());
@@ -669,17 +685,17 @@ static void testP1StateAndWaitAndVelocity() {
         LogicRuleDef rule = makeDefaultRule("state");
         LogicBlockDef set = makeDefaultBlock(kStateSet, BlockKind::Action);
         for (LogicPropertyDef& p : set.properties) {
-            if (p.key == "key") p.value = LogicStringValue{"score"};
+            if (p.key == "key") p.value = LogicVariableReference{"score"};
             else if (p.key == "value") p.value = 10.0;
         }
         LogicBlockDef add = makeDefaultBlock(kStateAdd, BlockKind::Action);
         for (LogicPropertyDef& p : add.properties) {
-            if (p.key == "key") p.value = LogicStringValue{"score"};
+            if (p.key == "key") p.value = LogicVariableReference{"score"};
             else if (p.key == "amount") p.value = 3.0;
         }
         LogicBlockDef sub = makeDefaultBlock(kStateSubtract, BlockKind::Action);
         for (LogicPropertyDef& p : sub.properties) {
-            if (p.key == "key") p.value = LogicStringValue{"score"};
+            if (p.key == "key") p.value = LogicVariableReference{"score"};
             else if (p.key == "amount") p.value = 1.0;
         }
         rule.actions = {set, add, sub};
@@ -705,7 +721,7 @@ static void testP1StateAndWaitAndVelocity() {
         rule.trigger = {kKeyPressed, {{"key", LogicKey::Space}}};
         LogicBlockDef cond = makeDefaultBlock(kStateCompare, BlockKind::Condition);
         for (LogicPropertyDef& p : cond.properties) {
-            if (p.key == "key") p.value = LogicStringValue{"score"};
+            if (p.key == "key") p.value = LogicVariableReference{"score"};
             else if (p.key == "op") p.value = LogicStringValue{">="};
             else if (p.key == "value") p.value = 5.0;
         }
@@ -952,6 +968,55 @@ static void testManualTransformActions() {
     lua.shutdown();
 }
 
+static void testStateVariableAndToggle() {
+    {
+        ProjectDoc project;
+        project.globalVariables.push_back(
+            {"doorOpen", GameVariableDefinition::Type::Boolean, false, {}});
+        LogicBoardDef board;
+        board.id = "logic:Toggle";
+        LogicRuleDef rule = makeDefaultRule("toggle");
+        LogicBlockDef toggle = makeDefaultBlock(kStateToggle, BlockKind::Action);
+        applyDeterministicVariableDefault(project, toggle);
+        const LogicPropertyDef* keyProp = findProperty(toggle, "key");
+        const auto* ref = keyProp ? std::get_if<LogicVariableReference>(&keyProp->value) : nullptr;
+        CHECK(ref && ref->id == "doorOpen");
+        rule.actions = {toggle};
+        board.rules.push_back(rule);
+        const LogicCompileResult compiled = compileBoard("Toggle", board, nullptr, &project);
+        CHECK(compiled.ok());
+        CHECK(compiled.programs[0].source.find("state_toggle_boolean") != std::string::npos);
+        Host host;
+        LogicRuntime runtime(host);
+        std::string error;
+        CHECK(runtime.loadPrograms(compiled.programs, &error));
+        CHECK(runtime.install("Toggle", 1, &error).has_value());
+        runtime.beginFrame();
+        runtime.dispatchStart();
+        CHECK(host.boolState["doorOpen"] == true);
+    }
+    {
+        ProjectDoc project;
+        project.globalVariables.push_back(
+            {"score", GameVariableDefinition::Type::Number, 0.0, {}});
+        LogicBoardDef board;
+        board.id = "logic:Mismatch";
+        LogicRuleDef rule = makeDefaultRule("bad");
+        LogicBlockDef toggle = makeDefaultBlock(kStateToggle, BlockKind::Action);
+        for (LogicPropertyDef& p : toggle.properties) {
+            if (p.key == "key") p.value = LogicVariableReference{"score"};
+        }
+        rule.actions = {toggle};
+        board.rules.push_back(rule);
+        const auto diags = validateBoard("Mismatch", board, nullptr, &project,
+                                         ValidationMode::Authoring);
+        CHECK(std::any_of(diags.begin(), diags.end(), [](const LogicDiagnostic& d) {
+            return d.code == "LB_VARIABLE_TYPE_MISMATCH"
+                && d.severity == DiagnosticSeverity::Error;
+        }));
+    }
+}
+
 int main() {
     testCompilerAndJson();
     testRuntime();
@@ -962,6 +1027,7 @@ int main() {
     testCombinedGameplaySmoke();
     testP1EverySecondsAndTick();
     testP1StateAndWaitAndVelocity();
+    testStateVariableAndToggle();
     testP1KeyDownCondition();
     testP1SpawnInstallFailure();
     testEntityTransformActions();

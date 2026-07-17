@@ -2,6 +2,7 @@
 
 #include "types.h"
 
+#include <optional>
 #include <string>
 
 namespace ArtCade {
@@ -31,12 +32,25 @@ public:
     virtual bool stopAnimation(EntityId owner) = 0;
     virtual bool setAnimationPlaybackSpeed(EntityId owner, float speed) = 0;
     virtual bool playSound(EntityId owner, const AssetId& audioAssetId, float volume) = 0;
-    /** Sets a global Number variable (creates the key as Number if missing). */
-    virtual bool setStateNumber(const std::string& key, double value) = 0;
-    /** Adds delta to a global Number variable (creates the key as Number if missing). */
-    virtual bool addStateNumber(const std::string& key, double delta) = 0;
-    /** Reads a global Number variable (default when missing or non-number). */
-    virtual double getStateNumber(const std::string& key, double defaultValue = 0.0) = 0;
+    /**
+     * Sets a catalog Number global. Unknown key or wrong type → false.
+     * Does not create variables.
+     */
+    virtual bool setStateNumber(const GameVariableId& id, double value) = 0;
+    /**
+     * Adds delta to a catalog Number global. Unknown key or wrong type → false.
+     * Does not create variables.
+     */
+    virtual bool addStateNumber(const GameVariableId& id, double delta) = 0;
+    /**
+     * Toggles a catalog Boolean global. Unknown key or wrong type → false.
+     */
+    virtual bool toggleStateBoolean(const GameVariableId& id) = 0;
+    /**
+     * Reads a catalog Number global. Unknown key or wrong type → nullopt.
+     * Never invents a default zero for Compare Variable.
+     */
+    virtual std::optional<double> getStateNumber(const GameVariableId& id) const = 0;
     virtual bool setVelocity(EntityId owner, Vec2 velocity) = 0;
     virtual bool isKeyDown(LogicKey key) = 0;
     /**

@@ -62,10 +62,10 @@ const std::unordered_set<std::string>& supportedFeatures() {
         "animation.on_finished",
         "audio.play_sound",
         "flow.wait",
-        "state.set",
-        "state.add",
-        "state.subtract",
-        "state.compare",
+        "state.set_number",
+        "state.add_number",
+        "state.toggle_boolean",
+        "state.compare_number",
     };
     return value;
 }
@@ -258,24 +258,29 @@ struct LogicRuntime::Impl {
             impl->delayedCallbacks.push_back(DelayedCallback{
                 impl->nextDelayed++, scope, owner, remaining, std::move(callback), true});
         }
-        void stateSet(const std::string& key, double value) {
+        void stateSetNumber(const std::string& key, double value) {
             if (!impl || !impl->host.setStateNumber(key, value))
-                throw sol::error("state_set failed");
+                throw sol::error("state_set_number failed");
         }
-        void stateAdd(const std::string& key, double delta) {
+        void stateAddNumber(const std::string& key, double delta) {
             if (!impl || !impl->host.addStateNumber(key, delta))
-                throw sol::error("state_add failed");
+                throw sol::error("state_add_number failed");
         }
-        bool stateCompare(const std::string& key, const std::string& op, double value) {
+        void stateToggleBoolean(const std::string& key) {
+            if (!impl || !impl->host.toggleStateBoolean(key))
+                throw sol::error("state_toggle_boolean failed");
+        }
+        bool stateCompareNumber(const std::string& key, const std::string& op, double value) {
             if (!impl) return false;
-            const double current = impl->host.getStateNumber(key, 0.0);
-            if (op == "==") return current == value;
-            if (op == "!=") return current != value;
-            if (op == "<") return current < value;
-            if (op == "<=") return current <= value;
-            if (op == ">") return current > value;
-            if (op == ">=") return current >= value;
-            throw sol::error("Unsupported state_compare operator: " + op);
+            const auto current = impl->host.getStateNumber(key);
+            if (!current) return false;
+            if (op == "==") return *current == value;
+            if (op == "!=") return *current != value;
+            if (op == "<") return *current < value;
+            if (op == "<=") return *current <= value;
+            if (op == ">") return *current > value;
+            if (op == ">=") return *current >= value;
+            throw sol::error("Unsupported state_compare_number operator: " + op);
         }
         bool isKeyDown(const std::string& keyName) {
             const std::optional<LogicKey> key = logicKeyFromName(keyName);
@@ -546,9 +551,10 @@ bool LogicRuntime::initialize(std::string* error) {
             "on_collision_enter", &Impl::ContextProxy::onCollisionEnter,
             "on_collision_exit", &Impl::ContextProxy::onCollisionExit,
             "wait", &Impl::ContextProxy::wait,
-            "state_set", &Impl::ContextProxy::stateSet,
-            "state_add", &Impl::ContextProxy::stateAdd,
-            "state_compare", &Impl::ContextProxy::stateCompare,
+            "state_set_number", &Impl::ContextProxy::stateSetNumber,
+            "state_add_number", &Impl::ContextProxy::stateAddNumber,
+            "state_toggle_boolean", &Impl::ContextProxy::stateToggleBoolean,
+            "state_compare_number", &Impl::ContextProxy::stateCompareNumber,
             "is_key_down", &Impl::ContextProxy::isKeyDown,
             "other_is_object_type", &Impl::ContextProxy::otherIsObjectType);
 

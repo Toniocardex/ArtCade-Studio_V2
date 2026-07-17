@@ -9,7 +9,7 @@
 
 namespace ArtCade::Logic {
 
-inline constexpr uint32_t kLogicBoardSchemaVersion = 1;
+inline constexpr uint32_t kLogicBoardSchemaVersion = 2;
 inline constexpr uint32_t kLogicApiVersion = 2;
 inline constexpr std::size_t kMaxRulesPerBoard = 128;
 inline constexpr std::size_t kMaxSectionsPerBoard = 64;
@@ -51,6 +51,7 @@ inline constexpr const char* kStateSet = "state.set";
 inline constexpr const char* kStateAdd = "state.add";
 inline constexpr const char* kStateSubtract = "state.subtract";
 inline constexpr const char* kStateCompare = "state.compare";
+inline constexpr const char* kStateToggle = "state.toggle";
 
 using LogicBlockTypeId = std::string;
 using LogicCategoryId = std::string;
@@ -159,6 +160,22 @@ const LogicPropertyDef* findProperty(const LogicBlockDef& block, const std::stri
 /** User-facing property label; falls back to @p key when displayName is empty. */
 [[nodiscard]] std::string propertyDisplayName(const LogicPropertyDescriptor& property);
 LogicBlockDef makeDefaultBlock(const LogicBlockTypeId& typeId, BlockKind expected);
+/**
+ * Required global variable type for a state block typeId, or nullopt if the
+ * block does not reference a typed project variable.
+ */
+[[nodiscard]] std::optional<GameVariableDefinition::Type> requiredVariableType(
+    const LogicBlockTypeId& typeId);
+/**
+ * Finds a project global by exact case-sensitive key.
+ */
+[[nodiscard]] const GameVariableDefinition* findGlobalVariable(
+    const ProjectDoc& project, const GameVariableId& id);
+/**
+ * After makeDefaultBlock, fill empty Variable refs from the first compatible
+ * global sorted by key. Pure registry remains project-agnostic.
+ */
+void applyDeterministicVariableDefault(const ProjectDoc& doc, LogicBlockDef& block);
 LogicBlockAvailability blockAvailability(const EntityDef& owner,
                                          const LogicBlockDescriptor& candidate,
                                          const LogicBlockDescriptor* trigger = nullptr);

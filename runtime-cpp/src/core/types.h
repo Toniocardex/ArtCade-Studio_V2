@@ -121,7 +121,7 @@ struct LogicRuleDef {
 
 struct LogicBoardDef {
     LogicBoardId              id;
-    uint32_t                  schemaVersion = 1;
+    uint32_t                  schemaVersion = 2;
     uint32_t                  apiVersion = 2;
     std::vector<LogicSectionDef> sections;  // display grouping; optional
     std::vector<LogicRuleDef> rules;

@@ -320,11 +320,15 @@ StateValue World::getGlobalState(const std::string& key) const {
 }
 
 void World::setGlobalState(const std::string& key, const StateValue& value) {
-    if (auto* i = std::get_if<int32_t>(&value)) variables_.set(key, static_cast<double>(*i));
-    else if (auto* f = std::get_if<float>(&value)) variables_.set(key, static_cast<double>(*f));
-    else if (auto* b = std::get_if<bool>(&value))  variables_.setBool(key, *b);
-    else if (auto* s = std::get_if<std::string>(&value))
-        variables_.setString(key, *s);
+    if (auto* i = std::get_if<int32_t>(&value)) {
+        (void)variables_.setGlobal(key, static_cast<double>(*i));
+    } else if (auto* f = std::get_if<float>(&value)) {
+        (void)variables_.setGlobal(key, static_cast<double>(*f));
+    } else if (auto* b = std::get_if<bool>(&value)) {
+        (void)variables_.setGlobal(key, *b);
+    } else if (auto* s = std::get_if<std::string>(&value)) {
+        (void)variables_.setGlobal(key, *s);
+    }
 }
 
 std::vector<EntityId> World::activeEntityIds() const {

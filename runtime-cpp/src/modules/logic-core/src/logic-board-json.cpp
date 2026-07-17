@@ -2,6 +2,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
 #include <exception>
 #include <unordered_set>
 
@@ -73,6 +74,18 @@ bool valueFromJson(const nlohmann::json& json, LogicValue& out, std::string& err
     return false;
 }
 
+LogicValueKind valueKind(const LogicValue& value) {
+    if (std::holds_alternative<bool>(value)) return LogicValueKind::Bool;
+    if (std::holds_alternative<int64_t>(value)) return LogicValueKind::Integer;
+    if (std::holds_alternative<double>(value)) return LogicValueKind::Number;
+    if (std::holds_alternative<LogicStringValue>(value)) return LogicValueKind::String;
+    if (std::holds_alternative<Vec2>(value)) return LogicValueKind::Vec2;
+    if (std::holds_alternative<LogicAssetReference>(value)) return LogicValueKind::Asset;
+    if (std::holds_alternative<LogicEntityReference>(value)) return LogicValueKind::Entity;
+    if (std::holds_alternative<LogicVariableReference>(value)) return LogicValueKind::Variable;
+    return LogicValueKind::Key;
+}
+
 nlohmann::json blockToJson(const LogicBlockDef& block) {
     nlohmann::json properties = nlohmann::json::array();
     for (const LogicPropertyDef& property : block.properties)
@@ -87,6 +100,10 @@ bool blockFromJson(const nlohmann::json& json, LogicBlockDef& out, std::string& 
     if (!json.contains("properties") || !json["properties"].is_array()) {
         error = "Logic block properties must be an array"; return false;
     }
+    const LogicBlockDescriptor* descriptor = findDescriptor(out.typeId);
+    if (!descriptor) {
+        error = "Unknown Logic block type: " + out.typeId; return false;
+    }
     out.properties.clear();
     std::unordered_set<std::string> seen;
     for (const auto& item : json["properties"]) {
@@ -99,6 +116,15 @@ bool blockFromJson(const nlohmann::json& json, LogicBlockDef& out, std::string& 
             error = "Duplicate Logic property: " + property.key; return false;
         }
         if (!valueFromJson(item["value"], property.value, error)) return false;
+        const auto descriptor_property = std::find_if(
+            descriptor->properties.begin(), descriptor->properties.end(),
+            [&](const LogicPropertyDescriptor& candidate) { return candidate.key == property.key; });
+        if (descriptor_property == descriptor->properties.end()) {
+            error = "Unknown Logic property: " + property.key; return false;
+        }
+        if (valueKind(property.value) != descriptor_property->valueKind) {
+            error = "Logic property has the wrong value type: " + property.key; return false;
+        }
         out.properties.push_back(std::move(property));
     }
     return true;
@@ -119,8 +145,7 @@ nlohmann::json logicBoardToJson(const LogicBoardDef& board) {
             {"conditions", std::move(conditions)},
             {"actions", std::move(actions)},
         };
-        // Optional authoring label â€” legacy documents intentionally omit it.
-        if (!rule.name.empty()) ruleJson["name"] = rule.name;
+        ruleJson["name"] = rule.name;
         // Optional display grouping — omitted when unsectioned (format stays additive).
         if (!rule.sectionId.empty()) ruleJson["sectionId"] = rule.sectionId;
         rules.push_back(std::move(ruleJson));
@@ -151,10 +176,15 @@ LogicJsonResult logicBoardFromJson(const nlohmann::json& json, LogicBoardDef& ou
             return {false, "Logic Board apiVersion is invalid"};
         parsed.schemaVersion = json["schemaVersion"].get<uint32_t>();
         parsed.apiVersion = json["apiVersion"].get<uint32_t>();
+        if (parsed.schemaVersion != kLogicBoardSchemaVersion) {
+            return {false, "Unsupported Logic Board schemaVersion"};
+        }
+        if (parsed.apiVersion != kLogicApiVersion) {
+            return {false, "Unsupported Logic Board apiVersion"};
+        }
         if (!json.contains("rules") || !json["rules"].is_array())
             return {false, "Logic Board rules must be an array"};
 
-        // Optional display sections (older saves have none).
         if (json.contains("sections")) {
             if (!json["sections"].is_array())
                 return {false, "Logic Board sections must be an array"};
@@ -180,10 +210,8 @@ LogicJsonResult logicBoardFromJson(const nlohmann::json& json, LogicBoardDef& ou
             LogicRuleDef rule;
             if (!readString(item, "id", rule.id)) return {false, "Logic rule id is missing"};
             if (!ruleIds.insert(rule.id).second) return {false, "Duplicate Logic rule id"};
-            if (item.contains("name")) {
-                if (!item["name"].is_string()) return {false, "Logic rule name is invalid"};
-                rule.name = item["name"].get<std::string>();
-            }
+            if (!readString(item, "name", rule.name) || rule.name.empty())
+                return {false, "Logic rule name is missing or empty"};
             if (!item.contains("enabled") || !item["enabled"].is_boolean())
                 return {false, "Logic rule enabled is invalid"};
             rule.enabled = item["enabled"].get<bool>();

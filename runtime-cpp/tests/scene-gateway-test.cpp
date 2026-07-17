@@ -204,8 +204,8 @@ int main() {
                                 sceneAfter->entityIds.end(), spawned)
                            != sceneAfter->entityIds.end());
 
-    vm.setInt("score", 42);
-    vm.setInt("lives", 3);
+    vm.setGlobal("score", 42.0);
+    vm.setGlobal("lives", 3.0);
 
     CHECK(gw.loadScene("scene_b"));
     CHECK(gw.poolCount("Player") == 0);

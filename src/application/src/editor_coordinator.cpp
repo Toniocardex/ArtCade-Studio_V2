@@ -658,13 +658,12 @@ bool EditorCoordinator::renameLogicRule(const ObjectTypeId &object_type_id,
     }
     LogicBoardDef &board = *type_it->second.logicBoard;
     LogicRuleDef *target = nullptr;
-    for (std::size_t index = 0; index < board.rules.size(); ++index) {
-        LogicRuleDef &candidate = board.rules[index];
+    for (LogicRuleDef &candidate : board.rules) {
         if (candidate.id == rule_id) {
             target = &candidate;
             continue;
         }
-        if (logic_rule_normalize_name(logic_rule_display_name(candidate, index))
+        if (logic_rule_normalize_name(logic_rule_display_name(candidate))
             == logic_rule_normalize_name(trimmed)) {
             error_message = "A Logic item with this name already exists";
             return false;

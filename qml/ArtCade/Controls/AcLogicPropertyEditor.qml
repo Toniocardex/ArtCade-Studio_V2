@@ -48,6 +48,8 @@ RowLayout {
         Layout.fillWidth: true
         Layout.alignment: Qt.AlignVCenter
         sourceComponent: {
+            if (root.kind === "variable")
+                return choiceEditor
             if (root.choices && root.choices.length > 0)
                 return choiceEditor
             if (root.kind === "bool")
@@ -66,9 +68,16 @@ RowLayout {
         id: choiceEditor
         ComboBox {
             id: choiceBox
-            enabled: !EditorSession.playing
-            // Leading "(not set)" entry keeps drafts authorable; Play validation gates it.
+            readonly property bool variableKind: root.kind === "variable"
+            readonly property bool noCompatibleVariables:
+                variableKind && (!root.choices || root.choices.length === 0)
+            enabled: !EditorSession.playing && !noCompatibleVariables
+            ToolTip.visible: noCompatibleVariables && hovered
+            ToolTip.text: "No compatible project variables"
+            // Leading "(not set)" only when choices exist (authoring draft).
             model: {
+                if (noCompatibleVariables)
+                    return [{ value: "", label: "No compatible variables" }]
                 const out = [{ value: "", label: "(not set)" }]
                 for (let i = 0; i < root.choices.length; ++i)
                     out.push(root.choices[i])

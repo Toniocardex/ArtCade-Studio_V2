@@ -1,17 +1,15 @@
-// variable-manager-test.cpp
-// Compile from runtime-cpp/tests/:
-//   g++ -std=c++17 -I../src \
-//       variable-manager-test.cpp \
-//       ../src/modules/variable-manager/src/variable-manager.cpp \
-//       -o variable_manager_test && ./variable_manager_test
+// variable-manager-test.cpp — failure-first VariableManager contract (2A)
 
 #include <cassert>
+#include <cmath>
 #include <cstdio>
+#include <limits>
 #include <string>
 
 #include "../src/modules/variable-manager/include/variable-manager.h"
 
 using VM = ArtCade::Modules::VariableManager;
+using ArtCade::Modules::VariableMutationStatus;
 
 static ArtCade::GameVariableDefinition numberDef(const char* key, double value) {
     return {key, ArtCade::GameVariableDefinition::Type::Number, value, {}};
@@ -31,113 +29,115 @@ static void configure(VM& vm) {
 
 static void test_init_shutdown() {
     VM vm; vm.init(); configure(vm);
-    assert(!vm.exists("x"));
+    assert(vm.exists("score"));
     vm.shutdown();
     std::puts("  [ok] init / shutdown");
 }
 
-static void test_set_get_int() {
+static void test_set_get() {
     VM vm; vm.init(); configure(vm);
-    vm.setInt("score", 100);
+    assert(vm.setGlobal("score", 100.0).changed());
     assert(vm.getInt("score") == 100);
-    assert(vm.exists("score"));
-    std::puts("  [ok] setInt / getInt");
-}
-
-static void test_set_get_float() {
-    VM vm; vm.init(); configure(vm);
-    vm.setFloat("speed", 3.14f);
+    assert(vm.setGlobal("speed", 3.14).changed());
     assert(vm.getFloat("speed") > 3.13f && vm.getFloat("speed") < 3.15f);
-    std::puts("  [ok] setFloat / getFloat");
-}
-
-static void test_set_get_bool() {
-    VM vm; vm.init(); configure(vm);
-    vm.setBool("dead", true);
+    assert(vm.setGlobal("dead", true).changed());
     assert(vm.getBool("dead") == true);
-    std::puts("  [ok] setBool / getBool");
-}
-
-static void test_set_get_string() {
-    VM vm; vm.init(); configure(vm);
-    vm.setString("name", "hero");
+    assert(vm.setGlobal("name", std::string("hero")).changed());
     assert(vm.getString("name") == "hero");
-    std::puts("  [ok] setString / getString");
+    std::puts("  [ok] setGlobal / get typed");
 }
 
-static void test_default_on_missing() {
+static void test_missing_does_not_create() {
     VM vm; vm.init(); configure(vm);
-    assert(vm.getInt("missing", 99) == 99);
-    assert(vm.getFloat("missing", 1.f) > 0.9f);
-    assert(vm.getBool("missing", true) == true);
-    assert(vm.getString("missing", "fb") == "fb");
-    std::puts("  [ok] default fallback for missing keys");
+    const auto result = vm.setGlobal("scroe", 10.0);
+    assert(result.status == VariableMutationStatus::MissingVariable);
+    assert(!vm.exists("scroe"));
+    assert(vm.getInt("score") == 0);
+    std::puts("  [ok] set missing → MissingVariable, no create");
 }
 
-static void test_add_int() {
+static void test_type_mismatch() {
     VM vm; vm.init(); configure(vm);
-    vm.setInt("lives", 3);
-    int32_t r = vm.addInt("lives", -1);
-    assert(r == 2 && vm.getInt("lives") == 2);
-    std::puts("  [ok] addInt");
+    assert(vm.setGlobal("score", true).status == VariableMutationStatus::TypeMismatch);
+    assert(vm.getInt("score") == 0);
+    assert(vm.addNumber("muted", 1.0).status == VariableMutationStatus::TypeMismatch);
+    assert(vm.getBool("muted") == false);
+    assert(vm.toggleBoolean("score").status == VariableMutationStatus::TypeMismatch);
+    assert(vm.getInt("score") == 0);
+    std::puts("  [ok] type mismatch leaves value unchanged");
 }
 
-static void test_add_int_clamped() {
+static void test_unchanged_no_observer() {
     VM vm; vm.init(); configure(vm);
-    vm.setInt("hp", 95);
-    int32_t r = vm.addInt("hp", 10, {}, {100});
-    assert(r == 100);
-    r = vm.addInt("hp", -200, {0}, {});
-    assert(r == 0);
-    std::puts("  [ok] addInt with min/max clamp");
+    assert(vm.setGlobal("score", 10.0).changed());
+    int calls = 0;
+    vm.observe("score", [&](const std::string&, const VM::Value&) { ++calls; });
+    const auto same = vm.setGlobal("score", 10.0);
+    assert(same.status == VariableMutationStatus::Unchanged);
+    assert(calls == 0);
+    assert(vm.setGlobal("score", 11.0).changed());
+    assert(calls == 1);
+    std::puts("  [ok] Unchanged → no observer");
 }
 
-static void test_add_float() {
+static void test_non_finite() {
     VM vm; vm.init(); configure(vm);
-    float r = vm.addFloat("x", 1.5f);
-    assert(r > 1.4f && r < 1.6f);
-    std::puts("  [ok] addFloat");
+    assert(vm.setGlobal("score", std::numeric_limits<double>::quiet_NaN()).status
+           == VariableMutationStatus::NonFiniteValue);
+    assert(vm.setGlobal("score", std::numeric_limits<double>::infinity()).status
+           == VariableMutationStatus::NonFiniteValue);
+    assert(vm.addNumber("score", std::numeric_limits<double>::infinity()).status
+           == VariableMutationStatus::NonFiniteValue);
+    assert(vm.getInt("score") == 0);
+    std::puts("  [ok] non-finite rejected");
 }
 
-static void test_toggle() {
+static void test_add_number() {
     VM vm; vm.init(); configure(vm);
-    assert(vm.toggle("muted") == true);
-    assert(vm.toggle("muted") == false);
-    std::puts("  [ok] toggle");
+    assert(vm.setGlobal("lives", 3.0).changed());
+    const auto r = vm.addNumber("lives", -1.0);
+    assert(r.changed());
+    assert(std::get<double>(r.after) == 2.0);
+    assert(vm.getInt("lives") == 2);
+    std::puts("  [ok] addNumber");
+}
+
+static void test_toggle_boolean() {
+    VM vm; vm.init(); configure(vm);
+    assert(vm.toggleBoolean("muted").changed());
+    assert(vm.getBool("muted") == true);
+    assert(vm.toggleBoolean("muted").changed());
+    assert(vm.getBool("muted") == false);
+    std::puts("  [ok] toggleBoolean");
+}
+
+static void test_try_get_number() {
+    VM vm; vm.init(); configure(vm);
+    assert(vm.tryGetNumber("missing") == std::nullopt);
+    assert(vm.tryGetNumber("muted") == std::nullopt);
+    assert(vm.setGlobal("score", 7.0).changed());
+    assert(vm.tryGetNumber("score").value() == 7.0);
+    std::puts("  [ok] tryGetNumber nullopt on missing/wrong type");
 }
 
 static void test_remove_and_clear() {
     VM vm; vm.init(); configure(vm);
-    vm.setInt("a", 1);
-    vm.setInt("b", 2);
-    vm.remove("a");
-    assert(!vm.exists("a") && vm.exists("b"));
+    assert(vm.setGlobal("score", 1.0).changed());
+    assert(vm.setGlobal("lives", 2.0).changed());
+    vm.remove("score");
+    assert(!vm.exists("score") && vm.exists("lives"));
     vm.clear();
-    assert(!vm.exists("b"));
+    assert(!vm.exists("lives"));
     std::puts("  [ok] remove + clear");
-}
-
-static void test_observer_fired_on_set() {
-    VM vm; vm.init();
-    int calls = 0;
-    int32_t last = -1;
-    vm.observe("score", [&](const std::string&, const VM::Value& v){
-        ++calls;
-        last = static_cast<int32_t>(std::get<double>(v));
-    });
-    vm.setInt("score", 50);
-    vm.setInt("score", 75);
-    assert(calls == 2 && last == 75);
-    std::puts("  [ok] observer fires on set");
 }
 
 static void test_observer_key_scoped() {
     VM vm; vm.init(); configure(vm);
     int hits = 0;
-    vm.observe("a", [&](const std::string&, const VM::Value&){ ++hits; });
-    vm.setInt("b", 1);   // different key — observer must NOT fire
+    vm.observe("score", [&](const std::string&, const VM::Value&) { ++hits; });
+    (void)vm.setGlobal("lives", 1.0);
     assert(hits == 0);
-    vm.setInt("a", 1);
+    (void)vm.setGlobal("score", 1.0);
     assert(hits == 1);
     std::puts("  [ok] observer is key-scoped");
 }
@@ -145,21 +145,20 @@ static void test_observer_key_scoped() {
 static void test_stop_observing() {
     VM vm; vm.init(); configure(vm);
     int hits = 0;
-    auto tok = vm.observe("k", [&](const std::string&, const VM::Value&){ ++hits; });
-    vm.setInt("k", 1);
+    auto tok = vm.observe("score", [&](const std::string&, const VM::Value&) { ++hits; });
+    (void)vm.setGlobal("score", 1.0);
     vm.stopObserving(tok);
-    vm.setInt("k", 2);
+    (void)vm.setGlobal("score", 2.0);
     assert(hits == 1);
     std::puts("  [ok] stopObserving");
 }
 
 static void test_snapshot_restore() {
     VM vm; vm.init(); configure(vm);
-    vm.setInt("score", 10);
-    vm.setString("level", "A");
+    (void)vm.setGlobal("score", 10.0);
+    (void)vm.setGlobal("level", std::string("A"));
     auto snap = vm.takeSnapshot();
-
-    vm.setInt("score", 999);
+    (void)vm.setGlobal("score", 999.0);
     vm.restoreSnapshot(snap);
     assert(vm.getInt("score") == 10);
     assert(vm.getString("level") == "A");
@@ -183,47 +182,36 @@ static void test_local_variables_and_persistent_snapshot() {
     std::puts("  [ok] local variables + persistent game snapshot");
 }
 
-static void test_ensure_number_and_restore_with_dynamic_keys() {
+static void test_restore_rejects_extra_keys() {
     VM vm; vm.init(); configure(vm);
-    assert(vm.ensureNumber("logicScore"));
-    vm.setFloat("logicScore", 42.f);
-    assert(vm.getFloat("logicScore") == 42.f);
-    // Existing non-Number key cannot be force-converted.
-    assert(!vm.ensureNumber("dead"));
-
-    const auto snapshot = vm.takeGameSnapshot({});
-    assert(snapshot.globals.count("logicScore") == 1);
-    assert(snapshot.globals.count("score") == 1);
+    (void)vm.setGlobal("score", 42.0);
+    auto snapshot = vm.takeGameSnapshot({});
+    snapshot.globals["logicScore"] = 99.0;
 
     VM restored; restored.init(); configure(restored);
-    // Project defs only — dynamic key absent until restore merges it.
+    assert(!restored.restoreGameSnapshot(snapshot, {}));
     assert(!restored.exists("logicScore"));
-    assert(restored.restoreGameSnapshot(snapshot, {}));
-    assert(restored.exists("logicScore"));
-    assert(restored.getFloat("logicScore") == 42.f);
     assert(restored.getInt("score") == 0);
-    std::puts("  [ok] ensureNumber + restoreGameSnapshot dynamic Number keys");
+    std::puts("  [ok] restore rejects extra Number keys");
 }
 
 int main() {
     std::puts("=== VariableManager check ===");
     test_init_shutdown();
-    test_set_get_int();
-    test_set_get_float();
-    test_set_get_bool();
-    test_set_get_string();
-    test_default_on_missing();
-    test_add_int();
-    test_add_int_clamped();
-    test_add_float();
-    test_toggle();
+    test_set_get();
+    test_missing_does_not_create();
+    test_type_mismatch();
+    test_unchanged_no_observer();
+    test_non_finite();
+    test_add_number();
+    test_toggle_boolean();
+    test_try_get_number();
     test_remove_and_clear();
-    test_observer_fired_on_set();
     test_observer_key_scoped();
     test_stop_observing();
     test_snapshot_restore();
     test_local_variables_and_persistent_snapshot();
-    test_ensure_number_and_restore_with_dynamic_keys();
-    std::puts("=== all 17 tests passed ===");
+    test_restore_rejects_extra_keys();
+    std::puts("=== all VariableManager tests passed ===");
     return 0;
 }

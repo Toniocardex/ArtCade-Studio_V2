@@ -37,6 +37,10 @@ void read_thumbnails(const nlohmann::json& doc,
 
 /** Parses canonical current-format project.json identity and routing fields. */
 void read_project_header(const nlohmann::json& doc, ProjectDoc& out);
+/**
+ * Reads globalVariables from a document already accepted by
+ * validate_current_project_json(). Invalid or stale input is not accepted here.
+ */
 void read_global_variables(const nlohmann::json& doc, ProjectDoc& out);
 
 /**

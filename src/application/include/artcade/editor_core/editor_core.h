@@ -598,6 +598,99 @@ private:
     bool m_applied = false;
 };
 
+/**
+ * Validates an immutable GameVariableId key: [A-Za-z_][A-Za-z0-9_.-]{0,63}.
+ * Does not trim; rejects whitespace and control characters.
+ */
+[[nodiscard]] bool is_valid_game_variable_key(const std::string &key, std::string &error_message);
+
+/**
+ * Counts Logic Board properties that reference @p id via LogicVariableReference.
+ */
+[[nodiscard]] std::size_t count_logic_variable_references(const ProjectDoc &doc,
+                                                          const GameVariableId &id);
+
+/** Adds one validated global variable to ProjectDoc and supports undo. */
+class AddGameVariableCommand final : public ICommand {
+public:
+    explicit AddGameVariableCommand(GameVariableDefinition definition);
+    void execute(ProjectDoc &doc) override;
+    void undo(ProjectDoc &doc) override;
+    [[nodiscard]] bool applied() const { return m_applied; }
+
+private:
+    GameVariableDefinition m_definition;
+    bool m_applied = false;
+};
+
+/** Removes one unreferenced global variable from ProjectDoc and supports undo. */
+class RemoveGameVariableCommand final : public ICommand {
+public:
+    explicit RemoveGameVariableCommand(GameVariableId id);
+    void execute(ProjectDoc &doc) override;
+    void undo(ProjectDoc &doc) override;
+    [[nodiscard]] bool applied() const { return m_applied; }
+
+private:
+    GameVariableId m_id;
+    GameVariableDefinition m_removed;
+    std::size_t m_index = 0;
+    bool m_captured = false;
+    bool m_applied = false;
+};
+
+/** Changes one global variable initial value and supports undo. */
+class SetGameVariableInitialValueCommand final : public ICommand {
+public:
+    SetGameVariableInitialValueCommand(GameVariableId id, GameVariableValue value);
+    void execute(ProjectDoc &doc) override;
+    void undo(ProjectDoc &doc) override;
+    [[nodiscard]] bool applied() const { return m_applied; }
+
+private:
+    GameVariableId m_id;
+    GameVariableValue m_new_value;
+    GameVariableValue m_old_value;
+    bool m_captured = false;
+    bool m_applied = false;
+};
+
+/** Changes one unreferenced global variable type and initial value with undo. */
+class SetGameVariableTypeCommand final : public ICommand {
+public:
+    SetGameVariableTypeCommand(GameVariableId id,
+                               GameVariableDefinition::Type new_type,
+                               GameVariableValue new_initial_value);
+    void execute(ProjectDoc &doc) override;
+    void undo(ProjectDoc &doc) override;
+    [[nodiscard]] bool applied() const { return m_applied; }
+
+private:
+    GameVariableId m_id;
+    GameVariableDefinition::Type m_new_type = GameVariableDefinition::Type::Number;
+    GameVariableValue m_new_initial = 0.0;
+    GameVariableDefinition::Type m_old_type = GameVariableDefinition::Type::Number;
+    GameVariableValue m_old_initial = 0.0;
+    bool m_captured = false;
+    bool m_applied = false;
+};
+
+/** Changes one global variable authoring description and supports undo. */
+class SetGameVariableDescriptionCommand final : public ICommand {
+public:
+    SetGameVariableDescriptionCommand(GameVariableId id, std::string description);
+    void execute(ProjectDoc &doc) override;
+    void undo(ProjectDoc &doc) override;
+    [[nodiscard]] bool applied() const { return m_applied; }
+
+private:
+    GameVariableId m_id;
+    std::string m_new_description;
+    std::string m_old_description;
+    bool m_captured = false;
+    bool m_applied = false;
+};
+
 /** C++-owned editor project format. */
 inline constexpr int kCurrentProjectFormatVersion = ProjectJson::kCurrentProjectFormatVersion;
 
@@ -857,6 +950,35 @@ public:
     bool ensureObjectTypeComponent(const ObjectTypeId &object_type_id,
                                    const std::string &component_id,
                                    std::string &error_message);
+
+    /** Adds a validated project global variable with its type default; undoable. */
+    bool addGameVariable(const std::string &key,
+                         const std::string &type_id,
+                         std::string &error_message);
+    /** Removes an unreferenced project global variable; undoable. */
+    bool removeGameVariable(const GameVariableId &id, std::string &error_message);
+    /** Sets the finite initial Number value; same value is a no-op. */
+    bool setGameVariableInitialNumber(const GameVariableId &id,
+                                      double value,
+                                      std::string &error_message);
+    /** Sets the initial Boolean value; same value is a no-op. */
+    bool setGameVariableInitialBoolean(const GameVariableId &id,
+                                       bool value,
+                                       std::string &error_message);
+    /** Sets the initial String value; same value is a no-op. */
+    bool setGameVariableInitialString(const GameVariableId &id,
+                                      const std::string &value,
+                                      std::string &error_message);
+    /** Changes an unreferenced variable type and resets its initial value; undoable. */
+    bool setGameVariableType(const GameVariableId &id,
+                             const std::string &type_id,
+                             std::string &error_message);
+    /** Sets authoring description text; same value is a no-op. */
+    bool setGameVariableDescription(const GameVariableId &id,
+                                    const std::string &description,
+                                    std::string &error_message);
+    /** Counts current Logic Board references to a stable variable identifier. */
+    [[nodiscard]] std::size_t logicReferenceCount(const GameVariableId &id) const;
 
     /**
      * Compiles all objectTypes[].logicBoard with Executable validation.

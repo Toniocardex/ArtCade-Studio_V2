@@ -45,7 +45,7 @@ targets. No other editor stack is part of the supported product.
 
 ## Saved project contract
 
-The current `project.json` contract is `formatVersion: 6`. Older and malformed
+The current `project.json` contract is `formatVersion: 7`. Older and malformed
 formats are rejected with a clear error. Do not add migration, alias parsing,
 normalization, or compatibility adapters. Every saved-format change needs an
 explicit version bump, validation coverage, and a current-format round trip.

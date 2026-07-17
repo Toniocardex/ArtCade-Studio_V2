@@ -68,7 +68,7 @@ Rectangle {
 
     readonly property int logicOuterPadding: comfortable ? Metrics.spacingMd : Metrics.spacingSm
     readonly property int logicSectionSpacing: comfortable ? Metrics.spacingMd : Metrics.spacingSm
-    readonly property string displayName: String(root.rule.displayName || "Logic")
+    readonly property string displayName: String(root.rule.displayName)
     readonly property string collapsedSummary: {
         const trigger = EditorSession.logicBlockDisplayName(root.rule.triggerTypeId || "")
         const action = root.actionIds.length > 0

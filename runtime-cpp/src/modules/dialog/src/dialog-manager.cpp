@@ -252,10 +252,6 @@ std::string DialogManager::resolveLineText(const DialogNode& node) const {
 void DialogManager::markVisited(const std::string& nodeId) {
     if (!session_) return;
     session_->visitedNodes.insert(nodeId);
-    if (!ctx_ || !ctx_->variableManager) return;
-    const std::string key =
-        "dialog." + session_->dialogId + ".visited." + nodeId;
-    ctx_->variableManager->setBool(key, true);
 }
 
 void DialogManager::advanceToNode(const std::string& nodeId) {
@@ -271,23 +267,24 @@ void DialogManager::advanceToNode(const std::string& nodeId) {
 bool DialogManager::evaluateCondition(const DialogNode& node) const {
     if (!ctx_ || !ctx_->variableManager) return false;
     auto* vm = ctx_->variableManager;
-    const float lhs = vm->getFloat(node.variable, 0.f);
+    const std::optional<double> lhs = vm->tryGetNumber(node.variable);
+    if (!lhs) return false;
     const float rhs = node.value;
-    if (node.op == ">=") return lhs >= rhs;
-    if (node.op == "<=") return lhs <= rhs;
-    if (node.op == "!=") return lhs != rhs;
-    return lhs == rhs;
+    if (node.op == ">=") return *lhs >= rhs;
+    if (node.op == "<=") return *lhs <= rhs;
+    if (node.op == "!=") return *lhs != rhs;
+    return *lhs == rhs;
 }
 
 void DialogManager::applySetVariable(const DialogNode& node) {
     if (!ctx_ || !ctx_->variableManager) return;
     auto* vm = ctx_->variableManager;
     if (node.operation == "+=") {
-        vm->addFloat(node.variable, node.value);
+        (void)vm->addNumber(node.variable, static_cast<double>(node.value));
     } else if (node.operation == "-=") {
-        vm->addFloat(node.variable, -node.value);
+        (void)vm->addNumber(node.variable, static_cast<double>(-node.value));
     } else {
-        vm->setFloat(node.variable, node.value);
+        (void)vm->setGlobal(node.variable, static_cast<double>(node.value));
     }
 }
 

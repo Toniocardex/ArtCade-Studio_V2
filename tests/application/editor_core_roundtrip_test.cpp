@@ -64,16 +64,38 @@ int main()
 
     const fs::path invalid_format_path = fixture_dir / "project.invalid-format.json";
     std::string invalid_format = read_text_file(fixture);
-    const std::size_t format_key = invalid_format.find("\"formatVersion\": 6");
+    const std::size_t format_key = invalid_format.find("\"formatVersion\": 7");
     expect(format_key != std::string::npos, "fixture has canonical formatVersion key");
-    invalid_format.replace(format_key, std::string("\"formatVersion\": 6").size(),
-                           "\"projectFormatVersion\": 6");
+    invalid_format.replace(format_key, std::string("\"formatVersion\": 7").size(),
+                           "\"projectFormatVersion\": 7");
     write_text_file(invalid_format_path, invalid_format);
     ArtCade::ProjectDoc invalid_document;
     expect(!project_file_io_load(invalid_format_path.string(), invalid_document, error),
-           "legacy format alias is rejected");
+           "obsolete format alias is rejected");
     std::error_code remove_error;
     fs::remove(invalid_format_path, remove_error);
+
+    const fs::path invalid_variables_path = fixture_dir / "project.invalid-variables.json";
+    std::string invalid_variables = read_text_file(fixture);
+    const std::size_t variables_key = invalid_variables.find("\"globalVariables\": []");
+    expect(variables_key != std::string::npos, "fixture has globalVariables");
+    invalid_variables.replace(variables_key, std::string("\"globalVariables\": []").size(),
+                              "\"globalVariables\": [{\"key\":\"score\",\"type\":\"number\",\"initialValue\":true}]");
+    write_text_file(invalid_variables_path, invalid_variables);
+    expect(!project_file_io_load(invalid_variables_path.string(), invalid_document, error),
+           "invalid global variable is rejected");
+    fs::remove(invalid_variables_path, remove_error);
+
+    const fs::path unknown_variable_field_path = fixture_dir / "project.unknown-variable-field.json";
+    std::string unknown_variable_field = read_text_file(fixture);
+    unknown_variable_field.replace(
+        variables_key, std::string("\"globalVariables\": []").size(),
+        "\"globalVariables\": [{\"key\":\"score\",\"type\":\"number\","
+        "\"initialValue\":0,\"obsoleteDefault\":0}]");
+    write_text_file(unknown_variable_field_path, unknown_variable_field);
+    expect(!project_file_io_load(unknown_variable_field_path.string(), invalid_document, error),
+           "unknown global variable field is rejected");
+    fs::remove(unknown_variable_field_path, remove_error);
 
     const ArtCade::SceneInstanceDef *hero =
         project_doc_find_instance(coord.document(), 1);
@@ -368,6 +390,45 @@ int main()
     expect(coord.pickEntityAt(0.f, 0.f) == 0, "pick empty world misses");
     expect(coord.pickEntityAt(110.f, 55.f) == 2, "pick Coin_A");
 
+    const std::uint64_t revision_before_variable = coord.revision();
+    expect(coord.addGameVariable("score", "number", error), "add Number variable");
+    expect(coord.revision() == revision_before_variable + 1,
+           "add variable bumps revision once");
+    expect(coord.document().globalVariables.size() == 1, "one global variable");
+    expect(coord.setGameVariableInitialNumber("score", 42.0, error),
+           "set Number initial value");
+    expect(std::get<double>(coord.document().globalVariables.front().initialValue) == 42.0,
+           "Number initial value updated");
+    coord.undo();
+    expect(std::get<double>(coord.document().globalVariables.front().initialValue) == 0.0,
+           "undo restores Number initial value");
+    coord.redo();
+    expect(std::get<double>(coord.document().globalVariables.front().initialValue) == 42.0,
+           "redo restores Number initial value");
+    const std::uint64_t revision_before_variable_noop = coord.revision();
+    expect(coord.setGameVariableInitialNumber("score", 42.0, error),
+           "same Number initial value is a no-op");
+    expect(coord.setGameVariableType("score", "number", error),
+           "same variable type is a no-op");
+    expect(coord.revision() == revision_before_variable_noop,
+           "variable no-ops do not bump revision");
+    expect(coord.addGameVariable("temporary", "boolean", error), "add temporary Boolean variable");
+    expect(coord.setGameVariableType("temporary", "string", error),
+           "change unreferenced variable type");
+    expect(coord.document().globalVariables.back().type == ArtCade::GameVariableDefinition::Type::String,
+           "variable type changed");
+    coord.undo();
+    expect(coord.document().globalVariables.back().type == ArtCade::GameVariableDefinition::Type::Boolean,
+           "undo restores variable type");
+    coord.redo();
+    expect(coord.document().globalVariables.back().type == ArtCade::GameVariableDefinition::Type::String,
+           "redo restores variable type change");
+    expect(coord.removeGameVariable("temporary", error), "remove unreferenced variable");
+    coord.undo();
+    expect(coord.document().globalVariables.size() == 2, "undo restores removed variable");
+    coord.redo();
+    expect(coord.document().globalVariables.size() == 1, "redo removes variable again");
+
     ArtCade::LogicRuleId rule_id;
     expect(coord.addLogicRule("Player", rule_id, error), "add logic rule on Player");
     expect(coord.isDirty(), "add logic rule dirties");
@@ -379,12 +440,30 @@ int main()
     expect(player_it->second.logicBoard->rules.front().id == rule_id, "rule id matches");
     expect(player_it->second.logicBoard->rules.front().name == "Logic 01",
            "first rule receives persisted default name");
-    ArtCade::LogicRuleDef legacy_rule;
-    expect(ArtCade::EditorCore::logic_rule_display_name(legacy_rule, 0) == "Logic 01",
-           "legacy rule receives bridge display fallback");
+    expect(coord.setLogicRulePrimaryAction("Player", rule_id, ArtCade::Logic::kStateSet, error),
+           "set Number variable action");
+    expect(coord.logicReferenceCount("score") == 1, "Logic references score");
+    const std::uint64_t revision_before_referenced_variable_change = coord.revision();
+    expect(!coord.removeGameVariable("score", error), "referenced variable cannot be removed");
+    expect(!coord.setGameVariableType("score", "boolean", error),
+           "referenced variable type cannot change");
+    expect(coord.revision() == revision_before_referenced_variable_change,
+           "rejected referenced-variable changes do not bump revision");
+    expect(coord.setLogicRulePrimaryAction("Player", rule_id, ArtCade::Logic::kSetVisible, error),
+           "restore default action after variable reference test");
+    coord.undo();
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules.front().actions.front().typeId
+               == ArtCade::Logic::kStateSet,
+           "undo restores variable reference action");
+    coord.undo();
+    expect(coord.document().objectTypes.at("Player").logicBoard->rules.front().actions.front().typeId
+               == ArtCade::Logic::kSetVisible,
+           "undo restores the new rule default action");
     coord.undo();
     expect(!coord.document().objectTypes.at("Player").logicBoard.has_value(),
            "undo removes created board");
+    coord.redo();
+    coord.redo();
     coord.redo();
     expect(coord.document().objectTypes.at("Player").logicBoard.has_value(),
            "redo restores board");
@@ -802,6 +881,13 @@ int main()
     expect(reloaded_scene->defaultLayerId == "layer_main",
            "persisted defaultLayerId");
     expect(reloaded.document().imageAssets.size() == 2, "persisted image assets");
+    expect(reloaded.document().globalVariables.size() == 1,
+           "persisted global variable count");
+    expect(reloaded.document().globalVariables.front().key == "score"
+               && reloaded.document().globalVariables.front().type
+                      == ArtCade::GameVariableDefinition::Type::Number
+               && std::get<double>(reloaded.document().globalVariables.front().initialValue) == 42.0,
+           "persisted global variable value");
     expect(!reloaded.layerVisible("layer_ui"), "persisted play layer visibility");
     expect(reloaded.layerLocked("layer_bg"), "persisted layer lock");
     const ArtCade::SceneLayerSettings &reloaded_background =

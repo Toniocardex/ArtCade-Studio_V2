@@ -204,13 +204,39 @@ void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
             }
         }
         if ((block.typeId == kStateSet || block.typeId == kStateAdd
-             || block.typeId == kStateSubtract || block.typeId == kStateCompare)
+             || block.typeId == kStateSubtract || block.typeId == kStateCompare
+             || block.typeId == kStateToggle)
             && property.key == "key") {
-            const auto* key = std::get_if<LogicStringValue>(&property.value);
-            if (!key || key->value.empty()) {
-                out.push_back(makeError(objectTypeId, board, "LB_STATE_KEY",
-                                        "Variable key cannot be empty",
-                                        &rule, &block, property.key));
+            const auto* ref = std::get_if<LogicVariableReference>(&property.value);
+            const auto required = requiredVariableType(block.typeId);
+            if (!ref || ref->id.empty()) {
+                LogicDiagnostic diagnostic = makeError(
+                    objectTypeId, board, "LB_VARIABLE_REFERENCE_EMPTY",
+                    "Select a project variable.",
+                    &rule, &block, property.key);
+                if (mode == ValidationMode::Authoring)
+                    diagnostic.severity = DiagnosticSeverity::Warning;
+                out.push_back(std::move(diagnostic));
+            } else if (!project) {
+                // Project context missing — defer existence checks.
+            } else if (const GameVariableDefinition* def =
+                           findGlobalVariable(*project, ref->id)) {
+                if (required && def->type != *required) {
+                    const char* need = (*required == GameVariableDefinition::Type::Boolean)
+                        ? "Boolean" : "Number";
+                    out.push_back(makeError(
+                        objectTypeId, board, "LB_VARIABLE_TYPE_MISMATCH",
+                        std::string("This Logic block requires a ") + need + " variable.",
+                        &rule, &block, property.key));
+                }
+            } else {
+                LogicDiagnostic diagnostic = makeError(
+                    objectTypeId, board, "LB_VARIABLE_REFERENCE_MISSING",
+                    "The referenced project variable does not exist.",
+                    &rule, &block, property.key);
+                if (mode == ValidationMode::Authoring)
+                    diagnostic.severity = DiagnosticSeverity::Warning;
+                out.push_back(std::move(diagnostic));
             }
         }
         if (block.typeId == kStateCompare && property.key == "op") {
@@ -375,18 +401,23 @@ void emitAction(std::ostringstream& lua, const LogicBlockDef& action,
     } else if (action.typeId == kStateSet) {
         const LogicPropertyDef* keyProp = findProperty(action, "key");
         const LogicPropertyDef* valueProp = findProperty(action, "value");
-        const auto* key = keyProp ? std::get_if<LogicStringValue>(&keyProp->value) : nullptr;
+        const auto* key = keyProp ? std::get_if<LogicVariableReference>(&keyProp->value) : nullptr;
         const double value = valueProp ? std::get<double>(valueProp->value) : 0.0;
-        lua << "      context:state_set(\"" << escapeLua(key ? key->value : std::string{})
+        lua << "      context:state_set_number(\"" << escapeLua(key ? key->id : std::string{})
             << "\", " << value << ")\n";
     } else if (action.typeId == kStateAdd || action.typeId == kStateSubtract) {
         const LogicPropertyDef* keyProp = findProperty(action, "key");
         const LogicPropertyDef* amountProp = findProperty(action, "amount");
-        const auto* key = keyProp ? std::get_if<LogicStringValue>(&keyProp->value) : nullptr;
+        const auto* key = keyProp ? std::get_if<LogicVariableReference>(&keyProp->value) : nullptr;
         double amount = amountProp ? std::get<double>(amountProp->value) : 0.0;
         if (action.typeId == kStateSubtract) amount = -amount;
-        lua << "      context:state_add(\"" << escapeLua(key ? key->value : std::string{})
+        lua << "      context:state_add_number(\"" << escapeLua(key ? key->id : std::string{})
             << "\", " << amount << ")\n";
+    } else if (action.typeId == kStateToggle) {
+        const LogicPropertyDef* keyProp = findProperty(action, "key");
+        const auto* key = keyProp ? std::get_if<LogicVariableReference>(&keyProp->value) : nullptr;
+        lua << "      context:state_toggle_boolean(\""
+            << escapeLua(key ? key->id : std::string{}) << "\")\n";
     }
     if (const LogicBlockDescriptor* descriptor = findDescriptor(action.typeId))
         if (!descriptor->requiredFeature.empty()) features.insert(descriptor->requiredFeature);
@@ -439,11 +470,11 @@ bool emitConditionGuard(std::ostringstream& lua, const std::vector<LogicBlockDef
             const LogicPropertyDef* keyProp = findProperty(condition, "key");
             const LogicPropertyDef* opProp = findProperty(condition, "op");
             const LogicPropertyDef* valueProp = findProperty(condition, "value");
-            const auto* key = keyProp ? std::get_if<LogicStringValue>(&keyProp->value) : nullptr;
+            const auto* key = keyProp ? std::get_if<LogicVariableReference>(&keyProp->value) : nullptr;
             const auto* op = opProp ? std::get_if<LogicStringValue>(&opProp->value) : nullptr;
             const double value = valueProp ? std::get<double>(valueProp->value) : 0.0;
-            lua << "context:state_compare(\""
-                << escapeLua(key ? key->value : std::string{}) << "\", \""
+            lua << "context:state_compare_number(\""
+                << escapeLua(key ? key->id : std::string{}) << "\", \""
                 << escapeLua(op ? op->value : std::string{"=="}) << "\", " << value << ")";
         }
         if (const LogicBlockDescriptor* descriptor = findDescriptor(condition.typeId))
@@ -625,27 +656,32 @@ const std::vector<LogicBlockDescriptor>& registry() {
             BlockKind::Action,
             {{"seconds", LogicValueKind::Number, 1.0, "Seconds"}},
             {}, {LogicContextCapability::Self}, {}, "flow.wait", true, 10, {"delay", "pause", "sleep"}},
-        {kStateSet, "state", "Set Variable", "Sets a global Number variable.",
+        {kStateSet, "state", "Set Number", "Sets a project Number variable.",
             BlockKind::Action,
-            {{"key", LogicValueKind::String, LogicStringValue{"score"}, "Variable"},
+            {{"key", LogicValueKind::Variable, LogicVariableReference{}, "Variable"},
              {"value", LogicValueKind::Number, 0.0, "Value"}},
-            {}, {}, {}, "state.set", false, 10, {"variable", "score"}},
-        {kStateAdd, "state", "Add Variable", "Adds to a global Number variable.",
+            {}, {}, {}, "state.set_number", false, 10, {"variable", "score", "set"}},
+        {kStateAdd, "state", "Add to Number", "Adds to a project Number variable.",
             BlockKind::Action,
-            {{"key", LogicValueKind::String, LogicStringValue{"score"}, "Variable"},
+            {{"key", LogicValueKind::Variable, LogicVariableReference{}, "Variable"},
              {"amount", LogicValueKind::Number, 1.0, "Amount"}},
-            {}, {}, {}, "state.add", false, 20, {"variable", "increment"}},
-        {kStateSubtract, "state", "Subtract Variable", "Subtracts from a global Number variable.",
+            {}, {}, {}, "state.add_number", false, 20, {"variable", "increment", "add"}},
+        {kStateSubtract, "state", "Subtract from Number",
+            "Subtracts from a project Number variable.",
             BlockKind::Action,
-            {{"key", LogicValueKind::String, LogicStringValue{"health"}, "Variable"},
+            {{"key", LogicValueKind::Variable, LogicVariableReference{}, "Variable"},
              {"amount", LogicValueKind::Number, 1.0, "Amount"}},
-            {}, {}, {}, "state.subtract", false, 30, {"variable", "decrement"}},
-        {kStateCompare, "state", "Compare Variable", "Compares a global Number variable.",
+            {}, {}, {}, "state.add_number", false, 30, {"variable", "decrement", "subtract"}},
+        {kStateCompare, "state", "Compare Number", "Compares a project Number variable.",
             BlockKind::Condition,
-            {{"key", LogicValueKind::String, LogicStringValue{"score"}, "Variable"},
+            {{"key", LogicValueKind::Variable, LogicVariableReference{}, "Variable"},
              {"op", LogicValueKind::String, LogicStringValue{"=="}, "Operator"},
              {"value", LogicValueKind::Number, 0.0, "Value"}},
-            {}, {}, {}, "state.compare", false, 40, {"variable", "equals", "compare"}},
+            {}, {}, {}, "state.compare_number", false, 40, {"variable", "equals", "compare"}},
+        {kStateToggle, "state", "Toggle Boolean", "Toggles a project Boolean variable.",
+            BlockKind::Action,
+            {{"key", LogicValueKind::Variable, LogicVariableReference{}, "Variable"}},
+            {}, {}, {}, "state.toggle_boolean", false, 50, {"variable", "bool", "toggle"}},
     };
     return value;
 }
@@ -678,6 +714,48 @@ LogicBlockDef makeDefaultBlock(const LogicBlockTypeId& typeId, BlockKind expecte
     return block;
 }
 
+std::optional<GameVariableDefinition::Type> requiredVariableType(
+    const LogicBlockTypeId& typeId) {
+    if (typeId == kStateSet || typeId == kStateAdd || typeId == kStateSubtract
+        || typeId == kStateCompare) {
+        return GameVariableDefinition::Type::Number;
+    }
+    if (typeId == kStateToggle) return GameVariableDefinition::Type::Boolean;
+    return std::nullopt;
+}
+
+const GameVariableDefinition* findGlobalVariable(
+    const ProjectDoc& project, const GameVariableId& id) {
+    if (id.empty()) return nullptr;
+    for (const GameVariableDefinition& def : project.globalVariables) {
+        if (def.key == id) return &def;
+    }
+    return nullptr;
+}
+
+void applyDeterministicVariableDefault(const ProjectDoc& doc, LogicBlockDef& block) {
+    const auto required = requiredVariableType(block.typeId);
+    if (!required) return;
+    LogicPropertyDef* keyProp = nullptr;
+    for (LogicPropertyDef& property : block.properties) {
+        if (property.key == "key") {
+            keyProp = &property;
+            break;
+        }
+    }
+    if (!keyProp) return;
+    auto* ref = std::get_if<LogicVariableReference>(&keyProp->value);
+    if (!ref || !ref->id.empty()) return;
+
+    std::vector<GameVariableId> matching;
+    matching.reserve(doc.globalVariables.size());
+    for (const GameVariableDefinition& def : doc.globalVariables) {
+        if (def.type == *required && !def.key.empty()) matching.push_back(def.key);
+    }
+    std::sort(matching.begin(), matching.end());
+    if (!matching.empty()) ref->id = matching.front();
+}
+
 LogicBlockAvailability blockAvailability(const EntityDef& owner,
                                          const LogicBlockDescriptor& candidate,
                                          const LogicBlockDescriptor* trigger) {
@@ -693,6 +771,7 @@ LogicBlockDef makeDefaultCondition() { return makeDefaultBlock(kIsGrounded, Bloc
 LogicRuleDef makeDefaultRule(LogicRuleId id) {
     LogicRuleDef rule;
     rule.id = std::move(id);
+    rule.name = rule.id;
     rule.trigger = makeDefaultTrigger();
     rule.actions.push_back(makeDefaultAction());
     return rule;
@@ -755,6 +834,8 @@ std::vector<LogicDiagnostic> validateBoard(const ObjectTypeId& objectTypeId,
     for (const LogicRuleDef& rule : board.rules) {
         if (!validId(rule.id) || !ids.insert(rule.id).second)
             out.push_back(makeError(objectTypeId, board, "LB_RULE_ID", "Invalid or duplicate rule id", &rule));
+        if (rule.name.empty())
+            out.push_back(makeError(objectTypeId, board, "LB_RULE_NAME", "Logic rule name is required", &rule));
         if (rule.actions.empty())
             out.push_back(makeError(objectTypeId, board, "LB_ACTION_REQUIRED", "A rule needs at least one action", &rule));
         if (rule.actions.size() > kMaxActionsPerRule)
