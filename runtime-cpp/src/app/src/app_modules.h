@@ -56,6 +56,9 @@ public:
     bool setVisible(EntityId owner, bool value) override {
         return gateway_.setRuntimeVisible(owner, value);
     }
+    bool isVisible(EntityId owner) override {
+        return gateway_.visibleInGame(owner);
+    }
     bool setPosition(EntityId owner, Vec2 value) override {
         Transform transform{};
         if (!gateway_.getTransform(owner, transform)) return false;

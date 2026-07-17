@@ -133,6 +133,9 @@ struct LogicRuntime::Impl {
             if (!impl || !impl->host.setVisible(owner, value))
                 throw sol::error("set_visible failed for owner");
         }
+        bool isVisible() {
+            return impl && impl->host.isVisible(owner);
+        }
         void setPosition(float x, float y) {
             if (!impl || !impl->host.setPosition(owner, Vec2{x, y}))
                 throw sol::error("set_position failed for owner");
@@ -522,6 +525,7 @@ bool LogicRuntime::initialize(std::string* error) {
         lua.new_usertype<Impl::SelfProxy>(
             "LogicSelf", sol::no_constructor,
             "set_visible", &Impl::SelfProxy::setVisible,
+            "is_visible", &Impl::SelfProxy::isVisible,
             "set_position", &Impl::SelfProxy::setPosition,
             "translate", &Impl::SelfProxy::translate,
             "set_rotation", &Impl::SelfProxy::setRotation,

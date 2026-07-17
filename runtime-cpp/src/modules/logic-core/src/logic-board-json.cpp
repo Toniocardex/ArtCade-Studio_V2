@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <exception>
+#include <stdexcept>
 #include <unordered_set>
 
 namespace ArtCade::Logic {
@@ -136,7 +137,28 @@ nlohmann::json logicBoardToJson(const LogicBoardDef& board) {
     nlohmann::json rules = nlohmann::json::array();
     for (const LogicRuleDef& rule : board.rules) {
         nlohmann::json conditions = nlohmann::json::array();
-        for (const LogicBlockDef& block : rule.conditions) conditions.push_back(blockToJson(block));
+        for (std::size_t index = 0; index < rule.conditions.size(); ++index) {
+            const LogicConditionClause& clause = rule.conditions[index];
+            if (index == 0 && clause.joinBefore != LogicConditionJoin::And) {
+                throw std::logic_error("First Logic condition must use AND");
+            }
+            const char* join = nullptr;
+            switch (clause.joinBefore) {
+            case LogicConditionJoin::And:
+                join = "and";
+                break;
+            case LogicConditionJoin::Or:
+                join = "or";
+                break;
+            default:
+                throw std::logic_error("Unknown Logic condition join operator");
+            }
+            conditions.push_back({
+                {"join", join},
+                {"negated", clause.negated},
+                {"block", blockToJson(clause.block)},
+            });
+        }
         nlohmann::json actions = nlohmann::json::array();
         for (const LogicBlockDef& block : rule.actions) actions.push_back(blockToJson(block));
         nlohmann::json ruleJson = {
@@ -146,7 +168,7 @@ nlohmann::json logicBoardToJson(const LogicBoardDef& board) {
             {"actions", std::move(actions)},
         };
         ruleJson["name"] = rule.name;
-        // Optional display grouping — omitted when unsectioned (format stays additive).
+        // Empty display grouping metadata is omitted from the current format.
         if (!rule.sectionId.empty()) ruleJson["sectionId"] = rule.sectionId;
         rules.push_back(std::move(ruleJson));
     }
@@ -228,9 +250,24 @@ LogicJsonResult logicBoardFromJson(const nlohmann::json& json, LogicBoardDef& ou
             if (!item.contains("actions") || !item["actions"].is_array())
                 return {false, "Logic rule actions must be an array"};
             for (const auto& raw : item["conditions"]) {
-                LogicBlockDef block;
-                if (!blockFromJson(raw, block, error)) return {false, error};
-                rule.conditions.push_back(std::move(block));
+                if (!raw.is_object() || raw.size() != 3
+                    || !raw.contains("join") || !raw["join"].is_string()
+                    || !raw.contains("negated") || !raw["negated"].is_boolean()
+                    || !raw.contains("block")) {
+                    return {false, "Logic condition clause is invalid"};
+                }
+                LogicConditionClause clause;
+                const std::string join = raw["join"].get<std::string>();
+                if (join == "and") clause.joinBefore = LogicConditionJoin::And;
+                else if (join == "or") clause.joinBefore = LogicConditionJoin::Or;
+                else return {false, "Unknown Logic condition join operator"};
+                clause.negated = raw["negated"].get<bool>();
+                if (!blockFromJson(raw["block"], clause.block, error)) return {false, error};
+                rule.conditions.push_back(std::move(clause));
+            }
+            if (!rule.conditions.empty()
+                && rule.conditions.front().joinBefore != LogicConditionJoin::And) {
+                return {false, "First Logic condition must use AND"};
             }
             for (const auto& raw : item["actions"]) {
                 LogicBlockDef block;

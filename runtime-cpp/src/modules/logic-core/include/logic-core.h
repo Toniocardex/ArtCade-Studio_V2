@@ -9,7 +9,7 @@
 
 namespace ArtCade::Logic {
 
-inline constexpr uint32_t kLogicBoardSchemaVersion = 2;
+inline constexpr uint32_t kLogicBoardSchemaVersion = 3;
 inline constexpr uint32_t kLogicApiVersion = 2;
 inline constexpr std::size_t kMaxRulesPerBoard = 128;
 inline constexpr std::size_t kMaxSectionsPerBoard = 64;
@@ -26,6 +26,7 @@ inline constexpr const char* kKeyReleased = "input.key_released";
 inline constexpr const char* kKeyHeld = "input.key_held";
 inline constexpr const char* kKeyDown = "input.key_down";
 inline constexpr const char* kSetVisible = "entity.set_visible";
+inline constexpr const char* kIsVisible = "entity.is_visible";
 inline constexpr const char* kSetPosition = "entity.set_position";
 inline constexpr const char* kTranslateBy = "entity.translate_by";
 inline constexpr const char* kSetRotation = "entity.set_rotation";
@@ -160,6 +161,14 @@ const LogicPropertyDef* findProperty(const LogicBlockDef& block, const std::stri
 /** User-facing property label; falls back to @p key when displayName is empty. */
 [[nodiscard]] std::string propertyDisplayName(const LogicPropertyDescriptor& property);
 LogicBlockDef makeDefaultBlock(const LogicBlockTypeId& typeId, BlockKind expected);
+/**
+ * True when @p descriptor may occupy the rule Event/trigger slot.
+ * Triggers always qualify. Conditions qualify only when they do not require
+ * EventOther (those stay collision-filter properties or legacy condition clauses).
+ */
+[[nodiscard]] bool isEventEligible(const LogicBlockDescriptor& descriptor);
+/** Default block for the Event slot — Trigger or event-eligible Condition. */
+[[nodiscard]] LogicBlockDef makeDefaultEventBlock(const LogicBlockTypeId& typeId);
 /**
  * Required global variable type for a state block typeId, or nullopt if the
  * block does not reference a typed project variable.

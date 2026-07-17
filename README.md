@@ -19,7 +19,7 @@ Qt adapter (EditorSession, models)
     ↓
 artcade_editor_core (ProjectDoc, Commands, load/save)
     ↓
-project.json (formatVersion 7, C++-owned)
+project.json (formatVersion 8, C++-owned)
     ↓
 C++ Runtime (native .exe / WASM)
 ```

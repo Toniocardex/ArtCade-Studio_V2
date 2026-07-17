@@ -7,6 +7,7 @@
 #include <iostream>
 #include <limits>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -29,6 +30,7 @@ struct Host final : ILogicRuntimeHost {
     std::optional<ScopeToken> cancelOnVisible;
     bool failVisible = false;
     std::unordered_set<EntityId> grounded;
+    std::unordered_map<EntityId, bool> visible;
     std::unordered_map<std::string, double> state;
     std::unordered_map<std::string, bool> boolState;
     bool keyDown = false;
@@ -42,8 +44,14 @@ struct Host final : ILogicRuntimeHost {
     }
     bool setVisible(EntityId owner, bool value) override {
         calls.push_back("visible:" + std::to_string(owner) + ":" + (value ? "1" : "0"));
+        visible[owner] = value;
         if (runtime && cancelOnVisible) runtime->cancelScope(*cancelOnVisible);
         return !failVisible;
+    }
+    bool isVisible(EntityId owner) override {
+        calls.push_back("is_visible:" + std::to_string(owner));
+        const auto it = visible.find(owner);
+        return it == visible.end() ? true : it->second;
     }
     bool setPosition(EntityId owner, Vec2 value) override {
         calls.push_back("position:" + std::to_string(owner) + ":"
@@ -156,6 +164,13 @@ struct Host final : ILogicRuntimeHost {
     }
 };
 
+static LogicConditionClause makeClause(
+    LogicBlockDef block,
+    LogicConditionJoin join = LogicConditionJoin::And,
+    bool negated = false) {
+    return {join, negated, std::move(block)};
+}
+
 static LogicBoardDef makeBoard() {
     LogicBoardDef board;
     board.id = "logic:Hero";
@@ -175,6 +190,11 @@ static LogicBoardDef makeBoard() {
 static void testCompilerAndJson() {
     LogicBoardDef board = makeBoard();
     board.rules[0].name = "Player Movement";
+    board.rules[0].conditions = {
+        makeClause(makeDefaultCondition()),
+        makeClause(makeDefaultBlock(kKeyDown, BlockKind::Condition),
+                   LogicConditionJoin::Or, true),
+    };
     LogicCompileResult a = compileBoard("Hero", board);
     LogicCompileResult b = compileBoard("Hero", board);
     CHECK(a.ok());
@@ -187,10 +207,35 @@ static void testCompilerAndJson() {
     CHECK(logicBoardFromJson(json, loaded).ok);
     CHECK(logicBoardToJson(loaded) == json);
     CHECK(loaded.rules[0].name == "Player Movement");
+    CHECK(loaded.rules[0].conditions.size() == 2);
+    CHECK(loaded.rules[0].conditions[1].joinBefore == LogicConditionJoin::Or);
+    CHECK(loaded.rules[0].conditions[1].negated);
 
     auto stale_schema = json;
-    stale_schema["schemaVersion"] = 1u;
+    stale_schema["schemaVersion"] = 2u;
     CHECK(!logicBoardFromJson(stale_schema, loaded).ok);
+
+    auto obsolete_condition_shape = json;
+    obsolete_condition_shape["rules"][0]["conditions"][0] =
+        obsolete_condition_shape["rules"][0]["conditions"][0]["block"];
+    CHECK(!logicBoardFromJson(obsolete_condition_shape, loaded).ok);
+
+    auto unknown_join = json;
+    unknown_join["rules"][0]["conditions"][1]["join"] = "xor";
+    CHECK(!logicBoardFromJson(unknown_join, loaded).ok);
+
+    auto first_or = json;
+    first_or["rules"][0]["conditions"][0]["join"] = "or";
+    CHECK(!logicBoardFromJson(first_or, loaded).ok);
+    LogicBoardDef invalid_for_serialization = board;
+    invalid_for_serialization.rules[0].conditions[0].joinBefore = LogicConditionJoin::Or;
+    bool rejected_serialization = false;
+    try {
+        (void)logicBoardToJson(invalid_for_serialization);
+    } catch (const std::logic_error&) {
+        rejected_serialization = true;
+    }
+    CHECK(rejected_serialization);
 
     auto missing_name = json;
     missing_name["rules"][0].erase("name");
@@ -209,7 +254,9 @@ static void testCompilerAndJson() {
 
     ProjectDoc project;
     EntityDef z; z.logicBoard = board; z.logicBoard->id = "logic:Z";
+    z.platformerController = PlatformerControllerComponent{};
     EntityDef aType; aType.logicBoard = board; aType.logicBoard->id = "logic:A";
+    aType.platformerController = PlatformerControllerComponent{};
     project.objectTypes.emplace("Z", z);
     project.objectTypes.emplace("A", aType);
     const LogicCompileResult projectCompiled = compileProjectLogic(project);
@@ -403,7 +450,7 @@ static void testIsGroundedCondition() {
     board.id = "logic:Grounded";
     LogicRuleDef rule = makeDefaultRule("rule-1");
     rule.trigger = {kKeyPressed, {{"key", LogicKey::Space}}};
-    rule.conditions.push_back(condition);
+    rule.conditions.push_back(makeClause(condition));
     board.rules.push_back(rule);
 
     // Validation: expected is a required boolean property.
@@ -418,7 +465,7 @@ static void testIsGroundedCondition() {
 
     // Compiler: expected=false compiles to a real negation, not a no-op.
     LogicBoardDef falseBoard = board;
-    std::get<bool>(falseBoard.rules[0].conditions[0].properties[0].value) = false;
+    std::get<bool>(falseBoard.rules[0].conditions[0].block.properties[0].value) = false;
     LogicCompileResult falseCompiled = compileBoard("Hero", falseBoard);
     CHECK(falseCompiled.ok());
     CHECK(falseCompiled.programs[0].source.find("is_grounded() == false") != std::string::npos);
@@ -429,7 +476,7 @@ static void testIsGroundedCondition() {
 
     // Multiple conditions: deterministic AND.
     LogicBoardDef multi = board;
-    multi.rules[0].conditions.push_back(condition);
+    multi.rules[0].conditions.push_back(makeClause(condition));
     LogicCompileResult multiCompiled = compileBoard("Hero", multi);
     CHECK(multiCompiled.ok());
     CHECK(multiCompiled.programs[0].source.find(" and ") != std::string::npos);
@@ -461,6 +508,208 @@ static void testIsGroundedCondition() {
         CHECK(!runtime.loadPrograms({program}, &error));
         CHECK(!error.empty());
     }
+}
+
+static void testIsGroundedAsEvent() {
+    CHECK(isEventEligible(*findDescriptor(kIsGrounded)));
+    CHECK(isEventEligible(*findDescriptor(kKeyDown)));
+    CHECK(isEventEligible(*findDescriptor(kStateCompare)));
+    CHECK(!isEventEligible(*findDescriptor(kOtherIsObjectType)));
+
+    LogicBlockDef event = makeDefaultEventBlock(kIsGrounded);
+    CHECK(event.typeId == kIsGrounded);
+
+    LogicBoardDef board;
+    board.id = "logic:GroundedEvent";
+    LogicRuleDef rule = makeDefaultRule("rule-1");
+    rule.trigger = event;
+    rule.actions = {makeDefaultBlock(kJump, BlockKind::Action)};
+    board.rules.push_back(rule);
+
+    EntityDef owner;
+    owner.platformerController = PlatformerControllerComponent{};
+    CHECK(validateBoard("Hero", board, &owner).empty());
+
+    LogicCompileResult compiled = compileBoard("Hero", board, &owner);
+    CHECK(compiled.ok());
+    CHECK(compiled.requiresTick);
+    CHECK(compiled.programs[0].source.find("on_update") != std::string::npos);
+    CHECK(compiled.programs[0].source.find("is_grounded() == true") != std::string::npos);
+    CHECK(compiled.programs[0].source.find("platformer_jump") != std::string::npos);
+}
+
+static void testIsVisibleAsEvent() {
+    CHECK(isEventEligible(*findDescriptor(kIsVisible)));
+    const LogicBlockDescriptor* descriptor = findDescriptor(kIsVisible);
+    CHECK(descriptor != nullptr);
+    CHECK(descriptor->kind == BlockKind::Condition);
+    CHECK(descriptor->requiredFeature == std::string("entity.visibility"));
+
+    LogicBlockDef event = makeDefaultEventBlock(kIsVisible);
+    CHECK(event.typeId == kIsVisible);
+
+    LogicBoardDef board;
+    board.id = "logic:VisibleEvent";
+    LogicRuleDef rule = makeDefaultRule("rule-1");
+    rule.trigger = event;
+    LogicBlockDef moveBy = makeDefaultBlock(kTranslateBy, BlockKind::Action);
+    for (LogicPropertyDef& p : moveBy.properties) {
+        if (p.key == "offset") p.value = Vec2{5.f, 0.f};
+    }
+    rule.actions = {moveBy};
+    board.rules.push_back(rule);
+
+    CHECK(validateBoard("Hero", board).empty());
+    LogicCompileResult compiled = compileBoard("Hero", board);
+    CHECK(compiled.ok());
+    CHECK(compiled.requiresTick);
+    CHECK(compiled.programs[0].source.find("on_update") != std::string::npos);
+    CHECK(compiled.programs[0].source.find("is_visible() == true") != std::string::npos);
+    CHECK(compiled.programs[0].source.find("translate(5") != std::string::npos);
+
+    Host host;
+    host.visible[1] = true;
+    LogicRuntime runtime(host);
+    std::string error;
+    CHECK(runtime.loadPrograms(compiled.programs, &error));
+    CHECK(runtime.install("Hero", 1, &error).has_value());
+    runtime.beginFrame();
+    runtime.dispatchTick(1.f / 60.f);
+    CHECK(std::any_of(host.calls.begin(), host.calls.end(),
+        [](const std::string& c) { return c == "is_visible:1"; }));
+    CHECK(std::any_of(host.calls.begin(), host.calls.end(),
+        [](const std::string& c) { return c == "translate:1:5,0"; }));
+
+    host.calls.clear();
+    host.visible[1] = false;
+    runtime.beginFrame();
+    runtime.dispatchTick(1.f / 60.f);
+    CHECK(std::any_of(host.calls.begin(), host.calls.end(),
+        [](const std::string& c) { return c == "is_visible:1"; }));
+    CHECK(std::none_of(host.calls.begin(), host.calls.end(),
+        [](const std::string& c) { return c.rfind("translate:", 0) == 0; }));
+}
+
+static LogicBlockDef makeStateCompareCondition(double value) {
+    LogicBlockDef condition = makeDefaultBlock(kStateCompare, BlockKind::Condition);
+    for (LogicPropertyDef& property : condition.properties) {
+        if (property.key == "key") property.value = LogicVariableReference{"score"};
+        else if (property.key == "op") property.value = LogicStringValue{">="};
+        else if (property.key == "value") property.value = value;
+    }
+    return condition;
+}
+
+static LogicBlockDef makeKeyDownCondition(LogicKey key) {
+    LogicBlockDef condition = makeDefaultBlock(kKeyDown, BlockKind::Condition);
+    for (LogicPropertyDef& property : condition.properties) {
+        if (property.key == "key") property.value = key;
+    }
+    return condition;
+}
+
+static LogicBoardDef makeOperatorBoard(std::vector<LogicConditionClause> conditions) {
+    LogicBoardDef board;
+    board.id = "logic:Operators";
+    LogicRuleDef rule = makeDefaultRule("operator-rule");
+    rule.trigger = {kKeyPressed, {{"key", LogicKey::Space}}};
+    rule.conditions = std::move(conditions);
+    board.rules.push_back(std::move(rule));
+    return board;
+}
+
+static void testConditionOperators() {
+    const LogicBlockDef grounded = makeDefaultCondition();
+    const LogicBlockDef compare = makeStateCompareCondition(5.0);
+    const LogicBlockDef keyDownA = makeKeyDownCondition(LogicKey::A);
+    const LogicBlockDef keyDownB = makeKeyDownCondition(LogicKey::B);
+
+    const auto compiledSource = [](std::vector<LogicConditionClause> conditions) {
+        const LogicCompileResult result = compileBoard(
+            "Operators", makeOperatorBoard(std::move(conditions)));
+        CHECK(result.ok());
+        return result.ok() ? result.programs[0].source : std::string{};
+    };
+    CHECK(compiledSource({makeClause(grounded)}).find(
+        "if (context.self:is_grounded() == true) then") != std::string::npos);
+    CHECK(compiledSource({makeClause(grounded, LogicConditionJoin::And, true)}).find(
+        "if (not (context.self:is_grounded() == true)) then") != std::string::npos);
+    CHECK(compiledSource({makeClause(grounded), makeClause(keyDownA)}).find(
+        "if (context.self:is_grounded() == true and context:is_key_down(\"A\")) then")
+        != std::string::npos);
+    CHECK(compiledSource({makeClause(grounded),
+                          makeClause(keyDownA, LogicConditionJoin::Or)}).find(
+        "if (context.self:is_grounded() == true) or "
+        "(context:is_key_down(\"A\")) then") != std::string::npos);
+    CHECK(compiledSource({makeClause(grounded),
+                          makeClause(keyDownA, LogicConditionJoin::Or, true)}).find(
+        "if (context.self:is_grounded() == true) or "
+        "(not (context:is_key_down(\"A\"))) then") != std::string::npos);
+
+    LogicBoardDef grouped = makeOperatorBoard({
+        makeClause(grounded),
+        makeClause(keyDownA, LogicConditionJoin::And),
+        makeClause(compare, LogicConditionJoin::Or),
+        makeClause(keyDownB, LogicConditionJoin::And, true),
+    });
+    const LogicCompileResult groupedCompiled = compileBoard("Operators", grouped);
+    CHECK(groupedCompiled.ok());
+    CHECK(groupedCompiled.programs[0].source.find(
+        "(context.self:is_grounded() == true and context:is_key_down(\"A\")) or "
+        "(context:state_compare_number(\"score\", \">=\", 5) and "
+        "not (context:is_key_down(\"B\")))") != std::string::npos);
+
+    LogicBoardDef andBeforeOr = makeOperatorBoard({
+        makeClause(grounded),
+        makeClause(compare, LogicConditionJoin::And),
+        makeClause(keyDownA, LogicConditionJoin::Or),
+    });
+    LogicCompileResult compiled = compileBoard("Operators", andBeforeOr);
+    CHECK(compiled.ok());
+    {
+        Host host;
+        host.declareNumber("score", 0.0);
+        host.keyDown = true;
+        LogicRuntime runtime(host);
+        std::string error;
+        CHECK(runtime.loadPrograms(compiled.programs, &error));
+        CHECK(runtime.install("Operators", 1, &error).has_value());
+        runtime.beginFrame();
+        runtime.dispatchKeyPressed(LogicKey::Space);
+        CHECK(host.calls.size() == 1); // false AND false OR true
+    }
+
+    LogicBoardDef orBeforeAnd = makeOperatorBoard({
+        makeClause(grounded),
+        makeClause(compare, LogicConditionJoin::Or),
+        makeClause(keyDownA, LogicConditionJoin::And),
+    });
+    compiled = compileBoard("Operators", orBeforeAnd);
+    CHECK(compiled.ok());
+    {
+        Host host;
+        host.declareNumber("score", 10.0);
+        LogicRuntime runtime(host);
+        std::string error;
+        CHECK(runtime.loadPrograms(compiled.programs, &error));
+        CHECK(runtime.install("Operators", 1, &error).has_value());
+        runtime.beginFrame();
+        runtime.dispatchKeyPressed(LogicKey::Space);
+        CHECK(host.calls.empty()); // false OR true AND false
+        host.keyDown = true;
+        runtime.beginFrame();
+        runtime.dispatchKeyPressed(LogicKey::Space);
+        CHECK(host.calls.size() == 1); // false OR true AND true
+    }
+
+    LogicBoardDef invalid = grouped;
+    invalid.rules[0].conditions[0].joinBefore = LogicConditionJoin::Or;
+    const auto invalidDiagnostics = validateBoard("Operators", invalid);
+    CHECK(std::any_of(invalidDiagnostics.begin(), invalidDiagnostics.end(),
+        [](const LogicDiagnostic& diagnostic) {
+            return diagnostic.code == "LB_FIRST_CONDITION_JOIN";
+        }));
+    CHECK(!compileBoard("Operators", invalid).ok());
 }
 
 static void testPlaySoundAction() {
@@ -605,7 +854,7 @@ static void testCombinedGameplaySmoke() {
     for (LogicPropertyDef& property : rule.trigger.properties) {
         if (property.key == "key") property.value = LogicKey::Space;
     }
-    rule.conditions = {makeDefaultBlock(kIsGrounded, BlockKind::Condition)};
+    rule.conditions = {makeClause(makeDefaultBlock(kIsGrounded, BlockKind::Condition))};
     LogicBlockDef playClip = makeDefaultBlock(kAnimationPlayClip, BlockKind::Action);
     for (LogicPropertyDef& property : playClip.properties) {
         if (property.key == "animationAssetId")
@@ -737,7 +986,7 @@ static void testP1StateAndWaitAndVelocity() {
             else if (p.key == "op") p.value = LogicStringValue{">="};
             else if (p.key == "value") p.value = 5.0;
         }
-        rule.conditions = {cond};
+        rule.conditions = {makeClause(cond)};
         rule.actions[0] = {kSetVisible,
             {{"target", LogicEntityReference{}}, {"visible", false}}};
         board.rules.push_back(rule);
@@ -822,7 +1071,7 @@ static void testP1KeyDownCondition() {
     for (LogicPropertyDef& p : cond.properties) {
         if (p.key == "key") p.value = LogicKey::A;
     }
-    rule.conditions = {cond};
+    rule.conditions = {makeClause(cond)};
     rule.actions[0] = {kSetVisible,
         {{"target", LogicEntityReference{}}, {"visible", false}}};
     board.rules.push_back(rule);
@@ -1042,6 +1291,9 @@ int main() {
     testStrictSandboxAndBudget();
     testLimitsSnapshotAndIsolation();
     testIsGroundedCondition();
+    testIsGroundedAsEvent();
+    testIsVisibleAsEvent();
+    testConditionOperators();
     testPlaySoundAction();
     testCombinedGameplaySmoke();
     testP1EverySecondsAndTick();

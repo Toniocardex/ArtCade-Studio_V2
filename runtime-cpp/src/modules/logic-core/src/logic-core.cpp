@@ -1,4 +1,5 @@
 #include "../include/logic-core.h"
+#include "logic-codegen-internal.h"
 
 #include <algorithm>
 #include <cmath>
@@ -9,6 +10,10 @@
 
 namespace ArtCade::Logic {
 namespace {
+
+using CodegenInternal::emitConditionExpression;
+using CodegenInternal::emitConditionGuard;
+using CodegenInternal::escapeLua;
 
 LogicEntityReference selfReference() { return {}; }
 
@@ -74,6 +79,9 @@ LogicBlockAvailability availabilityFor(const EntityDef& owner,
         }
     }
     for (const LogicContextCapability capability : candidate.requiredContext) {
+        // Event-slot authoring passes a null parent trigger: Self is the board
+        // owner. EventOther and other contextual caps still need a real parent.
+        if (!trigger && capability == LogicContextCapability::Self) continue;
         if (!trigger || !containsCapability(trigger->providedContext, capability)) {
             return {false, "Requires a trigger that provides the required context"};
         }
@@ -118,7 +126,10 @@ void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
                                 &rule, &block));
         return;
     }
-    if (descriptor->kind != expected) {
+    const bool eventEligibleCondition = expected == BlockKind::Trigger
+        && descriptor->kind == BlockKind::Condition
+        && isEventEligible(*descriptor);
+    if (descriptor->kind != expected && !eventEligibleCondition) {
         out.push_back(makeError(objectTypeId, board, "LB_WRONG_BLOCK_KIND",
                                 "Block is used in the wrong rule section", &rule, &block));
         return;
@@ -191,11 +202,16 @@ void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
                                         &rule, &block, property.key));
             }
         }
-        if ((block.typeId == kOtherIsObjectType || block.typeId == kSpawnObject)
+        if ((block.typeId == kOtherIsObjectType || block.typeId == kSpawnObject
+             || block.typeId == kCollisionEnter || block.typeId == kCollisionExit)
             && property.key == "objectTypeId") {
             const auto* referencedType = std::get_if<LogicStringValue>(&property.value);
-            if (!referencedType || referencedType->value.empty()
-                || (project && project->objectTypes.count(referencedType->value) == 0)) {
+            const bool emptyAllowed = block.typeId == kCollisionEnter
+                || block.typeId == kCollisionExit;
+            if (!referencedType
+                || (!emptyAllowed && referencedType->value.empty())
+                || (!referencedType->value.empty()
+                    && project && project->objectTypes.count(referencedType->value) == 0)) {
                 out.push_back(makeError(objectTypeId, board, "LB_OBJECT_TYPE_REFERENCE",
                                         block.typeId == kSpawnObject
                                             ? "Spawn must reference an existing Object Type"
@@ -312,22 +328,6 @@ void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
     }
 }
 
-std::string escapeLua(const std::string& value) {
-    std::string out;
-    out.reserve(value.size() + 8);
-    for (char c : value) {
-        switch (c) {
-            case '\\': out += "\\\\"; break;
-            case '"': out += "\\\""; break;
-            case '\n': out += "\\n"; break;
-            case '\r': out += "\\r"; break;
-            case '\t': out += "\\t"; break;
-            default: out += c; break;
-        }
-    }
-    return out;
-}
-
 void emitAction(std::ostringstream& lua, const LogicBlockDef& action,
                 std::set<std::string>& features) {
     if (action.typeId == kSetVisible) {
@@ -442,48 +442,6 @@ void emitActions(std::ostringstream& lua, const std::vector<LogicBlockDef>& acti
     }
 }
 
-// Conditions gate the rule's actions behind a single `if ... then` guard,
-// ANDed together (MVP semantics: no OR/grouping yet). Zero conditions means
-// no guard is emitted and actions run unconditionally, matching the trigger
-// firing with no gate at all.
-bool emitConditionGuard(std::ostringstream& lua, const std::vector<LogicBlockDef>& conditions,
-                        std::set<std::string>& features) {
-    if (conditions.empty()) return false;
-    lua << "    if ";
-    for (std::size_t i = 0; i < conditions.size(); ++i) {
-        if (i > 0) lua << " and ";
-        const LogicBlockDef& condition = conditions[i];
-        if (condition.typeId == kIsGrounded) {
-            const LogicPropertyDef* p = findProperty(condition, "expected");
-            const bool expected = p ? std::get<bool>(p->value) : true;
-            lua << "context.self:is_grounded() == " << (expected ? "true" : "false");
-        } else if (condition.typeId == kOtherIsObjectType) {
-            const LogicPropertyDef* p = findProperty(condition, "objectTypeId");
-            const auto* type = p ? std::get_if<LogicStringValue>(&p->value) : nullptr;
-            lua << "context:other_is_object_type(other, \""
-                << escapeLua(type ? type->value : std::string{}) << "\")";
-        } else if (condition.typeId == kKeyDown) {
-            const LogicPropertyDef* key = findProperty(condition, "key");
-            lua << "context:is_key_down(\""
-                << logicKeyName(std::get<LogicKey>(key->value)) << "\")";
-        } else if (condition.typeId == kStateCompare) {
-            const LogicPropertyDef* keyProp = findProperty(condition, "key");
-            const LogicPropertyDef* opProp = findProperty(condition, "op");
-            const LogicPropertyDef* valueProp = findProperty(condition, "value");
-            const auto* key = keyProp ? std::get_if<LogicVariableReference>(&keyProp->value) : nullptr;
-            const auto* op = opProp ? std::get_if<LogicStringValue>(&opProp->value) : nullptr;
-            const double value = valueProp ? std::get<double>(valueProp->value) : 0.0;
-            lua << "context:state_compare_number(\""
-                << escapeLua(key ? key->id : std::string{}) << "\", \""
-                << escapeLua(op ? op->value : std::string{"=="}) << "\", " << value << ")";
-        }
-        if (const LogicBlockDescriptor* descriptor = findDescriptor(condition.typeId))
-            if (!descriptor->requiredFeature.empty()) features.insert(descriptor->requiredFeature);
-    }
-    lua << " then\n";
-    return true;
-}
-
 } // namespace
 
 bool LogicCompileResult::ok() const {
@@ -550,13 +508,19 @@ const std::vector<LogicBlockDescriptor>& registry() {
         {kKeyDown, "input", "Is Key Down", "True while the selected key is held.",
             BlockKind::Condition,
             {{"key", LogicValueKind::Key, LogicKey::Space, "Key"}}, {},
-            {LogicContextCapability::Self}, {}, "input.key_down", false, 10, {"keyboard", "input"}},
+            {LogicContextCapability::Self}, {LogicContextCapability::Self},
+            "input.key_down", false, 10, {"keyboard", "input"}},
         {kSetVisible, "entity", "Set Visible", "Shows or hides Self.",
             BlockKind::Action,
             {{"target", LogicValueKind::Entity, selfReference(), "Target"},
              {"visible", LogicValueKind::Bool, true, "Visible"}},
             {}, {LogicContextCapability::Self}, {}, "entity.visibility", false, 10,
             {"visibility", "show", "hide"}},
+        {kIsVisible, "entity", "Is Visible", "Checks whether Self is currently visible.",
+            BlockKind::Condition,
+            {{"expected", LogicValueKind::Bool, true, "Expected"}},
+            {}, {LogicContextCapability::Self}, {LogicContextCapability::Self},
+            "entity.visibility", false, 15, {"shown", "hidden", "visibility"}},
         {kSetPosition, "entity", "Set Position", "Moves Self to an absolute world position.",
             BlockKind::Action,
             {{"target", LogicValueKind::Entity, selfReference(), "Target"},
@@ -600,7 +564,8 @@ const std::vector<LogicBlockDescriptor>& registry() {
         {kIsGrounded, "platformer", "Is Grounded", "Checks whether Self is touching valid ground.",
             BlockKind::Condition,
             {{"expected", LogicValueKind::Bool, true, "Expected"}},
-            {LogicRequiredComponent::PlatformerController}, {LogicContextCapability::Self}, {},
+            {LogicRequiredComponent::PlatformerController}, {LogicContextCapability::Self},
+            {LogicContextCapability::Self},
             "platformer.grounded", false, 10, {"floor", "landing"}},
         {kMoveHorizontal, "platformer", "Move Horizontal", "Requests horizontal platformer movement.",
             BlockKind::Action,
@@ -611,16 +576,19 @@ const std::vector<LogicBlockDescriptor>& registry() {
             BlockKind::Action, {}, {LogicRequiredComponent::PlatformerController},
             {LogicContextCapability::Self}, {}, "platformer.jump", false, 30, {"leap", "hop"}},
         {kCollisionEnter, "collision", "On Collision Enter", "Runs once when Self begins overlapping another collider.",
-            BlockKind::Trigger, {}, {}, {},
+            BlockKind::Trigger,
+            {{"objectTypeId", LogicValueKind::String, LogicStringValue{}, "Other Type"}}, {}, {},
             {LogicContextCapability::Self, LogicContextCapability::EventOther,
              LogicContextCapability::CollisionContact}, "collision.enter", false, 10,
             {"hit", "overlap", "touch"}},
         {kCollisionExit, "collision", "On Collision Exit", "Runs once when Self stops overlapping another collider.",
-            BlockKind::Trigger, {}, {}, {},
+            BlockKind::Trigger,
+            {{"objectTypeId", LogicValueKind::String, LogicStringValue{}, "Other Type"}}, {}, {},
             {LogicContextCapability::Self, LogicContextCapability::EventOther,
              LogicContextCapability::CollisionContact}, "collision.exit", false, 20,
             {"leave", "overlap"}},
-        {kOtherIsObjectType, "collision", "Other Is Object Type", "Checks the Object Type of collision Other.",
+        {kOtherIsObjectType, "collision", "Other Is Object Type",
+            "Legacy condition filter. Prefer the Other Type property on collision events.",
             BlockKind::Condition,
             {{"objectTypeId", LogicValueKind::String, LogicStringValue{}, "Object Type"}},
             {}, {LogicContextCapability::EventOther}, {}, "collision.other_type", false, 30},
@@ -677,7 +645,8 @@ const std::vector<LogicBlockDescriptor>& registry() {
             {{"key", LogicValueKind::Variable, LogicVariableReference{}, "Variable"},
              {"op", LogicValueKind::String, LogicStringValue{"=="}, "Operator"},
              {"value", LogicValueKind::Number, 0.0, "Value"}},
-            {}, {}, {}, "state.compare_number", false, 40, {"variable", "equals", "compare"}},
+            {}, {}, {LogicContextCapability::Self}, "state.compare_number", false, 40,
+            {"variable", "equals", "compare"}},
         {kStateToggle, "state", "Toggle Boolean", "Toggles a project Boolean variable.",
             BlockKind::Action,
             {{"key", LogicValueKind::Variable, LogicVariableReference{}, "Variable"}},
@@ -707,6 +676,22 @@ const LogicPropertyDef* findProperty(const LogicBlockDef& block, const std::stri
 LogicBlockDef makeDefaultBlock(const LogicBlockTypeId& typeId, BlockKind expected) {
     const LogicBlockDescriptor* descriptor = findDescriptor(typeId);
     if (!descriptor || descriptor->kind != expected) return {};
+    LogicBlockDef block;
+    block.typeId = descriptor->typeId;
+    for (const LogicPropertyDescriptor& property : descriptor->properties)
+        block.properties.push_back({property.key, property.defaultValue});
+    return block;
+}
+
+bool isEventEligible(const LogicBlockDescriptor& descriptor) {
+    if (descriptor.kind == BlockKind::Trigger) return true;
+    if (descriptor.kind != BlockKind::Condition) return false;
+    return !containsCapability(descriptor.requiredContext, LogicContextCapability::EventOther);
+}
+
+LogicBlockDef makeDefaultEventBlock(const LogicBlockTypeId& typeId) {
+    const LogicBlockDescriptor* descriptor = findDescriptor(typeId);
+    if (!descriptor || !isEventEligible(*descriptor)) return {};
     LogicBlockDef block;
     block.typeId = descriptor->typeId;
     for (const LogicPropertyDescriptor& property : descriptor->properties)
@@ -845,9 +830,26 @@ std::vector<LogicDiagnostic> validateBoard(const ObjectTypeId& objectTypeId,
         const LogicBlockDescriptor* trigger = findDescriptor(rule.trigger.typeId);
         validateBlock(objectTypeId, board, rule, rule.trigger, BlockKind::Trigger, owner,
                       nullptr, project, mode, out);
-        for (const LogicBlockDef& condition : rule.conditions)
-            validateBlock(objectTypeId, board, rule, condition, BlockKind::Condition, owner,
+        for (std::size_t index = 0; index < rule.conditions.size(); ++index) {
+            const LogicConditionClause& clause = rule.conditions[index];
+            if (index == 0 && clause.joinBefore != LogicConditionJoin::And) {
+                out.push_back(makeError(objectTypeId, board, "LB_FIRST_CONDITION_JOIN",
+                                        "First condition must use AND.", &rule,
+                                        &clause.block, {}));
+            }
+            switch (clause.joinBefore) {
+            case LogicConditionJoin::And:
+            case LogicConditionJoin::Or:
+                break;
+            default:
+                out.push_back(makeError(objectTypeId, board, "LB_UNKNOWN_CONDITION_JOIN",
+                                        "Unknown condition join operator.", &rule,
+                                        &clause.block, {}));
+                break;
+            }
+            validateBlock(objectTypeId, board, rule, clause.block, BlockKind::Condition, owner,
                           trigger, project, mode, out);
+        }
         for (const LogicBlockDef& action : rule.actions)
             validateBlock(objectTypeId, board, rule, action, BlockKind::Action, owner,
                           trigger, project, mode, out);
@@ -898,6 +900,11 @@ LogicCompileResult compileBoard(const ObjectTypeId& objectTypeId,
                 : rule.trigger.typeId == kKeyHeld ? "on_key_held" : "on_key_pressed";
             lua << "  context:" << registerMethod << "(\"" << escapeLua(rule.id) << "\", \""
                 << logicKeyName(std::get<LogicKey>(key->value)) << "\", function()\n";
+        } else if (rule.trigger.typeId == kIsGrounded || rule.trigger.typeId == kIsVisible
+                   || rule.trigger.typeId == kKeyDown
+                   || rule.trigger.typeId == kStateCompare) {
+            lua << "  context:on_update(\"" << escapeLua(rule.id) << "\", function()\n";
+            result.requiresTick = true;
         } else {
             result.diagnostics.push_back(makeError(
                 objectTypeId, board, "LB_UNKNOWN_TRIGGER",
@@ -909,11 +916,28 @@ LogicCompileResult compileBoard(const ObjectTypeId& objectTypeId,
             if (!descriptor->requiredFeature.empty()) features.insert(descriptor->requiredFeature);
             result.requiresTick = result.requiresTick || descriptor->requiresTick;
         }
-        const bool guarded = emitConditionGuard(lua, rule.conditions, features);
+
+        int guardDepth = 0;
+        if (rule.trigger.typeId == kCollisionEnter || rule.trigger.typeId == kCollisionExit) {
+            const LogicPropertyDef* filter = findProperty(rule.trigger, "objectTypeId");
+            const auto* type = filter ? std::get_if<LogicStringValue>(&filter->value) : nullptr;
+            if (type && !type->value.empty()) {
+                lua << "    if context:other_is_object_type(other, \""
+                    << escapeLua(type->value) << "\") then\n";
+                ++guardDepth;
+                features.insert("collision.other_type");
+            }
+        } else if (rule.trigger.typeId == kIsGrounded || rule.trigger.typeId == kIsVisible
+                   || rule.trigger.typeId == kKeyDown
+                   || rule.trigger.typeId == kStateCompare) {
+            lua << "    if " << emitConditionExpression(rule.trigger, features) << " then\n";
+            ++guardDepth;
+        }
+        if (emitConditionGuard(lua, rule.conditions, features)) ++guardDepth;
         emitActions(lua, rule.actions, 0, features);
         // Wait is an action (not a trigger) but still needs the tick path.
         if (features.count("flow.wait")) result.requiresTick = true;
-        if (guarded) lua << "    end\n";
+        for (int i = 0; i < guardDepth; ++i) lua << "    end\n";
         lua << "  end)\n";
     }
     lua << "end)\n";

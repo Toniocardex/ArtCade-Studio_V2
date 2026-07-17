@@ -102,6 +102,16 @@ struct LogicBlockDef {
     std::vector<LogicPropertyDef> properties;
 };
 
+/** Connector applied before a Logic condition clause. */
+enum class LogicConditionJoin { And, Or };
+
+/** Boolean condition payload plus its authored connector and optional negation. */
+struct LogicConditionClause {
+    LogicConditionJoin joinBefore = LogicConditionJoin::And;
+    bool               negated = false;
+    LogicBlockDef      block;
+};
+
 // Display-only grouping header for board readability. Sections never affect
 // runtime semantics: rule execution order stays the board rule order.
 struct LogicSectionDef {
@@ -115,13 +125,13 @@ struct LogicRuleDef {
     bool                      enabled = true;
     std::string               sectionId;  // optional LogicSectionDef.id; empty = unsectioned
     LogicBlockDef             trigger;
-    std::vector<LogicBlockDef> conditions;
+    std::vector<LogicConditionClause> conditions;
     std::vector<LogicBlockDef> actions;
 };
 
 struct LogicBoardDef {
     LogicBoardId              id;
-    uint32_t                  schemaVersion = 2;
+    uint32_t                  schemaVersion = 3;
     uint32_t                  apiVersion = 2;
     std::vector<LogicSectionDef> sections;  // display grouping; optional
     std::vector<LogicRuleDef> rules;
