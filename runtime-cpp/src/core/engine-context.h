@@ -31,7 +31,6 @@ namespace Modules {
     class GameStateManager;
     class TextureManager;
     class SpriteAnimator;
-    class LayerManager;
     class CameraManager;
     class TweenManager;
     class SaveLoadManager;
@@ -61,7 +60,6 @@ struct EngineContext {
     Modules::GameStateManager* gameStateManager = nullptr;
     Modules::TextureManager*   textureManager   = nullptr;
     Modules::SpriteAnimator*   spriteAnimator   = nullptr;
-    Modules::LayerManager*     layerManager     = nullptr;
     Modules::CameraManager*    cameraManager    = nullptr;
     Modules::TweenManager*     tweenManager     = nullptr;
     Modules::SaveLoadManager*  saveLoadManager  = nullptr;

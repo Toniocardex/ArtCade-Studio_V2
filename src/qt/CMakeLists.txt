@@ -88,6 +88,9 @@ if(ARTCADE_BUILD_TESTS)
             "ARTCADE_QT_SLICE_FIXTURE_PATH=\"${CMAKE_SOURCE_DIR}/tests/fixtures/qt-slice/project.json\""
     )
     add_test(NAME artcade_scene_view_input_test COMMAND artcade_scene_view_input_test)
+    set_tests_properties(artcade_scene_view_input_test PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_PLUGIN_PATH=$<TARGET_FILE_DIR:Qt6::Core>/../plugins"
+    )
 endif()
 
 # Style module: QQuickStyle("ArtCadeStyle") control overrides (ToolTip, ScrollBar).

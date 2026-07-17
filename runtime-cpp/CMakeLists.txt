@@ -126,6 +126,7 @@ add_library(artcade-object-type-materialize STATIC
 target_link_libraries(artcade-object-type-materialize PUBLIC artcade-core)
 
 add_library(artcade-project-json STATIC
+    src/core/project-current-format.cpp
     src/core/json-primitives.cpp
     src/core/collision-json.cpp
     src/core/physics-json.cpp
@@ -152,7 +153,6 @@ add_subdirectory(src/modules/event-bus)
 add_subdirectory(src/modules/variable-manager)
 add_subdirectory(src/modules/game-state)
 add_subdirectory(src/modules/sprite-animator)
-add_subdirectory(src/modules/layer-manager)
 add_subdirectory(src/modules/camera-manager)
 add_subdirectory(src/modules/tween-manager)
 add_subdirectory(src/modules/save-load)
@@ -206,18 +206,6 @@ endif()
 # include editor-api.h without any Emscripten dependency.
 # ============================================================================
 add_subdirectory(src/modules/editor-api)
-
-# Native RmlUi editor moved to the artcade-editor repository (separate product).
-
-# ============================================================================
-# Smoke Tests — validate the full React ↔ WASM bridge architecture.
-# Enable with:  cmake .. -DARTCADE_BUILD_SMOKE_TESTS=ON
-# Best built with emcmake cmake for WASM; also works natively for ST-1/ST-2.
-# ============================================================================
-option(ARTCADE_BUILD_SMOKE_TESTS "Build WASM smoke tests (ST-1 … ST-4)" OFF)
-if(ARTCADE_BUILD_SMOKE_TESTS)
-    add_subdirectory(smoke-tests)
-endif()
 
 # ============================================================================
 # Tests (opzionale — abilita con -DARTCADE_BUILD_TESTS=ON)

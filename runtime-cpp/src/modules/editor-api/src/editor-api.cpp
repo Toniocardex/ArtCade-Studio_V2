@@ -14,7 +14,6 @@ float    EditorAPI::s_dragStartX       = 0.f;
 float    EditorAPI::s_dragStartY       = 0.f;
 ManipulationMode EditorAPI::s_manipulationMode = ManipulationMode::None;
 ResizeDragState  EditorAPI::s_resizeDragState{};
-std::string EditorAPI::s_activeTileLayerName;
 int      EditorAPI::s_editorTool       = 0;
 bool     EditorAPI::s_editorGuidesEnabled = true;
 float    EditorAPI::s_editorGridSize   = 32.f;
@@ -77,6 +76,7 @@ std::vector<std::pair<std::string, std::string>> EditorAPI::s_consoleQueue;
 #include "../../../core/tilemap_grid.h"
 #include "../../../core/scene-json.h"
 #include "../../../core/project-meta-json.h"
+#include "../../../core/project-current-format.h"
 
 #include "editor-input-controller.h"
 #include "editor-spritesheet-preview.h"
@@ -187,7 +187,6 @@ float    EditorAPI::s_dragStartX       = 0.f;
 float    EditorAPI::s_dragStartY       = 0.f;
 ManipulationMode EditorAPI::s_manipulationMode = ManipulationMode::None;
 ResizeDragState  EditorAPI::s_resizeDragState{};
-std::string EditorAPI::s_activeTileLayerName;
 int      EditorAPI::s_editorTool       = 0;
 bool     EditorAPI::s_editorGuidesEnabled = true;
 float    EditorAPI::s_editorGridSize   = 32.f;
@@ -375,7 +374,7 @@ void EditorAPI::shutdown() {
     EditorInputController::shutdownCanvas();
 }
 
-// ── C++ -> React notifications ────────────────────────────────────────────────
+// ── C++ -> editor-host notifications ──────────────────────────────────────────
 // EM_ASM calls window.on* globals that wasm-bridge.ts sets BEFORE game.js loads.
 
 void EditorAPI::notifyEntitySelected(uint32_t entityId) {
@@ -496,156 +495,10 @@ int EditorAPI::wasmMainExitCode() {
 
 namespace {
 
-float resolve_scene_tilemap_tile_size(
-    const ArtCade::SceneDef& sc,
-    ArtCade::Modules::RuntimeEntityGateway* gw,
-    const std::string& tilesetAssetId)
-{
-    if (gw && !tilesetAssetId.empty()) {
-        const float fromTileset = gw->tilesetTileSize(tilesetAssetId);
-        if (fromTileset > 0.f) return fromTileset;
-    }
-    for (const auto& [name, layer] : sc.tilemapLayers) {
-        (void)name;
-        if (layer.tileSize > 0.f) return layer.tileSize;
-    }
-    if (sc.tilemap.tileSize > 0.f) return sc.tilemap.tileSize;
-    return 32.f;
-}
-
-ArtCade::TilemapData make_empty_tile_grid(
-    const ArtCade::SceneDef& sc,
-    ArtCade::Modules::RuntimeEntityGateway* gw,
-    const std::string& tilesetAssetId)
-{
-    for (const auto& [name, layer] : sc.tilemapLayers) {
-        (void)name;
-        if (layer.cols > 0 && layer.rows > 0) {
-            ArtCade::TilemapData tm;
-            tm.tileSize = layer.tileSize;
-            tm.cols     = layer.cols;
-            tm.rows     = layer.rows;
-            const int n = tm.cols * tm.rows;
-            if (n > 0) {
-                tm.data.assign(static_cast<size_t>(n), 0);
-                tm.sourceIndices.assign(static_cast<size_t>(n), 0);
-            }
-            return tm;
-        }
-    }
-    ArtCade::TilemapData tm;
-    tm.tileSize = resolve_scene_tilemap_tile_size(sc, gw, tilesetAssetId);
-    ArtCade::TilemapGridLimits limits;
-    if (tm.tileSize != 32.f) {
-        limits.maxCols = 128;
-        limits.maxRows = 96;
-    }
-    tilemap_grid_dims_from_world(
-        sc.worldSize.x,
-        sc.worldSize.y,
-        tm.tileSize,
-        limits,
-        tm.cols,
-        tm.rows);
-    const int n = tm.cols * tm.rows;
-    if (n > 0) {
-        tm.data.assign(static_cast<size_t>(n), 0);
-        tm.sourceIndices.assign(static_cast<size_t>(n), 0);
-    }
-    return tm;
-}
-
-void ensure_merged_tilemap(ArtCade::SceneDef& sc) {
-    if (sc.tilemap.cols > 0 && sc.tilemap.rows > 0) return;
-    sc.tilemap = make_empty_tile_grid(sc, nullptr, {});
-}
-
-void ensure_tileset_source_at(
-    ArtCade::TilemapData& tm,
-    int sourceIndex,
-    const std::string& tilesetAssetId)
-{
-    if (sourceIndex <= 0 || tilesetAssetId.empty()) return;
-    while (static_cast<int>(tm.tilesetSources.size()) < sourceIndex)
-        tm.tilesetSources.push_back({});
-    auto& ref = tm.tilesetSources[static_cast<size_t>(sourceIndex - 1)];
-    if (ref.tilesetAssetId.empty())
-        ref.tilesetAssetId = tilesetAssetId;
-}
-
-int resolve_paint_source_index(
-    ArtCade::TilemapData& tm,
-    int sourceIndex,
-    const std::string& tilesetAssetId)
-{
-    if (sourceIndex > 0) {
-        ensure_tileset_source_at(tm, sourceIndex, tilesetAssetId);
-        return sourceIndex;
-    }
-    if (tilesetAssetId.empty()) return 0;
-    for (size_t i = 0; i < tm.tilesetSources.size(); ++i) {
-        if (tm.tilesetSources[i].tilesetAssetId == tilesetAssetId)
-            return static_cast<int>(i) + 1;
-    }
-    tm.tilesetSources.push_back({ tilesetAssetId });
-    return static_cast<int>(tm.tilesetSources.size());
-}
-
-ArtCade::TilemapData& ensure_tilemap_layer(
-    ArtCade::SceneDef& sc,
-    const std::string& layerName,
-    ArtCade::Modules::RuntimeEntityGateway* gw,
-    const std::string& tilesetAssetId)
-{
-    auto it = sc.tilemapLayers.find(layerName);
-    if (it != sc.tilemapLayers.end())
-        return it->second;
-    ensure_merged_tilemap(sc);
-    auto inserted = sc.tilemapLayers.emplace(
-        layerName,
-        make_empty_tile_grid(sc, gw, tilesetAssetId));
-    return inserted.first->second;
-}
-
-void recomposite_merged_cell(
-    ArtCade::SceneDef& sc,
-    const std::vector<ArtCade::SceneLayerDef>& stack,
-    int col,
-    int row)
-{
-    if (stack.empty()) return;
-    ensure_merged_tilemap(sc);
-    ArtCade::TilemapData& merged = sc.tilemap;
-    if (merged.cols <= 0 || merged.rows <= 0) return;
-    const int mi = row * merged.cols + col;
-    if (mi < 0 || mi >= static_cast<int>(merged.data.size())) return;
-
-    int value = 0;
-    for (int i = static_cast<int>(stack.size()) - 1; i >= 0; --i) {
-        auto layerIt = sc.tilemapLayers.find(stack[static_cast<size_t>(i)].id);
-        if (layerIt == sc.tilemapLayers.end()) continue;
-        const ArtCade::TilemapData& tm = layerIt->second;
-        if (col >= tm.cols || row >= tm.rows) continue;
-        const int li = row * tm.cols + col;
-        if (li < 0 || li >= static_cast<int>(tm.data.size())) continue;
-        const int v = tm.data[static_cast<size_t>(li)];
-        if (v != 0) value = v;
-    }
-    merged.data[static_cast<size_t>(mi)] = value;
-}
-
 // Tool ids accepted by editor_set_tool(); kept in this TU to validate
 // incoming values without exposing the enum from the input controller.
 constexpr int kEditorToolSelect = 0;
 constexpr int kEditorToolPan    = 1;
-
-constexpr ArtCade::Modules::SceneInvalidation kTilemapRuntimeInvalidation =
-    ArtCade::Modules::SceneInvalidation::Collision;
-
-void editor_queue_tilemap_runtime_invalidation() {
-    if (ArtCade::EditorAPI::s_queueSceneInvalidations)
-        ArtCade::EditorAPI::s_queueSceneInvalidations(kTilemapRuntimeInvalidation);
-}
 
 void editor_sync_viewport_pending() {
     auto* vp = ArtCade::EditorAPI::s_viewport;
@@ -684,7 +537,7 @@ void editor_enter_scene_edit_if_needed() {
 } // namespace
 
 // =============================================================================
-// React -> C++ exported commands
+// Editor-host -> C++ exported commands
 // =============================================================================
 
 extern "C" {
@@ -755,131 +608,16 @@ EMSCRIPTEN_KEEPALIVE void editor_select_entities(const char* csv) {
     ArtCade::EditorAPI::s_selectedEntityId = ids.empty() ? 0u : ids.back();
 }
 
-EMSCRIPTEN_KEEPALIVE void editor_set_active_tile_layer(const char* layerName) {
-    ArtCade::EditorAPI::s_activeTileLayerName =
-        (layerName && *layerName) ? std::string(layerName) : std::string{};
-}
-
 // Direct single-cell write — no texture eviction, no echo.
 // When @p layerName is set, updates that layer grid and recomposites merged tilemap.
-EMSCRIPTEN_KEEPALIVE void editor_paint_tile(
-    int col,
-    int row,
-    int tileId,
-    const char* layerName,
-    int sourceIndex,
-    const char* tilesetAssetIdUtf8)
-{
-    auto* gw = ArtCade::EditorAPI::s_entityGateway;
-    if (!gw) return;
-    ArtCade::SceneDef* sc = gw->activeSceneMutable();
-    if (!sc) return;
-
-    const std::string tilesetId =
-        (tilesetAssetIdUtf8 && *tilesetAssetIdUtf8)
-            ? std::string(tilesetAssetIdUtf8)
-            : std::string{};
-    const std::string layer =
-        (layerName && *layerName) ? std::string(layerName) : std::string{};
-    if (!layer.empty()) {
-        ArtCade::TilemapData& layerTm = ensure_tilemap_layer(*sc, layer, gw, tilesetId);
-        if (col < 0 || col >= layerTm.cols || row < 0 || row >= layerTm.rows) return;
-        const int idx = row * layerTm.cols + col;
-        if (idx >= static_cast<int>(layerTm.data.size())) return;
-        layerTm.data[static_cast<size_t>(idx)] = tileId;
-        if (layerTm.sourceIndices.size() != layerTm.data.size())
-            layerTm.sourceIndices.assign(layerTm.data.size(), 0);
-        if (tileId <= 0) {
-            layerTm.sourceIndices[static_cast<size_t>(idx)] = 0;
-        } else {
-            const int src = resolve_paint_source_index(layerTm, sourceIndex, tilesetId);
-            layerTm.sourceIndices[static_cast<size_t>(idx)] = src;
-        }
-        recomposite_merged_cell(*sc, gw->sceneLayers(), col, row);
-        return;
-    }
-
-    ensure_merged_tilemap(*sc);
-    ArtCade::TilemapData& tm = sc->tilemap;
-    if (col < 0 || col >= tm.cols || row < 0 || row >= tm.rows) return;
-    const int idx = row * tm.cols + col;
-    if (idx >= static_cast<int>(tm.data.size())) return;
-    tm.data[static_cast<size_t>(idx)] = tileId;
-}
 
 // Full per-layer tilemap resync — no texture eviction, no full project reload.
 // JSON: { "layerIds": [...], "tilemapLayers": { layerId: {tileSize,cols,rows,data,...} },
 //         "mergedData": [...] }
-EMSCRIPTEN_KEEPALIVE void editor_sync_tilemap_layers(const char* jsonUtf8) {
-    if (!jsonUtf8 || !*jsonUtf8) return;
-    auto* gw = ArtCade::EditorAPI::s_entityGateway;
-    if (!gw) return;
-    ArtCade::SceneDef* sc = gw->activeSceneMutable();
-    if (!sc) return;
-
-    try {
-        const json root = json::parse(jsonUtf8);
-        if (root.contains("layerIds") && root["layerIds"].is_array()) {
-            // Re-key the stack order by id while preserving each layer's
-            // existing name/locked (the tilemap path only carries order).
-            const auto& existing = gw->sceneLayers();
-            std::vector<ArtCade::SceneLayerDef> layers;
-            for (const auto& item : root["layerIds"]) {
-                if (!item.is_string()) continue;
-                const std::string id = item.get<std::string>();
-                if (id.empty()) continue;
-                ArtCade::SceneLayerDef layer;
-                layer.id = id;
-                for (const auto& prev : existing) {
-                    if (prev.id == id) { layer = prev; break; }
-                }
-                layers.push_back(std::move(layer));
-            }
-            gw->setSceneLayers(std::move(layers));
-        }
-
-        if (root.contains("tilemapLayers") && root["tilemapLayers"].is_object()) {
-            for (auto& [layerId, layerJson] : root["tilemapLayers"].items()) {
-                ArtCade::TilemapData layer;
-                ArtCade::ProjectJson::read_tilemap_object(layerJson, layer);
-                if (layer.cols > 0 && layer.rows > 0)
-                    sc->tilemapLayers[layerId] = std::move(layer);
-            }
-        }
-
-        if (root.contains("mergedData") && root["mergedData"].is_array()) {
-            ArtCade::TilemapData& tm = sc->tilemap;
-            const int sz = tm.cols * tm.rows;
-            const auto& arr = root["mergedData"];
-            if (sz > 0 && arr.is_array() && static_cast<int>(arr.size()) == sz) {
-                for (int i = 0; i < sz; ++i)
-                    tm.data[i] = arr[i].get<int>();
-            }
-        }
-    } catch (...) {}
-    editor_queue_tilemap_runtime_invalidation();
-}
 
 // Full tilemap data resync — no texture eviction, no full project reload.
 // Accepts a JSON array of integers matching the active scene's tilemap size.
 // Used by the JS sync path when only tilemap.data changed (paint or undo).
-EMSCRIPTEN_KEEPALIVE void editor_sync_tilemap_data(const char* dataJson) {
-    if (!dataJson || !*dataJson) return;
-    auto* gw = ArtCade::EditorAPI::s_entityGateway;
-    if (!gw) return;
-    ArtCade::SceneDef* sc = gw->activeSceneMutable();
-    if (!sc) return;
-    ArtCade::TilemapData& tm = sc->tilemap;
-    const int sz = tm.cols * tm.rows;
-    if (sz <= 0) return;
-    try {
-        const auto arr = nlohmann::json::parse(dataJson);
-        if (!arr.is_array() || static_cast<int>(arr.size()) != sz) return;
-        for (int i = 0; i < sz; ++i)
-            tm.data[i] = arr[i].get<int>();
-    } catch (...) {}
-    editor_queue_tilemap_runtime_invalidation();
-}
 
 EMSCRIPTEN_KEEPALIVE void editor_set_tool(int toolId) {
     if (toolId < kEditorToolSelect || toolId > kEditorToolPan)
@@ -1313,6 +1051,13 @@ ArtCade::EditorApiResult loadProjectFromJson(const char* json_utf8, ProjectLoadK
 
     try {
         const json doc = json::parse(json_utf8);
+        std::string validationError;
+        if (!ArtCade::ProjectJson::validate_current_project_json(doc, validationError)) {
+            const std::string message = std::string("[EditorAPI] ") + apiName
+                + ": " + validationError;
+            ArtCade::EditorAPI::notifyConsoleLine(message.c_str(), "warn");
+            return ArtCade::kEditorApiJsonError;
+        }
         rebuildEditorAssetManifest(doc);
 
         auto objectTypes = Parser::parseObjectTypes(doc);
@@ -1335,10 +1080,7 @@ ArtCade::EditorApiResult loadProjectFromJson(const char* json_utf8, ProjectLoadK
         if (ArtCade::EditorAPI::s_audio)
             ArtCade::EditorAPI::s_audio->setRuntimeAssetCatalog(audioAssets);
 
-        std::string activeId = doc.value("activeSceneId",
-                               doc.value("active_scene_id", std::string{}));
-        if (activeId.empty() && !sceneDefs.empty())
-            activeId = sceneDefs.begin()->first;
+        const std::string activeId = doc.at("activeSceneId").get<std::string>();
 
         const std::unordered_map<std::string, ArtCade::EntityDef>* typesPtr =
             objectTypes.empty() ? nullptr : &objectTypes;

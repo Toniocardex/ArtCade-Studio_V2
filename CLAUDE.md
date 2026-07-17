@@ -2,7 +2,9 @@
 
 **Cursor / AI agents:** delivery pipeline and code-review format live in [`.cursor/rules/cursorrules-artcade.mdc`](.cursor/rules/cursorrules-artcade.mdc). **Authoritative architecture paletti** live in [`.cursor/rules/artcade-architecture-authority.mdc`](.cursor/rules/artcade-architecture-authority.mdc). Narrative layout: [`AGENTS.md`](AGENTS.md).
 
-> **Legacy policy:** the former React/Tauri editor and the RmlUi native editor are **removed**. Any remaining reference to them (code, functions, docs, comments) is technical debt — delete it on sight, do not preserve compatibility. The only editor stack is **Qt/QML + C++**.
+> **Legacy policy:** obsolete editor stacks are removed. Any residual implementation,
+> build path, documentation, or compatibility branch is technical debt: delete it on
+> sight. The only editor stack is **Qt/QML + C++**.
 
 ## Project Vision
 
@@ -72,7 +74,7 @@ Compile targets: native `game.exe` and Emscripten `.wasm` (`build_wasm.bat` → 
 ### Docs
 
 Full index: **`docs/README.md`**. Do not delete files under `docs/`; when a doc
-still describes React/Tauri, rewrite or remove the stale content per the legacy policy.
+is stale, rewrite it to match the current architecture or remove it per the legacy policy.
 
 ---
 

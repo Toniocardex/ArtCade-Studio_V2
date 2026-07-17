@@ -9,7 +9,6 @@
 //   - the mouse/key callbacks plumbed into emscripten;
 //   - pickEntityAt helper.
 //
-// Tile painting input is handled in React (TilePaintOverlay -> editor_paint_tile).
 //
 // editor-api.cpp itself is now only static state, lifecycle, wiring,
 // notifications, and the EMSCRIPTEN_KEEPALIVE exports.

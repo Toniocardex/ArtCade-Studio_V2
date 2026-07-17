@@ -18,7 +18,7 @@ else()
     set(BUILD_FOR_WASM FALSE)
 endif()
 
-# Qt editor is the product UI (React/Tauri removed). Default ON for native Windows.
+# Qt editor is the product UI. Default ON for native Windows.
 if(WIN32 AND NOT BUILD_FOR_WASM)
     option(ARTCADE_BUILD_QT_EDITOR "Build ArtCade Qt editor (requires Qt 6.8 LTS)" ON)
 else()
@@ -57,7 +57,7 @@ message("
   Steam Integration:    ${ARTCADE_WITH_STEAM}
   Debug UI:             ${ARTCADE_ENABLE_DEBUG_UI}
 
-  Editor: artcade-editor-qt (Qt 6.8) — React/Tauri removed
+  Editor: artcade-editor-qt (Qt 6.8)
   Run:    scripts/run-artcade-editor-qt.ps1
 =============================================================================
 ")

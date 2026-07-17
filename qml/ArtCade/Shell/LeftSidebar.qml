@@ -183,6 +183,9 @@ Rectangle {
                                 // Eye is workspace-only; visible=true means show in editor.
                                 EditorSession.setLayerHiddenInEditor(id, !visible)
                             }
+                            onPlayVisibilityToggled: function(id, visible) {
+                                EditorSession.setLayerVisible(id, visible)
+                            }
                             onLockToggled: function(id, locked) {
                                 EditorSession.setLayerLocked(id, locked)
                             }
@@ -219,16 +222,31 @@ Rectangle {
                     id: renameLayerDialog
                     property string layerId: ""
                     property string initialName: ""
+                    property string validationError: ""
                     title: "Rename Layer"
                     modal: true
                     anchors.centerIn: Overlay.overlay
-                    standardButtons: Dialog.Cancel | Dialog.Ok
+                    standardButtons: Dialog.Cancel
                     onAboutToShow: {
                         renameField.text = initialName
                         renameField.selectAll()
                         renameField.forceActiveFocus()
                     }
-                    onAccepted: EditorSession.renameSceneLayer(layerId, renameField.text)
+                    footer: DialogButtonBox {
+                        Button {
+                            text: "Rename"
+                            DialogButtonBox.buttonRole: DialogButtonBox.AcceptRole
+                            onClicked: {
+                                renameLayerDialog.validationError = ""
+                                if (EditorSession.renameSceneLayer(renameLayerDialog.layerId,
+                                                                  renameField.text)) {
+                                    renameLayerDialog.close()
+                                } else {
+                                    renameLayerDialog.validationError = EditorSession.statusMessage
+                                }
+                            }
+                        }
+                    }
 
                     ColumnLayout {
                         anchors.fill: parent
@@ -242,7 +260,20 @@ Rectangle {
                         AcTextField {
                             id: renameField
                             Layout.preferredWidth: 280
-                            onAccepted: renameLayerDialog.accept()
+                            onAccepted: {
+                                renameLayerDialog.validationError = ""
+                                if (EditorSession.renameSceneLayer(renameLayerDialog.layerId, text))
+                                    renameLayerDialog.close()
+                                else
+                                    renameLayerDialog.validationError = EditorSession.statusMessage
+                            }
+                        }
+                        Text {
+                            visible: renameLayerDialog.validationError.length > 0
+                            text: renameLayerDialog.validationError
+                            color: Theme.danger
+                            font.family: Typography.family
+                            font.pixelSize: Typography.sizeSm
                         }
                     }
                 }

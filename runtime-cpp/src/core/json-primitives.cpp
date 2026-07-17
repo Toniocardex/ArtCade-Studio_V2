@@ -41,24 +41,6 @@ Vec4 read_vec4(const nlohmann::json& j, const Vec4& fallback) {
     return fallback;
 }
 
-std::string read_string_any(const nlohmann::json& j,
-                            const char* camel,
-                            const char* snake,
-                            const std::string& fallback) {
-    if (j.contains(camel)) return j[camel].get<std::string>();
-    if (j.contains(snake)) return j[snake].get<std::string>();
-    return fallback;
-}
-
-float read_float_any(const nlohmann::json& j,
-                     const char* camel,
-                     const char* snake,
-                     float fallback) {
-    if (j.contains(camel)) return j[camel].get<float>();
-    if (j.contains(snake)) return j[snake].get<float>();
-    return fallback;
-}
-
 Transform read_transform(const nlohmann::json& j) {
     Transform t;
     if (!j.is_object()) return t;

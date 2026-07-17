@@ -202,9 +202,8 @@ void read_entity_components(const nlohmann::json& entityJson, EntityDef& out) {
         && entityJson["spriteRenderer"].is_object()) {
         const auto& value = entityJson["spriteRenderer"];
         SpriteRendererComponent renderer;
-        renderer.imageAssetId = read_string_any(value, "imageAssetId", "image_asset_id");
-        renderer.animationAssetId = read_string_any(
-            value, "animationAssetId", "animation_asset_id");
+        renderer.imageAssetId = value.value("imageAssetId", std::string{});
+        renderer.animationAssetId = value.value("animationAssetId", std::string{});
         renderer.visible = value.value("visible", true);
         out.spriteRenderer = std::move(renderer);
     }
@@ -212,8 +211,8 @@ void read_entity_components(const nlohmann::json& entityJson, EntityDef& out) {
         && entityJson["spriteAnimator"].is_object()) {
         const auto& value = entityJson["spriteAnimator"];
         SpriteAnimatorComponent animator;
-        animator.initialClipId = read_string_any(value, "initialClipId", "initial_clip_id");
-        animator.autoPlay = value.value("autoPlay", value.value("auto_play", true));
+        animator.initialClipId = value.value("initialClipId", std::string{});
+        animator.autoPlay = value.value("autoPlay", true);
         animator.playbackSpeed = value.value("playbackSpeed", 1.f);
         out.spriteAnimator = std::move(animator);
     }
@@ -225,8 +224,7 @@ void read_entity_components(const nlohmann::json& entityJson, EntityDef& out) {
                 if (!item.is_object()) continue;
                 ScriptAttachmentDef attachment;
                 attachment.id = item.value("id", std::string{});
-                attachment.scriptAssetId = read_string_any(
-                    item, "scriptAssetId", "script_asset_id");
+                attachment.scriptAssetId = item.value("scriptAssetId", std::string{});
                 attachment.enabled = item.value("enabled", true);
                 scripts.attachments.push_back(std::move(attachment));
             }
@@ -263,7 +261,7 @@ void read_entity_instance(const nlohmann::json& entityJson,
     } else {
         out.name = entityJson.value("name", std::string{});
     }
-    out.className = read_string_any(entityJson, "className", "class_name");
+    out.className = entityJson.value("className", std::string{});
     out.layerId = entityJson.value("layerId", std::string{});
     if (entityJson.contains("tags") && entityJson["tags"].is_array())
         out.tags = entityJson["tags"].get<std::vector<std::string>>();
@@ -275,8 +273,7 @@ void read_object_type(const nlohmann::json& typeJson,
                       EntityDef& out) {
     out.id = 0;
     out.className = typeJson.value("id", mapKey);
-    out.name = typeJson.value("displayName",
-                              typeJson.value("display_name", out.className));
+    out.name = typeJson.value("displayName", out.className);
     if (typeJson.contains("tags") && typeJson["tags"].is_array())
         out.tags = typeJson["tags"].get<std::vector<std::string>>();
     read_entity_components(typeJson, out);
@@ -317,9 +314,6 @@ void read_object_types_map(const nlohmann::json& doc,
     if (doc.contains("objectTypes")
         && (doc["objectTypes"].is_object() || doc["objectTypes"].is_array()))
         raw = &doc["objectTypes"];
-    else if (doc.contains("object_types")
-             && (doc["object_types"].is_object() || doc["object_types"].is_array()))
-        raw = &doc["object_types"];
     if (raw == nullptr)
         return;
 

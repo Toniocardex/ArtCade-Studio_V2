@@ -4,6 +4,7 @@
 #include "entity-json.h"
 #include "logic-core.h"
 #include "project-meta-json.h"
+#include "project-current-format.h"
 #include "scene-json.h"
 
 #include <fstream>
@@ -11,17 +12,6 @@
 
 namespace ArtCade::EditorCore {
 namespace {
-
-int read_format_version(const nlohmann::json &j)
-{
-    if (j.contains("projectFormatVersion") && j["projectFormatVersion"].is_number_integer()) {
-        return j["projectFormatVersion"].get<int>();
-    }
-    if (j.contains("formatVersion") && j["formatVersion"].is_number_integer()) {
-        return j["formatVersion"].get<int>();
-    }
-    return 0;
-}
 
 nlohmann::json vec2_to_json(const Vec2 &v)
 {
@@ -46,9 +36,7 @@ nlohmann::json instance_to_json(const SceneInstanceDef &inst)
         {"transform", transform_to_json(inst.transform)},
         {"visible", inst.visible},
     };
-    if (!inst.layerId.empty()) {
-        j["layerId"] = inst.layerId;
-    }
+    j["layerId"] = inst.layerId;
     return j;
 }
 
@@ -139,6 +127,17 @@ nlohmann::json layer_settings_to_json(const SceneLayerSettings &settings)
     return nlohmann::json{
         {"visible", settings.visible},
         {"opacity", settings.opacity},
+        {"parallax", {
+            {"x", settings.parallax.x},
+            {"y", settings.parallax.y},
+        }},
+        {"background", {
+            {"imageId", settings.background.imageId},
+            {"tileX", settings.background.tileX},
+            {"tileY", settings.background.tileY},
+            {"scrollX", settings.background.scrollX},
+            {"scrollY", settings.background.scrollY},
+        }},
     };
 }
 
@@ -149,49 +148,6 @@ nlohmann::json image_asset_to_json(const ImageAssetDef &asset)
         {"name", asset.name.empty() ? asset.assetId : asset.name},
         {"sourcePath", asset.sourcePath},
     };
-}
-
-bool layer_id_exists(const SceneDef &scene, const std::string &layer_id)
-{
-    for (const SceneLayerDef &layer : scene.layers) {
-        if (layer.id == layer_id) {
-            return true;
-        }
-    }
-    return false;
-}
-
-/**
- * Enforces per-scene layer invariants for formatVersion 6.
- * Rejects empty layer stacks; fills missing defaultLayerId from the first layer;
- * remaps invalid instance.layerId to the scene default.
- */
-bool normalize_and_validate_scene_layers(ProjectDoc &doc, std::string &error_message)
-{
-    if (doc.scenes.empty()) {
-        return true;
-    }
-    for (auto &[scene_id, scene] : doc.scenes) {
-        if (scene.layers.empty()) {
-            error_message = "Scene \"" + scene_id
-                            + "\" has no layers; every scene requires at least one layer.";
-            return false;
-        }
-        if (scene.defaultLayerId.empty() || !layer_id_exists(scene, scene.defaultLayerId)) {
-            scene.defaultLayerId = scene.layers.front().id;
-        }
-        for (SceneInstanceDef &inst : scene.instances) {
-            if (inst.layerId.empty() || !layer_id_exists(scene, inst.layerId)) {
-                inst.layerId = scene.defaultLayerId;
-            }
-        }
-        for (const SceneLayerDef &layer : scene.layers) {
-            if (scene.layerSettings.find(layer.id) == scene.layerSettings.end()) {
-                scene.layerSettings[layer.id] = SceneLayerSettings{};
-            }
-        }
-    }
-    return true;
 }
 
 } // namespace
@@ -283,16 +239,7 @@ bool project_file_io_load(const std::string &project_json_path,
         return false;
     }
 
-    const int format = read_format_version(root);
-    if (format != kCurrentProjectFormatVersion) {
-        error_message =
-            "Unsupported project format.\n"
-            "This version of ArtCade requires the per-scene layer format "
-            "(formatVersion "
-            + std::to_string(kCurrentProjectFormatVersion)
-            + "). Found formatVersion "
-            + std::to_string(format)
-            + ".";
+    if (!ProjectJson::validate_current_project_json(root, error_message)) {
         return false;
     }
 
@@ -310,16 +257,7 @@ bool project_file_io_load(const std::string &project_json_path,
     ProjectJson::read_global_variables(root, out);
     ProjectJson::read_image_assets(root, out.imageAssets);
 
-    // Reject root-level render layers (removed in formatVersion 6).
-    if (root.contains("layers")) {
-        error_message =
-            "Unsupported project format.\n"
-            "Root-level \"layers\" are no longer accepted; each scene must "
-            "declare its own layers array.";
-        return false;
-    }
-
-    if (!normalize_and_validate_scene_layers(out, error_message)) {
+    if (!ProjectJson::validate_current_project_document(out, error_message)) {
         return false;
     }
     return true;
@@ -329,6 +267,9 @@ bool project_file_io_save(const std::string &project_json_path,
                           const ProjectDoc &doc,
                           std::string &error_message)
 {
+    if (!ProjectJson::validate_current_project_document(doc, error_message)) {
+        return false;
+    }
     nlohmann::json root;
     root["formatVersion"] = kCurrentProjectFormatVersion;
     root["projectName"] = doc.projectName;

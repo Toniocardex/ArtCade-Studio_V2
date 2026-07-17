@@ -86,7 +86,6 @@ void Application::tickFixedStep(float dt) {
         mod_->timeManager->tick(dt);
         mod_->tweenManager->update(dt);
         mod_->spriteAnimator->update(dt);
-        mod_->layerManager->update(dt);
         mod_->cameraManager->updateMotion(dt);
         mod_->gameStateManager->update(dt);
         mod_->eventBus->flushDeferred();

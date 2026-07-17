@@ -10,7 +10,6 @@
 #include "../../modules/game-api/include/game-api.h"
 #include "../../modules/game-state/include/game-state-manager.h"
 #include "../../modules/input/include/input.h"
-#include "../../modules/layer-manager/include/layer-manager.h"
 #include "../../modules/lua-runtime/include/lua-host.h"
 #include "../../modules/logic-runtime/include/logic-runtime.h"
 #include "../../modules/script-runtime/include/script-runtime.h"
@@ -217,7 +216,6 @@ struct Application::Modules {
     std::unique_ptr<ArtCade::Modules::GameStateManager> gameStateManager;
     std::unique_ptr<ArtCade::Modules::TextureManager> textureManager;
     std::unique_ptr<ArtCade::Modules::SpriteAnimator> spriteAnimator;
-    std::unique_ptr<ArtCade::Modules::LayerManager> layerManager;
     std::unique_ptr<ArtCade::Modules::CameraManager> cameraManager;
     std::unique_ptr<ArtCade::Modules::TweenManager> tweenManager;
     std::unique_ptr<ArtCade::Modules::SaveLoadManager> saveLoadManager;

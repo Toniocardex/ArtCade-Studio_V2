@@ -117,10 +117,8 @@ void RaylibSurface::set_min_viewport_size(uint32_t width, uint32_t height) {
 void RaylibSurface::sync_size_from_raylib() {
     if (!open_) return;
 #ifdef __EMSCRIPTEN__
-    // In the WebView the canvas has two independent sizes: the framebuffer
-    // controlled by setWindowSize/editor_set_edit_camera, and the CSS box used
-    // by React/Tauri for preview scaling. Raylib may report the CSS-facing size
-    // here, which would make the gameplay camera apply a second display scale.
+    // The embedded canvas has a runtime framebuffer and a host-controlled CSS box.
+    // Keep the authored framebuffer size to avoid applying display scale twice.
     return;
 #else
     const int liveW = GetScreenWidth();

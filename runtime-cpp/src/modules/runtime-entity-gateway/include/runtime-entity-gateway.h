@@ -85,7 +85,7 @@ public:
 
     bool getTransform(EntityId id, Transform& out) const;
     /**
-     * Transform for editor→React notifications (canvas drag mouse-up).
+     * Transform reported to the editor bridge after an authoring gesture commits.
      * Reads the live ECS component first, then falls back to the authored
      * EntityDef so rotation/scale are never replaced by {0, 1, 1} defaults.
      */
@@ -240,7 +240,7 @@ public:
     /** Fade to black, load scene, fade in. fadeSeconds <= 0 loads immediately. */
     void requestLoadScene(const SceneId& id, float fadeSeconds = 0.f);
     /** Re-activates the active scene (sync + gameplay reset). Does not restore layout. */
-    void requestReactivateScene(float fadeSeconds = 0.f);
+    void requestSceneReactivation(float fadeSeconds = 0.f);
     /** Restores authored entity layout, then activation sync and gameplay reset. */
     void requestRestartScene(float fadeSeconds = 0.f);
     void tickSceneTransition(float dt);

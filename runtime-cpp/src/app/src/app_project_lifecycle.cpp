@@ -126,7 +126,6 @@ void Application::resetGameplayRuntimeModules() {
     }
 
     if (mod_->eventBus) { mod_->eventBus->shutdown(); mod_->eventBus->init(); }
-    if (mod_->layerManager) { mod_->layerManager->shutdown(); mod_->layerManager->init(); }
     if (mod_->saveLoadManager) {
         mod_->saveLoadManager->shutdown();
         mod_->saveLoadManager->init();
@@ -215,7 +214,7 @@ bool Application::loadProject(const std::string& projectPath) {
         return false;
     }
 
-    // Sole Logic Board host (post-React): compile objectTypes[].logicBoard into
+    // Sole Logic Board host: compile objectTypes[].logicBoard into
     // LogicRuntime programs at load. scripts/main.lua remains My Script / GameAPI
     // only — generated Logic Lua never overwrites it.
     const ArtCade::Logic::LogicCompileResult compiled =

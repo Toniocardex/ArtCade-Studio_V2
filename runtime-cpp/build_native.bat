@@ -15,12 +15,6 @@ set "OUTDIR=%BUILD_DIR%\src\app"
 set "CONFIG=Release"
 set "RUN_TESTS=1"
 set "DO_CLEAN=0"
-rem WANT_EDITOR: explicit override of the native-editor target.
-rem   ""  = preserve the existing cache value (default; survives --clean)
-rem   ON  = build the RmlUi native editor too      (--editor)
-rem   OFF = runtime + tests only                   (--no-editor)
-set "WANT_EDITOR="
-
 :parse_args
 if "%~1"=="" goto args_done
 if /I "%~1"=="--clean" (
@@ -33,16 +27,6 @@ if /I "%~1"=="--no-test" (
     shift
     goto parse_args
 )
-if /I "%~1"=="--editor" (
-    set "WANT_EDITOR=ON"
-    shift
-    goto parse_args
-)
-if /I "%~1"=="--no-editor" (
-    set "WANT_EDITOR=OFF"
-    shift
-    goto parse_args
-)
 if /I "%~1"=="--config" (
     set "CONFIG=%~2"
     shift
@@ -50,20 +34,10 @@ if /I "%~1"=="--config" (
     goto parse_args
 )
 echo [FAIL] Unknown argument: %~1
-echo        Usage: build_native.bat [--clean] [--no-test] [--editor^|--no-editor] [--config Debug^|Release]
+echo        Usage: build_native.bat [--clean] [--no-test] [--config Debug^|Release]
 exit /b 1
 
 :args_done
-
-rem ── Native-editor flag. Preserve whatever the cache already has so a --clean
-rem    rebuild never silently drops the editor that build_native_editor.bat
-rem    enabled. Read it BEFORE the clean wipes the cache; an explicit
-rem    --editor/--no-editor wins; with no cache and no flag, default OFF.
-set "EDITOR_FLAG=!WANT_EDITOR!"
-if not defined EDITOR_FLAG if exist "%BUILD_DIR%\CMakeCache.txt" (
-    for /f "tokens=2 delims==" %%V in ('findstr /B /C:"ARTCADE_BUILD_NATIVE_EDITOR:BOOL=" "%BUILD_DIR%\CMakeCache.txt"') do set "EDITOR_FLAG=%%V"
-)
-if not defined EDITOR_FLAG set "EDITOR_FLAG=OFF"
 
 set "NINJA_DIR=%USERPROFILE%\DevTools\ninja"
 if exist "%NINJA_DIR%\ninja.exe" set "PATH=%NINJA_DIR%;%PATH%"
@@ -136,12 +110,11 @@ if exist "!BUILD_DIR!\CMakeCache.txt" (
     )
 )
 
-echo [Native 2/4] Configuring CMake (Ninja, !CONFIG!, editor=!EDITOR_FLAG!)...
+echo [Native 2/4] Configuring CMake (Ninja, !CONFIG!)...
 "%CMAKE_EXE%" -S . -B "!BUILD_DIR!" -G Ninja -Wno-dev ^
     -DCMAKE_BUILD_TYPE=!CONFIG! ^
     -DCMAKE_POLICY_VERSION_MINIMUM=3.5 ^
-    -DARTCADE_BUILD_TESTS=ON ^
-    -DARTCADE_BUILD_NATIVE_EDITOR=!EDITOR_FLAG!
+    -DARTCADE_BUILD_TESTS=ON
 if errorlevel 1 (
     popd >nul
     echo [FAIL] CMake configure failed.

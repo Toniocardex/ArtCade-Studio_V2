@@ -14,16 +14,6 @@ Vec2 read_vec2(const nlohmann::json& j, const Vec2& fallback = {0.f, 0.f});
 Vec3 read_vec3(const nlohmann::json& j, const Vec3& fallback = {1.f, 1.f, 1.f});
 Vec4 read_vec4(const nlohmann::json& j, const Vec4& fallback = {1.f, 1.f, 1.f, 1.f});
 
-std::string read_string_any(const nlohmann::json& j,
-                            const char* camel,
-                            const char* snake,
-                            const std::string& fallback = {});
-
-float read_float_any(const nlohmann::json& j,
-                     const char* camel,
-                     const char* snake,
-                     float fallback);
-
 Transform read_transform(const nlohmann::json& j);
 
 } // namespace ArtCade::ProjectJson

@@ -225,8 +225,8 @@ public:
     Q_INVOKABLE void setLayerLocked(const QString &layerId, bool locked);
     /** Adds a layer to the active scene (undoable). Activates the new layer. */
     Q_INVOKABLE void addSceneLayer();
-    /** Renames a layer in the active scene (undoable). */
-    Q_INVOKABLE void renameSceneLayer(const QString &layerId, const QString &newName);
+    /** Renames a layer in the active scene (undoable). Returns false on validation failure. */
+    Q_INVOKABLE bool renameSceneLayer(const QString &layerId, const QString &newName);
     /** Sets the active scene's default layer (undoable). */
     Q_INVOKABLE void setDefaultSceneLayer(const QString &layerId);
     /**

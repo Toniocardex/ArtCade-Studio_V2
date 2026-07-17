@@ -4,7 +4,12 @@
 add_library(artcade_editor_core STATIC
     src/project_file_io.cpp
     src/commands.cpp
+    src/scene_layer_support.cpp
     src/scene_layer_commands.cpp
+    src/scene_layer_coordinator.cpp
+    src/scene_layer_assignment.cpp
+    src/scene_layer_remove.cpp
+    src/scene_layer_duplicate.cpp
     src/logic_board_names.cpp
     src/logic_board_commands.cpp
     src/logic_board_property.cpp

@@ -79,8 +79,7 @@ call "!EMCMAKE!" "%CMAKE_EXE%" ^
     -DCMAKE_BUILD_TYPE=Release ^
     -DCMAKE_POLICY_VERSION_MINIMUM=3.5 ^
     -DPLATFORM=Web ^
-    -DARTCADE_BUILD_TESTS=OFF ^
-    -DARTCADE_BUILD_SMOKE_TESTS=OFF
+    -DARTCADE_BUILD_TESTS=OFF
 if errorlevel 1 (
     popd >nul
     echo [FAIL] CMake configure failed.

@@ -1,11 +1,13 @@
 #pragma once
 
 #include "logic-core.h"
+#include "project-current-format.h"
 #include "types.h"
 
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -597,7 +599,7 @@ private:
 };
 
 /** C++-owned editor project format. */
-inline constexpr int kCurrentProjectFormatVersion = 6;
+inline constexpr int kCurrentProjectFormatVersion = ProjectJson::kCurrentProjectFormatVersion;
 
 /** Floating-point no-op tolerance for transform compares (~1e-6). */
 inline constexpr float kTransformEpsilon = 1e-6f;
@@ -887,7 +889,7 @@ public:
     /** World AABB for scene-view placeholders (authoring preview, not runtime sprite size). */
     static constexpr float kSceneViewPlaceholderExtent = 32.f;
 
-    /** Active scene for the current ProjectDoc.activeSceneId (or first scene). */
+    /** Active scene for the validated ProjectDoc.activeSceneId. */
     [[nodiscard]] SceneDef *activeScene();
     [[nodiscard]] const SceneDef *activeScene() const;
 
@@ -917,8 +919,8 @@ private:
     std::uint64_t m_saved_revision = 0;
     EntityId m_selected_entity_id = 0;
     std::string m_active_layer_id;
-    /** Workspace: layer ids hidden by the Layers panel eye (not ProjectDoc). */
-    std::unordered_set<std::string> m_hidden_layer_ids;
+    /** Workspace-only hidden layer ids, partitioned by stable SceneId. */
+    std::unordered_map<SceneId, std::unordered_set<std::string>> m_hidden_layer_ids_by_scene;
     CommandStack m_commands;
 };
 

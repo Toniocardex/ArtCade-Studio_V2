@@ -58,14 +58,10 @@ bool EditorCoordinator::openProject(const std::string &project_json_path, std::s
     m_saved_revision = 0;
     m_selected_entity_id = 0;
     m_active_layer_id.clear();
-    m_hidden_layer_ids.clear();
+    m_hidden_layer_ids_by_scene.clear();
     m_commands.clear();
-    if (const SceneDef *scene = activeScene(); scene && !scene->layers.empty()) {
-        if (!scene->defaultLayerId.empty()) {
-            m_active_layer_id = scene->defaultLayerId;
-        } else {
-            m_active_layer_id = scene->layers.front().id;
-        }
+    if (const SceneDef *scene = activeScene(); scene) {
+        m_active_layer_id = scene->defaultLayerId;
     }
     return true;
 }
@@ -195,22 +191,33 @@ const std::string &EditorCoordinator::activeLayerId() const
 
 void EditorCoordinator::setLayerHiddenInEditor(const std::string &layer_id, bool hidden)
 {
-    if (layer_id.empty()) {
+    SceneDef *scene = activeScene();
+    if (layer_id.empty() || scene == nullptr) {
         return;
     }
     if (hidden) {
-        m_hidden_layer_ids.insert(layer_id);
+        m_hidden_layer_ids_by_scene[scene->id].insert(layer_id);
     } else {
-        m_hidden_layer_ids.erase(layer_id);
+        auto scene_hidden = m_hidden_layer_ids_by_scene.find(scene->id);
+        if (scene_hidden == m_hidden_layer_ids_by_scene.end()) {
+            return;
+        }
+        scene_hidden->second.erase(layer_id);
+        if (scene_hidden->second.empty()) {
+            m_hidden_layer_ids_by_scene.erase(scene_hidden);
+        }
     }
 }
 
 bool EditorCoordinator::layerHiddenInEditor(const std::string &layer_id) const
 {
-    if (layer_id.empty()) {
+    const SceneDef *scene = activeScene();
+    if (layer_id.empty() || scene == nullptr) {
         return false;
     }
-    return m_hidden_layer_ids.find(layer_id) != m_hidden_layer_ids.end();
+    const auto scene_hidden = m_hidden_layer_ids_by_scene.find(scene->id);
+    return scene_hidden != m_hidden_layer_ids_by_scene.end()
+           && scene_hidden->second.find(layer_id) != scene_hidden->second.end();
 }
 
 void EditorCoordinator::bumpRevision()
@@ -220,14 +227,14 @@ void EditorCoordinator::bumpRevision()
 
 SceneDef *EditorCoordinator::activeScene()
 {
-    if (!m_has_project || m_doc.scenes.empty()) {
+    if (!m_has_project || m_doc.scenes.empty() || m_doc.activeSceneId.empty()) {
         return nullptr;
     }
     auto it = m_doc.scenes.find(m_doc.activeSceneId);
     if (it != m_doc.scenes.end()) {
         return &it->second;
     }
-    return &m_doc.scenes.begin()->second;
+    return nullptr;
 }
 
 const SceneDef *EditorCoordinator::activeScene() const

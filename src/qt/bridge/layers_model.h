@@ -26,6 +26,7 @@ public:
         DisplayRole = Qt::DisplayRole,
         LayerIdRole = Qt::UserRole + 1,
         VisibleRole,
+        PlayVisibleRole,
         LockedRole,
         ActiveRole,
         IsDefaultRole,
@@ -45,6 +46,7 @@ private:
         QString layerId;
         QString display;
         bool visible = true;
+        bool playVisible = true;
         bool locked = false;
         bool active = false;
         bool isDefault = false;

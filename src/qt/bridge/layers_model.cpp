@@ -33,6 +33,7 @@ void LayersModel::reload()
                     ? row.layerId
                     : QString::fromStdString(layer.name);
                 row.visible = !m_coordinator->layerHiddenInEditor(layer.id);
+                row.playVisible = m_coordinator->layerVisible(layer.id);
                 row.locked = layer.locked;
                 row.active = row.layerId == active_id;
                 row.isDefault = row.layerId == default_id;
@@ -65,6 +66,8 @@ QVariant LayersModel::data(const QModelIndex &index, int role) const
         return row.layerId;
     case VisibleRole:
         return row.visible;
+    case PlayVisibleRole:
+        return row.playVisible;
     case LockedRole:
         return row.locked;
     case ActiveRole:
@@ -82,6 +85,7 @@ QHash<int, QByteArray> LayersModel::roleNames() const
         {Qt::DisplayRole, "display"},
         {LayerIdRole, "layerId"},
         {VisibleRole, "layerVisible"},
+        {PlayVisibleRole, "playVisible"},
         {LockedRole, "locked"},
         {ActiveRole, "active"},
         {IsDefaultRole, "isDefault"},

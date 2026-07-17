@@ -1,19 +1,19 @@
 #pragma once
 // =============================================================================
 // editor-api.h -- bidirectional bridge between the C++ WASM runtime and the
-//                 React editor shell.
+//                 external editor host.
 //
 // Architectural rules (Guida_Architettura_e_SmokeTest_ArtCade):
 //
 //  INPUT  -- C++ reads mouse/keyboard NATIVELY via emscripten/html5.h.
-//            React NEVER listens to canvas mouse events.
+//            The host never listens to canvas mouse events.
 //            Zero-latency: mouse moves at 1000 Hz inside C++.
 //
 //  STATE  -- C++ is the Single Source of Truth.
-//            React receives final coordinates only on drop, not per-frame.
+//            The host receives final coordinates only on drop, not per-frame.
 //
-//  React->C++  EMSCRIPTEN_KEEPALIVE functions called via Module.ccall()
-//  C++->React  EM_ASM macros that call window.on* globals
+//  Host->C++   EMSCRIPTEN_KEEPALIVE functions called via Module.ccall()
+//  C++->Host   EM_ASM macros that call window.on* globals
 //              (set by wasm-bridge.ts BEFORE game.js loads)
 // =============================================================================
 
@@ -214,10 +214,10 @@ public:
     static void setSceneMutationBatchOpenPredicate(SceneMutationBatchOpenPredicate predicate);
 
     // -------------------------------------------------------------------------
-    // C++ -> React notifications (Smoke Test 3)
+    // C++ -> editor-host notifications (Smoke Test 3)
     // -------------------------------------------------------------------------
 
-    /** User clicked an entity in the viewport -> React updates Hierarchy + Inspector. */
+    /** User clicked an entity in the viewport -> host updates Hierarchy + Inspector. */
     static void notifyEntitySelected(uint32_t entityId);
 
     /**
@@ -229,7 +229,7 @@ public:
     static void notifyEntityDuplicateRequested(uint32_t entityId, float x, float y);
 
     /**
-     * Canvas manipulation finished (move or resize) -> React commits once.
+     * Canvas manipulation finished (move or resize) -> host commits once.
      * Called on mouse-UP, NOT every mouse-move (Single Source of Truth rule).
      */
     static void notifyTransformChanged(uint32_t entityId,
@@ -244,7 +244,7 @@ public:
         float x, float y, float rotation,
         float scaleX, float scaleY);
 
-    /** Engine / Lua debug.log() -> React Console panel. */
+    /** Engine / Lua debug.log() -> host Console panel. */
     static void notifyConsoleLine(const char* message, const char* level = "info");
     static void notifyRuntimeProfile(float fps,
                                      float luaMs,
@@ -288,7 +288,6 @@ public:
     static float    s_dragStartX, s_dragStartY;
     static ManipulationMode s_manipulationMode;
     static ResizeDragState  s_resizeDragState;
-    static std::string s_activeTileLayerName;
     static int      s_editorTool;      // 0 select, 1 pan
     static bool     s_editorGuidesEnabled;
     static float    s_editorGridSize;
@@ -344,7 +343,7 @@ public:
 } // namespace ArtCade
 
 // =============================================================================
-// React -> C++ exported commands  (called via Module.ccall() from TypeScript)
+// Editor-host -> C++ exported commands (called via Module.ccall()).
 // =============================================================================
 extern "C" {
 
@@ -365,7 +364,7 @@ EMSCRIPTEN_KEEPALIVE void editor_select_entity(uint32_t entityId);
 EMSCRIPTEN_KEEPALIVE void editor_deselect();
 
 /**
- * Hot-reload project data from React.
+ * Hot-reload project data from the editor host.
  * json_utf8: null-terminated UTF-8 JSON string (marshalled by wasm-bridge.ts).
  * Parses with nlohmann/json and calls SceneManager::registerScenes().
  * @return EditorApiResult (0 = ok).
@@ -373,7 +372,7 @@ EMSCRIPTEN_KEEPALIVE void editor_deselect();
 EMSCRIPTEN_KEEPALIVE int editor_load_project(const char* json_utf8);
 
 /**
- * Preview STOP (legacy): reload ProjectDoc; Lua is not reset here — use
+ * Preview STOP: reload ProjectDoc; Lua is not reset here — use
  * editor_exit_play_mode for atomic STOP or editor_reload_script after restore.
  */
 EMSCRIPTEN_KEEPALIVE void editor_restore_from_project(const char* json_utf8);
@@ -396,7 +395,7 @@ EMSCRIPTEN_KEEPALIVE int editor_exit_play_mode(
     const char* lua_utf8);
 
 /**
- * Push a transform change from the React Inspector into the C++ scene.
+ * Push a transform change from the Inspector into the C++ scene.
  * Routes the update through RuntimeEntityGateway::setTransform().
  */
 EMSCRIPTEN_KEEPALIVE void editor_set_transform(
@@ -431,7 +430,7 @@ EMSCRIPTEN_KEEPALIVE void editor_end_authoring_sync_batch();
  * lua_utf8: null-terminated UTF-8 Lua SOURCE (compiled by the editor's
  * compileLogicBoard()). Executed via LuaHost::loadLuaSource(), which
  * redefines the global tick(). On error the previous script stays active
- * and the message is pushed to the React console.
+ * and the message is pushed to the editor console.
  */
 /** @return EditorApiResult (0 = ok). */
 EMSCRIPTEN_KEEPALIVE int editor_reload_script(const char* lua_utf8);
@@ -446,23 +445,6 @@ EMSCRIPTEN_KEEPALIVE void editor_load_dialogs(const char* json_utf8);
 EMSCRIPTEN_KEEPALIVE const float* editor_get_runtime_profile();
 EMSCRIPTEN_KEEPALIVE const char* editor_get_variables_json(uint32_t entityId);
 
-/** Write one tile cell; optional @p layerName targets tilemapLayers (multi-layer). */
-EMSCRIPTEN_KEEPALIVE void editor_paint_tile(
-    int col,
-    int row,
-    int tileId,
-    const char* layerName,
-    int sourceIndex,
-    const char* tilesetAssetIdUtf8);
-
-/** Push merged tilemap.data into the active scene (legacy single-layer sync). */
-EMSCRIPTEN_KEEPALIVE void editor_sync_tilemap_data(const char* dataJson);
-
-/** Push per-layer grids + merged data without a full project reload. */
-EMSCRIPTEN_KEEPALIVE void editor_sync_tilemap_layers(const char* jsonUtf8);
-
-/** Active tilemapLayers key for editor_paint_tile (TilePaintOverlay). */
-EMSCRIPTEN_KEEPALIVE void editor_set_active_tile_layer(const char* layerName);
 
 /** Editor viewport tool: 0 select, 1 pan. */
 EMSCRIPTEN_KEEPALIVE void editor_set_tool(int toolId);
@@ -544,7 +526,7 @@ EMSCRIPTEN_KEEPALIVE void editor_sync_play_surface(
 /** Select play presentation variant (PlayEmbedded / PlayExternal / PlayFullscreen). */
 EMSCRIPTEN_KEEPALIVE void editor_set_play_presentation(int mode);
 
-/** Editor placement snap (magnetic drag + React commit); not gameplay grid.snapToGrid. */
+/** Editor placement snap (magnetic drag + host commit); not gameplay grid.snapToGrid. */
 EMSCRIPTEN_KEEPALIVE void editor_set_snap_to_grid(int enabled);
 
 /**
@@ -646,7 +628,6 @@ struct EditorAPI {
     static float    s_dragStartX, s_dragStartY;
     static ManipulationMode s_manipulationMode;
     static ResizeDragState  s_resizeDragState;
-    static std::string s_activeTileLayerName;
     static int      s_editorTool;
     static bool     s_editorGuidesEnabled;
     static float    s_editorGridSize;

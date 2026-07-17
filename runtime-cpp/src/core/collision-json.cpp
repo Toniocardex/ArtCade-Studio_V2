@@ -10,28 +10,28 @@ namespace ArtCade::ProjectJson {
 namespace {
 
 CollisionShapeType read_shape_type(const std::string& value) {
-    if (value == "circle" || value == "Circle") return CollisionShapeType::Circle;
-    if (value == "capsule" || value == "Capsule") return CollisionShapeType::Capsule;
-    if (value == "polygon" || value == "Polygon") return CollisionShapeType::Polygon;
+    if (value == "circle") return CollisionShapeType::Circle;
+    if (value == "capsule") return CollisionShapeType::Capsule;
+    if (value == "polygon") return CollisionShapeType::Polygon;
     return CollisionShapeType::Rectangle;
 }
 
 CollisionResponse read_response(const std::string& value) {
-    if (value == "sensor" || value == "Sensor") return CollisionResponse::Sensor;
+    if (value == "sensor") return CollisionResponse::Sensor;
     return CollisionResponse::Solid;
 }
 
 CollisionShapeRole read_role(const std::string& value) {
-    if (value == "feet" || value == "Feet") return CollisionShapeRole::Feet;
-    if (value == "hurtbox" || value == "Hurtbox") return CollisionShapeRole::Hurtbox;
-    if (value == "hitbox" || value == "Hitbox") return CollisionShapeRole::Hitbox;
-    if (value == "interaction" || value == "Interaction") return CollisionShapeRole::Interaction;
+    if (value == "feet") return CollisionShapeRole::Feet;
+    if (value == "hurtbox") return CollisionShapeRole::Hurtbox;
+    if (value == "hitbox") return CollisionShapeRole::Hitbox;
+    if (value == "interaction") return CollisionShapeRole::Interaction;
     return CollisionShapeRole::Body;
 }
 
 BodyType read_body_type(const std::string& value) {
-    if (value == "static" || value == "Static") return BodyType::Static;
-    if (value == "kinematic" || value == "Kinematic") return BodyType::Kinematic;
+    if (value == "static") return BodyType::Static;
+    if (value == "kinematic") return BodyType::Kinematic;
     return BodyType::Dynamic;
 }
 
@@ -82,20 +82,20 @@ CollisionShape read_collision_shape(const nlohmann::json& json) {
         { "default" });
 
     if (json.contains("offset")) shape.offset = read_vec2(json["offset"]);
-    shape.offset.x = read_float_any(json, "offsetX", "offset_x", shape.offset.x);
-    shape.offset.y = read_float_any(json, "offsetY", "offset_y", shape.offset.y);
+    shape.offset.x = json.value("offsetX", shape.offset.x);
+    shape.offset.y = json.value("offsetY", shape.offset.y);
 
     if (json.contains("size")) shape.size = read_vec2(json["size"], shape.size);
-    shape.size.x = read_float_any(json, "width", "width", shape.size.x);
-    shape.size.y = read_float_any(json, "height", "height", shape.size.y);
-    shape.radius = read_float_any(json, "radius", "radius", shape.radius);
+    shape.size.x = json.value("width", shape.size.x);
+    shape.size.y = json.value("height", shape.size.y);
+    shape.radius = json.value("radius", shape.radius);
     if (json.contains("points")) shape.points = read_points(json["points"]);
 
     shape.enabled = json.value("enabled", true);
-    shape.oneWay = json.value("oneWay", json.value("one_way", false));
-    shape.friction = read_float_any(json, "friction", "friction", shape.friction);
-    shape.restitution = read_float_any(json, "restitution", "restitution", shape.restitution);
-    shape.density = read_float_any(json, "density", "density", shape.density);
+    shape.oneWay = json.value("oneWay", false);
+    shape.friction = json.value("friction", shape.friction);
+    shape.restitution = json.value("restitution", shape.restitution);
+    shape.density = json.value("density", shape.density);
     return shape;
 }
 
@@ -123,8 +123,6 @@ void read_physics_layers(const nlohmann::json& doc,
     if (doc.contains("physics") && doc["physics"].is_object()
         && doc["physics"].contains("layers") && doc["physics"]["layers"].is_array()) {
         raw = &doc["physics"]["layers"];
-    } else if (doc.contains("physicsLayers") && doc["physicsLayers"].is_array()) {
-        raw = &doc["physicsLayers"];
     }
 
     if (!raw) {

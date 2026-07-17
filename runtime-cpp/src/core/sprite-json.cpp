@@ -11,7 +11,7 @@ bool read_sprite_component(const nlohmann::json& entityJson,
 
     const auto& j = entityJson["sprite"];
     SpriteComponent s;
-    s.spriteAssetId = read_string_any(j, "spriteAssetId", "sprite_asset_id");
+    s.spriteAssetId = j.value("spriteAssetId", std::string{});
     if (j.contains("tint"))
         s.tint = read_vec4(j["tint"]);
     if (j.contains("fillColor"))
@@ -19,15 +19,13 @@ bool read_sprite_component(const nlohmann::json& entityJson,
     else
         s.fillColor = {s.tint.r, s.tint.g, s.tint.b};
     s.alpha = j.value("alpha", 1.f);
-    s.pivotFromAsset = j.value("pivotFromAsset", j.value("pivot_from_asset", true));
+    s.pivotFromAsset = j.value("pivotFromAsset", true);
     if (j.contains("pivot"))
         s.pivot = read_vec2(j["pivot"]);
-    s.renderOrder = j.value("renderOrder", j.value("render_order", 0));
+    s.renderOrder = j.value("renderOrder", 0);
     if (j.contains("defaultClip"))
         s.defaultClip = j["defaultClip"].get<std::string>();
-    else if (j.contains("default_clip"))
-        s.defaultClip = j["default_clip"].get<std::string>();
-    s.playClipOnSpawn = j.value("playClipOnSpawn", j.value("play_clip_on_spawn", false));
+    s.playClipOnSpawn = j.value("playClipOnSpawn", false);
 
     out = s;
     return true;

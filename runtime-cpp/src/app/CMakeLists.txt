@@ -45,7 +45,6 @@ target_link_libraries(game PRIVATE
     artcade-game-state
     artcade-texture-manager
     artcade-sprite-animator
-    artcade-layer-manager
     artcade-camera-manager
     artcade-tween-manager
     artcade-save-load
@@ -66,7 +65,7 @@ if(EMSCRIPTEN)
     set_target_properties(game PROPERTIES SUFFIX ".js")
 
     # Editor WASM preview: no test-project preload — projects come from the
-    # React shell via editor_load_project. (runtime-cpp/test-project remains
+    # Editor host via editor_load_project. (runtime-cpp/test-project remains
     # for native runs and smoke tests.)
 
     # EXPORTED_FUNCTIONS: main + all editor-api commands callable from ccall()
@@ -89,10 +88,6 @@ if(EMSCRIPTEN)
         "_editor_end_authoring_sync_batch"
         "_editor_reload_script"
         "_editor_load_dialogs"
-        "_editor_set_active_tile_layer"
-        "_editor_paint_tile"
-        "_editor_sync_tilemap_data"
-        "_editor_sync_tilemap_layers"
         "_editor_set_tool"
         "_editor_set_guides_enabled"
         "_editor_set_grid_size"

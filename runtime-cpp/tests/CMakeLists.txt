@@ -57,10 +57,6 @@ artcade_test(sprite_animator_test
     sprite-animator-test.cpp
     artcade-sprite-animator)
 
-artcade_test(layer_manager_test
-    layer-manager-test.cpp
-    artcade-layer-manager)
-
 artcade_test(camera_manager_test
     camera-manager-test.cpp
     artcade-camera-manager)

@@ -25,16 +25,14 @@ std::optional<int> parse_hex_byte(std::string_view pair) {
 }
 
 PhysicsMode read_physics_mode(const nlohmann::json& worldJson) {
-    const std::string mode = read_string_any(
-        worldJson, "physicsMode", "physics_mode", "auto");
+    const std::string mode = worldJson.value("physicsMode", "auto");
     if (mode == "off") return PhysicsMode::Off;
     if (mode == "on")  return PhysicsMode::On;
     return PhysicsMode::Auto;
 }
 
 OutputPolicy read_output_policy(const nlohmann::json& worldJson) {
-    const std::string policy = read_string_any(
-        worldJson, "outputPolicy", "output_policy", "fit");
+    const std::string policy = worldJson.value("outputPolicy", "fit");
     if (policy == "fill") return OutputPolicy::Fill;
     if (policy == "stretch") return OutputPolicy::Stretch;
     return OutputPolicy::Fit;
@@ -95,16 +93,14 @@ void read_world_settings(const nlohmann::json& worldJson, WorldSettings& out) {
     if (!worldJson.is_object())
         return;
 
-    out.gravity        = read_float_any(worldJson, "gravity", "gravity", 9.81f);
-    out.pixelsPerMeter = read_float_any(worldJson, "pixelsPerMeter", "pixels_per_meter", 100.f);
-    out.timeScale      = read_float_any(worldJson, "timeScale", "time_scale", 1.f);
+    out.gravity = worldJson.value("gravity", 9.81f);
+    out.pixelsPerMeter = worldJson.value("pixelsPerMeter", 100.f);
+    out.timeScale = worldJson.value("timeScale", 1.f);
     out.physicsMode    = read_physics_mode(worldJson);
     out.outputPolicy   = read_output_policy(worldJson);
 
     if (worldJson.contains("physicsDebugDraw") && worldJson["physicsDebugDraw"].is_boolean())
         out.physicsDebugDraw = worldJson["physicsDebugDraw"].get<bool>();
-    else if (worldJson.contains("physics_debug_draw") && worldJson["physics_debug_draw"].is_boolean())
-        out.physicsDebugDraw = worldJson["physics_debug_draw"].get<bool>();
 }
 
 void read_tile_palette(const nlohmann::json& doc, std::vector<TilePaletteEntry>& out) {
@@ -113,8 +109,6 @@ void read_tile_palette(const nlohmann::json& doc, std::vector<TilePaletteEntry>&
     const nlohmann::json* raw = nullptr;
     if (doc.contains("tilePalette") && doc["tilePalette"].is_array())
         raw = &doc["tilePalette"];
-    else if (doc.contains("tile_palette") && doc["tile_palette"].is_array())
-        raw = &doc["tile_palette"];
     if (raw == nullptr)
         return;
 
@@ -129,19 +123,16 @@ void read_tile_palette(const nlohmann::json& doc, std::vector<TilePaletteEntry>&
 void read_tileset_asset(const nlohmann::json& tilesetJson,
                         const std::string& mapKey,
                         TilesetAsset& out) {
-    out.assetId = tilesetJson.value("assetId", tilesetJson.value("asset_id", mapKey));
+    out.assetId = tilesetJson.value("assetId", mapKey);
     if (out.assetId.empty())
         out.assetId = mapKey;
     out.name = tilesetJson.value("name", mapKey);
-    out.imageAssetId = read_string_any(
-        tilesetJson, "imageAssetId", "image_asset_id", "");
+    out.imageAssetId = tilesetJson.value("imageAssetId", std::string{});
     if (out.imageAssetId.empty()) {
-        out.imageAssetId = read_string_any(
-            tilesetJson, "spriteImagePath", "sprite_image_path", "");
+        out.imageAssetId = tilesetJson.value("spriteImagePath", std::string{});
     }
-    const float tileW = read_float_any(tilesetJson, "tileSize", "tile_size", 32.f);
-    const float tileH = read_float_any(
-        tilesetJson, "tileHeight", "tile_height", tileW);
+    const float tileW = tilesetJson.value("tileSize", 32.f);
+    const float tileH = tilesetJson.value("tileHeight", tileW);
     out.slicing.tileWidth = static_cast<int>(tileW > 0.f ? tileW : 32.f);
     out.slicing.tileHeight = static_cast<int>(tileH > 0.f ? tileH : tileW);
     const int legacyMargin = tilesetJson.value("margin", 0);
@@ -187,23 +178,22 @@ void read_thumbnails(const nlohmann::json& doc,
 }
 
 void read_project_header(const nlohmann::json& doc, ProjectDoc& out) {
-    out.projectName   = read_string_any(doc, "projectName", "project_name", "Untitled");
+    out.projectName   = doc.value("projectName", "Untitled");
     out.version       = doc.value("version", "2.0.0");
-    out.licenseTier   = read_string_any(doc, "licenseTier", "license_tier", "free");
-    out.targetFPS     = read_float_any(doc, "targetFPS", "target_fps", 60.f);
-    out.activeSceneId = read_string_any(doc, "activeSceneId", "active_scene_id");
-    out.mainScriptPath =
-        read_string_any(doc, "mainScriptPath", "main_script_path", "scripts/main.luac");
-    out.formatVersion = doc.value("formatVersion", doc.value("format_version", 0));
+    out.licenseTier = doc.value("licenseTier", "free");
+    out.targetFPS = doc.value("targetFPS", 60.f);
+    out.activeSceneId = doc.value("activeSceneId", std::string{});
+    out.mainScriptPath = doc.value("mainScriptPath", "scripts/main.lua");
+    out.formatVersion = doc.value("formatVersion", 0);
     out.scriptAssets.clear();
     if (doc.contains("scriptAssets") && doc["scriptAssets"].is_array()) {
         for (const auto& item : doc["scriptAssets"]) {
             if (!item.is_object()) continue;
             ScriptAssetDef asset;
-            asset.assetId = read_string_any(item, "assetId", "asset_id");
+            asset.assetId = item.value("assetId", std::string{});
             if (asset.assetId.empty()) asset.assetId = item.value("id", std::string{});
             asset.name = item.value("name", asset.assetId);
-            asset.sourcePath = read_string_any(item, "sourcePath", "source_path");
+            asset.sourcePath = item.value("sourcePath", std::string{});
             out.scriptAssets.push_back(std::move(asset));
         }
     }
@@ -224,18 +214,12 @@ void read_scene_layers(const nlohmann::json& container, std::vector<SceneLayerDe
 
     for (const auto& item : container["layers"]) {
         SceneLayerDef layer;
-        if (item.is_string()) {
-            // Legacy string form: use the name as a stable id fallback.
-            layer.name = item.get<std::string>();
-            layer.id   = layer.name;
-        } else if (item.is_object()) {
+        if (item.is_object()) {
             layer.id     = item.value("id", std::string{});
             layer.name   = item.value("name", std::string{});
             layer.locked = item.value("locked", false);
-            if (layer.id.empty())
-                layer.id = layer.name;   // tolerate id-less entries
         }
-        if (!layer.id.empty())
+        if (!layer.id.empty() && !layer.name.empty())
             out.push_back(std::move(layer));
     }
 }
@@ -243,8 +227,6 @@ void read_scene_layers(const nlohmann::json& container, std::vector<SceneLayerDe
 void read_runtime_settings(const nlohmann::json& doc, ProjectRuntimeSettings& out) {
     if (doc.contains("targetFPS"))
         out.targetFPS = doc["targetFPS"].get<float>();
-    else if (doc.contains("target_fps"))
-        out.targetFPS = doc["target_fps"].get<float>();
 
     if (!doc.contains("world") || !doc["world"].is_object())
         return;
@@ -254,19 +236,12 @@ void read_runtime_settings(const nlohmann::json& doc, ProjectRuntimeSettings& ou
         out.gravity = worldJson["gravity"].get<float>();
     if (worldJson.contains("pixelsPerMeter"))
         out.pixelsPerMeter = worldJson["pixelsPerMeter"].get<float>();
-    else if (worldJson.contains("pixels_per_meter"))
-        out.pixelsPerMeter = worldJson["pixels_per_meter"].get<float>();
     if (worldJson.contains("timeScale"))
         out.timeScale = worldJson["timeScale"].get<float>();
-    else if (worldJson.contains("time_scale"))
-        out.timeScale = worldJson["time_scale"].get<float>();
     if (worldJson.contains("physicsDebugDraw") && worldJson["physicsDebugDraw"].is_boolean())
         out.physicsDebugDraw = worldJson["physicsDebugDraw"].get<bool>();
-    else if (worldJson.contains("physics_debug_draw")
-             && worldJson["physics_debug_draw"].is_boolean())
-        out.physicsDebugDraw = worldJson["physics_debug_draw"].get<bool>();
 
-    if (worldJson.contains("physicsMode") || worldJson.contains("physics_mode"))
+    if (worldJson.contains("physicsMode"))
         out.physicsMode = read_physics_mode(worldJson);
 }
 

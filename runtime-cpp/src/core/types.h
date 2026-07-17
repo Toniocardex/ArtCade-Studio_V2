@@ -743,7 +743,7 @@ struct FontAssetDef {
     FontGlyphPreset glyphPreset = FontGlyphPreset::European;
 };
 
-// Manual Lua source registered by the native editor. The source remains an
+// Manual Lua source registered by the authoring editor. The source remains an
 // external project-relative .lua file; ProjectDoc owns metadata only. AssetId
 // is the stable identity used by future type-owned Script attachments.
 struct ScriptAssetDef {
@@ -836,11 +836,11 @@ struct ProjectDoc {
     std::vector<TilesetAsset>     tilesets;      // Phase F3
     std::vector<ImageAssetDef>    imageAssets;   // editor assets + image points
     std::vector<SpriteAnimationAssetDef> spriteAnimationAssets;
-    std::vector<AudioAssetDef>    audioAssets;   // native editor import catalog
+    std::vector<AudioAssetDef>    audioAssets;   // authoring import catalog
     // Authoring-only procedural SFX recipes. Runtime systems consume only the
     // AudioAssetDef referenced by GeneratedSfxDef::outputAssetId.
     std::vector<artcade::sfx::GeneratedSfxDef> generatedSfx;
-    std::vector<FontAssetDef>     fontAssets;    // native editor import catalog
+    std::vector<FontAssetDef>     fontAssets;    // authoring import catalog
     std::vector<ScriptAssetDef>   scriptAssets;  // external manual Lua source metadata
     WorldSettings                 world{};
     std::vector<GameVariableDefinition> globalVariables;

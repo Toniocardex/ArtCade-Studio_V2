@@ -14,6 +14,7 @@ Item {
     required property string display
     required property string layerId
     required property bool layerVisible
+    required property bool playVisible
     required property bool locked
     required property bool active
     required property bool isDefault
@@ -25,6 +26,7 @@ Item {
 
     signal activateRequested(string layerId)
     signal visibilityToggled(string layerId, bool visible)
+    signal playVisibilityToggled(string layerId, bool visible)
     signal lockToggled(string layerId, bool locked)
     signal renameRequested(string layerId, string currentName)
     signal setDefaultRequested(string layerId)
@@ -255,6 +257,13 @@ Item {
         MenuItem {
             text: "Rename Layer…"
             onTriggered: root.renameRequested(root.layerId, root.display)
+        }
+        MenuSeparator {}
+        MenuItem {
+            text: "Visible in Play"
+            checkable: true
+            checked: root.playVisible
+            onTriggered: root.playVisibilityToggled(root.layerId, checked)
         }
         MenuSeparator {}
         MenuItem {

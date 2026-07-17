@@ -35,7 +35,7 @@ void read_tilesets(const nlohmann::json& doc, std::vector<TilesetAsset>& out);
 void read_thumbnails(const nlohmann::json& doc,
                      std::unordered_map<SceneId, std::string>& out);
 
-/** Top-level project.json identity and routing fields (snake_case aware). */
+/** Parses canonical current-format project.json identity and routing fields. */
 void read_project_header(const nlohmann::json& doc, ProjectDoc& out);
 void read_global_variables(const nlohmann::json& doc, ProjectDoc& out);
 
@@ -45,7 +45,6 @@ void read_global_variables(const nlohmann::json& doc, ProjectDoc& out);
  */
 void read_runtime_settings(const nlohmann::json& doc, ProjectRuntimeSettings& out);
 
-/** Parses a layers array (name strings or {id,name,locked} objects) into @p out. */
 /** Parses a layers array from a scene JSON object (not ProjectDoc root). */
 void read_scene_layers(const nlohmann::json& container, std::vector<SceneLayerDef>& out);
 

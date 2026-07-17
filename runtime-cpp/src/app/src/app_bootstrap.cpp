@@ -32,7 +32,6 @@ bool Application::initUtilities() {
     mod_->variableManager = std::make_unique<ArtCade::Modules::VariableManager>();
     mod_->tweenManager = std::make_unique<ArtCade::Modules::TweenManager>();
     mod_->spriteAnimator = std::make_unique<ArtCade::Modules::SpriteAnimator>();
-    mod_->layerManager = std::make_unique<ArtCade::Modules::LayerManager>();
     mod_->cameraManager = std::make_unique<ArtCade::Modules::CameraManager>();
     mod_->saveLoadManager = std::make_unique<ArtCade::Modules::SaveLoadManager>();
 
@@ -41,7 +40,6 @@ bool Application::initUtilities() {
     if (!boot_step("variable_manager", mod_->variableManager->init())) return false;
     if (!boot_step("tween_manager", mod_->tweenManager->init())) return false;
     if (!boot_step("sprite_animator", mod_->spriteAnimator->init())) return false;
-    if (!boot_step("layer_manager", mod_->layerManager->init())) return false;
     if (!boot_step("camera_manager", mod_->cameraManager->init())) return false;
     if (!boot_step("save_load_manager", mod_->saveLoadManager->init())) return false;
 
@@ -50,7 +48,6 @@ bool Application::initUtilities() {
     ctx_.variableManager = mod_->variableManager.get();
     ctx_.tweenManager = mod_->tweenManager.get();
     ctx_.spriteAnimator = mod_->spriteAnimator.get();
-    ctx_.layerManager = mod_->layerManager.get();
     ctx_.cameraManager = mod_->cameraManager.get();
     ctx_.saveLoadManager = mod_->saveLoadManager.get();
     ctx_.profiler = &profiler_;
@@ -282,7 +279,6 @@ void Application::shutdownModules() {
     }
     if (mod_->saveLoadManager) { mod_->saveLoadManager->shutdown(); mod_->saveLoadManager.reset(); }
     if (mod_->cameraManager) { mod_->cameraManager->shutdown(); mod_->cameraManager.reset(); }
-    if (mod_->layerManager) { mod_->layerManager->shutdown(); mod_->layerManager.reset(); }
     if (mod_->spriteAnimator) { mod_->spriteAnimator->shutdown(); mod_->spriteAnimator.reset(); }
     if (mod_->tweenManager) { mod_->tweenManager->shutdown(); mod_->tweenManager.reset(); }
     if (mod_->variableManager) { mod_->variableManager->shutdown(); mod_->variableManager.reset(); }

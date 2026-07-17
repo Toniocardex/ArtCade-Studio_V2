@@ -1118,7 +1118,7 @@ void RuntimeEntityGateway::requestLoadScene(const SceneId& id, float fadeSeconds
     loadScene(id);
 }
 
-void RuntimeEntityGateway::requestReactivateScene(float fadeSeconds) {
+void RuntimeEntityGateway::requestSceneReactivation(float fadeSeconds) {
     if (lifecycle_) {
         lifecycle_->request_reactivate(fadeSeconds);
         return;

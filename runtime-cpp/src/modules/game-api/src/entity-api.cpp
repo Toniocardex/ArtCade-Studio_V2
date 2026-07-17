@@ -191,7 +191,7 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
         });
     lua.set_function("scene_reactivate", [entities](sol::optional<float> fadeSec) {
         if (!entities) return;
-        entities->requestReactivateScene(fadeSec.value_or(0.f));
+        entities->requestSceneReactivation(fadeSec.value_or(0.f));
     });
     lua.set_function("scene_restart", [entities](sol::optional<float> fadeSec) {
         if (!entities) return;

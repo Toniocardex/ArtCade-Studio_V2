@@ -5,9 +5,9 @@
 #include "collision-json.h"
 #include "entity-json.h"
 #include "logic-core.h"
-#include "json-primitives.h"
 #include "scene-json.h"
 #include "project-meta-json.h"
+#include "project-current-format.h"
 #include <nlohmann/json.hpp>
 #include <filesystem>
 #include <fstream>
@@ -64,9 +64,6 @@ std::optional<std::string> resolveUnderRoot(const std::string& rootPath,
 }
 
 } // namespace
-
-using ProjectJson::read_float_any;
-using ProjectJson::read_string_any;
 
 // ------------------------------------------------------------------ lifecycle
 
@@ -203,6 +200,9 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
     try { j = json::parse(f); }
     catch (...) { return false; }
 
+    std::string validation_error;
+    if (!ProjectJson::validate_current_project_json(j, validation_error)) return false;
+
     ProjectJson::read_project_header(j, out);
     ProjectJson::read_global_variables(j, out);
 
@@ -213,8 +213,6 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
     const json* rawTypes = nullptr;
     if (j.contains("objectTypes")
         && (j["objectTypes"].is_object() || j["objectTypes"].is_array())) rawTypes = &j["objectTypes"];
-    else if (j.contains("object_types")
-             && (j["object_types"].is_object() || j["object_types"].is_array())) rawTypes = &j["object_types"];
     if (rawTypes) {
         const auto readBoard = [&](const std::string& mapKey, const json& rawType) -> bool {
             if (!rawType.is_object() || !rawType.contains("logicBoard")) return true;
@@ -245,6 +243,8 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
     ProjectJson::read_collision_profiles(j, out.collisionProfiles);
     ProjectJson::read_tile_palette(j, out.tilePalette);
     ProjectJson::read_tilesets(j, out.tilesets);
+
+    if (!ProjectJson::validate_current_project_document(out, validation_error)) return false;
 
     materializeProjectEntities(out);
 
@@ -318,8 +318,8 @@ bool AssetLoader::parseGameJson(const std::string& path, ProjectDoc& out) {
     try { j = json::parse(f); }
     catch (...) { return false; }
 
-    out.targetFPS = read_float_any(j, "targetFPS", "target_fps", out.targetFPS);
-    out.licenseTier = read_string_any(j, "licenseTier", "license_tier", out.licenseTier);
+    out.targetFPS = j.value("targetFPS", out.targetFPS);
+    out.licenseTier = j.value("licenseTier", out.licenseTier);
     return true;
 }
 

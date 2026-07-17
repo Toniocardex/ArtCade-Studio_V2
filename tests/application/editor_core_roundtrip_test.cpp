@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <limits>
 #include <string>
 #include <variant>
@@ -32,6 +33,18 @@ static const ArtCade::SceneDef *active_scene(const ArtCade::ProjectDoc &doc)
     return scene == doc.scenes.end() ? nullptr : &scene->second;
 }
 
+static std::string read_text_file(const std::filesystem::path &path)
+{
+    std::ifstream file(path);
+    return {std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
+}
+
+static void write_text_file(const std::filesystem::path &path, const std::string &content)
+{
+    std::ofstream file(path);
+    file << content;
+}
+
 int main()
 {
     using namespace ArtCade::EditorCore;
@@ -48,6 +61,19 @@ int main()
     expect(!coord.isDirty(), "fresh open is clean");
     expect(coord.document().formatVersion == kCurrentProjectFormatVersion,
            "current format version");
+
+    const fs::path invalid_format_path = fixture_dir / "project.invalid-format.json";
+    std::string invalid_format = read_text_file(fixture);
+    const std::size_t format_key = invalid_format.find("\"formatVersion\": 6");
+    expect(format_key != std::string::npos, "fixture has canonical formatVersion key");
+    invalid_format.replace(format_key, std::string("\"formatVersion\": 6").size(),
+                           "\"projectFormatVersion\": 6");
+    write_text_file(invalid_format_path, invalid_format);
+    ArtCade::ProjectDoc invalid_document;
+    expect(!project_file_io_load(invalid_format_path.string(), invalid_document, error),
+           "legacy format alias is rejected");
+    std::error_code remove_error;
+    fs::remove(invalid_format_path, remove_error);
 
     const ArtCade::SceneInstanceDef *hero =
         project_doc_find_instance(coord.document(), 1);
@@ -172,6 +198,26 @@ int main()
     expect(coord.isDirty() == dirty_before_hide, "editor hide does not dirty");
     coord.setLayerHiddenInEditor("layer_ui", false);
     expect(!coord.layerHiddenInEditor("layer_ui"), "ui layer shown in editor again");
+
+    // Workspace visibility is keyed by SceneId + layerId, not a global layer id.
+    ArtCade::SceneDef second_scene = coord.document().scenes.at("scene_main");
+    second_scene.id = "scene_second";
+    second_scene.name = "Second Scene";
+    coord.document().scenes.emplace(second_scene.id, second_scene);
+    coord.setLayerHiddenInEditor("layer_ui", true);
+    coord.document().activeSceneId = "scene_second";
+    expect(!coord.layerHiddenInEditor("layer_ui"),
+           "same layer id stays visible in another scene");
+    coord.setLayerHiddenInEditor("layer_ui", true);
+    coord.document().activeSceneId = "scene_main";
+    expect(coord.layerHiddenInEditor("layer_ui"),
+           "original scene retains its workspace visibility");
+    coord.document().activeSceneId = "scene_second";
+    expect(coord.layerHiddenInEditor("layer_ui"),
+           "second scene owns separate workspace visibility");
+    coord.document().activeSceneId = "scene_main";
+    coord.document().scenes.erase("scene_second");
+    coord.setLayerHiddenInEditor("layer_ui", false);
 
     // Lock: persistent SceneLayerDef.locked
     expect(coord.setLayerLocked("layer_ui", true, error), "lock ui layer");
@@ -719,6 +765,12 @@ int main()
            "undo remove restores rule membership");
     expect(coord.validateLogicForPlay(error), "sections do not affect Play validation");
 
+    ArtCade::SceneLayerSettings &background_settings =
+        coord.document().scenes.at("scene_main").layerSettings["layer_bg"];
+    background_settings.parallax = {0.5f, 0.75f};
+    background_settings.background.imageId = "img_hero";
+    background_settings.background.tileX = false;
+    background_settings.background.scrollY = 12.f;
     expect(coord.saveProjectAs(out_path.string(), error), "save roundtrip file");
     expect(!coord.isDirty(), "clean after save");
 
@@ -752,6 +804,15 @@ int main()
     expect(reloaded.document().imageAssets.size() == 2, "persisted image assets");
     expect(!reloaded.layerVisible("layer_ui"), "persisted play layer visibility");
     expect(reloaded.layerLocked("layer_bg"), "persisted layer lock");
+    const ArtCade::SceneLayerSettings &reloaded_background =
+        reloaded.document().scenes.at("scene_main").layerSettings.at("layer_bg");
+    expect(nearly_equal(reloaded_background.parallax.x, 0.5f)
+               && nearly_equal(reloaded_background.parallax.y, 0.75f),
+           "persisted layer parallax");
+    expect(reloaded_background.background.imageId == "img_hero"
+               && !reloaded_background.background.tileX
+               && nearly_equal(reloaded_background.background.scrollY, 12.f),
+           "persisted layer background settings");
     expect(!reloaded.layerHiddenInEditor("layer_ui"),
            "editor hide does not survive reload");
     const auto reloaded_player = reloaded.document().objectTypes.find("Player");

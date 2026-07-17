@@ -8,7 +8,7 @@
 2. **Native Runtime** — C++ + Raylib → Windows/macOS/Linux
 3. **Web Runtime** — same C++ via Emscripten → `.wasm`
 
-React/Tauri has been **removed**. Do not reintroduce a second authoring UI.
+ArtCade has one authoring UI: Qt/QML over C++. Do not introduce a parallel stack.
 
 ## Architecture
 
@@ -19,7 +19,7 @@ Qt adapter (EditorSession, models)
     ↓
 artcade_editor_core (ProjectDoc, Commands, load/save)
     ↓
-project.json (formatVersion 5, C++-owned)
+project.json (formatVersion 6, C++-owned)
     ↓
 C++ Runtime (native .exe / WASM)
 ```

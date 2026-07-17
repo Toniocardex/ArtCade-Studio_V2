@@ -1253,23 +1253,24 @@ void EditorSession::addSceneLayer()
     setStatus(QStringLiteral("Added layer"));
 }
 
-void EditorSession::renameSceneLayer(const QString &layerId, const QString &newName)
+bool EditorSession::renameSceneLayer(const QString &layerId, const QString &newName)
 {
     QString guard_error;
     if (!guardAuthoring(&guard_error)) {
         setStatus(guard_error, false);
         emit errorOccurred(guard_error);
-        return;
+        return false;
     }
     std::string error;
     if (!m_coordinator->renameSceneLayer(layerId.toStdString(), newName.toStdString(), error)) {
         setStatus(QString::fromStdString(error), false);
         emit errorOccurred(QString::fromStdString(error));
-        return;
+        return false;
     }
     m_layers->reload();
     emit dirtyChanged();
     setStatus(QStringLiteral("Layer renamed"));
+    return true;
 }
 
 void EditorSession::setDefaultSceneLayer(const QString &layerId)
