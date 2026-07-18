@@ -35,6 +35,7 @@ inline constexpr const char* kSetScale = "entity.set_scale";
 inline constexpr const char* kSetVelocity = "physics.set_velocity";
 inline constexpr const char* kSpawnObject = "entity.spawn";
 inline constexpr const char* kIsGrounded = "platformer.is_grounded";
+inline constexpr const char* kIsFalling = "platformer.is_falling";
 inline constexpr const char* kMoveHorizontal = "platformer.move_horizontal";
 inline constexpr const char* kJump = "platformer.jump";
 inline constexpr const char* kCollisionEnter = "collision.enter";
@@ -72,6 +73,11 @@ enum class LogicContextCapability {
     CollisionContact,
     MessagePayload,
 };
+/**
+ * Trigger activation semantics from the registry (not duplicated in UI/runtime
+ * switches). Pulse = discrete one-shot event; Level = continuous state.
+ */
+enum class LogicTriggerActivationKind { Pulse, Level };
 
 struct LogicPropertyDescriptor {
     std::string    key;
@@ -98,6 +104,8 @@ struct LogicBlockDescriptor {
     int                                  catalogOrder = 0;
     /** Extra case-insensitive search terms for the Logic Catalog (registry-owned). */
     std::vector<std::string>             searchSynonyms;
+    /** Pulse (default) or Level — drives OncePerActivation rising-edge gating. */
+    LogicTriggerActivationKind           activationKind = LogicTriggerActivationKind::Pulse;
 };
 
 /**
@@ -193,6 +201,16 @@ LogicBlockDef makeDefaultTrigger();
 LogicBlockDef makeDefaultAction();
 LogicBlockDef makeDefaultCondition();
 LogicRuleDef makeDefaultRule(LogicRuleId id);
+
+/** Persistable token for LogicExecutionMode ("every_occurrence", …). */
+[[nodiscard]] const char* logicExecutionModeToString(LogicExecutionMode mode);
+[[nodiscard]] std::optional<LogicExecutionMode> logicExecutionModeFromString(
+    const std::string& value);
+/** Persistable token for LogicTriggerActivationKind ("pulse", "level"). */
+[[nodiscard]] const char* logicTriggerActivationKindToString(
+    LogicTriggerActivationKind kind);
+[[nodiscard]] std::optional<LogicTriggerActivationKind> logicTriggerActivationKindFromString(
+    const std::string& value);
 
 std::string logicKeyName(LogicKey key);
 std::optional<LogicKey> logicKeyFromName(const std::string& name);

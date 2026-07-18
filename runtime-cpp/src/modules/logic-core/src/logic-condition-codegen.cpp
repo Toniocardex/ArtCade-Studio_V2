@@ -11,6 +11,10 @@ std::string conditionExpression(const LogicBlockDef& condition,
         const LogicPropertyDef* property = findProperty(condition, "expected");
         const bool expected = property ? std::get<bool>(property->value) : true;
         expression << "context.self:is_grounded() == " << (expected ? "true" : "false");
+    } else if (condition.typeId == kIsFalling) {
+        const LogicPropertyDef* property = findProperty(condition, "expected");
+        const bool expected = property ? std::get<bool>(property->value) : true;
+        expression << "context.self:is_falling() == " << (expected ? "true" : "false");
     } else if (condition.typeId == kIsVisible) {
         const LogicPropertyDef* property = findProperty(condition, "expected");
         const bool expected = property ? std::get<bool>(property->value) : true;
@@ -75,12 +79,11 @@ std::string emitConditionExpression(const LogicBlockDef& condition,
     return conditionExpression(condition, requiredFeatures);
 }
 
-bool emitConditionGuard(std::ostringstream& lua,
-                        const std::vector<LogicConditionClause>& conditions,
-                        std::set<std::string>& requiredFeatures)
+std::string emitConditionsExpression(const std::vector<LogicConditionClause>& conditions,
+                                     std::set<std::string>& requiredFeatures)
 {
     if (conditions.empty()) {
-        return false;
+        return {};
     }
 
     std::vector<std::string> groups;
@@ -99,14 +102,25 @@ bool emitConditionGuard(std::ostringstream& lua,
     }
     groups.push_back(group.str());
 
-    lua << "    if ";
+    std::ostringstream expression;
     for (std::size_t index = 0; index < groups.size(); ++index) {
         if (index > 0) {
-            lua << " or ";
+            expression << " or ";
         }
-        lua << "(" << groups[index] << ")";
+        expression << "(" << groups[index] << ")";
     }
-    lua << " then\n";
+    return expression.str();
+}
+
+bool emitConditionGuard(std::ostringstream& lua,
+                        const std::vector<LogicConditionClause>& conditions,
+                        std::set<std::string>& requiredFeatures)
+{
+    const std::string expression = emitConditionsExpression(conditions, requiredFeatures);
+    if (expression.empty()) {
+        return false;
+    }
+    lua << "    if " << expression << " then\n";
     return true;
 }
 

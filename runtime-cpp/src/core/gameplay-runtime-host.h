@@ -25,6 +25,11 @@ public:
     /** Absolute scale; both axes must be finite and > 0 (no negative flip). */
     virtual bool setScale(EntityId owner, Vec2 scale) = 0;
     virtual bool isGrounded(EntityId owner) = 0;
+    /**
+     * True while Self is airborne and moving downward (+Y down).
+     * Not the same as !isGrounded() — rising after a jump is false.
+     */
+    virtual bool isFalling(EntityId owner) = 0;
     virtual bool requestPlatformerMove(EntityId owner, float axis) = 0;
     virtual bool requestPlatformerJump(EntityId owner) = 0;
     virtual bool isObjectType(EntityId entity, const ObjectTypeId& objectTypeId) = 0;

@@ -126,6 +126,11 @@ public:
     bool isSpaceFree(float x, float y, float w, float h) const;
     /** True when entity has PlatformerController and its feet touch solid collision. */
     bool isPlatformerGrounded(EntityId id) const;
+    /**
+     * True when airborne (not grounded, not climbing) and vertical velocity is
+     * downward (+Y down). Rising after a jump is false.
+     */
+    bool isPlatformerFalling(EntityId id) const;
 
     /** Canonical Logic Runtime operations over materialized world state. */
     bool isActiveEntity(EntityId id) const;

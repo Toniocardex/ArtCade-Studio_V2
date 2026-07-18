@@ -258,6 +258,14 @@ int manualPlatformerIsGrounded(lua_State* state) {
     return 1;
 }
 
+int manualPlatformerIsFalling(lua_State* state) {
+    IGameplayRuntimeHost* host = manualGameplayHost(state);
+    luaL_checktype(state, 1, LUA_TTABLE);
+    if (!host) return luaL_error(state, "ctx.platformer:is_falling failed");
+    lua_pushboolean(state, host->isFalling(manualOwner(state)) ? 1 : 0);
+    return 1;
+}
+
 int manualAnimationPlay(lua_State* state) {
     IGameplayRuntimeHost* host = manualGameplayHost(state);
     luaL_checktype(state, 1, LUA_TTABLE);
@@ -363,6 +371,7 @@ void pushManualContext(lua_State* state, IGameplayRuntimeHost* host, EntityId ow
     setManualHostMethod(state, host, owner, "move", manualPlatformerMove);
     setManualHostMethod(state, host, owner, "jump", manualPlatformerJump);
     setManualHostMethod(state, host, owner, "is_grounded", manualPlatformerIsGrounded);
+    setManualHostMethod(state, host, owner, "is_falling", manualPlatformerIsFalling);
     lua_setfield(state, -2, "platformer");
 
     lua_newtable(state);

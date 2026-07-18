@@ -168,6 +168,9 @@ nlohmann::json logicBoardToJson(const LogicBoardDef& board) {
             {"actions", std::move(actions)},
         };
         ruleJson["name"] = rule.name;
+        // Default EveryOccurrence may be omitted by older writers; always emit
+        // the token so round-trips stay explicit and readable.
+        ruleJson["executionMode"] = logicExecutionModeToString(rule.executionMode);
         // Empty display grouping metadata is omitted from the current format.
         if (!rule.sectionId.empty()) ruleJson["sectionId"] = rule.sectionId;
         rules.push_back(std::move(ruleJson));
@@ -237,6 +240,15 @@ LogicJsonResult logicBoardFromJson(const nlohmann::json& json, LogicBoardDef& ou
             if (!item.contains("enabled") || !item["enabled"].is_boolean())
                 return {false, "Logic rule enabled is invalid"};
             rule.enabled = item["enabled"].get<bool>();
+            rule.executionMode = LogicExecutionMode::EveryOccurrence;
+            if (item.contains("executionMode")) {
+                if (!item["executionMode"].is_string())
+                    return {false, "Logic rule executionMode is invalid"};
+                const auto mode = logicExecutionModeFromString(
+                    item["executionMode"].get<std::string>());
+                if (!mode) return {false, "Unknown Logic rule executionMode"};
+                rule.executionMode = *mode;
+            }
             if (item.contains("sectionId")) {
                 if (!item["sectionId"].is_string())
                     return {false, "Logic rule sectionId is invalid"};

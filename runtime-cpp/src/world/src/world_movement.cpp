@@ -12,6 +12,18 @@ bool World::isPlatformerGrounded(EntityId id) const {
     return collisionGrounded(id);
 }
 
+bool World::isPlatformerFalling(EntityId id) const {
+    PlatformerControllerComponent pc{};
+    if (!entityGateway_.getPlatformerController(id, pc)) return false;
+    if (collisionGrounded(id)) return false;
+    const auto it = platformerRt_.find(id);
+    if (it == platformerRt_.end()) return false;
+    if (it->second.climbing) return false;
+    // Match Editor PlaySession: +Y down, ignore near-zero apex noise.
+    constexpr float kFallingEpsilon = 0.001f;
+    return it->second.velocity.y > kFallingEpsilon;
+}
+
 void World::tickPlatformerControllers(float dt) {
     entityGateway_.forEachActivePlatformer(
         [this, dt](EntityId id, const PlatformerControllerComponent& pc) {

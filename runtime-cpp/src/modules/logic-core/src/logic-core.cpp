@@ -13,6 +13,7 @@ namespace {
 
 using CodegenInternal::emitConditionExpression;
 using CodegenInternal::emitConditionGuard;
+using CodegenInternal::emitConditionsExpression;
 using CodegenInternal::escapeLua;
 
 LogicEntityReference selfReference() { return {}; }
@@ -487,7 +488,8 @@ const std::vector<LogicBlockDescriptor>& registry() {
             false, 10, {"begin", "startup", "init"}},
         {kEveryFrame, "system", "Every Frame", "Runs once every simulation frame.",
             BlockKind::Trigger, {}, {}, {}, {LogicContextCapability::Self, LogicContextCapability::DeltaTime},
-            "event.on_update", true, 20, {"tick", "update", "frame"}},
+            "event.on_update", true, 20, {"tick", "update", "frame"},
+            LogicTriggerActivationKind::Level},
         {kEverySeconds, "system", "Every Second",
             "Runs on a repeating timer. Default interval is 1 second.",
             BlockKind::Trigger,
@@ -504,12 +506,14 @@ const std::vector<LogicBlockDescriptor>& registry() {
         {kKeyHeld, "input", "While Key Held", "Runs once per tick while the selected key is held.",
             BlockKind::Trigger,
             {{"key", LogicValueKind::Key, LogicKey::Space, "Key"}}, {}, {},
-            {LogicContextCapability::Self}, "input.key_held", true, 30, {"keyboard", "input", "hold"}},
+            {LogicContextCapability::Self}, "input.key_held", true, 30, {"keyboard", "input", "hold"},
+            LogicTriggerActivationKind::Level},
         {kKeyDown, "input", "Is Key Down", "True while the selected key is held.",
             BlockKind::Condition,
             {{"key", LogicValueKind::Key, LogicKey::Space, "Key"}}, {},
             {LogicContextCapability::Self}, {LogicContextCapability::Self},
-            "input.key_down", false, 10, {"keyboard", "input"}},
+            "input.key_down", false, 10, {"keyboard", "input"},
+            LogicTriggerActivationKind::Level},
         {kSetVisible, "entity", "Set Visible", "Shows or hides Self.",
             BlockKind::Action,
             {{"target", LogicValueKind::Entity, selfReference(), "Target"},
@@ -520,7 +524,8 @@ const std::vector<LogicBlockDescriptor>& registry() {
             BlockKind::Condition,
             {{"expected", LogicValueKind::Bool, true, "Expected"}},
             {}, {LogicContextCapability::Self}, {LogicContextCapability::Self},
-            "entity.visibility", false, 15, {"shown", "hidden", "visibility"}},
+            "entity.visibility", false, 15, {"shown", "hidden", "visibility"},
+            LogicTriggerActivationKind::Level},
         {kSetPosition, "entity", "Set Position", "Moves Self to an absolute world position.",
             BlockKind::Action,
             {{"target", LogicValueKind::Entity, selfReference(), "Target"},
@@ -566,7 +571,17 @@ const std::vector<LogicBlockDescriptor>& registry() {
             {{"expected", LogicValueKind::Bool, true, "Expected"}},
             {LogicRequiredComponent::PlatformerController}, {LogicContextCapability::Self},
             {LogicContextCapability::Self},
-            "platformer.grounded", false, 10, {"floor", "landing"}},
+            "platformer.grounded", false, 10, {"floor", "landing"},
+            LogicTriggerActivationKind::Level},
+        {kIsFalling, "platformer", "Is Falling",
+            "Checks whether Self is airborne and moving downward (+Y down). "
+            "False while grounded or rising after a jump.",
+            BlockKind::Condition,
+            {{"expected", LogicValueKind::Bool, true, "Expected"}},
+            {LogicRequiredComponent::PlatformerController}, {LogicContextCapability::Self},
+            {LogicContextCapability::Self},
+            "platformer.falling", false, 15, {"airborne", "descent", "drop"},
+            LogicTriggerActivationKind::Level},
         {kMoveHorizontal, "platformer", "Move Horizontal", "Requests horizontal platformer movement.",
             BlockKind::Action,
             {{"axis", LogicValueKind::Number, 0.0, "Axis"}},
@@ -646,7 +661,8 @@ const std::vector<LogicBlockDescriptor>& registry() {
              {"op", LogicValueKind::String, LogicStringValue{"=="}, "Operator"},
              {"value", LogicValueKind::Number, 0.0, "Value"}},
             {}, {}, {LogicContextCapability::Self}, "state.compare_number", false, 40,
-            {"variable", "equals", "compare"}},
+            {"variable", "equals", "compare"},
+            LogicTriggerActivationKind::Level},
         {kStateToggle, "state", "Toggle Boolean", "Toggles a project Boolean variable.",
             BlockKind::Action,
             {{"key", LogicValueKind::Variable, LogicVariableReference{}, "Variable"}},
@@ -757,9 +773,39 @@ LogicRuleDef makeDefaultRule(LogicRuleId id) {
     LogicRuleDef rule;
     rule.id = std::move(id);
     rule.name = rule.id;
+    rule.executionMode = LogicExecutionMode::EveryOccurrence;
     rule.trigger = makeDefaultTrigger();
     rule.actions.push_back(makeDefaultAction());
     return rule;
+}
+
+const char* logicExecutionModeToString(LogicExecutionMode mode) {
+    switch (mode) {
+    case LogicExecutionMode::EveryOccurrence: return "every_occurrence";
+    case LogicExecutionMode::OncePerActivation: return "once_per_activation";
+    }
+    return "every_occurrence";
+}
+
+std::optional<LogicExecutionMode> logicExecutionModeFromString(const std::string& value) {
+    if (value == "every_occurrence") return LogicExecutionMode::EveryOccurrence;
+    if (value == "once_per_activation") return LogicExecutionMode::OncePerActivation;
+    return std::nullopt;
+}
+
+const char* logicTriggerActivationKindToString(LogicTriggerActivationKind kind) {
+    switch (kind) {
+    case LogicTriggerActivationKind::Pulse: return "pulse";
+    case LogicTriggerActivationKind::Level: return "level";
+    }
+    return "pulse";
+}
+
+std::optional<LogicTriggerActivationKind> logicTriggerActivationKindFromString(
+    const std::string& value) {
+    if (value == "pulse") return LogicTriggerActivationKind::Pulse;
+    if (value == "level") return LogicTriggerActivationKind::Level;
+    return std::nullopt;
 }
 
 std::vector<LogicKey> supportedLogicKeys() {
@@ -853,6 +899,16 @@ std::vector<LogicDiagnostic> validateBoard(const ObjectTypeId& objectTypeId,
         for (const LogicBlockDef& action : rule.actions)
             validateBlock(objectTypeId, board, rule, action, BlockKind::Action, owner,
                           trigger, project, mode, out);
+        if (rule.executionMode == LogicExecutionMode::OncePerActivation && trigger
+            && trigger->activationKind == LogicTriggerActivationKind::Pulse) {
+            LogicDiagnostic info = makeError(
+                objectTypeId, board, "LB_EXECUTION_MODE_PULSE_REDUNDANT",
+                "This trigger already fires as a discrete event. "
+                "Run Once per Activation does not change its frequency.",
+                &rule, &rule.trigger, {});
+            info.severity = DiagnosticSeverity::Warning;
+            out.push_back(std::move(info));
+        }
     }
     return out;
 }
@@ -873,10 +929,23 @@ LogicCompileResult compileBoard(const ObjectTypeId& objectTypeId,
         << escapeLua(objectTypeId) << "\", function(context)\n";
     for (const LogicRuleDef& rule : board.rules) {
         if (!rule.enabled) continue;
+        const LogicBlockDescriptor* triggerDescriptor = findDescriptor(rule.trigger.typeId);
+        const LogicTriggerActivationKind activationKind = triggerDescriptor
+            ? triggerDescriptor->activationKind
+            : LogicTriggerActivationKind::Pulse;
+        const bool oncePerActivation =
+            rule.executionMode == LogicExecutionMode::OncePerActivation;
+        // Level + OncePerActivation must observe false→true and true→false, so
+        // Key Held is compiled as on_update + is_key_down (not on_key_held).
+        const bool levelGateViaUpdate = oncePerActivation
+            && activationKind == LogicTriggerActivationKind::Level
+            && rule.trigger.typeId == kKeyHeld;
+
         if (rule.trigger.typeId == kOnStart) {
             lua << "  context:on_start(\"" << escapeLua(rule.id) << "\", function()\n";
-        } else if (rule.trigger.typeId == kEveryFrame) {
+        } else if (rule.trigger.typeId == kEveryFrame || levelGateViaUpdate) {
             lua << "  context:on_update(\"" << escapeLua(rule.id) << "\", function()\n";
+            result.requiresTick = true;
         } else if (rule.trigger.typeId == kEverySeconds) {
             const LogicPropertyDef* seconds = findProperty(rule.trigger, "seconds");
             const double interval = seconds ? std::get<double>(seconds->value) : 1.0;
@@ -900,7 +969,8 @@ LogicCompileResult compileBoard(const ObjectTypeId& objectTypeId,
                 : rule.trigger.typeId == kKeyHeld ? "on_key_held" : "on_key_pressed";
             lua << "  context:" << registerMethod << "(\"" << escapeLua(rule.id) << "\", \""
                 << logicKeyName(std::get<LogicKey>(key->value)) << "\", function()\n";
-        } else if (rule.trigger.typeId == kIsGrounded || rule.trigger.typeId == kIsVisible
+        } else if (rule.trigger.typeId == kIsGrounded || rule.trigger.typeId == kIsFalling
+                   || rule.trigger.typeId == kIsVisible
                    || rule.trigger.typeId == kKeyDown
                    || rule.trigger.typeId == kStateCompare) {
             lua << "  context:on_update(\"" << escapeLua(rule.id) << "\", function()\n";
@@ -912,9 +982,51 @@ LogicCompileResult compileBoard(const ObjectTypeId& objectTypeId,
                 &rule.trigger, {}));
             return result;
         }
-        if (const LogicBlockDescriptor* descriptor = findDescriptor(rule.trigger.typeId)) {
-            if (!descriptor->requiredFeature.empty()) features.insert(descriptor->requiredFeature);
-            result.requiresTick = result.requiresTick || descriptor->requiresTick;
+        if (triggerDescriptor) {
+            if (!triggerDescriptor->requiredFeature.empty())
+                features.insert(triggerDescriptor->requiredFeature);
+            result.requiresTick = result.requiresTick || triggerDescriptor->requiresTick;
+        }
+
+        if (oncePerActivation) {
+            features.insert("logic.execution.once_per_activation");
+            std::string whenActive = "true";
+            if (levelGateViaUpdate) {
+                const LogicPropertyDef* key = findProperty(rule.trigger, "key");
+                whenActive = "context:is_key_down(\""
+                    + logicKeyName(std::get<LogicKey>(key->value)) + "\")";
+                features.insert("input.key_down");
+            } else if (rule.trigger.typeId == kCollisionEnter
+                       || rule.trigger.typeId == kCollisionExit) {
+                const LogicPropertyDef* filter = findProperty(rule.trigger, "objectTypeId");
+                const auto* type = filter ? std::get_if<LogicStringValue>(&filter->value)
+                                         : nullptr;
+                if (type && !type->value.empty()) {
+                    whenActive = "context:other_is_object_type(other, \""
+                        + escapeLua(type->value) + "\")";
+                    features.insert("collision.other_type");
+                }
+            } else if (rule.trigger.typeId == kIsGrounded || rule.trigger.typeId == kIsFalling
+                       || rule.trigger.typeId == kIsVisible
+                       || rule.trigger.typeId == kKeyDown
+                       || rule.trigger.typeId == kStateCompare) {
+                whenActive = emitConditionExpression(rule.trigger, features);
+            }
+            const std::string conditionsExpr =
+                emitConditionsExpression(rule.conditions, features);
+            if (!conditionsExpr.empty()) {
+                whenActive = "(" + whenActive + ") and (" + conditionsExpr + ")";
+            }
+            lua << "    local when_active = " << whenActive << "\n";
+            lua << "    if context:should_execute(\"" << escapeLua(rule.id) << "\", \""
+                << logicExecutionModeToString(rule.executionMode) << "\", \""
+                << logicTriggerActivationKindToString(activationKind)
+                << "\", when_active) then\n";
+            emitActions(lua, rule.actions, 0, features);
+            if (features.count("flow.wait")) result.requiresTick = true;
+            lua << "    end\n";
+            lua << "  end)\n";
+            continue;
         }
 
         int guardDepth = 0;
@@ -927,7 +1039,8 @@ LogicCompileResult compileBoard(const ObjectTypeId& objectTypeId,
                 ++guardDepth;
                 features.insert("collision.other_type");
             }
-        } else if (rule.trigger.typeId == kIsGrounded || rule.trigger.typeId == kIsVisible
+        } else if (rule.trigger.typeId == kIsGrounded || rule.trigger.typeId == kIsFalling
+                   || rule.trigger.typeId == kIsVisible
                    || rule.trigger.typeId == kKeyDown
                    || rule.trigger.typeId == kStateCompare) {
             lua << "    if " << emitConditionExpression(rule.trigger, features) << " then\n";

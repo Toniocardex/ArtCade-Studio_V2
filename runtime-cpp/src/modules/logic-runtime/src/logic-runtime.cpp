@@ -49,6 +49,7 @@ const std::unordered_set<std::string>& supportedFeatures() {
         "entity.spawn",
         "physics.set_velocity",
         "platformer.grounded",
+        "platformer.falling",
         "platformer.move",
         "platformer.jump",
         "collision.enter",
@@ -66,6 +67,7 @@ const std::unordered_set<std::string>& supportedFeatures() {
         "state.add_number",
         "state.toggle_boolean",
         "state.compare_number",
+        "logic.execution.once_per_activation",
     };
     return value;
 }
@@ -88,6 +90,10 @@ struct LogicRuntime::Impl {
 
     struct ContextProxy;
 
+    struct RuleExecutionState {
+        bool activationLatched = false;
+    };
+
     struct Scope {
         ScopeToken token = 0;
         ObjectTypeId objectTypeId;
@@ -96,6 +102,8 @@ struct LogicRuntime::Impl {
         // Lua closures retain `context`; keep the referenced C++ object at a
         // stable heap address for the complete scope lifetime.
         std::unique_ptr<ContextProxy> context;
+        // Rising-edge gate state for OncePerActivation (per rule, per instance).
+        std::unordered_map<LogicRuleId, RuleExecutionState> ruleStates;
     };
 
     struct Subscription {
@@ -166,6 +174,9 @@ struct LogicRuntime::Impl {
         }
         bool isGrounded() {
             return impl && impl->host.isGrounded(owner);
+        }
+        bool isFalling() {
+            return impl && impl->host.isFalling(owner);
         }
         void platformerMove(float axis) {
             if (!impl || !impl->host.requestPlatformerMove(owner, axis))
@@ -293,6 +304,33 @@ struct LogicRuntime::Impl {
         bool otherIsObjectType(EntityId other, const std::string& objectTypeId) {
             return impl && other != INVALID_ENTITY && !objectTypeId.empty()
                 && impl->host.isObjectType(other, objectTypeId);
+        }
+        /**
+         * Rising-edge execution gate for the complete WHEN expression.
+         * Pulse triggers treat every event as a fresh activation; Level triggers
+         * latch while WHEN stays true and rearm when it becomes false.
+         */
+        bool shouldExecute(const std::string& ruleId, const std::string& modeName,
+                           const std::string& activationKindName, bool whenActive) {
+            if (!impl) return false;
+            const auto mode = logicExecutionModeFromString(modeName);
+            const auto activationKind =
+                logicTriggerActivationKindFromString(activationKindName);
+            if (!mode || !activationKind) {
+                throw sol::error("Unsupported Logic execution gate arguments");
+            }
+            if (*mode == LogicExecutionMode::EveryOccurrence) return whenActive;
+            if (*activationKind == LogicTriggerActivationKind::Pulse) return whenActive;
+            Scope* scope = impl->findScope(this->scope);
+            if (!scope || !scope->active) return false;
+            RuleExecutionState& state = scope->ruleStates[ruleId];
+            if (!whenActive) {
+                state.activationLatched = false;
+                return false;
+            }
+            if (state.activationLatched) return false;
+            state.activationLatched = true;
+            return true;
         }
     };
 
@@ -534,6 +572,7 @@ bool LogicRuntime::initialize(std::string* error) {
             "set_velocity", &Impl::SelfProxy::setVelocity,
             "spawn", &Impl::SelfProxy::spawn,
             "is_grounded", &Impl::SelfProxy::isGrounded,
+            "is_falling", &Impl::SelfProxy::isFalling,
             "platformer_move", &Impl::SelfProxy::platformerMove,
             "platformer_jump", &Impl::SelfProxy::platformerJump,
             "destroy_self", &Impl::SelfProxy::destroySelf,
@@ -560,7 +599,8 @@ bool LogicRuntime::initialize(std::string* error) {
             "state_toggle_boolean", &Impl::ContextProxy::stateToggleBoolean,
             "state_compare_number", &Impl::ContextProxy::stateCompareNumber,
             "is_key_down", &Impl::ContextProxy::isKeyDown,
-            "other_is_object_type", &Impl::ContextProxy::otherIsObjectType);
+            "other_is_object_type", &Impl::ContextProxy::otherIsObjectType,
+            "should_execute", &Impl::ContextProxy::shouldExecute);
 
         sol::table logic = lua.create_named_table("logic");
         logic.set_function("require_api_version", [impl](uint32_t version) {
@@ -634,7 +674,7 @@ std::optional<ScopeToken> LogicRuntime::install(const ObjectTypeId& objectTypeId
     }
 
     const ScopeToken token = impl_->nextScope++;
-    impl_->scopes.push_back(Impl::Scope{token, objectTypeId, owner, true, nullptr});
+    impl_->scopes.push_back(Impl::Scope{token, objectTypeId, owner, true, nullptr, {}});
     Impl::Scope* scope = impl_->findScope(token);
     scope->context = std::make_unique<Impl::ContextProxy>(
         Impl::ContextProxy{impl_.get(), token, owner, {impl_.get(), owner}});

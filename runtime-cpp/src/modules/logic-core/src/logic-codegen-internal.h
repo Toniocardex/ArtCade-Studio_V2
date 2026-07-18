@@ -20,4 +20,11 @@ bool emitConditionGuard(std::ostringstream& lua,
                         const std::vector<LogicConditionClause>& conditions,
                         std::set<std::string>& requiredFeatures);
 
+/**
+ * Boolean Lua expression for authored conditions (NOT > AND > OR), or empty
+ * when @p conditions is empty.
+ */
+std::string emitConditionsExpression(const std::vector<LogicConditionClause>& conditions,
+                                     std::set<std::string>& requiredFeatures);
+
 } // namespace ArtCade::Logic::CodegenInternal

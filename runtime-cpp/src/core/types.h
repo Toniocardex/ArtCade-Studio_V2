@@ -119,10 +119,17 @@ struct LogicSectionDef {
     std::string name;
 };
 
+/** How often a Logic rule may run its Action group after WHEN becomes true. */
+enum class LogicExecutionMode {
+    EveryOccurrence,   // default: run every time WHEN evaluates true
+    OncePerActivation, // rising-edge gate on the complete WHEN expression
+};
+
 struct LogicRuleDef {
     LogicRuleId               id;
     std::string               name;       // authoring display label; never affects runtime logic
     bool                      enabled = true;
+    LogicExecutionMode        executionMode = LogicExecutionMode::EveryOccurrence;
     std::string               sectionId;  // optional LogicSectionDef.id; empty = unsectioned
     LogicBlockDef             trigger;
     std::vector<LogicConditionClause> conditions;

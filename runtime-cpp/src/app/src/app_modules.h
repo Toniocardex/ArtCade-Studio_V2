@@ -100,6 +100,9 @@ public:
     bool isGrounded(EntityId owner) override {
         return world_ && world_->isPlatformerGrounded(owner);
     }
+    bool isFalling(EntityId owner) override {
+        return world_ && world_->isPlatformerFalling(owner);
+    }
     bool requestPlatformerMove(EntityId owner, float axis) override {
         PlatformerControllerComponent platformer{};
         if (!world_ || !std::isfinite(axis)

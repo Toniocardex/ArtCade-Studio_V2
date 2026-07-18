@@ -30,6 +30,7 @@ struct Host final : ILogicRuntimeHost {
     std::optional<ScopeToken> cancelOnVisible;
     bool failVisible = false;
     std::unordered_set<EntityId> grounded;
+    std::unordered_set<EntityId> falling;
     std::unordered_map<EntityId, bool> visible;
     std::unordered_map<std::string, double> state;
     std::unordered_map<std::string, bool> boolState;
@@ -83,6 +84,9 @@ struct Host final : ILogicRuntimeHost {
     }
     bool isGrounded(EntityId owner) override {
         return grounded.count(owner) != 0;
+    }
+    bool isFalling(EntityId owner) override {
+        return falling.count(owner) != 0;
     }
     bool requestPlatformerMove(EntityId owner, float axis) override {
         calls.push_back("platformer_move:" + std::to_string(owner) + ":" + std::to_string(axis));
@@ -536,6 +540,48 @@ static void testIsGroundedAsEvent() {
     CHECK(compiled.programs[0].source.find("on_update") != std::string::npos);
     CHECK(compiled.programs[0].source.find("is_grounded() == true") != std::string::npos);
     CHECK(compiled.programs[0].source.find("platformer_jump") != std::string::npos);
+}
+
+static void testIsFallingAsEvent() {
+    CHECK(isEventEligible(*findDescriptor(kIsFalling)));
+
+    LogicBlockDef event = makeDefaultEventBlock(kIsFalling);
+    CHECK(event.typeId == kIsFalling);
+
+    LogicBoardDef board;
+    board.id = "logic:FallingEvent";
+    LogicRuleDef rule = makeDefaultRule("rule-1");
+    rule.trigger = event;
+    rule.actions = {makeDefaultBlock(kJump, BlockKind::Action)};
+    board.rules.push_back(rule);
+
+    EntityDef owner;
+    owner.platformerController = PlatformerControllerComponent{};
+    CHECK(validateBoard("Hero", board, &owner).empty());
+
+    LogicCompileResult compiled = compileBoard("Hero", board, &owner);
+    CHECK(compiled.ok());
+    CHECK(compiled.requiresTick);
+    CHECK(compiled.programs[0].source.find("on_update") != std::string::npos);
+    CHECK(compiled.programs[0].source.find("is_falling() == true") != std::string::npos);
+    const auto& features = compiled.programs[0].requiredFeatures;
+    CHECK(std::find(features.begin(), features.end(), "platformer.falling") != features.end());
+
+    // Runtime: falling=false blocks; falling=true runs the action once per tick.
+    {
+        Host host;
+        LogicRuntime runtime(host);
+        std::string error;
+        CHECK(runtime.loadPrograms(compiled.programs, &error));
+        CHECK(runtime.install("Hero", 1, &error).has_value());
+        runtime.beginFrame();
+        runtime.dispatchTick(1.f / 60.f);
+        CHECK(host.calls.empty());
+        host.falling.insert(1);
+        runtime.beginFrame();
+        runtime.dispatchTick(1.f / 60.f);
+        CHECK(!host.calls.empty());
+    }
 }
 
 static void testIsVisibleAsEvent() {
@@ -1285,6 +1331,258 @@ static void testStateVariableAndToggle() {
     }
 }
 
+static void testOncePerActivationExecutionMode() {
+    CHECK(findDescriptor(kIsFalling)->activationKind == LogicTriggerActivationKind::Level);
+    CHECK(findDescriptor(kEveryFrame)->activationKind == LogicTriggerActivationKind::Level);
+    CHECK(findDescriptor(kKeyHeld)->activationKind == LogicTriggerActivationKind::Level);
+    CHECK(findDescriptor(kKeyPressed)->activationKind == LogicTriggerActivationKind::Pulse);
+    CHECK(findDescriptor(kOnStart)->activationKind == LogicTriggerActivationKind::Pulse);
+
+    EntityDef owner;
+    owner.platformerController = PlatformerControllerComponent{};
+
+    // Persistence: omit → EveryOccurrence; explicit once_per_activation round-trips.
+    {
+        LogicBoardDef board;
+        board.id = "logic:ExecModeJson";
+        LogicRuleDef rule = makeDefaultRule("rule-1");
+        rule.trigger = makeDefaultEventBlock(kIsFalling);
+        rule.executionMode = LogicExecutionMode::OncePerActivation;
+        rule.actions = {makeDefaultBlock(kJump, BlockKind::Action)};
+        board.rules.push_back(rule);
+        const nlohmann::json json = logicBoardToJson(board);
+        CHECK(json["rules"][0]["executionMode"] == "once_per_activation");
+        LogicBoardDef loaded;
+        CHECK(logicBoardFromJson(json, loaded).ok);
+        CHECK(loaded.rules[0].executionMode == LogicExecutionMode::OncePerActivation);
+
+        nlohmann::json withoutMode = json;
+        withoutMode["rules"][0].erase("executionMode");
+        LogicBoardDef defaulted;
+        CHECK(logicBoardFromJson(withoutMode, defaulted).ok);
+        CHECK(defaulted.rules[0].executionMode == LogicExecutionMode::EveryOccurrence);
+    }
+
+    // Continuous Level trigger: rising edge once, latch while true, rearm on false.
+    {
+        LogicBoardDef board;
+        board.id = "logic:FallOnce";
+        LogicRuleDef rule = makeDefaultRule("rule-1");
+        rule.trigger = makeDefaultEventBlock(kIsFalling);
+        rule.executionMode = LogicExecutionMode::OncePerActivation;
+        rule.actions = {makeDefaultBlock(kJump, BlockKind::Action)};
+        board.rules.push_back(rule);
+
+        LogicCompileResult compiled = compileBoard("Hero", board, &owner);
+        CHECK(compiled.ok());
+        CHECK(compiled.programs[0].source.find("should_execute") != std::string::npos);
+        CHECK(compiled.programs[0].source.find("once_per_activation") != std::string::npos);
+        const auto& features = compiled.programs[0].requiredFeatures;
+        CHECK(std::find(features.begin(), features.end(),
+                        "logic.execution.once_per_activation") != features.end());
+
+        Host host;
+        LogicRuntime runtime(host);
+        std::string error;
+        CHECK(runtime.loadPrograms(compiled.programs, &error));
+        CHECK(runtime.install("Hero", 1, &error).has_value());
+
+        auto jumpCount = [&]() {
+            return std::count_if(host.calls.begin(), host.calls.end(),
+                [](const std::string& c) { return c.rfind("platformer_jump:", 0) == 0; });
+        };
+
+        // Already falling at first evaluation → one execution (initial false→true).
+        host.falling.insert(1);
+        for (int i = 0; i < 120; ++i) {
+            runtime.beginFrame();
+            runtime.dispatchTick(1.f / 60.f);
+        }
+        CHECK(jumpCount() == 1);
+
+        // true → false → true → second execution.
+        host.calls.clear();
+        host.falling.clear();
+        runtime.beginFrame();
+        runtime.dispatchTick(1.f / 60.f);
+        CHECK(jumpCount() == 0);
+        host.falling.insert(1);
+        runtime.beginFrame();
+        runtime.dispatchTick(1.f / 60.f);
+        CHECK(jumpCount() == 1);
+    }
+
+    // Complete WHEN: condition false then true while trigger stays true.
+    {
+        ProjectDoc project;
+        project.globalVariables.push_back(
+            {"health", GameVariableDefinition::Type::Number, 0.0, {}});
+        LogicBoardDef board;
+        board.id = "logic:WhenGate";
+        LogicRuleDef rule = makeDefaultRule("rule-1");
+        rule.trigger = makeDefaultEventBlock(kIsFalling);
+        rule.executionMode = LogicExecutionMode::OncePerActivation;
+        LogicBlockDef compare = makeDefaultBlock(kStateCompare, BlockKind::Condition);
+        for (LogicPropertyDef& p : compare.properties) {
+            if (p.key == "key") p.value = LogicVariableReference{"health"};
+            if (p.key == "op") p.value = LogicStringValue{">"};
+            if (p.key == "value") p.value = 0.0;
+        }
+        rule.conditions = {makeClause(compare)};
+        rule.actions = {makeDefaultBlock(kJump, BlockKind::Action)};
+        board.rules.push_back(rule);
+
+        LogicCompileResult compiled = compileBoard("Hero", board, &owner, &project);
+        CHECK(compiled.ok());
+        Host host;
+        host.declareNumber("health", 0.0);
+        host.falling.insert(1);
+        LogicRuntime runtime(host);
+        std::string error;
+        CHECK(runtime.loadPrograms(compiled.programs, &error));
+        CHECK(runtime.install("Hero", 1, &error).has_value());
+
+        auto jumpCount = [&]() {
+            return std::count_if(host.calls.begin(), host.calls.end(),
+                [](const std::string& c) { return c.rfind("platformer_jump:", 0) == 0; });
+        };
+
+        runtime.beginFrame();
+        runtime.dispatchTick(1.f / 60.f);
+        CHECK(jumpCount() == 0);
+
+        host.state["health"] = 100.0;
+        runtime.beginFrame();
+        runtime.dispatchTick(1.f / 60.f);
+        CHECK(jumpCount() == 1);
+
+        host.calls.clear();
+        runtime.beginFrame();
+        runtime.dispatchTick(1.f / 60.f);
+        CHECK(jumpCount() == 0);
+
+        host.state["health"] = 0.0;
+        runtime.beginFrame();
+        runtime.dispatchTick(1.f / 60.f);
+        host.state["health"] = 100.0;
+        runtime.beginFrame();
+        runtime.dispatchTick(1.f / 60.f);
+        CHECK(jumpCount() == 1);
+    }
+
+    // Independent latches per entity instance.
+    {
+        LogicBoardDef board;
+        board.id = "logic:MultiInstance";
+        LogicRuleDef rule = makeDefaultRule("rule-1");
+        rule.trigger = makeDefaultEventBlock(kIsFalling);
+        rule.executionMode = LogicExecutionMode::OncePerActivation;
+        rule.actions = {makeDefaultBlock(kJump, BlockKind::Action)};
+        board.rules.push_back(rule);
+        LogicCompileResult compiled = compileBoard("Hero", board, &owner);
+        CHECK(compiled.ok());
+
+        Host host;
+        LogicRuntime runtime(host);
+        std::string error;
+        CHECK(runtime.loadPrograms(compiled.programs, &error));
+        CHECK(runtime.install("Hero", 1, &error).has_value());
+        CHECK(runtime.install("Hero", 2, &error).has_value());
+
+        host.falling.insert(1);
+        runtime.beginFrame();
+        runtime.dispatchTick(1.f / 60.f);
+        CHECK(std::count(host.calls.begin(), host.calls.end(), "platformer_jump:1") == 1);
+        CHECK(std::count(host.calls.begin(), host.calls.end(), "platformer_jump:2") == 0);
+
+        host.calls.clear();
+        host.falling.insert(2);
+        runtime.beginFrame();
+        runtime.dispatchTick(1.f / 60.f);
+        CHECK(std::count(host.calls.begin(), host.calls.end(), "platformer_jump:1") == 0);
+        CHECK(std::count(host.calls.begin(), host.calls.end(), "platformer_jump:2") == 1);
+    }
+
+    // Pulse trigger: OncePerActivation does not suppress a second key press.
+    {
+        LogicBoardDef board;
+        board.id = "logic:PulseOnce";
+        LogicRuleDef rule = makeDefaultRule("rule-1");
+        rule.trigger = {kKeyPressed, {{"key", LogicKey::Space}}};
+        rule.executionMode = LogicExecutionMode::OncePerActivation;
+        rule.actions = {makeDefaultBlock(kJump, BlockKind::Action)};
+        board.rules.push_back(rule);
+        LogicCompileResult compiled = compileBoard("Hero", board, &owner);
+        CHECK(compiled.ok());
+        CHECK(std::any_of(compiled.diagnostics.begin(), compiled.diagnostics.end(),
+            [](const LogicDiagnostic& d) {
+                return d.code == "LB_EXECUTION_MODE_PULSE_REDUNDANT"
+                    && d.severity == DiagnosticSeverity::Warning;
+            }));
+
+        Host host;
+        LogicRuntime runtime(host);
+        std::string error;
+        CHECK(runtime.loadPrograms(compiled.programs, &error));
+        CHECK(runtime.install("Hero", 1, &error).has_value());
+        runtime.beginFrame();
+        runtime.dispatchKeyPressed(LogicKey::Space);
+        runtime.beginFrame();
+        runtime.dispatchKeyPressed(LogicKey::Space);
+        CHECK(std::count(host.calls.begin(), host.calls.end(), "platformer_jump:1") == 2);
+    }
+
+    // Every Frame + OncePerActivation: one run per Play session.
+    {
+        LogicBoardDef board;
+        board.id = "logic:EveryFrameOnce";
+        LogicRuleDef rule = makeDefaultRule("rule-1");
+        rule.trigger = makeDefaultBlock(kEveryFrame, BlockKind::Trigger);
+        rule.executionMode = LogicExecutionMode::OncePerActivation;
+        rule.actions = {makeDefaultBlock(kJump, BlockKind::Action)};
+        board.rules.push_back(rule);
+        LogicCompileResult compiled = compileBoard("Hero", board, &owner);
+        CHECK(compiled.ok());
+
+        Host host;
+        LogicRuntime runtime(host);
+        std::string error;
+        CHECK(runtime.loadPrograms(compiled.programs, &error));
+        CHECK(runtime.install("Hero", 1, &error).has_value());
+        for (int i = 0; i < 10; ++i) {
+            runtime.beginFrame();
+            runtime.dispatchTick(1.f / 60.f);
+        }
+        CHECK(std::count(host.calls.begin(), host.calls.end(), "platformer_jump:1") == 1);
+    }
+
+    // Default EveryOccurrence keeps while-true every-tick semantics.
+    {
+        LogicBoardDef board;
+        board.id = "logic:FallEvery";
+        LogicRuleDef rule = makeDefaultRule("rule-1");
+        rule.trigger = makeDefaultEventBlock(kIsFalling);
+        CHECK(rule.executionMode == LogicExecutionMode::EveryOccurrence);
+        rule.actions = {makeDefaultBlock(kJump, BlockKind::Action)};
+        board.rules.push_back(rule);
+        LogicCompileResult compiled = compileBoard("Hero", board, &owner);
+        CHECK(compiled.ok());
+        CHECK(compiled.programs[0].source.find("should_execute") == std::string::npos);
+
+        Host host;
+        host.falling.insert(1);
+        LogicRuntime runtime(host);
+        std::string error;
+        CHECK(runtime.loadPrograms(compiled.programs, &error));
+        CHECK(runtime.install("Hero", 1, &error).has_value());
+        for (int i = 0; i < 5; ++i) {
+            runtime.beginFrame();
+            runtime.dispatchTick(1.f / 60.f);
+        }
+        CHECK(std::count(host.calls.begin(), host.calls.end(), "platformer_jump:1") == 5);
+    }
+}
+
 int main() {
     testCompilerAndJson();
     testRuntime();
@@ -1292,6 +1590,7 @@ int main() {
     testLimitsSnapshotAndIsolation();
     testIsGroundedCondition();
     testIsGroundedAsEvent();
+    testIsFallingAsEvent();
     testIsVisibleAsEvent();
     testConditionOperators();
     testPlaySoundAction();
@@ -1303,6 +1602,7 @@ int main() {
     testP1SpawnInstallFailure();
     testEntityTransformActions();
     testManualTransformActions();
+    testOncePerActivationExecutionMode();
     std::cout << passed << " passed, " << failed << " failed\n";
     return failed == 0 ? 0 : 1;
 }
