@@ -1,11 +1,14 @@
 #include "../include/lua-host.h"
 #include "logic-core.h"
 #include "script-core.h"
+#include "script-api-catalog.h"
 #include <algorithm>
 #include <cmath>
 #include <memory>
 #include <cstdlib>
 #include <cstdint>
+#include <string>
+#include <vector>
 
 // Sol2 is a heavyweight header; include only in this TU.
 #define SOL_ALL_SAFETIES_ON 1
@@ -351,43 +354,80 @@ void setManualInputMethod(lua_State* state, const Scripts::ScriptInputSnapshot* 
     lua_setfield(state, -2, name);
 }
 
+struct ManualNamedFn {
+    const char* name;
+    lua_CFunction function;
+};
+
+// Registration tables are the single source for pushManualContext and
+// Scripts::manualScriptRuntimeBindingInventory (parity with script-api-catalog).
+constexpr ManualNamedFn kManualSelfMethods[] = {
+    {"set_visible", manualSetVisible},
+    {"set_position", manualSetPosition},
+    {"translate", manualTranslate},
+    {"set_rotation", manualSetRotation},
+    {"rotate_by", manualRotateBy},
+    {"set_scale", manualSetScale},
+    {"destroy", manualDestroy},
+};
+constexpr ManualNamedFn kManualPlatformerMethods[] = {
+    {"move", manualPlatformerMove},
+    {"jump", manualPlatformerJump},
+    {"is_grounded", manualPlatformerIsGrounded},
+    {"is_falling", manualPlatformerIsFalling},
+};
+constexpr ManualNamedFn kManualAnimationMethods[] = {
+    {"play", manualAnimationPlay},
+    {"stop", manualAnimationStop},
+    {"set_speed", manualAnimationSetSpeed},
+};
+constexpr ManualNamedFn kManualAudioMethods[] = {
+    {"play", manualAudioPlay},
+};
+constexpr ManualNamedFn kManualInputMethods[] = {
+    {"is_key_down", manualInputDown},
+    {"is_key_pressed", manualInputPressed},
+    {"is_key_released", manualInputReleased},
+};
+constexpr const char* kManualLifecycleCallbacks[] = {
+    "on_start",
+    "on_update",
+    "on_key_pressed",
+    "on_key_released",
+    "on_key_held",
+    "on_collision_enter",
+    "on_collision_exit",
+};
+
+void pushManualMethodTable(lua_State* state, IGameplayRuntimeHost* host, EntityId owner,
+                           const ManualNamedFn* methods, std::size_t count,
+                           const char* fieldName) {
+    lua_newtable(state);
+    for (std::size_t i = 0; i < count; ++i)
+        setManualHostMethod(state, host, owner, methods[i].name, methods[i].function);
+    lua_setfield(state, -2, fieldName);
+}
+
 void pushManualContext(lua_State* state, IGameplayRuntimeHost* host, EntityId owner,
                        const Scripts::ScriptInputSnapshot* input, EntityId other) {
     lua_newtable(state);
     lua_pushinteger(state, static_cast<lua_Integer>(owner));
     lua_setfield(state, -2, "entity_id");
 
-    lua_newtable(state);
-    setManualHostMethod(state, host, owner, "set_visible", manualSetVisible);
-    setManualHostMethod(state, host, owner, "set_position", manualSetPosition);
-    setManualHostMethod(state, host, owner, "translate", manualTranslate);
-    setManualHostMethod(state, host, owner, "set_rotation", manualSetRotation);
-    setManualHostMethod(state, host, owner, "rotate_by", manualRotateBy);
-    setManualHostMethod(state, host, owner, "set_scale", manualSetScale);
-    setManualHostMethod(state, host, owner, "destroy", manualDestroy);
-    lua_setfield(state, -2, "self");
+    pushManualMethodTable(state, host, owner, kManualSelfMethods,
+                          sizeof(kManualSelfMethods) / sizeof(kManualSelfMethods[0]), "self");
+    pushManualMethodTable(state, host, owner, kManualPlatformerMethods,
+                          sizeof(kManualPlatformerMethods) / sizeof(kManualPlatformerMethods[0]),
+                          "platformer");
+    pushManualMethodTable(state, host, owner, kManualAnimationMethods,
+                          sizeof(kManualAnimationMethods) / sizeof(kManualAnimationMethods[0]),
+                          "animation");
+    pushManualMethodTable(state, host, owner, kManualAudioMethods,
+                          sizeof(kManualAudioMethods) / sizeof(kManualAudioMethods[0]), "audio");
 
     lua_newtable(state);
-    setManualHostMethod(state, host, owner, "move", manualPlatformerMove);
-    setManualHostMethod(state, host, owner, "jump", manualPlatformerJump);
-    setManualHostMethod(state, host, owner, "is_grounded", manualPlatformerIsGrounded);
-    setManualHostMethod(state, host, owner, "is_falling", manualPlatformerIsFalling);
-    lua_setfield(state, -2, "platformer");
-
-    lua_newtable(state);
-    setManualHostMethod(state, host, owner, "play", manualAnimationPlay);
-    setManualHostMethod(state, host, owner, "stop", manualAnimationStop);
-    setManualHostMethod(state, host, owner, "set_speed", manualAnimationSetSpeed);
-    lua_setfield(state, -2, "animation");
-
-    lua_newtable(state);
-    setManualHostMethod(state, host, owner, "play", manualAudioPlay);
-    lua_setfield(state, -2, "audio");
-
-    lua_newtable(state);
-    setManualInputMethod(state, input, "is_key_down", manualInputDown);
-    setManualInputMethod(state, input, "is_key_pressed", manualInputPressed);
-    setManualInputMethod(state, input, "is_key_released", manualInputReleased);
+    for (const ManualNamedFn& method : kManualInputMethods)
+        setManualInputMethod(state, input, method.name, method.function);
     lua_setfield(state, -2, "input");
 
     lua_newtable(state);
@@ -405,6 +445,39 @@ bool readTickRequirement(sol::state& lua) {
         return flag.as<bool>();
     return true;
 }
+
+std::vector<std::string> makeManualBindingInventory() {
+    std::vector<std::string> paths;
+    paths.emplace_back("artcade.require_api_version");
+    for (const char* callback : kManualLifecycleCallbacks)
+        paths.emplace_back(callback);
+    paths.emplace_back("ctx");
+    paths.emplace_back("ctx.entity_id");
+    paths.emplace_back("ctx.self");
+    for (const ManualNamedFn& method : kManualSelfMethods)
+        paths.emplace_back(std::string("ctx.self.") + method.name);
+    paths.emplace_back("ctx.platformer");
+    for (const ManualNamedFn& method : kManualPlatformerMethods)
+        paths.emplace_back(std::string("ctx.platformer.") + method.name);
+    paths.emplace_back("ctx.animation");
+    for (const ManualNamedFn& method : kManualAnimationMethods)
+        paths.emplace_back(std::string("ctx.animation.") + method.name);
+    paths.emplace_back("ctx.audio");
+    for (const ManualNamedFn& method : kManualAudioMethods)
+        paths.emplace_back(std::string("ctx.audio.") + method.name);
+    paths.emplace_back("ctx.input");
+    for (const ManualNamedFn& method : kManualInputMethods)
+        paths.emplace_back(std::string("ctx.input.") + method.name);
+    paths.emplace_back("ctx.event");
+    paths.emplace_back("ctx.event.other");
+    std::sort(paths.begin(), paths.end());
+    paths.erase(std::unique(paths.begin(), paths.end()), paths.end());
+    return paths;
+}
+}
+
+std::vector<std::string> exposeManualScriptBindingInventory() {
+    return makeManualBindingInventory();
 }
 
 // ------------------------------------------------------------------ lifecycle
@@ -797,3 +870,11 @@ bool LuaHost::memoryLimitExceeded() const {
 }
 
 } // namespace ArtCade::Modules
+
+namespace ArtCade::Scripts {
+
+std::vector<std::string> manualScriptRuntimeBindingInventory() {
+    return ArtCade::Modules::exposeManualScriptBindingInventory();
+}
+
+} // namespace ArtCade::Scripts
