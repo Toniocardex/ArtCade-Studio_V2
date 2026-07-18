@@ -119,6 +119,9 @@ struct GeneratedSfxDef {
     SfxRecipe recipe{};
     std::string outputAssetId;
     std::string outputPath;
+    /** Compact fingerprint of the recipe used to produce the current WAV.
+     *  Empty means legacy / never registered under the fingerprint model. */
+    std::string generatedRecipeFingerprint;
 };
 
 } // namespace artcade::sfx

@@ -193,7 +193,8 @@ Result<std::string> serializeRecipeJson(
             {"output", {
                 {"assetId", definition.outputAssetId},
                 {"path", definition.outputPath}
-            }}
+            }},
+            {"generatedRecipeFingerprint", definition.generatedRecipeFingerprint}
         };
         return Result<std::string>::success(json.dump(indentation));
     } catch (const std::exception& exception) {
@@ -217,6 +218,13 @@ Result<GeneratedSfxDef> deserializeRecipeJson(std::string_view jsonText) {
         const Json& output = json.at("output");
         definition.outputAssetId = output.at("assetId").get<std::string>();
         definition.outputPath = output.at("path").get<std::string>();
+        definition.generatedRecipeFingerprint =
+            json.value("generatedRecipeFingerprint", std::string{});
+        // Legacy projects: linked output without fingerprint → assume in sync.
+        if (!definition.outputAssetId.empty()
+            && definition.generatedRecipeFingerprint.empty()) {
+            definition.generatedRecipeFingerprint = recipeFingerprint(definition.recipe);
+        }
 
         return Result<GeneratedSfxDef>::success(std::move(definition));
     } catch (const std::exception& exception) {
@@ -224,6 +232,14 @@ Result<GeneratedSfxDef> deserializeRecipeJson(std::string_view jsonText) {
             ErrorCode::InvalidRecipe,
             std::string("Deserializzazione JSON fallita: ") + exception.what()
         );
+    }
+}
+
+std::string recipeFingerprint(const SfxRecipe& recipe) {
+    try {
+        return recipeToJson(recipe).dump(-1);
+    } catch (...) {
+        return {};
     }
 }
 

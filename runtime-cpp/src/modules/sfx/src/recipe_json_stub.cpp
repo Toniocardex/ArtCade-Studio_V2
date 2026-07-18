@@ -16,4 +16,8 @@ Result<GeneratedSfxDef> deserializeRecipeJson(std::string_view) {
     );
 }
 
+std::string recipeFingerprint(const SfxRecipe&) {
+    return {};
+}
+
 } // namespace artcade::sfx

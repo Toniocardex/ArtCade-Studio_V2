@@ -18,4 +18,7 @@ namespace artcade::sfx {
     std::string_view jsonText
 );
 
+/** Deterministic fingerprint of recipe content only (id/name/output ignored). */
+[[nodiscard]] std::string recipeFingerprint(const SfxRecipe& recipe);
+
 } // namespace artcade::sfx
