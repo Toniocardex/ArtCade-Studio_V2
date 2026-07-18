@@ -144,6 +144,10 @@ void read_audio_assets(const nlohmann::json& doc, std::vector<AudioAssetDef>& ou
             return false;
         asset.loadMode = mode == "stream" ? AudioLoadMode::Stream
                                            : AudioLoadMode::StaticSound;
+        if (item.contains("generatedFromSfxId") && item["generatedFromSfxId"].is_string()) {
+            const std::string from = item["generatedFromSfxId"].get<std::string>();
+            if (!from.empty()) asset.generatedFromSfxId = from;
+        }
         return !asset.assetId.empty();
     };
     const auto& assets = doc["audioAssets"];

@@ -738,6 +738,9 @@ struct AudioAssetDef {
     std::string   name;
     std::string   sourcePath;
     AudioLoadMode loadMode = AudioLoadMode::StaticSound;
+    /** Historical provenance only: which Generated SFX produced this WAV.
+     *  Not a second recipe authority; empty for imported/independent audio. */
+    std::optional<std::string> generatedFromSfxId;
 };
 
 // Which glyph ranges to rasterise when the font is consumed (a font cache, later).
