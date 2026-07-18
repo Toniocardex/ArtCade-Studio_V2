@@ -1,14 +1,13 @@
 {
   "name": "artcade-v2",
   "version": "2.0.0",
-  "description": "ArtCade V2: Qt editor + C++/Raylib dual-runtime (native + WASM)",
+  "description": "ArtCade V2: C++/Raylib dual-runtime (native + WASM); UI in ArtCade_Editor_RmlUi",
   "license": "GPL-3.0-or-later",
   "private": true,
   "scripts": {
     "setup:runtime-libs": "powershell -ExecutionPolicy Bypass -File scripts\\bootstrap-runtime-libs.ps1",
     "build:cpp": "cmd /c call runtime-cpp\\build_native.bat --config Release",
     "build:wasm": "cmd /c call runtime-cpp\\build_wasm.bat",
-    "editor:qt": "powershell -ExecutionPolicy Bypass -File scripts\\run-artcade-editor-qt.ps1",
     "clean": "cmd /c call scripts\\clean-builds.bat"
   }
 }

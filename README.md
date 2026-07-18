@@ -1,64 +1,40 @@
-# ArtCade V2
+# ArtCade V2 (runtime)
 
-**Qt Studio editor** + **C++ dual-runtime** (native Raylib + WebAssembly).
+Shared **C++ game runtime** (native Raylib + WebAssembly) and headless
+`artcade_editor_core`.
 
-## Vision
+**Product UI:** [ArtCade_Editor_RmlUi](../ArtCade_Editor_RmlUi) — native RmlUi
+editor. Obsolete authoring UI stacks are not part of this repository.
 
-1. **Editor** — Qt 6.8 Quick/QML (`artcade-editor-qt`) over C++ `artcade_editor_core`
-2. **Native Runtime** — C++ + Raylib → Windows/macOS/Linux
-3. **Web Runtime** — same C++ via Emscripten → `.wasm`
-
-ArtCade has one authoring UI: Qt/QML over C++. Do not introduce a parallel stack.
-
-## Architecture
-
-```
-QML (presentation)
-    ↓ intents / stable IDs
-Qt adapter (EditorSession, models)
-    ↓
-artcade_editor_core (ProjectDoc, Commands, load/save)
-    ↓
-project.json (formatVersion 8, C++-owned)
-    ↓
-C++ Runtime (native .exe / WASM)
-```
-
-## Project Structure
+## Layout
 
 ```
 ArtCade-Studio_V2/
-├── src/application/     # artcade_editor_core
-├── src/qt/              # artcade-editor-qt
-├── qml/ArtCade/         # QML UI
-├── runtime-cpp/         # Game engine
-├── tests/fixtures/      # Editor fixtures
-├── dist/wasm/           # WASM copy output (build_wasm.bat)
-├── docs/qt-migration/   # Editor build + LGPL notes
-├── scripts/             # Qt install / run helpers
+├── runtime-cpp/         # Game engine (Raylib, Lua, Logic, Scripts, …)
+├── src/application/     # Headless artcade_editor_core (tests / tools)
+├── tests/               # Headless editor-core + runtime tests
+├── docs/                # Runtime / product notes
 └── CMakeLists.txt
 ```
 
-## Quick start (Windows)
+## Build
 
 ```powershell
-powershell -File .\scripts\install-qt-6.8.ps1
-cmake -S . -B build-qt -G "Visual Studio 18 2026" -A x64 `
-  "-DCMAKE_PREFIX_PATH=C:/Qt/6.8.3/msvc2022_64" `
-  "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
-cmake --build build-qt --config Release --target artcade-editor-qt
-powershell -File .\scripts\run-artcade-editor-qt.ps1
+cmake -S . -B build-native -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build-native
 ```
 
-Runtime-only:
+Runtime unit tests:
 
 ```powershell
-npm run build:cpp
-npm run build:wasm
+cmake -S . -B build-runtime-tests -G Ninja -DARTCADE_BUILD_TESTS=ON
+cmake --build build-runtime-tests
+ctest --test-dir build-runtime-tests --output-on-failure
 ```
 
-## Documentation
+## Related
 
-- Editor / Qt: [docs/qt-migration/README.md](docs/qt-migration/README.md)
-- Agent rules: [`.cursor/rules/cursorrules-artcade.mdc`](.cursor/rules/cursorrules-artcade.mdc)
-- Architecture: [AGENTS.md](AGENTS.md), [docs/README.md](docs/README.md)
+| Repo | Role |
+|------|------|
+| **This** | Runtime + headless authoring core |
+| **ArtCade_Editor_RmlUi** | Native RmlUi editor (active authoring UI) |

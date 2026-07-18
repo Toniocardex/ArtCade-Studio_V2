@@ -14,8 +14,8 @@
 #include <string>
 #include <variant>
 
-#ifndef ARTCADE_QT_SLICE_FIXTURE_DIR
-#error ARTCADE_QT_SLICE_FIXTURE_DIR must be defined
+#ifndef ARTCADE_EDITOR_SLICE_FIXTURE_DIR
+#error ARTCADE_EDITOR_SLICE_FIXTURE_DIR must be defined
 #endif
 
 static void expect(bool ok, const char *msg)
@@ -50,7 +50,7 @@ int main()
     using namespace ArtCade::EditorCore;
     namespace fs = std::filesystem;
 
-    const fs::path fixture_dir = ARTCADE_QT_SLICE_FIXTURE_DIR;
+    const fs::path fixture_dir = ARTCADE_EDITOR_SLICE_FIXTURE_DIR;
     const fs::path fixture = fixture_dir / "project.json";
     const fs::path out_path = fixture_dir / "project.roundtrip.json";
 

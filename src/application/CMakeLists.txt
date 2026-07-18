@@ -1,5 +1,6 @@
-# artcade_editor_core — authoring authority without Qt / Raylib / QObject.
-# Single ProjectDoc + CommandStack. Linked by Qt adapter and headless tests.
+# artcade_editor_core — authoring authority without UI / Raylib.
+# Single ProjectDoc + CommandStack. Linked by headless tests and tools.
+# Product UI lives in ArtCade_Editor_RmlUi (native RmlUi).
 
 add_library(artcade_editor_core STATIC
     src/project_file_io.cpp
@@ -49,7 +50,7 @@ if(NOT BUILD_FOR_WASM)
     # Fixture path baked at configure time
     target_compile_definitions(artcade_editor_core_roundtrip_test
         PRIVATE
-            ARTCADE_QT_SLICE_FIXTURE_DIR="${CMAKE_SOURCE_DIR}/tests/fixtures/qt-slice"
+            ARTCADE_EDITOR_SLICE_FIXTURE_DIR="${CMAKE_SOURCE_DIR}/tests/fixtures/editor-slice"
     )
     target_include_directories(artcade_editor_core_roundtrip_test
         PRIVATE

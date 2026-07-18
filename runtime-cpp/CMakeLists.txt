@@ -1,18 +1,13 @@
 cmake_minimum_required(VERSION 3.20)
 
 # ============================================================================
-# MSVC runtime policy. Qt editor targets use the dynamic CRT (/MD) because
-# shared Qt DLLs must use the same heap; standalone runtime targets use /MT.
+# MSVC runtime policy. Standalone / editor-linked runtime targets use /MT.
 # CMP0091 NEW enables the CMAKE_MSVC_RUNTIME_LIBRARY policy.
 # Emscripten is not MSVC, so the guard is safe on all platforms.
 # ============================================================================
 if(NOT EMSCRIPTEN)
     cmake_policy(SET CMP0091 NEW)
-    # Qt's shared libraries require the dynamic CRT to preserve one heap.
-    if(ARTCADE_BUILD_QT_EDITOR)
-        set(CMAKE_MSVC_RUNTIME_LIBRARY
-            "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" CACHE STRING "" FORCE)
-    elseif(NOT DEFINED CMAKE_MSVC_RUNTIME_LIBRARY)
+    if(NOT DEFINED CMAKE_MSVC_RUNTIME_LIBRARY)
         set(CMAKE_MSVC_RUNTIME_LIBRARY
             "MultiThreaded$<$<CONFIG:Debug>:Debug>" CACHE STRING "" FORCE)
     endif()

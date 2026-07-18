@@ -1,99 +1,39 @@
 ---
-description: ArtCade authoritative architecture — ProjectDocument, Commands, Play, Logic/Script, Qt/QML
+description: ArtCade authoritative architecture — ProjectDocument, Commands, Play, Logic/Script, RmlUi editor
 alwaysApply: true
 ---
 
-# ArtCade — architecture authority (Qt/QML stack)
+# ArtCade — architecture authority
 
-Canonical product and architecture contract. Outranks generic UI or web advice. ArtCade uses Qt/QML for authoring and C++/Raylib/Lua for runtime.
+Canonical product and architecture contract. Outranks generic UI advice.
 
-## Product shape
+- **Product UI:** sibling repo `ArtCade_Editor_RmlUi` (native RmlUi).
+- **This repo:** `runtime-cpp` + optional headless `artcade_editor_core`.
+- **Forbidden debt:** obsolete authoring UI stacks — do not reintroduce,
+  document as active product, or adapt.
 
-- Authoring engine: **Scene | Logic | Script** (not a Raylib wrapper).
-- Logic Board = accessible visual gameplay; Script Editor = advanced Lua.
-- Editor Play and exported game must share the **same gameplay semantics**.
-- **Qt/QML editor only** (`artcade-editor-qt` + `artcade_editor_core`): QML is presentation; C++ `EditorSession` / `EditorCoordinator` own workspace + ProjectDoc. Obsolete UI stacks are legacy debt and must not be reintroduced, referenced, or adapted.
+## Authority (one source each)
 
-## Stack roles
-
-| Layer | Role |
+| Concern | Owner |
 |---|---|
-| Qt QML UI | Presentation only — show, input, emit Intent via `EditorSession`, ephemeral gesture UI |
-| `EditorSession` (Qt bridge) | Single voice for tools, snap, selection intents, Play host, derived models |
-| `artcade_editor_core` | ProjectDoc authority, commands, undo, validation |
-| Runtime C++/WASM | World, sim, input, render, physics, Lua, audio — **not** editorial UI |
-| Raylib | Technical backend under platform abstraction — **not** architecture core |
+| Persistent project | `ProjectDocument` / `ProjectDoc` |
+| Workspace (RmlUi editor) | `EditorState` in ArtCade_Editor_RmlUi |
+| Layout chrome only | `EditorUiState` / panel-local |
+| Runtime during Play | `PlaySession` |
+| Loaded textures | cache derived, never authoritative |
 
-```
-Editor / Runtime systems → Platform abstraction → Raylib
-```
+## Mutation flow
 
-Domain code must not call Raylib except at dedicated boundaries.
+UI → Intent / Command → Coordinator → ProjectDocument → DomainChange → targeted invalidation.
 
-## Three states (never mix)
+- Presentation never mutates `ProjectDocument` directly.
+- No polling sync bus or `RefreshAll()` per frame.
+- Play materializes once from the document; no reverse-sync on Stop.
 
-| State | Persists? | Undo? | Examples |
-|---|---|---|---|
-| `ProjectDocument` / `ProjectDoc` | Yes | Project history | scenes, object types, instances, assets, layers, Logic Board, script attachments, settings |
-| `EditorWorkspaceState` | No | No | selection, active scene, **activeTool**, **snapEnabled**, pan/zoom per scene, grid UI, open tabs |
-| `EditorUiState` / layout prefs | Preferences only | No | splitters, console open, panel layout, filters |
-| `PlaySession` | No (lost on Stop) | Blocked | runtime positions, velocities, Lua scopes, collision, audio queue |
+## Explicit non-goals
 
-**Dirty:** `revision != savedRevision` (project) and `bufferRevision != savedBufferRevision` (script). No hand-maintained dirty boolean as a second authority.
-
-**Mutation path (only):**
-```
-UI → Intent/Command → store/coordinator → ProjectDocument → DomainChange → derived refresh
-```
-
-Forbidden: panels, Scene View, Logic/Script UI, asset editors, or Play mutating the document directly.
-
-### Single voice — no dual paths / duplicates
-
-- Every toolbar button, shortcut, and Scene View gesture for the same action must hit the **same** session/coordinator API.
-- Do not keep a QML-local `activeTool` / `snapOn` that is manually copied into C++ (or the reverse). Bind both sides to one workspace property.
-- Derived models (Hierarchy, Layers, Assets, Console) refresh from ProjectDoc/session — they are not a second document.
-- Adapters are thin forwards — no duplicated system logic or legacy compatibility paths.
-
-## Non-negotiable paletti
-
-1. Stable **IDs** are identity; names are labels; paths are location — never keys.
-2. Object Type owns defaults; EntityInstance owns sparse overrides; **one canonical resolver** for Inspector, Scene View, validator, Play, export.
-3. Layer visual order is authoritative via `SceneDef.layers`; instances use `layerId`. No project-global layer list or parallel LayerManager as authority.
-4. Scene View: **one camera** for render, pick, drag, snap, overlay, grid. During Play: no edit grid, no authoring controls, no document writes.
-5. Play materializes **once** from ProjectDocument; runtime does not continuously re-read the document or use authoring assets as live authority.
-6. Gameplay focus is explicit (enter Play / explicit lose) — not “mouse hovered viewport”.
-7. Stop returns to origin workspace (Logic→Play→Scene→Stop→Logic) unless user changed workspace during Play.
-8. Logic Board is **type-targeted** via `objectTypes[].logicBoard`. Shipping authority is **C++ `compileProjectLogic` → LogicRuntime** at Play/export load. `scripts/main.lua` is My Script / GameAPI only — generated Logic Lua never overwrites it. Do not revive a parallel TS compose-to-main path alongside LogicRuntime.
-9. Behavior scripts type-owned; project scripts global ordered; Lua source on disk under project root (relative paths only). `.luac` is derived export output only. Composed main on disk is the Play/export entry; Script editor loads/extracts the MANUAL_BEGIN/END body only.
-10. Logic + Script share one gameplay host API; remain separate programs. Adapters are thin forwards — no duplicated system logic.
-11. Runtime destroy is **deferred**. No automatic hot reload in MVP.
-12. Lua sandbox: no `io`/`os`/filesystem/network/Raylib/ProjectDocument. Controlled `require` of registered Script Assets only.
-13. Audio: recipe (Generated SFX) ≠ runtime AudioAsset; Play routes via command queue, not direct Raylib from Logic.
-14. Export validates Logic+scripts, materializes programs, does not depend on editor UI state or unsaved buffers.
-15. Unsaved guard on New/Open/Exit/Close: Save All / Discard / Cancel; failed save aborts.
-16. Feature DoD: model → Command → Undo → serializer/version bump → validation → UI → Play → export → tests. No editor-only features. Older saved formats are rejected, not converted.
-17. Qt/QML remains presentation; Raylib remains backend. No parallel managers, legacy stacks, polling, or hidden bidirectional document mirrors.
-
-## Scene surface
-
-- One long-lived runtime/Raylib surface; Qt/QML hosts measurement and overlays only.
-- Never detach or recreate the runtime surface as a UI workaround.
-- QML does not own gameplay pixels.
-
-## Script editor
-
-- Abstract text surface (CodeMirror iframe / `ICodeEditorSurface` equivalent).
-- Do not rebuild the editor DOM on every keystroke.
-- Script buffer = workspace; saved file ≠ active buffer; project Undo ≠ text Undo (route by focus).
-
-## Legacy elimination and format policy
-
-- Legacy code, format readers, compatibility aliases, fallback adapters, and obsolete stack references are debt: remove them; do not preserve or extend them.
-- Breaking saved-format changes require an explicit `formatVersion` bump plus current-format fixture/round-trip coverage. Reject older formats with a clear error; do not convert or normalize them.
-- A legacy branch may exist only when the user explicitly authorizes a temporary exception with a tracked removal issue. Otherwise it is a BLOCKER.
-
-## When implementing or reviewing
-
-- Prefer Command + validator + ID refs + Play/export parity over UI convenience shortcuts.
-- If a change violates a paletto above, it is at least SHOULD-FIX; silent Play≠export or document mutation from UI is BLOCKER.
+- Parallel authoring stacks
+- QML/Qt revival
+- Filename-as-identity
+- Implicit GameVariable creation
+- Untyped call-by-name bridges

@@ -2,29 +2,20 @@
   "version": 6,
   "configurePresets": [
     {
-      "name": "qt-editor-local",
-      "displayName": "ArtCade Qt editor (local kit)",
-      "inherits": "qt-editor",
-      "generator": "Visual Studio 18 2026",
-      "architecture": {
-        "value": "x64",
-        "strategy": "set"
-      },
+      "name": "native-local",
+      "displayName": "ArtCade native runtime (local)",
+      "inherits": "native-runtime",
+      "generator": "Ninja",
       "cacheVariables": {
-        "CMAKE_PREFIX_PATH": "C:/Qt/6.8.3/msvc2022_64"
-      },
-      "environment": {
-        "ARTCADE_QT_PREFIX": "C:/Qt/6.8.3/msvc2022_64",
-        "PATH": "C:/Qt/6.8.3/msvc2022_64/bin;$penv{PATH}"
+        "CMAKE_BUILD_TYPE": "Release"
       }
     }
   ],
   "buildPresets": [
     {
-      "name": "qt-editor-local-release",
-      "configurePreset": "qt-editor-local",
-      "configuration": "Release",
-      "targets": ["artcade-editor-qt"]
+      "name": "native-local-release",
+      "configurePreset": "native-local",
+      "targets": ["artcade_editor_core_roundtrip_test"]
     }
   ]
 }

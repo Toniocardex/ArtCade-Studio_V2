@@ -18,12 +18,7 @@ else()
     set(BUILD_FOR_WASM FALSE)
 endif()
 
-# Qt editor is the product UI. Default ON for native Windows.
-if(WIN32 AND NOT BUILD_FOR_WASM)
-    option(ARTCADE_BUILD_QT_EDITOR "Build ArtCade Qt editor (requires Qt 6.8 LTS)" ON)
-else()
-    option(ARTCADE_BUILD_QT_EDITOR "Build ArtCade Qt editor (requires Qt 6.8 LTS)" OFF)
-endif()
+# Product UI is ArtCade_Editor_RmlUi (sibling). This tree is runtime + headless core.
 option(ARTCADE_WITH_STEAM "Include Steam SDK integration" OFF)
 option(ARTCADE_ENABLE_DEBUG_UI "Enable ImGui debug visualizer" OFF)
 # Forwarded into runtime-cpp (also defined there). Keep at root so
@@ -37,13 +32,6 @@ if(NOT BUILD_FOR_WASM)
     add_subdirectory(src/application)
 endif()
 
-if(ARTCADE_BUILD_QT_EDITOR)
-    if(BUILD_FOR_WASM)
-        message(FATAL_ERROR "ARTCADE_BUILD_QT_EDITOR is not supported for Emscripten/WASM builds")
-    endif()
-    add_subdirectory(src/qt)
-endif()
-
 message("
 =============================================================================
   ArtCade V2 Build Configuration
@@ -53,11 +41,10 @@ message("
   Compiler:             ${CMAKE_CXX_COMPILER}
   C++ Standard:         ${CMAKE_CXX_STANDARD}
   WASM Build:           ${BUILD_FOR_WASM}
-  Qt Editor:            ${ARTCADE_BUILD_QT_EDITOR}
   Steam Integration:    ${ARTCADE_WITH_STEAM}
   Debug UI:             ${ARTCADE_ENABLE_DEBUG_UI}
 
-  Editor: artcade-editor-qt (Qt 6.8)
-  Run:    scripts/run-artcade-editor-qt.ps1
+  Product UI:           ArtCade_Editor_RmlUi (native RmlUi — sibling repo)
+  This repo:            runtime-cpp + headless artcade_editor_core
 =============================================================================
 ")

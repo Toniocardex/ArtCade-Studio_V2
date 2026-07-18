@@ -571,7 +571,7 @@ private:
     bool m_applied = false;
 };
 
-/** Summary row for QML property editors (text-encoded values). */
+/** Summary row for property editors (text-encoded values). */
 struct LogicPropertySummary {
     std::string key;
     std::string displayName;

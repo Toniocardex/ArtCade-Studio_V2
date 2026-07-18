@@ -3,7 +3,7 @@
 ## Flusso autorevole
 
 ```text
-Qt/QML UI
+RmlUi editor UI
   ↓ Intent/Command
 ProjectDocument.GeneratedSfxDef
   ↓ snapshot immutabile della recipe
@@ -51,7 +51,7 @@ marcato stale; non deve sovrascrivere lo stato più recente.
 - debounce consigliato: 80–120 ms;
 - cancellare/ignorare risultati obsoleti mediante generation token;
 - una sola preview posseduta dal `SfxPreviewService`;
-- nessun `Sound` duplicato dentro componenti QML;
+- nessun `Sound` duplicato dentro componenti UI;
 - Stop/Play sono intent workspace e non producono dirty.
 
 ## Persistenza
