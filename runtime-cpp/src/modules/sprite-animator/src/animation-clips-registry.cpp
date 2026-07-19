@@ -57,26 +57,30 @@ void appendAnimationClipsFromAssets(
     const std::vector<SpriteAnimationAssetDef>& animationAssets)
 {
     for (const SpriteAnimationAssetDef& asset : animationAssets) {
-        if (asset.id.empty()) continue;
+        if (asset.id.empty() || asset.sourceImageAssetId.empty()) continue;
         for (const SpriteAnimationClipDef& def : asset.clips) {
-            if (def.id.empty() || def.imageId.empty() || def.frames.empty()
+            if (def.id.empty() || def.frameIds.empty()
                 || !std::isfinite(def.framesPerSecond) || def.framesPerSecond <= 0.f) {
                 continue;
             }
             Modules::SpriteAnimator::Clip clip;
             clip.name = def.id;
             clip.animationAssetId = asset.id;
-            clip.assetId = def.imageId;
+            clip.assetId = asset.sourceImageAssetId;
             clip.fps = def.framesPerSecond;
             clip.loop = def.playbackMode == AnimationPlaybackMode::Loop;
-            clip.frames.reserve(def.frames.size());
-            for (const SpriteAnimationFrameDef& frame : def.frames) {
-                if (frame.width <= 0 || frame.height <= 0) continue;
-                clip.frames.push_back({frame.x, frame.y, frame.width, frame.height});
+            clip.frames.reserve(def.frameIds.size());
+            for (const SpriteFrameId& frameId : def.frameIds) {
+                const SpriteFrameDef* frame = nullptr;
+                for (const SpriteFrameDef& candidate : asset.frames) {
+                    if (candidate.id == frameId) { frame = &candidate; break; }
+                }
+                if (!frame || frame->width <= 0 || frame->height <= 0) continue;
+                clip.frames.push_back({frame->x, frame->y, frame->width, frame->height});
             }
             if (clip.frames.empty()) continue;
-            if (animator.firstFrameForAsset(def.imageId).w <= 0)
-                animator.setFirstFrameForAsset(def.imageId, clip.frames.front());
+            if (animator.firstFrameForAsset(asset.sourceImageAssetId).w <= 0)
+                animator.setFirstFrameForAsset(asset.sourceImageAssetId, clip.frames.front());
             animator.defineClip(clip);
         }
     }

@@ -22,6 +22,9 @@ using SceneId   = std::string;
 using AssetId   = std::string;
 using ObjectTypeId = std::string;
 using ScriptAttachmentId = std::string;
+using AnimationAssetId = std::string;
+using AnimationClipId = std::string;
+using SpriteFrameId = std::string;
 
 /**
  * Stable identity of a project/global game variable.
@@ -412,18 +415,20 @@ struct LifecycleEvent {
     std::vector<std::string> tags;
 };
 
-/** Object-Type-owned sprite rendering defaults (project format v4). */
+/** Object-Type-owned static sprite rendering defaults (project format v9). */
 struct SpriteRendererComponent {
-    AssetId imageAssetId;     // "" = no static image
-    AssetId animationAssetId; // "" = no animation source (mutually exclusive with imageAssetId)
+    AssetId imageAssetId; // "" = no static image
     bool    visible = true;
 };
 
-/** Object-Type-owned sprite animation playback defaults (project format v4). */
+/** Object-Type-owned sprite animation playback defaults (project format v9).
+ *  Owns the animation asset reference and the initial clip; SpriteRenderer
+ *  remains the static fallback presentation. */
 struct SpriteAnimatorComponent {
-    std::string initialClipId;
-    bool        autoPlay = true;
-    float       playbackSpeed = 1.f;
+    AnimationAssetId animationAssetId;
+    AnimationClipId  defaultClipId;
+    bool             autoPlay = true;
+    float            playbackSpeed = 1.f;
 };
 
 /** One stable, ordered reference to a manual Script Asset. */
@@ -441,7 +446,6 @@ struct ScriptComponent {
 /** Sparse per-instance delta over SpriteRendererComponent. Null means inherit. */
 struct SpriteRendererOverride {
     std::optional<AssetId> imageAssetId;
-    std::optional<AssetId> animationAssetId;
     std::optional<bool>    visible;
     // Migration-only compatibility bit for v3 projects where only some
     // instances had the component. Normal authoring never exposes this field.
@@ -450,11 +454,12 @@ struct SpriteRendererOverride {
 
 /** Sparse per-instance delta over SpriteAnimatorComponent. Null means inherit. */
 struct SpriteAnimatorOverride {
-    std::optional<std::string> initialClipId;
-    std::optional<bool>        autoPlay;
-    std::optional<float>       playbackSpeed;
+    std::optional<AnimationAssetId> animationAssetId;
+    std::optional<AnimationClipId>  defaultClipId;
+    std::optional<bool>             autoPlay;
+    std::optional<float>            playbackSpeed;
     // See SpriteRendererOverride::capabilityEnabled.
-    std::optional<bool>        capabilityEnabled;
+    std::optional<bool>             capabilityEnabled;
 };
 
 // ============================================================================
@@ -774,31 +779,35 @@ struct ScriptAssetDef {
 
 enum class AnimationPlaybackMode { Loop, Once };
 
-struct SpriteAnimationFrameDef {
+/** Authoritative rectangle in the animation asset frame pool (schema v9). */
+struct SpriteFrameDef {
+    SpriteFrameId id;
     int x = 0;
     int y = 0;
     int width = 0;
     int height = 0;
 
-    bool operator==(const SpriteAnimationFrameDef& other) const {
-        return x == other.x && y == other.y && width == other.width && height == other.height;
+    bool operator==(const SpriteFrameDef& other) const {
+        return id == other.id && x == other.x && y == other.y
+            && width == other.width && height == other.height;
     }
 };
 
-// v2 schema: each clip owns its sheet via imageId (moved off the asset level).
+// Schema v9: clips reference the asset frame pool by id. The same SpriteFrameId
+// may repeat in frameIds to hold a pose longer without per-frame durations.
 struct SpriteAnimationClipDef {
-    std::string id;
+    AnimationClipId id;
     std::string name;
-    std::string imageId;
-    float framesPerSecond = 8.f;
+    std::vector<SpriteFrameId> frameIds;
+    float framesPerSecond = 12.f;
     AnimationPlaybackMode playbackMode = AnimationPlaybackMode::Loop;
-    std::vector<SpriteAnimationFrameDef> frames;
 };
 
 struct SpriteAnimationAssetDef {
-    std::string id;
+    AnimationAssetId id;
     std::string name;
-    std::string defaultClipId;
+    AssetId sourceImageAssetId;
+    std::vector<SpriteFrameDef> frames;
     std::vector<SpriteAnimationClipDef> clips;
 };
 
@@ -836,6 +845,9 @@ struct ProjectRuntimeSettings {
 };
 
 struct ProjectDoc {
+    // Durable logical identity. Display name and folder path may be reused;
+    // a New Project always allocates a fresh projectId even in the same root.
+    std::string  projectId;
     std::string  projectName;
     std::string  version         = "2.0.0";
     int          formatVersion   = 0;

@@ -23,8 +23,6 @@ EntityDef materializeInstance(const EntityDef& typeProto,
             e.spriteRenderer.reset();
         } else if (e.spriteRenderer) {
             if (delta.imageAssetId) e.spriteRenderer->imageAssetId = *delta.imageAssetId;
-            if (delta.animationAssetId)
-                e.spriteRenderer->animationAssetId = *delta.animationAssetId;
             if (delta.visible) e.spriteRenderer->visible = *delta.visible;
         }
     }
@@ -33,7 +31,10 @@ EntityDef materializeInstance(const EntityDef& typeProto,
         if (delta.capabilityEnabled && !*delta.capabilityEnabled) {
             e.spriteAnimator.reset();
         } else if (e.spriteAnimator) {
-            if (delta.initialClipId) e.spriteAnimator->initialClipId = *delta.initialClipId;
+            if (delta.animationAssetId)
+                e.spriteAnimator->animationAssetId = *delta.animationAssetId;
+            if (delta.defaultClipId)
+                e.spriteAnimator->defaultClipId = *delta.defaultClipId;
             if (delta.autoPlay) e.spriteAnimator->autoPlay = *delta.autoPlay;
             if (delta.playbackSpeed) e.spriteAnimator->playbackSpeed = *delta.playbackSpeed;
         }

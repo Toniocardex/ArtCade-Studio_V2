@@ -203,7 +203,6 @@ void read_entity_components(const nlohmann::json& entityJson, EntityDef& out) {
         const auto& value = entityJson["spriteRenderer"];
         SpriteRendererComponent renderer;
         renderer.imageAssetId = value.value("imageAssetId", std::string{});
-        renderer.animationAssetId = value.value("animationAssetId", std::string{});
         renderer.visible = value.value("visible", true);
         out.spriteRenderer = std::move(renderer);
     }
@@ -211,9 +210,18 @@ void read_entity_components(const nlohmann::json& entityJson, EntityDef& out) {
         && entityJson["spriteAnimator"].is_object()) {
         const auto& value = entityJson["spriteAnimator"];
         SpriteAnimatorComponent animator;
-        animator.initialClipId = value.value("initialClipId", std::string{});
+        animator.animationAssetId = value.value("animationAssetId", std::string{});
+        animator.defaultClipId = value.value(
+            "defaultClipId", value.value("initialClipId", std::string{}));
         animator.autoPlay = value.value("autoPlay", true);
         animator.playbackSpeed = value.value("playbackSpeed", 1.f);
+        // Legacy fold: animation lived on the renderer.
+        if (animator.animationAssetId.empty()
+            && entityJson.contains("spriteRenderer")
+            && entityJson["spriteRenderer"].is_object()) {
+            animator.animationAssetId = entityJson["spriteRenderer"].value(
+                "animationAssetId", std::string{});
+        }
         out.spriteAnimator = std::move(animator);
     }
     if (entityJson.contains("scripts") && entityJson["scripts"].is_object()) {

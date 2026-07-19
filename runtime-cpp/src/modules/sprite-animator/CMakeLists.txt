@@ -8,4 +8,5 @@ target_include_directories(artcade-sprite-animator
 )
 target_link_libraries(artcade-sprite-animator
     PUBLIC artcade-core
+           artcade-sprite-animation-core
 )

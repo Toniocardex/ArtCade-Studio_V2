@@ -49,19 +49,29 @@ bool read_scene_instance(const nlohmann::json& instanceJson, SceneInstanceDef& o
         SpriteRendererOverride delta;
         if (value.contains("imageAssetId"))
             delta.imageAssetId = value["imageAssetId"].get<std::string>();
-        if (value.contains("animationAssetId"))
-            delta.animationAssetId = value["animationAssetId"].get<std::string>();
         if (value.contains("visible")) delta.visible = value["visible"].get<bool>();
         if (value.contains("capabilityEnabled"))
             delta.capabilityEnabled = value["capabilityEnabled"].get<bool>();
+        // Legacy: fold renderer.animationAssetId into animator override.
+        if (value.contains("animationAssetId")) {
+            SpriteAnimatorOverride animatorDelta =
+                out.spriteAnimatorOverride.value_or(SpriteAnimatorOverride{});
+            animatorDelta.animationAssetId = value["animationAssetId"].get<std::string>();
+            out.spriteAnimatorOverride = std::move(animatorDelta);
+        }
         out.spriteRendererOverride = std::move(delta);
     }
     if (instanceJson.contains("spriteAnimatorOverride")
         && instanceJson["spriteAnimatorOverride"].is_object()) {
         const auto& value = instanceJson["spriteAnimatorOverride"];
-        SpriteAnimatorOverride delta;
-        if (value.contains("initialClipId"))
-            delta.initialClipId = value["initialClipId"].get<std::string>();
+        SpriteAnimatorOverride delta = out.spriteAnimatorOverride.value_or(
+            SpriteAnimatorOverride{});
+        if (value.contains("animationAssetId"))
+            delta.animationAssetId = value["animationAssetId"].get<std::string>();
+        if (value.contains("defaultClipId"))
+            delta.defaultClipId = value["defaultClipId"].get<std::string>();
+        else if (value.contains("initialClipId"))
+            delta.defaultClipId = value["initialClipId"].get<std::string>();
         if (value.contains("autoPlay")) delta.autoPlay = value["autoPlay"].get<bool>();
         if (value.contains("playbackSpeed"))
             delta.playbackSpeed = value["playbackSpeed"].get<float>();

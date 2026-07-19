@@ -115,9 +115,17 @@ void RuntimeEntityGateway::maybePlaySpawnClip(EntityId id) {
         if (!std::isfinite(animator.playbackSpeed) || animator.playbackSpeed <= 0.f)
             return;
         spriteAnimator_->setPlaybackSpeed(id, animator.playbackSpeed);
-        if (animator.autoPlay && !renderer.animationAssetId.empty()
-            && !animator.initialClipId.empty()) {
-            spriteAnimator_->play(id, renderer.animationAssetId, animator.initialClipId);
+        if (animator.autoPlay && !animator.animationAssetId.empty()
+            && !animator.defaultClipId.empty()) {
+            if (!spriteAnimator_->play(
+                    id, animator.animationAssetId, animator.defaultClipId)
+                && spawnLogCallback_) {
+                spawnLogCallback_(
+                    "SpriteAnimator autoPlay failed: missing or empty clip '"
+                    + animator.defaultClipId + "' on animation '"
+                    + animator.animationAssetId + "' (entity "
+                    + std::to_string(id) + ")");
+            }
         }
         return;
     }

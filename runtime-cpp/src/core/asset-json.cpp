@@ -97,28 +97,38 @@ void read_sprite_animation_assets(
         SpriteAnimationAssetDef asset;
         asset.id = item.value("id", std::string{});
         asset.name = item.value("name", asset.id);
-        asset.defaultClipId = item.value("defaultClipId", std::string{});
+        asset.sourceImageAssetId = item.value(
+            "sourceImageAssetId", item.value("source_image_asset_id", std::string{}));
+        if (item.contains("frames") && item["frames"].is_array()) {
+            for (const auto& frameJson : item["frames"]) {
+                if (!frameJson.is_object()) continue;
+                SpriteFrameDef frame;
+                frame.id = frameJson.value("id", std::string{});
+                frame.x = frameJson.value("x", 0);
+                frame.y = frameJson.value("y", 0);
+                frame.width = frameJson.value("width", frameJson.value("w", 0));
+                frame.height = frameJson.value("height", frameJson.value("h", 0));
+                if (!frame.id.empty() && frame.width > 0 && frame.height > 0) {
+                    asset.frames.push_back(std::move(frame));
+                }
+            }
+        }
         if (item.contains("clips") && item["clips"].is_array()) {
             for (const auto& clipJson : item["clips"]) {
                 if (!clipJson.is_object()) continue;
                 SpriteAnimationClipDef clip;
                 clip.id = clipJson.value("id", std::string{});
                 clip.name = clipJson.value("name", clip.id);
-                clip.imageId = clipJson.value("imageId", std::string{});
                 clip.framesPerSecond = clipJson.value("framesPerSecond", 8.f);
                 const std::string mode = clipJson.value("playbackMode", std::string("loop"));
                 if (mode != "loop" && mode != "once") continue;
                 clip.playbackMode = mode == "once"
                     ? AnimationPlaybackMode::Once : AnimationPlaybackMode::Loop;
-                if (clipJson.contains("frames") && clipJson["frames"].is_array()) {
-                    for (const auto& frameJson : clipJson["frames"]) {
-                        if (!frameJson.is_object()) continue;
-                        SpriteAnimationFrameDef frame;
-                        frame.x = frameJson.value("x", 0);
-                        frame.y = frameJson.value("y", 0);
-                        frame.width = frameJson.value("width", frameJson.value("w", 0));
-                        frame.height = frameJson.value("height", frameJson.value("h", 0));
-                        clip.frames.push_back(frame);
+                if (clipJson.contains("frameIds") && clipJson["frameIds"].is_array()) {
+                    for (const auto& frameIdJson : clipJson["frameIds"]) {
+                        if (!frameIdJson.is_string()) continue;
+                        const std::string frameId = frameIdJson.get<std::string>();
+                        if (!frameId.empty()) clip.frameIds.push_back(frameId);
                     }
                 }
                 if (!clip.id.empty()) asset.clips.push_back(std::move(clip));

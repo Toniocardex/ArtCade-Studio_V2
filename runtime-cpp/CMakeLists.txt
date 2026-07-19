@@ -138,6 +138,7 @@ target_link_libraries(artcade-project-json PUBLIC artcade-core)
 # core-only: no Lua, renderer, filesystem, or editor presentation dependency.
 add_subdirectory(src/modules/logic-core)
 add_subdirectory(src/modules/script-core)
+add_subdirectory(src/modules/sprite-animation-core)
 add_subdirectory(src/modules/sfx)
 
 # ============================================================================

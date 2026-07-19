@@ -1,5 +1,7 @@
 #include "../include/sprite-animator.h"
 
+#include "sprite-animation-core.h"
+
 #include <cmath>
 #include <unordered_set>
 
@@ -188,32 +190,37 @@ void SpriteAnimator::update(float dt) {
         if (cit == clips_.end()) continue;
 
         const Clip& clip  = cit->second;
-        int count = static_cast<int>(clip.frames.size());
+        const std::size_t count = clip.frames.size();
         if (count == 0) continue;
 
-        float frameDur = (clip.fps > 0.f) ? 1.f / clip.fps : 1.f;
-        inst.elapsed += dt * inst.playbackSpeed;
+        Animation::AnimationPlaybackCursor cursor;
+        cursor.frameIndex = inst.frameIdx >= 0
+            ? static_cast<std::size_t>(inst.frameIdx) : 0;
+        cursor.elapsedSeconds = inst.elapsed;
+        cursor.playbackSpeed = inst.playbackSpeed;
+        cursor.playing = true;
+        cursor.completed = false;
+        const AnimationPlaybackMode mode = clip.loop
+            ? AnimationPlaybackMode::Loop : AnimationPlaybackMode::Once;
+        const Animation::AnimationAdvanceResult advanced = Animation::advanceAnimation(
+            count, clip.fps, mode, cursor, dt);
 
-        while (inst.elapsed >= frameDur) {
-            inst.elapsed -= frameDur;
-            inst.frameIdx++;
-
-            if (inst.frameIdx >= count) {
-                if (clip.loop) {
-                    inst.frameIdx = 0;
-                    pushEvent(AnimEventKind::Loop, entity, clip.name, 0);
-                    pushEvent(AnimEventKind::Frame, entity, clip.name, 0);
-                } else {
-                    inst.frameIdx = count - 1;
-                    inst.state    = PlayState::Stopped;
-                    finishBuffer_.push_back({ entity, clip.name });
-                    if (inst.onFinish)
-                        inst.onFinish(entity, clip.name);
-                    break;
-                }
-            } else {
-                pushEvent(AnimEventKind::Frame, entity, clip.name, inst.frameIdx);
-            }
+        const int previousFrame = inst.frameIdx;
+        inst.frameIdx = static_cast<int>(advanced.cursor.frameIndex);
+        inst.elapsed = advanced.cursor.elapsedSeconds;
+        if (!advanced.cursor.playing) {
+            inst.state = PlayState::Stopped;
+        }
+        for (std::uint32_t i = 0; i < advanced.loopsCompleted; ++i) {
+            pushEvent(AnimEventKind::Loop, entity, clip.name, 0);
+            pushEvent(AnimEventKind::Frame, entity, clip.name, 0);
+        }
+        if (advanced.completedThisStep) {
+            finishBuffer_.push_back({ entity, clip.name });
+            if (inst.onFinish) inst.onFinish(entity, clip.name);
+        } else if (advanced.cursor.playing && inst.frameIdx != previousFrame
+                   && advanced.loopsCompleted == 0) {
+            pushEvent(AnimEventKind::Frame, entity, clip.name, inst.frameIdx);
         }
     }
 }
