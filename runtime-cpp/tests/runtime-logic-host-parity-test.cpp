@@ -38,8 +38,8 @@ int main() {
     EntityDef hero;
     hero.id = 1;
     hero.className = "Hero";
-    hero.spriteRenderer = SpriteRendererComponent{{}, "hero-animation", true};
-    hero.spriteAnimator = SpriteAnimatorComponent{"jump", false, 1.f};
+    hero.spriteRenderer = SpriteRendererComponent{{}, true};
+    hero.spriteAnimator = SpriteAnimatorComponent{"hero-animation", "jump", false, 1.f};
 
     EntityDef plain;
     plain.id = 2;

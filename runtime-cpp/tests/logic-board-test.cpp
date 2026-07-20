@@ -890,8 +890,8 @@ static void testCombinedGameplaySmoke() {
     EntityDef hero;
     hero.className = "Hero";
     hero.platformerController = PlatformerControllerComponent{};
-    hero.spriteRenderer = SpriteRendererComponent{{}, "hero-animation", true};
-    hero.spriteAnimator = SpriteAnimatorComponent{"jump", true, 1.f};
+    hero.spriteRenderer = SpriteRendererComponent{{}, true};
+    hero.spriteAnimator = SpriteAnimatorComponent{"hero-animation", "jump", true, 1.f};
 
     LogicBoardDef board;
     board.id = "logic:Hero";
@@ -925,11 +925,12 @@ static void testCombinedGameplaySmoke() {
 
     SpriteAnimationAssetDef animation;
     animation.id = "hero-animation";
+    animation.sourceImageAssetId = "hero-sheet";
+    animation.frames.push_back(SpriteFrameDef{"frame-0", 0, 0, 16, 16});
     SpriteAnimationClipDef clip;
     clip.id = "jump";
     clip.name = "Jump";
-    clip.imageId = "hero-sheet";
-    clip.frames = {{0, 0, 16, 16}};
+    clip.frameIds = {"frame-0"};
     animation.clips.push_back(clip);
     project.spriteAnimationAssets.push_back(animation);
     project.audioAssets.push_back(
