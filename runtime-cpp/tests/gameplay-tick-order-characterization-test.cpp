@@ -489,7 +489,12 @@ void testRealGameplaySessionDispatchInputThenTick() {
         },
         PhysicsMode::Auto);
 
-    logicRuntime.beginFrame();
+    // dispatchStart is a lifecycle event (install/spawn-time in production,
+    // e.g. installLogicScopeForEntity calls dispatchStartForOwner right after
+    // install(), outside any frame loop), not tied to a particular frame's
+    // event budget - no beginFrame() needed before it. dispatchInput below
+    // is the first and only beginFrame() call in this test, exactly where it
+    // belongs: at the start of the one frame being simulated.
     logicRuntime.dispatchStart();
     scriptRuntime.dispatchStart();
 
