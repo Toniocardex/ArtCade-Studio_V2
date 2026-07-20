@@ -25,12 +25,21 @@
 #include "modules/physics/include/physics.h"
 #include "modules/variable-manager/include/variable-manager.h"
 #include "modules/sprite-animator/include/sprite-animator.h"
+#include "modules/camera-manager/include/camera-manager.h"
+#include "modules/event-bus/include/event-bus.h"
+#include "modules/game-api/include/game-api.h"
+#include "modules/game-state/include/game-state-manager.h"
+#include "modules/lua-runtime/include/lua-host.h"
+#include "modules/time/include/time-manager.h"
+#include "modules/tween-manager/include/tween-manager.h"
 #include "world.h"
 
-// Pulls in GameplaySession itself plus every module its refs touch (camera,
-// event-bus, game-api, game-state, lua-host, tween/time-manager) - RU-02c/d
-// made GameplaySession real, so the input-dispatch test below constructs and
-// drives the actual class instead of replaying its algorithm by hand.
+// RU-02c/d/e-1 made GameplaySession real and gave it its own owned
+// simulation graph (Physics/SceneManager/SceneMutationService/
+// RuntimeEntityGateway/SceneLifecycleService/World) - gameplay_session.h now
+// only forward-declares the modules it touches through pointers, so this
+// test includes each concrete header itself instead of relying on
+// GameplaySession to pull them in transitively.
 #include "app/src/gameplay_session.h"
 #include "core/engine-context.h"
 
@@ -427,20 +436,14 @@ void testAnimationEventsDrainedOnce() {
 // satisfying RU-02d's gate ("nessun Input::poll() nella sessione; test input
 // deterministici; supporto a input sintetico headless").
 void testRealGameplaySessionDispatchInputThenTick() {
-    SceneManager scenes;
-    RuntimeEntityGateway gateway(scenes);
-    Physics physics;
     VariableManager variables;
+    CHECK(variables.init());
     Modules::TimeManager time;
     Modules::TweenManager tweens;
     SpriteAnimator animator;
     Modules::CameraManager camera;
     Modules::EventBus events;
     Modules::GameStateManager gameState;
-    CHECK(scenes.init());
-    CHECK(gateway.init());
-    CHECK(physics.init());
-    CHECK(variables.init());
     CHECK(time.init());
     CHECK(tweens.init());
     CHECK(animator.init());
@@ -456,6 +459,19 @@ void testRealGameplaySessionDispatchInputThenTick() {
     luaHost.registerBindings([&](sol::state& lua) { gameApi.registerAll(lua); });
     CHECK(luaHost.init());
 
+    // RU-02e-1: GameplaySession now owns SceneManager/SceneMutationService/
+    // RuntimeEntityGateway/SceneLifecycleService/Physics/World itself -
+    // build the graph via initialize() instead of constructing them
+    // standalone, then use session.entityGateway()/session.world() (the same
+    // instances GameplaySession's own tickFixedStep operates on) to wire Host/
+    // LogicRuntime/ScriptRuntime, exactly mirroring how RuntimeLogicHostAdapter
+    // is wired to the session's graph in production (app_bootstrap.cpp).
+    GameplaySession session(variables);
+    CHECK(session.initialize(
+        PhysicsMode::Auto,
+        [](const char*, bool ok) { return ok; },
+        [](const Modules::SceneTransitionResult&) {}));
+
     EntityDef hero;
     hero.id = 1;
     hero.className = "Hero";
@@ -468,10 +484,9 @@ void testRealGameplaySessionDispatchInputThenTick() {
     project.entities = {{hero.id, hero}};
     project.scenes = {{scene.id, scene}};
 
-    World world(gateway, physics, variables);
-    world.init(project);
+    session.world().init(project);
 
-    Host host(gateway, world, variables);
+    Host host(session.entityGateway(), session.world(), variables);
     LogicRuntime logicRuntime(host);
     ScriptRuntime scriptRuntime(host);
 
@@ -480,14 +495,11 @@ void testRealGameplaySessionDispatchInputThenTick() {
     CHECK(logicRuntime.install("Hero", hero.id, &error).has_value());
     CHECK(scriptRuntime.install(makeScriptMoveProgram(-1.f), hero.id, "move-script", &error));
 
-    GameplaySession session(
-        GameplayRuntimeRefs{
-            world, physics, gateway, time, tweens, animator, camera, gameState,
-            events, gameApi, luaHost,
-            &logicRuntime, &scriptRuntime,
-            nullptr, nullptr, nullptr, // audio/dialog/profiler: not exercised by this test
-        },
-        PhysicsMode::Auto);
+    session.wireHostRefs(GameplayRuntimeRefs{
+        &time, &tweens, &animator, &camera, &gameState, &events, &gameApi, &luaHost,
+        &logicRuntime, &scriptRuntime,
+        nullptr, nullptr, nullptr, // audio/dialog/profiler: not exercised by this test
+    });
 
     // dispatchStart is a lifecycle event (install/spawn-time in production,
     // e.g. installLogicScopeForEntity calls dispatchStartForOwner right after
@@ -522,11 +534,9 @@ void testRealGameplaySessionDispatchInputThenTick() {
     CHECK(host.callLog[0] == ":platformer_move:1.000000");
     CHECK(host.callLog[1] == ":platformer_move:-1.000000");
 
-    world.shutdown();
+    session.shutdownGraph();
+    session.shutdownPhysics();
     variables.shutdown();
-    physics.shutdown();
-    gateway.shutdown();
-    scenes.shutdown();
 }
 
 } // namespace

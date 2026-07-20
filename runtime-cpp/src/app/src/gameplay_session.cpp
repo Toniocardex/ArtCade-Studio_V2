@@ -1,5 +1,22 @@
 #include "gameplay_session.h"
 
+#include "../../modules/camera-manager/include/camera-manager.h"
+#include "../../modules/event-bus/include/event-bus.h"
+#include "../../modules/game-api/include/game-api.h"
+#include "../../modules/game-state/include/game-state-manager.h"
+#include "../../modules/logic-runtime/include/logic-runtime.h"
+#include "../../modules/lua-runtime/include/lua-host.h"
+#include "../../modules/physics/include/physics.h"
+#include "../../modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
+#include "../../modules/scene-system/include/scene-lifecycle-service.h"
+#include "../../modules/scene-system/include/scene-manager.h"
+#include "../../modules/scene-system/include/scene-mutation-service.h"
+#include "../../modules/script-runtime/include/script-runtime.h"
+#include "../../modules/sprite-animator/include/sprite-animator.h"
+#include "../../modules/time/include/time-manager.h"
+#include "../../modules/tween-manager/include/tween-manager.h"
+#include "../../world/include/world.h"
+
 #include <algorithm>
 #include <chrono>
 #include <iostream>
@@ -15,6 +32,77 @@ double elapsedMs(Clock::time_point start) {
 }
 
 } // namespace
+
+GameplaySession::GameplaySession(Modules::VariableManager& variables)
+    : variables_(variables) {}
+
+// unique_ptr members need complete types at destruction; every module they
+// point to is fully defined above by the time this runs.
+GameplaySession::~GameplaySession() = default;
+
+// RU-02e-1: lines moved from Application::initSubsystems() (app_bootstrap.cpp)
+// in the same relative order, same boot-step names, same wiring - only the
+// two SceneLifecycleService handlers that used to capture Application state
+// (`gw = mod_->entityGateway.get()`) now capture `this` (GameplaySession),
+// per the plan's callback rule (RU02_GAMEPLAY_SESSION_REFACTOR.md RU-02e:
+// "Callback: non devono più catturare Application per modificare oggetti
+// posseduti dalla sessione"). `onSceneTransition` still reaches the host,
+// since it mutates Application::pendingSceneInvalidations_.
+bool GameplaySession::initialize(PhysicsMode physicsMode,
+                                  const BootStepFn& bootStep,
+                                  SceneTransitionHandlerFn onSceneTransition) {
+    physicsMode_ = physicsMode;
+
+    physics_ = std::make_unique<Modules::Physics>();
+    if (!bootStep("physics", physics_->init())) return false;
+
+    sceneManager_ = std::make_unique<Modules::SceneManager>();
+    if (!bootStep("scene_manager", sceneManager_->init())) return false;
+
+    sceneMutation_ = std::make_unique<Modules::SceneMutationService>(*sceneManager_);
+
+    entityGateway_ = std::make_unique<Modules::RuntimeEntityGateway>(*sceneManager_);
+    if (!bootStep("entity_gateway", entityGateway_->init())) return false;
+
+    sceneLifecycle_ = std::make_unique<Modules::SceneLifecycleService>(
+        *sceneManager_,
+        *sceneMutation_,
+        [this]() { entityGateway_->syncSceneActivation(); });
+    sceneLifecycle_->set_transition_handler(std::move(onSceneTransition));
+    entityGateway_->set_scene_lifecycle_service(sceneLifecycle_.get());
+
+    world_ = std::make_unique<World>(*entityGateway_, *physics_, variables_);
+    entityGateway_->setPhysics(physics_.get());
+
+    sceneLifecycle_->set_gameplay_reset_handler([this]() {
+        world_->onSceneActivated();
+    });
+    sceneLifecycle_->set_restore_handler([this](const SceneId& sceneId) {
+        return entityGateway_->restoreSceneFromAuthoring(sceneId);
+    });
+    world_->setSceneLifecycleService(sceneLifecycle_.get());
+
+    return true;
+}
+
+void GameplaySession::shutdownGraph() {
+    if (world_) { world_->shutdown(); world_.reset(); }
+    if (entityGateway_) {
+        entityGateway_->set_scene_lifecycle_service(nullptr);
+        entityGateway_->shutdown();
+        entityGateway_.reset();
+    }
+    if (sceneLifecycle_) {
+        sceneLifecycle_->cancel_transition();
+        sceneLifecycle_.reset();
+    }
+    sceneMutation_.reset();
+    if (sceneManager_) { sceneManager_->shutdown(); sceneManager_.reset(); }
+}
+
+void GameplaySession::shutdownPhysics() {
+    if (physics_) { physics_->shutdown(); physics_.reset(); }
+}
 
 // Moved from Application::loopIteration's input block (app_loop.cpp,
 // pre-RU-02d). One structural change from the original, both sanctioned by
@@ -45,11 +133,11 @@ void GameplaySession::dispatchInput(const GameplayInputFrame& input) {
     if (refs_.scripts) refs_.scripts->dispatchInput(scriptInput);
     // Both languages consumed the same immutable input frame; queued
     // destroys may now commit before any fixed-step update.
-    refs_.world.flushEntityQueues();
+    world_->flushEntityQueues();
 
     if (!refs_.dialog || !refs_.dialog->blocksGameplay()) {
         const auto start = Clock::now();
-        const std::uint32_t events = refs_.gameApi.dispatchInputEvents();
+        const std::uint32_t events = refs_.gameApi->dispatchInputEvents();
         if (refs_.profiler) {
             refs_.profiler->addLuaMs(elapsedMs(start));
             refs_.profiler->addLuaEvents(events);
@@ -58,16 +146,16 @@ void GameplaySession::dispatchInput(const GameplayInputFrame& input) {
 }
 
 // Moved verbatim from Application::dispatchGameplayCollisionTransitions
-// (app_loop.cpp) - only mod_->X became refs_.X and the collision-pair state
-// moved from Application::Modules into this class.
+// (app_loop.cpp) - only mod_->X became refs_.X/world_->X and the
+// collision-pair state moved from Application::Modules into this class.
 void GameplaySession::dispatchGameplayCollisionTransitions() {
     std::set<std::pair<EntityId, EntityId>> current;
-    for (const CollisionWorld::ContactEvent& event : refs_.world.collisionEvents()) {
+    for (const CollisionWorld::ContactEvent& event : world_->collisionEvents()) {
         if (event.kind == CollisionWorld::ContactEvent::Kind::Exit
             || event.self == INVALID_ENTITY || event.other == INVALID_ENTITY
             || event.self == event.other
-            || !refs_.world.isActiveEntity(event.self)
-            || !refs_.world.isActiveEntity(event.other)) continue;
+            || !world_->isActiveEntity(event.self)
+            || !world_->isActiveEntity(event.other)) continue;
         current.emplace(std::min(event.self, event.other),
                         std::max(event.self, event.other));
     }
@@ -79,7 +167,7 @@ void GameplaySession::dispatchGameplayCollisionTransitions() {
     for (const auto& pair : activeGameplayCollisionPairs_)
         if (current.count(pair) == 0) exited.insert(pair);
 
-    const std::vector<EntityId> structuralOrder = refs_.gateway.activeSceneIds();
+    const std::vector<EntityId> structuralOrder = entityGateway_->activeSceneIds();
     const auto dispatch = [&](const auto& edges, bool enter, auto invoke) {
         for (EntityId owner : structuralOrder) {
             for (const auto& pair : edges) {
@@ -114,28 +202,27 @@ void GameplaySession::dispatchGameplayCollisionTransitions() {
 
 // Moved verbatim from Application::tickFixedStep (app_loop.cpp), post RU-02b
 // (clearDrawQueue/splash already extracted to the host). mod_->X became
-// refs_.X; profiler_.X/mod_->audio->X became refs_.profiler->X/refs_.audio->X
-// through the new host ports, null-guarded like the pre-existing optional
-// modules (logic/scripts/dialog) since Application passes them by pointer.
+// refs_.X (now dereferenced through pointers) or world_/physics_/
+// entityGateway_->X for the members this class now owns directly (RU-02e-1).
 void GameplaySession::tickFixedStep(float dt) {
     {
         const auto start = Clock::now();
-        refs_.time.tick(dt);
-        refs_.tweens.update(dt);
-        refs_.animator.update(dt);
-        refs_.camera.updateMotion(dt);
-        refs_.gameState.update(dt);
-        refs_.events.flushDeferred();
+        refs_.time->tick(dt);
+        refs_.tweens->update(dt);
+        refs_.animator->update(dt);
+        refs_.camera->updateMotion(dt);
+        refs_.gameState->update(dt);
+        refs_.events->flushDeferred();
         if (!refs_.dialog || !refs_.dialog->blocksGameplay()) {
-            refs_.world.tickGameplaySystems(dt);
-            refs_.gateway.tickSceneTransition(dt);
+            world_->tickGameplaySystems(dt);
+            entityGateway_->tickSceneTransition(dt);
         }
         if (refs_.profiler) refs_.profiler->addGameplayMs(elapsedMs(start));
     }
     // Drain animator events once; feed Logic Runtime then GameAPI Lua handlers.
     {
-        const auto finished = refs_.animator.pollFinished();
-        const auto events = refs_.animator.pollEvents();
+        const auto finished = refs_.animator->pollFinished();
+        const auto events = refs_.animator->pollEvents();
         if (refs_.logic) {
             for (const auto& ev : events) {
                 if (ev.kind == Modules::SpriteAnimator::AnimEventKind::Start)
@@ -146,7 +233,7 @@ void GameplaySession::tickFixedStep(float dt) {
             refs_.logic->dispatchTick(dt);
         }
         const auto start = Clock::now();
-        const std::uint32_t luaEvents = refs_.gameApi.dispatchAnimationEvents(finished, events);
+        const std::uint32_t luaEvents = refs_.gameApi->dispatchAnimationEvents(finished, events);
         if (refs_.profiler) {
             refs_.profiler->addLuaMs(elapsedMs(start));
             refs_.profiler->addLuaEvents(luaEvents);
@@ -154,56 +241,56 @@ void GameplaySession::tickFixedStep(float dt) {
     }
     {
         const auto start = Clock::now();
-        refs_.luaHost.tick(dt);
+        refs_.luaHost->tick(dt);
         if (refs_.profiler) {
             refs_.profiler->addLuaMs(elapsedMs(start));
-            refs_.profiler->setLuaTickEnabled(refs_.luaHost.isScriptTickRequired());
+            refs_.profiler->setLuaTickEnabled(refs_.luaHost->isScriptTickRequired());
         }
     }
     // Manual on_update runs after generated input rules and before platformer
     // integration, so its movement intent can deliberately override the board.
     if (refs_.scripts) {
         refs_.scripts->update(dt);
-        refs_.world.flushEntityQueues();
+        world_->flushEntityQueues();
     }
     if (refs_.dialog) refs_.dialog->tick(dt);
 
     if (!refs_.dialog || !refs_.dialog->blocksGameplay()) {
-        refs_.world.tickPlatformerControllers(dt);
-        refs_.world.tickSimpleMovementIntents(dt);
+        world_->tickPlatformerControllers(dt);
+        world_->tickSimpleMovementIntents(dt);
     }
     const bool runPhysics = physicsMode_ == PhysicsMode::On
-        || (physicsMode_ == PhysicsMode::Auto && refs_.physics.hasActiveBodies());
+        || (physicsMode_ == PhysicsMode::Auto && physics_->hasActiveBodies());
     if (runPhysics) {
         const auto start = Clock::now();
-        refs_.physics.step(dt);
+        physics_->step(dt);
         if (refs_.profiler) refs_.profiler->addPhysicsMs(elapsedMs(start));
     }
 
-    refs_.world.flushEntityQueues();
-    if (runPhysics) refs_.world.syncPhysicsToEntities();
-    refs_.world.tickCameraTargets(dt);
+    world_->flushEntityQueues();
+    if (runPhysics) world_->syncPhysicsToEntities();
+    world_->tickCameraTargets(dt);
 
-    refs_.world.refreshCollisionEvents();
+    world_->refreshCollisionEvents();
 
     {
         const auto start = Clock::now();
-        const std::uint32_t events = refs_.gameApi.dispatchLifecycleEvents();
+        const std::uint32_t events = refs_.gameApi->dispatchLifecycleEvents();
         if (refs_.profiler) {
             refs_.profiler->addLuaMs(elapsedMs(start));
             refs_.profiler->addLuaEvents(events);
         }
     }
 
-    refs_.world.tickAutoDestroy(dt);
+    world_->tickAutoDestroy(dt);
     {
         const auto start = Clock::now();
-        refs_.world.flushEntityQueues();
+        world_->flushEntityQueues();
         if (refs_.profiler) refs_.profiler->addGameplayMs(elapsedMs(start));
     }
     {
         const auto start = Clock::now();
-        const std::uint32_t events = refs_.gameApi.dispatchLifecycleEvents();
+        const std::uint32_t events = refs_.gameApi->dispatchLifecycleEvents();
         if (refs_.profiler) {
             refs_.profiler->addLuaMs(elapsedMs(start));
             refs_.profiler->addLuaEvents(events);
@@ -222,7 +309,7 @@ void GameplaySession::tickFixedStep(float dt) {
         }
     }
 
-    refs_.events.flushDeferred();
+    refs_.events->flushDeferred();
     if (refs_.audio) refs_.audio->update();
 }
 

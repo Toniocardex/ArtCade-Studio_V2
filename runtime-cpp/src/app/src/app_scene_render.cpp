@@ -150,9 +150,9 @@ void Application::renderActiveScene() {
     frameCtx.frameSnapshot = &frameSnapshot;
     frameCtx.renderer = mod_->renderer.get();
     frameCtx.spriteAnimator = mod_->spriteAnimator.get();
-    frameCtx.entityGateway = mod_->entityGateway.get();
+    frameCtx.entityGateway = mod_->entityGateway;
     frameCtx.variableManager = mod_->variableManager.get();
-    frameCtx.sceneManager = mod_->sceneManager.get();
+    frameCtx.sceneManager = mod_->sceneManager;
     frameCtx.timeManager = mod_->timeManager.get();
     frameCtx.selectedEntityIds = &selectedEntityIds;
     frameCtx.tilesets = &tilesets_;

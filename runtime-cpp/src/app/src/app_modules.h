@@ -20,7 +20,6 @@
 #include "../../modules/save-load/include/save-load-manager.h"
 #include "../../modules/scene-system/include/scene-manager.h"
 #include "../../modules/scene-system/include/scene-mutation-service.h"
-#include "../../modules/scene-system/include/scene-lifecycle-service.h"
 #include "../../modules/sprite-animator/include/sprite-animator.h"
 #include "../../modules/texture-manager/include/texture-manager.h"
 #include "../../modules/time/include/time-manager.h"
@@ -234,7 +233,14 @@ static_assert(!std::is_abstract_v<RuntimeLogicHostAdapter>,
 struct Application::Modules {
     std::unique_ptr<ArtCade::Presentation::EditorViewportService> editorViewport;
     std::unique_ptr<ArtCade::Modules::Renderer> renderer;
-    std::unique_ptr<ArtCade::Modules::Physics> physics;
+    // RU-02e-1: Physics/SceneManager/SceneMutationService/RuntimeEntityGateway/
+    // World are now owned by gameplaySession (below); these are non-owning
+    // aliases set right after gameplaySession->initialize() succeeds, kept so
+    // every existing mod_->world->X()-style call site keeps compiling
+    // unchanged (docs/RU02_GAMEPLAY_SESSION_REFACTOR.md, editor repo, RU-02e).
+    // SceneLifecycleService has no external alias: nothing outside
+    // GameplaySession references it.
+    ArtCade::Modules::Physics* physics = nullptr;
     std::unique_ptr<ArtCade::Modules::Input> input;
     std::unique_ptr<ArtCade::Modules::Audio> audio;
     std::unique_ptr<ArtCade::Modules::LuaHost> luaHost;
@@ -245,13 +251,12 @@ struct Application::Modules {
     std::unique_ptr<ArtCade::Scripts::ScriptRuntime> scriptRuntime;
     std::unordered_map<AssetId, ArtCade::Scripts::ScriptProgram> scriptPrograms;
     std::unordered_map<ObjectTypeId, std::vector<ScriptAttachmentDef>> scriptAttachments;
-    std::unique_ptr<ArtCade::Modules::SceneManager> sceneManager;
-    std::unique_ptr<ArtCade::Modules::SceneMutationService> sceneMutation;
-    std::unique_ptr<ArtCade::Modules::SceneLifecycleService> sceneLifecycle;
-    std::unique_ptr<ArtCade::Modules::RuntimeEntityGateway> entityGateway;
+    ArtCade::Modules::SceneManager* sceneManager = nullptr;
+    ArtCade::Modules::SceneMutationService* sceneMutation = nullptr;
+    ArtCade::Modules::RuntimeEntityGateway* entityGateway = nullptr;
     std::unique_ptr<ArtCade::Modules::AssetLoader> assetLoader;
     std::unique_ptr<ArtCade::Modules::GameAPI> gameAPI;
-    std::unique_ptr<World> world;
+    World* world = nullptr;
 
     std::unique_ptr<ArtCade::Modules::TimeManager> timeManager;
     std::unique_ptr<ArtCade::Modules::EventBus> eventBus;
