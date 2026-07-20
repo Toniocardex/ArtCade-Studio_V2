@@ -132,13 +132,37 @@ void read_tileset_asset(const nlohmann::json& tilesetJson,
     if (out.imageAssetId.empty()) {
         out.imageAssetId = tilesetJson.value("spriteImagePath", std::string{});
     }
-    const float tileW = tilesetJson.value("tileSize", 32.f);
-    const float tileH = tilesetJson.value("tileHeight", tileW);
-    out.slicing.tileWidth = static_cast<int>(tileW > 0.f ? tileW : 32.f);
-    out.slicing.tileHeight = static_cast<int>(tileH > 0.f ? tileH : tileW);
-    const int legacyMargin = tilesetJson.value("margin", 0);
-    out.slicing.marginX = legacyMargin;
-    out.slicing.marginY = legacyMargin;
+    if (tilesetJson.contains("slicing") && tilesetJson["slicing"].is_object()) {
+        const auto& s = tilesetJson["slicing"];
+        out.slicing.tileWidth = s.value("tileWidth", out.slicing.tileWidth);
+        out.slicing.tileHeight = s.value("tileHeight", out.slicing.tileHeight);
+        out.slicing.marginX = s.value("marginX", out.slicing.marginX);
+        out.slicing.marginY = s.value("marginY", out.slicing.marginY);
+        out.slicing.spacingX = s.value("spacingX", out.slicing.spacingX);
+        out.slicing.spacingY = s.value("spacingY", out.slicing.spacingY);
+    } else {
+        // Legacy flat layout (pre-nested-slicing fixtures/projects).
+        const float tileW = tilesetJson.value("tileSize", 32.f);
+        const float tileH = tilesetJson.value("tileHeight", tileW);
+        out.slicing.tileWidth = static_cast<int>(tileW > 0.f ? tileW : 32.f);
+        out.slicing.tileHeight = static_cast<int>(tileH > 0.f ? tileH : tileW);
+        const int legacyMargin = tilesetJson.value("margin", 0);
+        out.slicing.marginX = legacyMargin;
+        out.slicing.marginY = legacyMargin;
+    }
+    out.tiles.clear();
+    if (tilesetJson.contains("tiles") && tilesetJson["tiles"].is_array()) {
+        for (const auto& t : tilesetJson["tiles"]) {
+            if (!t.is_object()) continue;
+            TileDefinition tile;
+            tile.id = t.value("id", std::string{});
+            tile.x = t.value("x", 0);
+            tile.y = t.value("y", 0);
+            tile.width = t.value("width", 0);
+            tile.height = t.value("height", 0);
+            if (!tile.id.empty()) out.tiles.push_back(std::move(tile));
+        }
+    }
 }
 
 void read_tilesets(const nlohmann::json& doc, std::vector<TilesetAsset>& out) {

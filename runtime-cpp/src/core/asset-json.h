@@ -29,4 +29,7 @@ void read_sprite_animation_assets(
 /** Parses current array and legacy object forms of audioAssets. */
 void read_audio_assets(const nlohmann::json& doc, std::vector<AudioAssetDef>& out);
 
+/** Parses current fontAssets array (authoring import catalog). */
+void read_font_assets(const nlohmann::json& doc, std::vector<FontAssetDef>& out);
+
 } // namespace ArtCade::ProjectJson

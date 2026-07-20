@@ -174,4 +174,23 @@ void read_audio_assets(const nlohmann::json& doc, std::vector<AudioAssetDef>& ou
     }
 }
 
+void read_font_assets(const nlohmann::json& doc, std::vector<FontAssetDef>& out) {
+    out.clear();
+    if (!doc.contains("fontAssets") || !doc["fontAssets"].is_array()) return;
+    for (const auto& item : doc["fontAssets"]) {
+        if (!item.is_object()) continue;
+        FontAssetDef asset;
+        asset.assetId = item.value("assetId", std::string{});
+        if (asset.assetId.empty()) continue;
+        asset.name = item.value("name", asset.assetId);
+        asset.sourcePath = item.value("sourcePath", std::string{});
+        asset.defaultPixelSize = item.value("defaultPixelSize", asset.defaultPixelSize);
+        const std::string preset = item.value("glyphPreset", std::string("european"));
+        if (preset == "basicLatin") asset.glyphPreset = FontGlyphPreset::BasicLatin;
+        else if (preset == "customText") asset.glyphPreset = FontGlyphPreset::CustomText;
+        else asset.glyphPreset = FontGlyphPreset::European;
+        out.push_back(std::move(asset));
+    }
+}
+
 } // namespace ArtCade::ProjectJson

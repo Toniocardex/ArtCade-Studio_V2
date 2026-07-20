@@ -166,6 +166,19 @@ void read_optional_gameplay_components(const nlohmann::json& j, EntityDef& e) {
         gc.screenSpace = g.value("screenSpace", false);
         e.gauge = gc;
     }
+    if (j.contains("boxCollider2D") && j["boxCollider2D"].is_object()) {
+        const auto& c = j["boxCollider2D"];
+        BoxCollider2DComponent bc;
+        bc.offset = read_vec2(c.value("offset", nlohmann::json::object()), bc.offset);
+        bc.size = read_vec2(c.value("size", nlohmann::json::object()), bc.size);
+        bc.enabled = c.value("enabled", bc.enabled);
+        const std::string mode = c.value("mode", std::string{});
+        if (mode == "trigger") bc.mode = BoxColliderMode::Trigger;
+        else if (mode == "oneWayPlatform") bc.mode = BoxColliderMode::OneWayPlatform;
+        else if (mode == "solid") bc.mode = BoxColliderMode::Solid;
+        else if (c.value("isTrigger", false)) bc.mode = BoxColliderMode::Trigger;
+        e.boxCollider2D = bc;
+    }
     if (j.contains("visible") && j["visible"].is_boolean())
         e.visible = j["visible"].get<bool>();
 }

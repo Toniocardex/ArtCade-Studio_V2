@@ -290,6 +290,12 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
             const std::string assetPath = av.value("path", std::string{});
             if (!assetPath.empty()) manifestIndex_.addFontEntry(id, assetPath);
         }
+    } else if (j.contains("fontAssets") && j["fontAssets"].is_array()) {
+        ProjectJson::read_font_assets(j, out.fontAssets);
+        for (const FontAssetDef& asset : out.fontAssets) {
+            if (!asset.sourcePath.empty())
+                manifestIndex_.addFontEntry(asset.assetId, asset.sourcePath);
+        }
     }
 
     resolveSpritePivotsFromImageAssets(out);
