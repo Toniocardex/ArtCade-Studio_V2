@@ -216,7 +216,6 @@ public:
     // instance, builds a fresh one bound to the session's own logicHost(),
     // and returns it so the caller can install scopes against it.
     Scripts::ScriptRuntime& resetScriptRuntime();
-    Scripts::ScriptRuntime* scriptRuntime() { return scriptRuntime_.get(); }
     // Install failure path: destroys the just-built instance without
     // replacing it (mirrors the old mod_->scriptRuntime.reset() +
     // setScriptRuntime(nullptr) pair on that path).

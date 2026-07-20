@@ -435,9 +435,8 @@ void testAnimationEventsDrainedOnce() {
 // can no longer substitute its own instrumented `Host` stub for Logic/Script -
 // it uses the session's real logicHost()/logicRuntime()/resetScriptRuntime()
 // instead. The Logic-before-Script ordering claim is now checked through a
-// real production
-// side effect instead of a callLog: World::setMovementIntent (driven by
-// requestPlatformerMove) overwrites rather than accumulates
+// real production side effect instead of a callLog: World::setMovementIntent
+// (driven by requestPlatformerMove) overwrites rather than accumulates
 // (world_movement.cpp), so the final velocity after tickFixedStep reflects
 // whichever on_update ran last - Script's -1.0 axis, proving it really did
 // run after Logic's 1.0. Audio is constructed but never init()'d (skips
