@@ -100,38 +100,20 @@ void Application::loopIteration() {
         // while paused (WASM edit mode), tickFixedStep never ran and this
         // never cleared either.
         mod_->renderer->clearDrawQueue();
-        if (mod_->logicRuntime || mod_->scriptRuntime) {
-            Scripts::ScriptInputSnapshot scriptInput;
-            if (mod_->logicRuntime) mod_->logicRuntime->beginFrame();
-            for (LogicKey key : Logic::supportedLogicKeys()) {
-                const std::string code = Logic::logicInputCode(key);
-                const bool pressed = mod_->input->wasKeyPressed(code);
-                const bool released = mod_->input->wasKeyReleased(code);
-                const bool held = mod_->input->isKeyDown(code);
-                if (pressed) {
-                    if (mod_->logicRuntime) mod_->logicRuntime->dispatchKeyPressed(key);
-                    scriptInput.pressed.push_back(key);
-                }
-                if (released) {
-                    if (mod_->logicRuntime) mod_->logicRuntime->dispatchKeyReleased(key);
-                    scriptInput.released.push_back(key);
-                }
-                if (held) {
-                    if (mod_->logicRuntime) mod_->logicRuntime->dispatchKeyHeld(key);
-                    scriptInput.held.push_back(key);
-                }
-            }
-            if (mod_->scriptRuntime) mod_->scriptRuntime->dispatchInput(scriptInput);
-            // Both languages consumed the same immutable input frame; queued
-            // destroys may now commit before any fixed-step update.
-            mod_->world->flushEntityQueues();
+        // RU-02d: Application only polls Raylib/Input and resolves the
+        // supported key catalog into an immutable GameplayInputFrame; the
+        // dispatch to Logic/Script/GameAPI (beginFrame, per-kind dispatch,
+        // ScriptInputSnapshot, entity-queue flush, dialog-gated GameAPI
+        // input events) lives entirely in GameplaySession::dispatchInput
+        // now (docs/RU02_GAMEPLAY_SESSION_REFACTOR.md, editor repo).
+        GameplayInputFrame inputFrame;
+        for (LogicKey key : Logic::supportedLogicKeys()) {
+            const std::string code = Logic::logicInputCode(key);
+            if (mod_->input->wasKeyPressed(code)) inputFrame.pressed.push_back(key);
+            if (mod_->input->wasKeyReleased(code)) inputFrame.released.push_back(key);
+            if (mod_->input->isKeyDown(code)) inputFrame.held.push_back(key);
         }
-        if (!mod_->dialogManager || !mod_->dialogManager->isBlocking()) {
-            const auto start = Clock::now();
-            const uint32_t events = mod_->gameAPI->dispatchInputEvents();
-            profiler_.addLuaMs(elapsedMs(start));
-            profiler_.addLuaEvents(events);
-        }
+        mod_->gameplaySession->dispatchInput(inputFrame);
         while (accumulator_ >= targetDt_) {
             tickFixedStep(targetDt_);
             accumulator_ -= targetDt_;

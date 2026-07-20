@@ -29,8 +29,20 @@
 
 #include <set>
 #include <utility>
+#include <vector>
 
 namespace ArtCade {
+
+// RU-02d (docs/RU02_GAMEPLAY_SESSION_REFACTOR.md 5, editor repo): the host's
+// input polling result for one frame, immutable once built. Deliberately
+// narrower than the plan's own sketch (no pointer fields) - GameplaySession
+// consumes no pointer/mouse input today; widen only when a real caller needs
+// it, matching how the RU-02c host ports were scoped to actual usage.
+struct GameplayInputFrame {
+    std::vector<LogicKey> pressed;
+    std::vector<LogicKey> released;
+    std::vector<LogicKey> held;
+};
 
 struct GameplayRuntimeRefs {
     World& world;
@@ -55,6 +67,15 @@ class GameplaySession {
 public:
     GameplaySession(GameplayRuntimeRefs refs, PhysicsMode physicsMode)
         : refs_(refs), physicsMode_(physicsMode) {}
+
+    // RU-02d: dispatches one host-built input frame to Logic and Script
+    // through the same immutable snapshot, then flushes queued destroys and
+    // (if not dialog-blocked) GameAPI's own input handlers - exactly the
+    // responsibilities the plan assigns to this method (RU02_GAMEPLAY_
+    // SESSION_REFACTOR.md, RU-02d "Sessione"). No Input::poll() call and no
+    // Raylib key lookup happen in here - the host already resolved
+    // pressed/released/held into `input` before calling this.
+    void dispatchInput(const GameplayInputFrame& input);
 
     void tickFixedStep(float dt);
 

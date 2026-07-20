@@ -16,6 +16,47 @@ double elapsedMs(Clock::time_point start) {
 
 } // namespace
 
+// Moved from Application::loopIteration's input block (app_loop.cpp,
+// pre-RU-02d). One structural change from the original, both sanctioned by
+// the frame itself being category-shaped rather than per-key (RU-02d's own
+// GameplayInputFrame): the original iterated Logic::supportedLogicKeys()
+// once and handled pressed/released/held for each key together, in that
+// interleaved order; here every pressed key dispatches before any released
+// key, which dispatches before any held key. LogicRuntime::dispatch() and
+// ScriptInputSnapshot both filter/normalize per (kind, key) independently of
+// any other key, so this does not change what fires for a given key - only
+// the relative order across *different* keys within the same frame, which
+// nothing in this codebase currently depends on.
+void GameplaySession::dispatchInput(const GameplayInputFrame& input) {
+    if (refs_.logic) refs_.logic->beginFrame();
+    Scripts::ScriptInputSnapshot scriptInput;
+    for (LogicKey key : input.pressed) {
+        if (refs_.logic) refs_.logic->dispatchKeyPressed(key);
+        scriptInput.pressed.push_back(key);
+    }
+    for (LogicKey key : input.released) {
+        if (refs_.logic) refs_.logic->dispatchKeyReleased(key);
+        scriptInput.released.push_back(key);
+    }
+    for (LogicKey key : input.held) {
+        if (refs_.logic) refs_.logic->dispatchKeyHeld(key);
+        scriptInput.held.push_back(key);
+    }
+    if (refs_.scripts) refs_.scripts->dispatchInput(scriptInput);
+    // Both languages consumed the same immutable input frame; queued
+    // destroys may now commit before any fixed-step update.
+    refs_.world.flushEntityQueues();
+
+    if (!refs_.dialog || !refs_.dialog->blocksGameplay()) {
+        const auto start = Clock::now();
+        const std::uint32_t events = refs_.gameApi.dispatchInputEvents();
+        if (refs_.profiler) {
+            refs_.profiler->addLuaMs(elapsedMs(start));
+            refs_.profiler->addLuaEvents(events);
+        }
+    }
+}
+
 // Moved verbatim from Application::dispatchGameplayCollisionTransitions
 // (app_loop.cpp) - only mod_->X became refs_.X and the collision-pair state
 // moved from Application::Modules into this class.
