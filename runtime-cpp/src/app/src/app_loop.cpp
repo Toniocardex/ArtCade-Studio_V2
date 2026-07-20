@@ -177,11 +177,6 @@ void Application::tickFixedStep(float dt) {
 
     mod_->eventBus->flushDeferred();
     mod_->audio->update();
-
-    if (splash_) {
-        splash_->update(dt);
-        if (splash_->isDone()) splash_.reset();
-    }
 }
 
 void Application::tickFrameEnd() {
@@ -288,6 +283,14 @@ void Application::loopIteration() {
             tickFixedStep(targetDt_);
             accumulator_ -= targetDt_;
             simulatedDt += targetDt_;
+        }
+        // Host-side product policy (RU-02b), not simulation: ticked with the
+        // total simulated dt for this frame, matching the sum of what N
+        // per-fixed-step calls would have added; skipped when no fixed step
+        // ran (simulatedDt == 0), exactly like the old per-fixed-step call.
+        if (splash_ && simulatedDt > 0.f) {
+            splash_->update(simulatedDt);
+            if (splash_->isDone()) splash_.reset();
         }
     } else {
         accumulator_ = 0.f;
