@@ -405,9 +405,12 @@ bool Application::installLogicScopeForEntity(EntityId entityId) {
 bool Application::installScriptScopesForActiveScene() {
     if (!mod_ || !mod_->entityGateway) return false;
     if (!mod_->logicHost) return false;
-    if (mod_->gameplaySession) mod_->gameplaySession->resetCollisionTracking();
-    mod_->scriptRuntime = std::make_unique<Scripts::ScriptRuntime>(*mod_->logicHost);
-    if (mod_->gameplaySession) mod_->gameplaySession->setScriptRuntime(mod_->scriptRuntime.get());
+    if (!mod_->gameplaySession) return false;
+    mod_->gameplaySession->resetCollisionTracking();
+    // RU-02e-3: the session now owns ScriptRuntime directly (built against its
+    // own logicHost()) - mod_->scriptRuntime is a non-owning alias, same
+    // pattern as every other RU-02e-1/2 module.
+    mod_->scriptRuntime = &mod_->gameplaySession->resetScriptRuntime();
     std::string error;
     for (EntityId id : mod_->entityGateway->activeSceneIds()) {
         const ObjectTypeId typeId = mod_->entityGateway->className(id);
@@ -420,8 +423,8 @@ bool Application::installScriptScopesForActiveScene() {
                 || !mod_->scriptRuntime->install(
                     program->second, id, attachment.id, &error)) {
                 std::cerr << "[App] Could not install Script scope: " << error << "\n";
-                mod_->scriptRuntime.reset();
-                if (mod_->gameplaySession) mod_->gameplaySession->setScriptRuntime(nullptr);
+                mod_->gameplaySession->clearScriptRuntime();
+                mod_->scriptRuntime = nullptr;
                 return false;
             }
         }

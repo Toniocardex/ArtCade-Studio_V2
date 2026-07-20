@@ -102,7 +102,10 @@ struct Application::Modules {
     ArtCade::Logic::LogicRuntime* logicRuntime = nullptr;
     std::unordered_map<EntityId, ArtCade::Logic::ScopeToken> logicScopes;
     std::unordered_set<ObjectTypeId> logicObjectTypes;
-    std::unique_ptr<ArtCade::Scripts::ScriptRuntime> scriptRuntime;
+    // RU-02e-3: scriptRuntime is owned by gameplaySession too now (reset per-
+    // scene via GameplaySession::resetScriptRuntime()); this is a non-owning
+    // alias, same pattern as the fields above.
+    ArtCade::Scripts::ScriptRuntime* scriptRuntime = nullptr;
     std::unordered_map<AssetId, ArtCade::Scripts::ScriptProgram> scriptPrograms;
     std::unordered_map<ObjectTypeId, std::vector<ScriptAttachmentDef>> scriptAttachments;
     ArtCade::Modules::SceneManager* sceneManager = nullptr;

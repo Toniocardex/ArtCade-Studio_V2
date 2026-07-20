@@ -262,6 +262,16 @@ bool GameplaySession::initializeGameplayModules(
     return true;
 }
 
+// RU-02e-3: replaces the old Application-side
+// `mod_->scriptRuntime = std::make_unique<Scripts::ScriptRuntime>(*mod_->logicHost)`
+// - same construction, now against the session's own logicHost_ instead of a
+// borrowed pointer, and no separate setScriptRuntime() sync call needed since
+// this class already owns the pointer it dispatches through.
+Scripts::ScriptRuntime& GameplaySession::resetScriptRuntime() {
+    scriptRuntime_ = std::make_unique<Scripts::ScriptRuntime>(*logicHost_);
+    return *scriptRuntime_;
+}
+
 void GameplaySession::shutdownGraph() {
     if (world_) { world_->shutdown(); world_.reset(); }
     if (entityGateway_) {
@@ -287,6 +297,13 @@ void GameplaySession::shutdownPhysics() {
 void GameplaySession::shutdownLogicModules() {
     if (logicRuntime_) { logicRuntime_->shutdown(); logicRuntime_.reset(); }
     logicHost_.reset();
+}
+
+// RU-02e-3: matches the original Application-side
+// `if (mod_->scriptRuntime) { mod_->scriptRuntime->shutdown(); mod_->scriptRuntime.reset(); }`,
+// which used to sit between logicHost.reset() and luaHost's shutdown.
+void GameplaySession::shutdownScriptRuntime() {
+    if (scriptRuntime_) { scriptRuntime_->shutdown(); scriptRuntime_.reset(); }
 }
 
 // RU-02e-2: matches the original luaHost shutdown/reset immediately followed
@@ -322,7 +339,7 @@ void GameplaySession::dispatchInput(const GameplayInputFrame& input) {
         if (logicRuntime_) logicRuntime_->dispatchKeyHeld(key);
         scriptInput.held.push_back(key);
     }
-    if (refs_.scripts) refs_.scripts->dispatchInput(scriptInput);
+    if (scriptRuntime_) scriptRuntime_->dispatchInput(scriptInput);
     // Both languages consumed the same immutable input frame; queued
     // destroys may now commit before any fixed-step update.
     world_->flushEntityQueues();
@@ -381,12 +398,12 @@ void GameplaySession::dispatchGameplayCollisionTransitions() {
             logicRuntime_->dispatchCollisionExit(owner, other);
         });
     }
-    if (refs_.scripts) {
+    if (scriptRuntime_) {
         dispatch(entered, true, [&](EntityId owner, EntityId other, bool) {
-            refs_.scripts->dispatchCollisionEnter(owner, other);
+            scriptRuntime_->dispatchCollisionEnter(owner, other);
         });
         dispatch(exited, false, [&](EntityId owner, EntityId other, bool) {
-            refs_.scripts->dispatchCollisionExit(owner, other);
+            scriptRuntime_->dispatchCollisionExit(owner, other);
         });
     }
     activeGameplayCollisionPairs_ = std::move(current);
@@ -442,8 +459,8 @@ void GameplaySession::tickFixedStep(float dt) {
     }
     // Manual on_update runs after generated input rules and before platformer
     // integration, so its movement intent can deliberately override the board.
-    if (refs_.scripts) {
-        refs_.scripts->update(dt);
+    if (scriptRuntime_) {
+        scriptRuntime_->update(dt);
         world_->flushEntityQueues();
     }
     if (refs_.dialog) refs_.dialog->tick(dt);
@@ -493,8 +510,8 @@ void GameplaySession::tickFixedStep(float dt) {
 
     // Drain errors from input/update/collision callbacks once the fixed-step
     // lifecycle has reached a stable post-dispatch boundary.
-    if (refs_.scripts) {
-        for (const auto& diagnostic : refs_.scripts->drainDiagnostics()) {
+    if (scriptRuntime_) {
+        for (const auto& diagnostic : scriptRuntime_->drainDiagnostics()) {
             std::cerr << "[Script] " << diagnostic.sourcePath;
             if (diagnostic.line > 0) std::cerr << ":" << diagnostic.line;
             std::cerr << " [" << diagnostic.callback << "] entity "

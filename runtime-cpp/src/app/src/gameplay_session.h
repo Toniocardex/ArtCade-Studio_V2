@@ -1,16 +1,17 @@
 #pragma once
 
-// RU-02c/RU-02e-1/RU-02e-2 (docs/RU02_GAMEPLAY_SESSION_REFACTOR.md, editor
-// repo): the gameplay tick algorithm moved verbatim out of
+// RU-02c/RU-02e-1/RU-02e-2/RU-02e-3 (docs/RU02_GAMEPLAY_SESSION_REFACTOR.md,
+// editor repo): the gameplay tick algorithm moved verbatim out of
 // Application::tickFixedStep / Application::dispatchGameplayCollisionTransitions
 // (RU-02c), then the simulation graph (Physics/SceneManager/
 // SceneMutationService/RuntimeEntityGateway/SceneLifecycleService/World)
 // moved into this class's own composition root, `initialize()` (RU-02e-1),
 // then RuntimeLogicHostAdapter/LogicRuntime/GameAPI/LuaHost moved in too via
-// `initializeGameplayModules()` (RU-02e-2). ScriptRuntime stays Application-
-// owned for now (reconstructed per-scene in installScriptScopesForActiveScene,
-// RU-02e-3 territory) and reaches the session through GameplayRuntimeRefs, the
-// transitional non-owning-pointer structure the plan calls T-01.
+// `initializeGameplayModules()` (RU-02e-2), then ScriptRuntime - reconstructed
+// per-scene, unlike every other module here which is boot-time-stable - moved
+// in via `resetScriptRuntime()`/`clearScriptRuntime()` (RU-02e-3). Every
+// module the RU-02e gate names ("World/gateway/Logic/Script costruiti
+// soltanto dalla sessione") is now session-owned.
 
 #include "gameplay_host_ports.h"
 
@@ -139,7 +140,6 @@ struct GameplayRuntimeRefs {
     Modules::CameraManager* camera = nullptr;
     Modules::GameStateManager* gameState = nullptr;
     Modules::EventBus* events = nullptr;
-    Scripts::ScriptRuntime* scripts = nullptr;
     IGameplayAudioService* audio = nullptr;
     IGameplayDialogGate* dialog = nullptr;
     IRuntimeProfilerSink* profiler = nullptr;
@@ -182,10 +182,9 @@ public:
                                     RuntimeLogicHostAdapter::SpawnInstaller spawnInstaller,
                                     const BootStepFn& bootStep);
 
-    // Populates the remaining host-port/module pointers once ScriptRuntime
-    // exists for the first time (Application::initSubsystems(), after
-    // initializeGameplayModules() - scriptRuntime itself is left null here,
-    // see setScriptRuntime()).
+    // Populates the remaining host-port pointers Application still owns
+    // outright (Application::initSubsystems(), after
+    // initializeGameplayModules()).
     void wireHostRefs(GameplayRuntimeRefs refs) { refs_ = refs; }
 
     World& world() { return *world_; }
@@ -209,11 +208,19 @@ public:
 
     void tickFixedStep(float dt);
 
-    // ScriptRuntime is reconstructed at project-load and scene-lifecycle time
-    // (app_project_lifecycle.cpp installScriptScopesForActiveScene), unlike
-    // every other reference here which Application wires once at boot -
-    // Application must call this each time so refs_.scripts never goes stale.
-    void setScriptRuntime(Scripts::ScriptRuntime* scripts) { refs_.scripts = scripts; }
+    // RU-02e-3: ScriptRuntime is reconstructed at project-load and
+    // scene-lifecycle time (app_project_lifecycle.cpp
+    // installScriptScopesForActiveScene), unlike every other module here,
+    // which is boot-time-stable - the session now owns it directly instead of
+    // borrowing an Application-built instance. Discards any previous
+    // instance, builds a fresh one bound to the session's own logicHost(),
+    // and returns it so the caller can install scopes against it.
+    Scripts::ScriptRuntime& resetScriptRuntime();
+    Scripts::ScriptRuntime* scriptRuntime() { return scriptRuntime_.get(); }
+    // Install failure path: destroys the just-built instance without
+    // replacing it (mirrors the old mod_->scriptRuntime.reset() +
+    // setScriptRuntime(nullptr) pair on that path).
+    void clearScriptRuntime() { scriptRuntime_.reset(); }
 
     // Application::physicsMode_ can change after construction too
     // (applyRuntimeSettings, project-load time) - kept in sync the same way.
@@ -235,10 +242,12 @@ public:
     void shutdownPhysics();
 
     // RU-02e-2: mirrors the same "don't collapse into one call" lesson -
-    // Application-owned scriptRuntime/dialogManager shutdown in between the
-    // original logicRuntime/logicHost and luaHost/gameAPI shutdown lines, so
-    // two granular methods preserve that exact interleaving.
+    // Application-owned dialogManager shutdown sits in between the original
+    // logicRuntime/logicHost and luaHost/gameAPI shutdown lines, so two
+    // granular methods preserve that exact interleaving. shutdownScriptRuntime()
+    // (RU-02e-3) is its own call too, since it used to sit between them.
     void shutdownLogicModules();
+    void shutdownScriptRuntime();
     void shutdownScriptingModules();
 
 private:
@@ -257,6 +266,7 @@ private:
     std::unique_ptr<Logic::LogicRuntime> logicRuntime_;
     std::unique_ptr<Modules::GameAPI> gameAPI_;
     std::unique_ptr<Modules::LuaHost> luaHost_;
+    std::unique_ptr<Scripts::ScriptRuntime> scriptRuntime_;
 
     GameplayRuntimeRefs refs_{};
     PhysicsMode physicsMode_ = PhysicsMode::Auto;

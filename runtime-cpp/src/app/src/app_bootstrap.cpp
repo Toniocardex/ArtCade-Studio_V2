@@ -224,12 +224,11 @@ bool Application::initSubsystems() {
         });
 #endif
 
-    // RU-02c/RU-02e-1/2: GameplaySession's simulation graph and Logic/GameAPI/
-    // LuaHost are already built (initialize()/initializeGameplayModules()
-    // above); wireHostRefs() now supplies only what Application still owns
-    // outright. scriptRuntime is intentionally left null here - it is
-    // (re)constructed later, per scene, in installScriptScopesForActiveScene,
-    // which keeps GameplaySession's reference in sync via setScriptRuntime.
+    // RU-02c/RU-02e-1/2/3: GameplaySession's simulation graph, Logic/GameAPI/
+    // LuaHost and ScriptRuntime are all session-owned now (initialize()/
+    // initializeGameplayModules()/resetScriptRuntime() - the last one runs
+    // per-scene in installScriptScopesForActiveScene, not here); wireHostRefs()
+    // only supplies what Application still owns outright.
     mod_->audioAdapter = std::make_unique<AudioServiceAdapter>(*mod_->audio);
     mod_->dialogAdapter = std::make_unique<DialogGateAdapter>(*mod_->dialogManager);
     mod_->profilerAdapter = std::make_unique<ProfilerSinkAdapter>(profiler_);
@@ -240,7 +239,6 @@ bool Application::initSubsystems() {
         mod_->cameraManager.get(),
         mod_->gameStateManager.get(),
         mod_->eventBus.get(),
-        mod_->scriptRuntime.get(),
         mod_->audioAdapter.get(),
         mod_->dialogAdapter.get(),
         mod_->profilerAdapter.get(),
@@ -263,18 +261,19 @@ void Application::shutdownModules() {
     mod_->dialogAdapter.reset();
     mod_->profilerAdapter.reset();
 
-    // RU-02e-2: logicRuntime/logicHost are owned by gameplaySession now;
-    // shutdownLogicModules() tears them down in the exact relative order this
-    // function used to (logicRuntime -> logicHost), with Application-owned
-    // scriptRuntime/dialogManager shutdown still interleaved exactly where
-    // they were before - only luaHost/gameAPI moved together with logic
-    // ownership, not scriptRuntime/dialogManager.
+    // RU-02e-2/3: logicRuntime/logicHost/scriptRuntime are all owned by
+    // gameplaySession now; the three granular shutdown methods tear them down
+    // in the exact relative order this function used to (logicRuntime ->
+    // logicHost -> scriptRuntime -> luaHost -> gameAPI), with Application-
+    // owned dialogManager shutdown still interleaved exactly where it was
+    // before.
     if (mod_->gameplaySession) mod_->gameplaySession->shutdownLogicModules();
     mod_->logicRuntime = nullptr;
     mod_->logicHost = nullptr;
     mod_->logicScopes.clear();
     mod_->logicObjectTypes.clear();
-    if (mod_->scriptRuntime) { mod_->scriptRuntime->shutdown(); mod_->scriptRuntime.reset(); }
+    if (mod_->gameplaySession) mod_->gameplaySession->shutdownScriptRuntime();
+    mod_->scriptRuntime = nullptr;
     mod_->scriptPrograms.clear();
     mod_->scriptAttachments.clear();
     if (mod_->gameplaySession) mod_->gameplaySession->shutdownScriptingModules();

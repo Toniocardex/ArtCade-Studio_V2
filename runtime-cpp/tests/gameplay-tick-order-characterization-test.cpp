@@ -427,16 +427,15 @@ void testAnimationEventsDrainedOnce() {
     animator.shutdown();
 }
 
-// VERIFIED (RU-02c/RU-02d/RU-02e-1/RU-02e-2, upgraded from the CONTRACT note
-// above): drives the real GameplaySession::dispatchInput then
+// VERIFIED (RU-02c/RU-02d/RU-02e-1/RU-02e-2/RU-02e-3, upgraded from the
+// CONTRACT note above): drives the real GameplaySession::dispatchInput then
 // GameplaySession::tickFixedStep - not a hand-replayed mirror of the
-// algorithm. RU-02e-2 moved RuntimeLogicHostAdapter/LogicRuntime/GameAPI/
-// LuaHost ownership into GameplaySession itself, so this test can no longer
-// substitute its own instrumented `Host` stub for Logic/Script - it uses the
-// session's real logicHost()/logicRuntime() instead (only ScriptRuntime stays
-// test/Application-owned, matching RU-02e-2's scope: it is reconstructed
-// per-scene in installScriptScopesForActiveScene, RU-02e-3 territory). The
-// Logic-before-Script ordering claim is now checked through a real production
+// algorithm. RU-02e-2/3 moved RuntimeLogicHostAdapter/LogicRuntime/GameAPI/
+// LuaHost/ScriptRuntime ownership into GameplaySession itself, so this test
+// can no longer substitute its own instrumented `Host` stub for Logic/Script -
+// it uses the session's real logicHost()/logicRuntime()/resetScriptRuntime()
+// instead. The Logic-before-Script ordering claim is now checked through a
+// real production
 // side effect instead of a callLog: World::setMovementIntent (driven by
 // requestPlatformerMove) overwrites rather than accumulates
 // (world_movement.cpp), so the final velocity after tickFixedStep reflects
@@ -499,12 +498,14 @@ void testRealGameplaySessionDispatchInputThenTick() {
     CHECK(session.logicRuntime().loadPrograms({makeLogicMoveProgram("Hero", 1.f)}, &error));
     CHECK(session.logicRuntime().install("Hero", hero.id, &error).has_value());
 
-    ScriptRuntime scriptRuntime(session.logicHost());
+    // RU-02e-3: ScriptRuntime is session-owned now too - resetScriptRuntime()
+    // builds it against the session's own logicHost(), same as production's
+    // installScriptScopesForActiveScene.
+    Scripts::ScriptRuntime& scriptRuntime = session.resetScriptRuntime();
     CHECK(scriptRuntime.install(makeScriptMoveProgram(-1.f), hero.id, "move-script", &error));
 
     session.wireHostRefs(GameplayRuntimeRefs{
         &time, &tweens, &animator, &camera, &gameState, &events,
-        &scriptRuntime,
         nullptr, nullptr, nullptr, // audio/dialog/profiler: not exercised by this test
     });
 
@@ -536,8 +537,8 @@ void testRealGameplaySessionDispatchInputThenTick() {
     CHECK(session.entityGateway().getTransform(hero.id, afterTick));
     CHECK(afterTick.velocity.x < 0.f);
 
-    scriptRuntime.shutdown();
     session.shutdownLogicModules();
+    session.shutdownScriptRuntime();
     session.shutdownScriptingModules();
     session.shutdownGraph();
     session.shutdownPhysics();
