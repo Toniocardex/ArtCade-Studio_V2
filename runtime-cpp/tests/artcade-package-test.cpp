@@ -229,9 +229,11 @@ static void test_minimal_zip_load() {
     const std::string projJson = R"({
   "projectName":   "TestProject",
   "version":       "2.0.0",
+  "formatVersion": 8,
   "targetFPS":     60,
   "activeSceneId": "scene_main",
   "mainScriptPath": "scripts/main.lua",
+  "globalVariables": [],
   "entities": {
     "1": {
       "id": 1,
@@ -249,7 +251,9 @@ static void test_minimal_zip_load() {
       "worldSize":       [1280, 720],
       "viewportSize":    [1280, 720],
       "backgroundColor": [0.1, 0.1, 0.2, 1.0],
-      "entityIds": [1]
+      "entityIds": [1],
+      "layers": [ { "id": "default", "name": "Default" } ],
+      "defaultLayerId": "default"
     }
   }
 })";
@@ -353,17 +357,23 @@ static void test_reloading_same_artcade_path_clears_stale_extracted_files() {
 
     const std::string projectWithOldScript = R"({
   "projectName": "StaleA",
+  "formatVersion": 8,
   "activeSceneId": "s1",
   "mainScriptPath": "scripts/old.lua",
+  "globalVariables": [],
   "entities": {},
-  "scenes": { "s1": { "id": "s1", "name": "S1", "entityIds": [] } }
+  "scenes": { "s1": { "id": "s1", "name": "S1", "entityIds": [],
+      "layers": [ { "id": "default", "name": "Default" } ], "defaultLayerId": "default" } }
 })";
     const std::string projectWithoutOldScript = R"({
   "projectName": "StaleB",
+  "formatVersion": 8,
   "activeSceneId": "s1",
   "mainScriptPath": "scripts/main.lua",
+  "globalVariables": [],
   "entities": {},
-  "scenes": { "s1": { "id": "s1", "name": "S1", "entityIds": [] } }
+  "scenes": { "s1": { "id": "s1", "name": "S1", "entityIds": [],
+      "layers": [ { "id": "default", "name": "Default" } ], "defaultLayerId": "default" } }
 })";
     const std::string oldLua = "-- old\n";
     const std::string mainLua = "-- main\n";
@@ -407,10 +417,13 @@ static void test_directory_load_still_works() {
     const std::string proj = R"({
   "projectName": "DirProject",
   "version": "1.0.0",
+  "formatVersion": 8,
   "activeSceneId": "s1",
+  "globalVariables": [],
   "entities": {},
   "scenes": {
-    "s1": { "id":"s1", "name":"S1", "entityIds": [] }
+    "s1": { "id":"s1", "name":"S1", "entityIds": [],
+        "layers": [ { "id": "default", "name": "Default" } ], "defaultLayerId": "default" }
   }
 })";
     {
@@ -513,7 +526,17 @@ static void test_runtime_project_paths_are_sandboxed() {
     const fs::path outside = fs::temp_directory_path() / "artcade_outside.lua";
     fs::remove_all(root);
     fs::create_directories(root / "scripts");
-    writeToDisk((root / "project.json").string(), std::vector<uint8_t>{'{', '}'});
+    const std::string sandboxProj = R"({
+  "projectName": "SandboxProject",
+  "formatVersion": 8,
+  "activeSceneId": "s1",
+  "globalVariables": [],
+  "entities": {},
+  "scenes": { "s1": { "id": "s1", "name": "S1", "entityIds": [],
+      "layers": [ { "id": "default", "name": "Default" } ], "defaultLayerId": "default" } }
+})";
+    writeToDisk((root / "project.json").string(),
+                std::vector<uint8_t>(sandboxProj.begin(), sandboxProj.end()));
     writeToDisk((root / "scripts" / "main.lua").string(), std::vector<uint8_t>{'o', 'k'});
     writeToDisk(outside.string(), std::vector<uint8_t>{'n', 'o'});
 
