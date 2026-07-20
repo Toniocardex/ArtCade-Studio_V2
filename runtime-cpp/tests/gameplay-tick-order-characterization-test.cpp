@@ -27,6 +27,15 @@
 #include "modules/sprite-animator/include/sprite-animator.h"
 #include "world.h"
 
+// Pulls in GameplaySession itself plus every module its refs touch (camera,
+// event-bus, game-api, game-state, lua-host, tween/time-manager) - RU-02c/d
+// made GameplaySession real, so the input-dispatch test below constructs and
+// drives the actual class instead of replaying its algorithm by hand.
+#include "app/src/gameplay_session.h"
+#include "core/engine-context.h"
+
+#include <sol/sol.hpp>
+
 #include <iostream>
 #include <string>
 #include <vector>
@@ -406,6 +415,115 @@ void testAnimationEventsDrainedOnce() {
     animator.shutdown();
 }
 
+// VERIFIED (RU-02c/RU-02d, upgraded from the CONTRACT note above): drives the
+// real GameplaySession::dispatchInput then GameplaySession::tickFixedStep -
+// not a hand-replayed mirror of the algorithm - and checks the same
+// Logic-before-Script callLog assertion as
+// testLogicRunsBeforeScriptWithinOneStep. No Modules::Input exists anywhere
+// in this test (EngineContext.input stays null); GameAPI::dispatchInputEvents
+// guards on that and no-ops, so dispatchInput's own job - beginFrame, the
+// per-kind dispatch loop, building and handing the same ScriptInputSnapshot
+// to Script, the entity-queue flush - runs with zero Raylib/Input dependency,
+// satisfying RU-02d's gate ("nessun Input::poll() nella sessione; test input
+// deterministici; supporto a input sintetico headless").
+void testRealGameplaySessionDispatchInputThenTick() {
+    SceneManager scenes;
+    RuntimeEntityGateway gateway(scenes);
+    Physics physics;
+    VariableManager variables;
+    Modules::TimeManager time;
+    Modules::TweenManager tweens;
+    SpriteAnimator animator;
+    Modules::CameraManager camera;
+    Modules::EventBus events;
+    Modules::GameStateManager gameState;
+    CHECK(scenes.init());
+    CHECK(gateway.init());
+    CHECK(physics.init());
+    CHECK(variables.init());
+    CHECK(time.init());
+    CHECK(tweens.init());
+    CHECK(animator.init());
+    CHECK(camera.init());
+    CHECK(events.init());
+    gameState.setEventBus(&events);
+    CHECK(gameState.init());
+
+    EngineContext ctx; // ctx.input stays null - no Modules::Input anywhere here.
+    Modules::GameAPI gameApi(ctx);
+    CHECK(gameApi.init());
+    Modules::LuaHost luaHost;
+    luaHost.registerBindings([&](sol::state& lua) { gameApi.registerAll(lua); });
+    CHECK(luaHost.init());
+
+    EntityDef hero;
+    hero.id = 1;
+    hero.className = "Hero";
+    hero.platformerController = PlatformerControllerComponent{};
+    SceneDef scene;
+    scene.id = "main";
+    scene.entityIds = {hero.id};
+    ProjectDoc project;
+    project.activeSceneId = scene.id;
+    project.entities = {{hero.id, hero}};
+    project.scenes = {{scene.id, scene}};
+
+    World world(gateway, physics, variables);
+    world.init(project);
+
+    Host host(gateway, world, variables);
+    LogicRuntime logicRuntime(host);
+    ScriptRuntime scriptRuntime(host);
+
+    std::string error;
+    CHECK(logicRuntime.loadPrograms({makeLogicMoveProgram("Hero", 1.f)}, &error));
+    CHECK(logicRuntime.install("Hero", hero.id, &error).has_value());
+    CHECK(scriptRuntime.install(makeScriptMoveProgram(-1.f), hero.id, "move-script", &error));
+
+    GameplaySession session(
+        GameplayRuntimeRefs{
+            world, physics, gateway, time, tweens, animator, camera, gameState,
+            events, gameApi, luaHost,
+            &logicRuntime, &scriptRuntime,
+            nullptr, nullptr, nullptr, // audio/dialog/profiler: not exercised by this test
+        },
+        PhysicsMode::Auto);
+
+    logicRuntime.beginFrame();
+    logicRuntime.dispatchStart();
+    scriptRuntime.dispatchStart();
+
+    // Synthetic frame: no LogicKey here has a registered on_key_* handler (the
+    // installed programs use on_update), so this proves dispatchInput's own
+    // plumbing runs cleanly end to end, not any particular key's side effect.
+    GameplayInputFrame frame;
+    frame.pressed.push_back(LogicKey::Space);
+    frame.held.push_back(LogicKey::Space);
+    session.dispatchInput(frame);
+    CHECK(scriptRuntime.drainDiagnostics().empty());
+
+    // host.actor is this test's own labeling device (set around each call in
+    // testLogicRunsBeforeScriptWithinOneStep, which drives Logic/Script
+    // separately). tickFixedStep is one opaque call into the real
+    // GameplaySession now, so there is no seam to toggle the tag between its
+    // internal Logic and Script dispatches - left at its default "" here. The
+    // two distinct axis values (1.0 from Logic's on_update, -1.0 from
+    // Script's) already prove which ran and in what order without it.
+    session.tickFixedStep(1.f / 60.f);
+
+    // Real GameplaySession, real tickFixedStep - same ordering claim as
+    // testLogicRunsBeforeScriptWithinOneStep, now VERIFIED rather than CONTRACT.
+    CHECK(host.callLog.size() == 2);
+    CHECK(host.callLog[0] == ":platformer_move:1.000000");
+    CHECK(host.callLog[1] == ":platformer_move:-1.000000");
+
+    world.shutdown();
+    variables.shutdown();
+    physics.shutdown();
+    gateway.shutdown();
+    scenes.shutdown();
+}
+
 } // namespace
 
 int main() {
@@ -414,6 +532,7 @@ int main() {
     testSpawnInstallsScopeAndDestroyCancelsIt();
     testScriptCancelOwnerStopsDispatch();
     testAnimationEventsDrainedOnce();
+    testRealGameplaySessionDispatchInputThenTick();
 
     std::cout << "\ngameplay-tick-order-characterization-test: " << passed
               << " passed, " << failed << " failed\n";
