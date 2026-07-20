@@ -1,9 +1,13 @@
 #include "gameplay_session.h"
 
+#include "../../core/engine-context.h"
+#include "../../modules/audio/include/audio.h"
 #include "../../modules/camera-manager/include/camera-manager.h"
 #include "../../modules/event-bus/include/event-bus.h"
 #include "../../modules/game-api/include/game-api.h"
 #include "../../modules/game-state/include/game-state-manager.h"
+#include "../../modules/input/include/input.h"
+#include "../../modules/logic-core/include/logic-core.h"
 #include "../../modules/logic-runtime/include/logic-runtime.h"
 #include "../../modules/lua-runtime/include/lua-host.h"
 #include "../../modules/physics/include/physics.h"
@@ -15,10 +19,12 @@
 #include "../../modules/sprite-animator/include/sprite-animator.h"
 #include "../../modules/time/include/time-manager.h"
 #include "../../modules/tween-manager/include/tween-manager.h"
+#include "../../modules/variable-manager/include/variable-manager.h"
 #include "../../world/include/world.h"
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <iostream>
 
 namespace ArtCade {
@@ -32,6 +38,141 @@ double elapsedMs(Clock::time_point start) {
 }
 
 } // namespace
+
+// RU-02e-2: moved verbatim from app_modules.h (previously private to the
+// `game` executable target's Application::Modules) - method bodies unchanged,
+// only the declaring header moved so GameplaySession can own an instance.
+RuntimeLogicHostAdapter::RuntimeLogicHostAdapter(
+    Modules::RuntimeEntityGateway& gateway, Modules::Audio& audio)
+    : gateway_(gateway), audio_(audio) {}
+
+bool RuntimeLogicHostAdapter::setVisible(EntityId owner, bool value) {
+    return gateway_.setRuntimeVisible(owner, value);
+}
+bool RuntimeLogicHostAdapter::isVisible(EntityId owner) {
+    return gateway_.visibleInGame(owner);
+}
+bool RuntimeLogicHostAdapter::setPosition(EntityId owner, Vec2 value) {
+    Transform transform{};
+    if (!gateway_.getTransform(owner, transform)) return false;
+    transform.position = value;
+    return gateway_.setTransform(owner, transform);
+}
+bool RuntimeLogicHostAdapter::translate(EntityId owner, Vec2 delta) {
+    if (!std::isfinite(delta.x) || !std::isfinite(delta.y)) return false;
+    Transform transform{};
+    if (!gateway_.getTransform(owner, transform)) return false;
+    transform.position.x += delta.x;
+    transform.position.y += delta.y;
+    return gateway_.setTransform(owner, transform);
+}
+bool RuntimeLogicHostAdapter::setRotation(EntityId owner, float radians) {
+    if (!std::isfinite(radians)) return false;
+    Transform transform{};
+    if (!gateway_.getTransform(owner, transform)) return false;
+    transform.rotation = radians;
+    return gateway_.setTransform(owner, transform);
+}
+bool RuntimeLogicHostAdapter::rotateBy(EntityId owner, float deltaRadians) {
+    if (!std::isfinite(deltaRadians)) return false;
+    Transform transform{};
+    if (!gateway_.getTransform(owner, transform)) return false;
+    transform.rotation += deltaRadians;
+    return gateway_.setTransform(owner, transform);
+}
+bool RuntimeLogicHostAdapter::setScale(EntityId owner, Vec2 scale) {
+    if (!std::isfinite(scale.x) || !std::isfinite(scale.y)
+        || scale.x <= 0.f || scale.y <= 0.f) {
+        return false;
+    }
+    Transform transform{};
+    if (!gateway_.getTransform(owner, transform)) return false;
+    transform.scale = scale;
+    return gateway_.setTransform(owner, transform);
+}
+bool RuntimeLogicHostAdapter::isGrounded(EntityId owner) {
+    return world_ && world_->isPlatformerGrounded(owner);
+}
+bool RuntimeLogicHostAdapter::isFalling(EntityId owner) {
+    return world_ && world_->isPlatformerFalling(owner);
+}
+bool RuntimeLogicHostAdapter::requestPlatformerMove(EntityId owner, float axis) {
+    PlatformerControllerComponent platformer{};
+    if (!world_ || !std::isfinite(axis)
+        || !gateway_.getPlatformerController(owner, platformer)) return false;
+    world_->setMovementIntent(owner, axis, 0.f);
+    return true;
+}
+bool RuntimeLogicHostAdapter::requestPlatformerJump(EntityId owner) {
+    PlatformerControllerComponent platformer{};
+    if (!world_ || !gateway_.getPlatformerController(owner, platformer)) return false;
+    world_->requestJump(owner);
+    return true;
+}
+bool RuntimeLogicHostAdapter::isObjectType(EntityId entity, const ObjectTypeId& expected) {
+    return world_ && world_->isObjectType(entity, expected);
+}
+bool RuntimeLogicHostAdapter::requestDestroy(EntityId owner) {
+    return world_ && world_->requestDestroy(owner);
+}
+bool RuntimeLogicHostAdapter::playAnimationClip(
+    EntityId owner, const AssetId& animationAssetId, const std::string& clipId) {
+    return world_ && world_->playAnimationClip(owner, animationAssetId, clipId);
+}
+bool RuntimeLogicHostAdapter::stopAnimation(EntityId owner) {
+    return world_ && world_->stopAnimation(owner);
+}
+bool RuntimeLogicHostAdapter::setAnimationPlaybackSpeed(EntityId owner, float speed) {
+    return world_ && world_->setAnimationPlaybackSpeed(owner, speed);
+}
+bool RuntimeLogicHostAdapter::playSound(
+    EntityId owner, const AssetId& audioAssetId, float volume) {
+    return world_ && world_->isActiveEntity(owner)
+        && audio_.playResolvedAsset(audioAssetId, volume);
+}
+bool RuntimeLogicHostAdapter::setStateNumber(const GameVariableId& id, double value) {
+    if (!variables_) return false;
+    return variables_->setGlobal(id, value).accepted();
+}
+bool RuntimeLogicHostAdapter::addStateNumber(const GameVariableId& id, double delta) {
+    if (!variables_) return false;
+    return variables_->addNumber(id, delta).accepted();
+}
+bool RuntimeLogicHostAdapter::toggleStateBoolean(const GameVariableId& id) {
+    if (!variables_) return false;
+    return variables_->toggleBoolean(id).accepted();
+}
+std::optional<double> RuntimeLogicHostAdapter::getStateNumber(const GameVariableId& id) const {
+    if (!variables_) return std::nullopt;
+    return variables_->tryGetNumber(id);
+}
+bool RuntimeLogicHostAdapter::setVelocity(EntityId owner, Vec2 velocity) {
+    if (!std::isfinite(velocity.x) || !std::isfinite(velocity.y)) return false;
+    Transform transform{};
+    if (!gateway_.getTransform(owner, transform)) return false;
+    transform.velocity = velocity;
+    if (!gateway_.setTransform(owner, transform)) return false;
+    const uint32_t handle = gateway_.physicsHandle(owner);
+    if (handle != 0 && physics_) physics_->setLinearVelocity(handle, velocity);
+    return true;
+}
+bool RuntimeLogicHostAdapter::isKeyDown(LogicKey key) {
+    return input_ && input_->isKeyDown(Logic::logicInputCode(key));
+}
+EntityId RuntimeLogicHostAdapter::spawnObjectType(
+    EntityId owner, const ObjectTypeId& objectTypeId, float x, float y) {
+    if (!world_ || !world_->isActiveEntity(owner) || objectTypeId.empty())
+        return INVALID_ENTITY;
+    if (!std::isfinite(x) || !std::isfinite(y)) return INVALID_ENTITY;
+    const EntityId spawned = gateway_.spawnFromClass(objectTypeId, x, y);
+    if (spawned == INVALID_ENTITY) return INVALID_ENTITY;
+    // Installer must succeed when present; otherwise destroy the orphan and fail.
+    if (spawnInstaller_ && !spawnInstaller_(spawned)) {
+        gateway_.destroy(spawned);
+        return INVALID_ENTITY;
+    }
+    return spawned;
+}
 
 GameplaySession::GameplaySession(Modules::VariableManager& variables)
     : variables_(variables) {}
@@ -85,6 +226,42 @@ bool GameplaySession::initialize(PhysicsMode physicsMode,
     return true;
 }
 
+// RU-02e-2: lines moved from Application::initSubsystems() (app_bootstrap.cpp)
+// in the same relative order, same boot-step names, same wiring. `ctx` is
+// Application's own EngineContext, already populated with everything the
+// simulation graph above wires (renderer/physics/input/audio/sceneManager/
+// entityGateway/assetLoader/world/dialogManager/...) by the time this runs -
+// this method only ever writes ctx.gameAPI/ctx.luaHost, exactly like
+// Application used to right after constructing each.
+bool GameplaySession::initializeGameplayModules(
+    EngineContext& ctx,
+    Modules::Audio& audio,
+    Modules::Input& input,
+    RuntimeLogicHostAdapter::SpawnInstaller spawnInstaller,
+    const BootStepFn& bootStep) {
+    logicHost_ = std::make_unique<RuntimeLogicHostAdapter>(*entityGateway_, audio);
+    logicRuntime_ = std::make_unique<Logic::LogicRuntime>(*logicHost_);
+
+    logicHost_->setWorld(world_.get());
+    logicHost_->setVariableManager(&variables_);
+    logicHost_->setInput(&input);
+    logicHost_->setPhysics(physics_.get());
+    logicHost_->setSpawnInstaller(std::move(spawnInstaller));
+
+    gameAPI_ = std::make_unique<Modules::GameAPI>(ctx);
+    if (!bootStep("game_api", gameAPI_->init())) return false;
+    ctx.gameAPI = gameAPI_.get();
+
+    luaHost_ = std::make_unique<Modules::LuaHost>();
+    luaHost_->registerBindings([this](sol::state& lua) {
+        gameAPI_->registerAll(lua);
+    });
+    if (!bootStep("lua_host", luaHost_->init())) return false;
+    ctx.luaHost = luaHost_.get();
+
+    return true;
+}
+
 void GameplaySession::shutdownGraph() {
     if (world_) { world_->shutdown(); world_.reset(); }
     if (entityGateway_) {
@@ -104,6 +281,21 @@ void GameplaySession::shutdownPhysics() {
     if (physics_) { physics_->shutdown(); physics_.reset(); }
 }
 
+// RU-02e-2: matches Application::shutdownModules()'s original logicRuntime
+// shutdown/reset immediately followed by logicHost.reset() (no explicit
+// shutdown() call on logicHost - it never held resources beyond references).
+void GameplaySession::shutdownLogicModules() {
+    if (logicRuntime_) { logicRuntime_->shutdown(); logicRuntime_.reset(); }
+    logicHost_.reset();
+}
+
+// RU-02e-2: matches the original luaHost shutdown/reset immediately followed
+// by gameAPI shutdown/reset.
+void GameplaySession::shutdownScriptingModules() {
+    if (luaHost_) { luaHost_->shutdown(); luaHost_.reset(); }
+    if (gameAPI_) { gameAPI_->shutdown(); gameAPI_.reset(); }
+}
+
 // Moved from Application::loopIteration's input block (app_loop.cpp,
 // pre-RU-02d). One structural change from the original, both sanctioned by
 // the frame itself being category-shaped rather than per-key (RU-02d's own
@@ -116,18 +308,18 @@ void GameplaySession::shutdownPhysics() {
 // the relative order across *different* keys within the same frame, which
 // nothing in this codebase currently depends on.
 void GameplaySession::dispatchInput(const GameplayInputFrame& input) {
-    if (refs_.logic) refs_.logic->beginFrame();
+    if (logicRuntime_) logicRuntime_->beginFrame();
     Scripts::ScriptInputSnapshot scriptInput;
     for (LogicKey key : input.pressed) {
-        if (refs_.logic) refs_.logic->dispatchKeyPressed(key);
+        if (logicRuntime_) logicRuntime_->dispatchKeyPressed(key);
         scriptInput.pressed.push_back(key);
     }
     for (LogicKey key : input.released) {
-        if (refs_.logic) refs_.logic->dispatchKeyReleased(key);
+        if (logicRuntime_) logicRuntime_->dispatchKeyReleased(key);
         scriptInput.released.push_back(key);
     }
     for (LogicKey key : input.held) {
-        if (refs_.logic) refs_.logic->dispatchKeyHeld(key);
+        if (logicRuntime_) logicRuntime_->dispatchKeyHeld(key);
         scriptInput.held.push_back(key);
     }
     if (refs_.scripts) refs_.scripts->dispatchInput(scriptInput);
@@ -137,7 +329,7 @@ void GameplaySession::dispatchInput(const GameplayInputFrame& input) {
 
     if (!refs_.dialog || !refs_.dialog->blocksGameplay()) {
         const auto start = Clock::now();
-        const std::uint32_t events = refs_.gameApi->dispatchInputEvents();
+        const std::uint32_t events = gameAPI_->dispatchInputEvents();
         if (refs_.profiler) {
             refs_.profiler->addLuaMs(elapsedMs(start));
             refs_.profiler->addLuaEvents(events);
@@ -181,12 +373,12 @@ void GameplaySession::dispatchGameplayCollisionTransitions() {
 
     // One immutable entity-pair snapshot: every generated board runs before
     // any manual attachment, both in scene structural order.
-    if (refs_.logic) {
+    if (logicRuntime_) {
         dispatch(entered, true, [&](EntityId owner, EntityId other, bool) {
-            refs_.logic->dispatchCollisionEnter(owner, other);
+            logicRuntime_->dispatchCollisionEnter(owner, other);
         });
         dispatch(exited, false, [&](EntityId owner, EntityId other, bool) {
-            refs_.logic->dispatchCollisionExit(owner, other);
+            logicRuntime_->dispatchCollisionExit(owner, other);
         });
     }
     if (refs_.scripts) {
@@ -203,7 +395,8 @@ void GameplaySession::dispatchGameplayCollisionTransitions() {
 // Moved verbatim from Application::tickFixedStep (app_loop.cpp), post RU-02b
 // (clearDrawQueue/splash already extracted to the host). mod_->X became
 // refs_.X (now dereferenced through pointers) or world_/physics_/
-// entityGateway_->X for the members this class now owns directly (RU-02e-1).
+// entityGateway_/logicRuntime_/gameAPI_/luaHost_ ->X for the members this
+// class now owns directly (RU-02e-1/2).
 void GameplaySession::tickFixedStep(float dt) {
     {
         const auto start = Clock::now();
@@ -223,17 +416,17 @@ void GameplaySession::tickFixedStep(float dt) {
     {
         const auto finished = refs_.animator->pollFinished();
         const auto events = refs_.animator->pollEvents();
-        if (refs_.logic) {
+        if (logicRuntime_) {
             for (const auto& ev : events) {
                 if (ev.kind == Modules::SpriteAnimator::AnimEventKind::Start)
-                    refs_.logic->dispatchAnimationStarted(ev.entityId);
+                    logicRuntime_->dispatchAnimationStarted(ev.entityId);
             }
             for (const auto& ev : finished)
-                refs_.logic->dispatchAnimationFinished(ev.entityId);
-            refs_.logic->dispatchTick(dt);
+                logicRuntime_->dispatchAnimationFinished(ev.entityId);
+            logicRuntime_->dispatchTick(dt);
         }
         const auto start = Clock::now();
-        const std::uint32_t luaEvents = refs_.gameApi->dispatchAnimationEvents(finished, events);
+        const std::uint32_t luaEvents = gameAPI_->dispatchAnimationEvents(finished, events);
         if (refs_.profiler) {
             refs_.profiler->addLuaMs(elapsedMs(start));
             refs_.profiler->addLuaEvents(luaEvents);
@@ -241,10 +434,10 @@ void GameplaySession::tickFixedStep(float dt) {
     }
     {
         const auto start = Clock::now();
-        refs_.luaHost->tick(dt);
+        luaHost_->tick(dt);
         if (refs_.profiler) {
             refs_.profiler->addLuaMs(elapsedMs(start));
-            refs_.profiler->setLuaTickEnabled(refs_.luaHost->isScriptTickRequired());
+            refs_.profiler->setLuaTickEnabled(luaHost_->isScriptTickRequired());
         }
     }
     // Manual on_update runs after generated input rules and before platformer
@@ -275,7 +468,7 @@ void GameplaySession::tickFixedStep(float dt) {
 
     {
         const auto start = Clock::now();
-        const std::uint32_t events = refs_.gameApi->dispatchLifecycleEvents();
+        const std::uint32_t events = gameAPI_->dispatchLifecycleEvents();
         if (refs_.profiler) {
             refs_.profiler->addLuaMs(elapsedMs(start));
             refs_.profiler->addLuaEvents(events);
@@ -290,7 +483,7 @@ void GameplaySession::tickFixedStep(float dt) {
     }
     {
         const auto start = Clock::now();
-        const std::uint32_t events = refs_.gameApi->dispatchLifecycleEvents();
+        const std::uint32_t events = gameAPI_->dispatchLifecycleEvents();
         if (refs_.profiler) {
             refs_.profiler->addLuaMs(elapsedMs(start));
             refs_.profiler->addLuaEvents(events);

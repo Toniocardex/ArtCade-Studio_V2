@@ -32,12 +32,15 @@
 #include "modules/lua-runtime/include/lua-host.h"
 #include "modules/time/include/time-manager.h"
 #include "modules/tween-manager/include/tween-manager.h"
+#include "modules/audio/include/audio.h"
+#include "modules/input/include/input.h"
 #include "world.h"
 
-// RU-02c/d/e-1 made GameplaySession real and gave it its own owned
-// simulation graph (Physics/SceneManager/SceneMutationService/
-// RuntimeEntityGateway/SceneLifecycleService/World) - gameplay_session.h now
-// only forward-declares the modules it touches through pointers, so this
+// RU-02c/d/e-1/e-2 made GameplaySession real and gave it its own owned
+// simulation + Logic/GameAPI/LuaHost graph (Physics/SceneManager/
+// SceneMutationService/RuntimeEntityGateway/SceneLifecycleService/World/
+// RuntimeLogicHostAdapter/LogicRuntime/GameAPI/LuaHost) - gameplay_session.h
+// now only forward-declares the modules it touches through pointers, so this
 // test includes each concrete header itself instead of relying on
 // GameplaySession to pull them in transitively.
 #include "app/src/gameplay_session.h"
@@ -424,17 +427,23 @@ void testAnimationEventsDrainedOnce() {
     animator.shutdown();
 }
 
-// VERIFIED (RU-02c/RU-02d, upgraded from the CONTRACT note above): drives the
-// real GameplaySession::dispatchInput then GameplaySession::tickFixedStep -
-// not a hand-replayed mirror of the algorithm - and checks the same
-// Logic-before-Script callLog assertion as
-// testLogicRunsBeforeScriptWithinOneStep. No Modules::Input exists anywhere
-// in this test (EngineContext.input stays null); GameAPI::dispatchInputEvents
-// guards on that and no-ops, so dispatchInput's own job - beginFrame, the
-// per-kind dispatch loop, building and handing the same ScriptInputSnapshot
-// to Script, the entity-queue flush - runs with zero Raylib/Input dependency,
-// satisfying RU-02d's gate ("nessun Input::poll() nella sessione; test input
-// deterministici; supporto a input sintetico headless").
+// VERIFIED (RU-02c/RU-02d/RU-02e-1/RU-02e-2, upgraded from the CONTRACT note
+// above): drives the real GameplaySession::dispatchInput then
+// GameplaySession::tickFixedStep - not a hand-replayed mirror of the
+// algorithm. RU-02e-2 moved RuntimeLogicHostAdapter/LogicRuntime/GameAPI/
+// LuaHost ownership into GameplaySession itself, so this test can no longer
+// substitute its own instrumented `Host` stub for Logic/Script - it uses the
+// session's real logicHost()/logicRuntime() instead (only ScriptRuntime stays
+// test/Application-owned, matching RU-02e-2's scope: it is reconstructed
+// per-scene in installScriptScopesForActiveScene, RU-02e-3 territory). The
+// Logic-before-Script ordering claim is now checked through a real production
+// side effect instead of a callLog: World::setMovementIntent (driven by
+// requestPlatformerMove) overwrites rather than accumulates
+// (world_movement.cpp), so the final velocity after tickFixedStep reflects
+// whichever on_update ran last - Script's -1.0 axis, proving it really did
+// run after Logic's 1.0. Audio is constructed but never init()'d (skips
+// InitAudioDevice(), never exercised by playSound in this test); Input::init()
+// is a trivial no-op (input.cpp:36) so it's safe to call for real.
 void testRealGameplaySessionDispatchInputThenTick() {
     VariableManager variables;
     CHECK(variables.init());
@@ -452,25 +461,25 @@ void testRealGameplaySessionDispatchInputThenTick() {
     gameState.setEventBus(&events);
     CHECK(gameState.init());
 
-    EngineContext ctx; // ctx.input stays null - no Modules::Input anywhere here.
-    Modules::GameAPI gameApi(ctx);
-    CHECK(gameApi.init());
-    Modules::LuaHost luaHost;
-    luaHost.registerBindings([&](sol::state& lua) { gameApi.registerAll(lua); });
-    CHECK(luaHost.init());
+    Modules::Audio audio; // never init()'d - playSound is not exercised here.
+    Modules::Input input;
+    CHECK(input.init());
 
-    // RU-02e-1: GameplaySession now owns SceneManager/SceneMutationService/
-    // RuntimeEntityGateway/SceneLifecycleService/Physics/World itself -
-    // build the graph via initialize() instead of constructing them
-    // standalone, then use session.entityGateway()/session.world() (the same
-    // instances GameplaySession's own tickFixedStep operates on) to wire Host/
-    // LogicRuntime/ScriptRuntime, exactly mirroring how RuntimeLogicHostAdapter
-    // is wired to the session's graph in production (app_bootstrap.cpp).
+    // RU-02e-1/2: GameplaySession now owns the whole simulation +
+    // Logic/GameAPI/LuaHost graph itself - build it via initialize() then
+    // initializeGameplayModules() instead of constructing everything
+    // standalone.
     GameplaySession session(variables);
     CHECK(session.initialize(
         PhysicsMode::Auto,
         [](const char*, bool ok) { return ok; },
         [](const Modules::SceneTransitionResult&) {}));
+
+    EngineContext ctx; // ctx.input stays null - GameAPI never queries it here.
+    CHECK(session.initializeGameplayModules(
+        ctx, audio, input,
+        [](EntityId) { return true; }, // spawnInstaller: no spawns in this test
+        [](const char*, bool ok) { return ok; }));
 
     EntityDef hero;
     hero.id = 1;
@@ -486,18 +495,16 @@ void testRealGameplaySessionDispatchInputThenTick() {
 
     session.world().init(project);
 
-    Host host(session.entityGateway(), session.world(), variables);
-    LogicRuntime logicRuntime(host);
-    ScriptRuntime scriptRuntime(host);
-
     std::string error;
-    CHECK(logicRuntime.loadPrograms({makeLogicMoveProgram("Hero", 1.f)}, &error));
-    CHECK(logicRuntime.install("Hero", hero.id, &error).has_value());
+    CHECK(session.logicRuntime().loadPrograms({makeLogicMoveProgram("Hero", 1.f)}, &error));
+    CHECK(session.logicRuntime().install("Hero", hero.id, &error).has_value());
+
+    ScriptRuntime scriptRuntime(session.logicHost());
     CHECK(scriptRuntime.install(makeScriptMoveProgram(-1.f), hero.id, "move-script", &error));
 
     session.wireHostRefs(GameplayRuntimeRefs{
-        &time, &tweens, &animator, &camera, &gameState, &events, &gameApi, &luaHost,
-        &logicRuntime, &scriptRuntime,
+        &time, &tweens, &animator, &camera, &gameState, &events,
+        &scriptRuntime,
         nullptr, nullptr, nullptr, // audio/dialog/profiler: not exercised by this test
     });
 
@@ -507,7 +514,7 @@ void testRealGameplaySessionDispatchInputThenTick() {
     // event budget - no beginFrame() needed before it. dispatchInput below
     // is the first and only beginFrame() call in this test, exactly where it
     // belongs: at the start of the one frame being simulated.
-    logicRuntime.dispatchStart();
+    session.logicRuntime().dispatchStart();
     scriptRuntime.dispatchStart();
 
     // Synthetic frame: no LogicKey here has a registered on_key_* handler (the
@@ -519,21 +526,19 @@ void testRealGameplaySessionDispatchInputThenTick() {
     session.dispatchInput(frame);
     CHECK(scriptRuntime.drainDiagnostics().empty());
 
-    // host.actor is this test's own labeling device (set around each call in
-    // testLogicRunsBeforeScriptWithinOneStep, which drives Logic/Script
-    // separately). tickFixedStep is one opaque call into the real
-    // GameplaySession now, so there is no seam to toggle the tag between its
-    // internal Logic and Script dispatches - left at its default "" here. The
-    // two distinct axis values (1.0 from Logic's on_update, -1.0 from
-    // Script's) already prove which ran and in what order without it.
     session.tickFixedStep(1.f / 60.f);
 
-    // Real GameplaySession, real tickFixedStep - same ordering claim as
-    // testLogicRunsBeforeScriptWithinOneStep, now VERIFIED rather than CONTRACT.
-    CHECK(host.callLog.size() == 2);
-    CHECK(host.callLog[0] == ":platformer_move:1.000000");
-    CHECK(host.callLog[1] == ":platformer_move:-1.000000");
+    // Real GameplaySession, real tickFixedStep, real World - Script's
+    // on_update (axis -1.0) runs after Logic's (axis 1.0) within the same
+    // step, and World::setMovementIntent overwrites rather than accumulates,
+    // so the final velocity carries Script's sign only if it truly ran last.
+    Transform afterTick{};
+    CHECK(session.entityGateway().getTransform(hero.id, afterTick));
+    CHECK(afterTick.velocity.x < 0.f);
 
+    scriptRuntime.shutdown();
+    session.shutdownLogicModules();
+    session.shutdownScriptingModules();
     session.shutdownGraph();
     session.shutdownPhysics();
     variables.shutdown();

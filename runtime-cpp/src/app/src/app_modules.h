@@ -76,158 +76,9 @@ private:
     RuntimeProfiler& profiler_;
 };
 
-class RuntimeLogicHostAdapter final : public Logic::ILogicRuntimeHost {
-public:
-    using SpawnInstaller = std::function<bool(EntityId)>;
-
-    RuntimeLogicHostAdapter(Modules::RuntimeEntityGateway& gateway, Modules::Audio& audio)
-        : gateway_(gateway), audio_(audio) {}
-    /** World is constructed after this adapter; wired in once available. */
-    void setWorld(World* world) { world_ = world; }
-    void setVariableManager(Modules::VariableManager* variables) { variables_ = variables; }
-    void setInput(Modules::Input* input) { input_ = input; }
-    void setPhysics(Modules::Physics* physics) { physics_ = physics; }
-    void setSpawnInstaller(SpawnInstaller installer) { spawnInstaller_ = std::move(installer); }
-
-    bool setVisible(EntityId owner, bool value) override {
-        return gateway_.setRuntimeVisible(owner, value);
-    }
-    bool isVisible(EntityId owner) override {
-        return gateway_.visibleInGame(owner);
-    }
-    bool setPosition(EntityId owner, Vec2 value) override {
-        Transform transform{};
-        if (!gateway_.getTransform(owner, transform)) return false;
-        transform.position = value;
-        return gateway_.setTransform(owner, transform);
-    }
-    bool translate(EntityId owner, Vec2 delta) override {
-        if (!std::isfinite(delta.x) || !std::isfinite(delta.y)) return false;
-        Transform transform{};
-        if (!gateway_.getTransform(owner, transform)) return false;
-        transform.position.x += delta.x;
-        transform.position.y += delta.y;
-        return gateway_.setTransform(owner, transform);
-    }
-    bool setRotation(EntityId owner, float radians) override {
-        if (!std::isfinite(radians)) return false;
-        Transform transform{};
-        if (!gateway_.getTransform(owner, transform)) return false;
-        transform.rotation = radians;
-        return gateway_.setTransform(owner, transform);
-    }
-    bool rotateBy(EntityId owner, float deltaRadians) override {
-        if (!std::isfinite(deltaRadians)) return false;
-        Transform transform{};
-        if (!gateway_.getTransform(owner, transform)) return false;
-        transform.rotation += deltaRadians;
-        return gateway_.setTransform(owner, transform);
-    }
-    bool setScale(EntityId owner, Vec2 scale) override {
-        if (!std::isfinite(scale.x) || !std::isfinite(scale.y)
-            || scale.x <= 0.f || scale.y <= 0.f) {
-            return false;
-        }
-        Transform transform{};
-        if (!gateway_.getTransform(owner, transform)) return false;
-        transform.scale = scale;
-        return gateway_.setTransform(owner, transform);
-    }
-    bool isGrounded(EntityId owner) override {
-        return world_ && world_->isPlatformerGrounded(owner);
-    }
-    bool isFalling(EntityId owner) override {
-        return world_ && world_->isPlatformerFalling(owner);
-    }
-    bool requestPlatformerMove(EntityId owner, float axis) override {
-        PlatformerControllerComponent platformer{};
-        if (!world_ || !std::isfinite(axis)
-            || !gateway_.getPlatformerController(owner, platformer)) return false;
-        world_->setMovementIntent(owner, axis, 0.f);
-        return true;
-    }
-    bool requestPlatformerJump(EntityId owner) override {
-        PlatformerControllerComponent platformer{};
-        if (!world_ || !gateway_.getPlatformerController(owner, platformer)) return false;
-        world_->requestJump(owner);
-        return true;
-    }
-    bool isObjectType(EntityId entity, const ObjectTypeId& expected) override {
-        return world_ && world_->isObjectType(entity, expected);
-    }
-    bool requestDestroy(EntityId owner) override {
-        return world_ && world_->requestDestroy(owner);
-    }
-    bool playAnimationClip(EntityId owner, const AssetId& animationAssetId,
-                           const std::string& clipId) override {
-        return world_ && world_->playAnimationClip(owner, animationAssetId, clipId);
-    }
-    bool stopAnimation(EntityId owner) override {
-        return world_ && world_->stopAnimation(owner);
-    }
-    bool setAnimationPlaybackSpeed(EntityId owner, float speed) override {
-        return world_ && world_->setAnimationPlaybackSpeed(owner, speed);
-    }
-    bool playSound(EntityId owner, const AssetId& audioAssetId, float volume) override {
-        return world_ && world_->isActiveEntity(owner)
-            && audio_.playResolvedAsset(audioAssetId, volume);
-    }
-    bool setStateNumber(const GameVariableId& id, double value) override {
-        if (!variables_) return false;
-        return variables_->setGlobal(id, value).accepted();
-    }
-    bool addStateNumber(const GameVariableId& id, double delta) override {
-        if (!variables_) return false;
-        return variables_->addNumber(id, delta).accepted();
-    }
-    bool toggleStateBoolean(const GameVariableId& id) override {
-        if (!variables_) return false;
-        return variables_->toggleBoolean(id).accepted();
-    }
-    std::optional<double> getStateNumber(const GameVariableId& id) const override {
-        if (!variables_) return std::nullopt;
-        return variables_->tryGetNumber(id);
-    }
-    bool setVelocity(EntityId owner, Vec2 velocity) override {
-        if (!std::isfinite(velocity.x) || !std::isfinite(velocity.y)) return false;
-        Transform transform{};
-        if (!gateway_.getTransform(owner, transform)) return false;
-        transform.velocity = velocity;
-        if (!gateway_.setTransform(owner, transform)) return false;
-        const uint32_t handle = gateway_.physicsHandle(owner);
-        if (handle != 0 && physics_) physics_->setLinearVelocity(handle, velocity);
-        return true;
-    }
-    bool isKeyDown(LogicKey key) override {
-        return input_ && input_->isKeyDown(Logic::logicInputCode(key));
-    }
-    EntityId spawnObjectType(EntityId owner, const ObjectTypeId& objectTypeId,
-                             float x, float y) override {
-        if (!world_ || !world_->isActiveEntity(owner) || objectTypeId.empty())
-            return INVALID_ENTITY;
-        if (!std::isfinite(x) || !std::isfinite(y)) return INVALID_ENTITY;
-        const EntityId spawned = gateway_.spawnFromClass(objectTypeId, x, y);
-        if (spawned == INVALID_ENTITY) return INVALID_ENTITY;
-        // Installer must succeed when present; otherwise destroy the orphan and fail.
-        if (spawnInstaller_ && !spawnInstaller_(spawned)) {
-            gateway_.destroy(spawned);
-            return INVALID_ENTITY;
-        }
-        return spawned;
-    }
-
-private:
-    Modules::RuntimeEntityGateway& gateway_;
-    Modules::Audio& audio_;
-    World* world_ = nullptr;
-    Modules::VariableManager* variables_ = nullptr;
-    Modules::Input* input_ = nullptr;
-    Modules::Physics* physics_ = nullptr;
-    SpawnInstaller spawnInstaller_;
-};
-
-static_assert(!std::is_abstract_v<RuntimeLogicHostAdapter>,
-              "RuntimeLogicHostAdapter must implement every ILogicRuntimeHost method");
+// RU-02e-2: RuntimeLogicHostAdapter now lives in gameplay_session.h/.cpp -
+// GameplaySession owns the instance directly (docs/RU02_GAMEPLAY_SESSION_
+// REFACTOR.md, editor repo, RU-02e).
 
 /** Internal ownership table shared only by Application implementation units. */
 struct Application::Modules {
@@ -243,9 +94,12 @@ struct Application::Modules {
     ArtCade::Modules::Physics* physics = nullptr;
     std::unique_ptr<ArtCade::Modules::Input> input;
     std::unique_ptr<ArtCade::Modules::Audio> audio;
-    std::unique_ptr<ArtCade::Modules::LuaHost> luaHost;
-    std::unique_ptr<RuntimeLogicHostAdapter> logicHost;
-    std::unique_ptr<ArtCade::Logic::LogicRuntime> logicRuntime;
+    // RU-02e-2: LuaHost/RuntimeLogicHostAdapter/LogicRuntime/GameAPI are now
+    // owned by gameplaySession too - same non-owning-alias pattern as
+    // RU-02e-1's physics/sceneManager/etc.
+    ArtCade::Modules::LuaHost* luaHost = nullptr;
+    RuntimeLogicHostAdapter* logicHost = nullptr;
+    ArtCade::Logic::LogicRuntime* logicRuntime = nullptr;
     std::unordered_map<EntityId, ArtCade::Logic::ScopeToken> logicScopes;
     std::unordered_set<ObjectTypeId> logicObjectTypes;
     std::unique_ptr<ArtCade::Scripts::ScriptRuntime> scriptRuntime;
@@ -255,7 +109,7 @@ struct Application::Modules {
     ArtCade::Modules::SceneMutationService* sceneMutation = nullptr;
     ArtCade::Modules::RuntimeEntityGateway* entityGateway = nullptr;
     std::unique_ptr<ArtCade::Modules::AssetLoader> assetLoader;
-    std::unique_ptr<ArtCade::Modules::GameAPI> gameAPI;
+    ArtCade::Modules::GameAPI* gameAPI = nullptr;
     World* world = nullptr;
 
     std::unique_ptr<ArtCade::Modules::TimeManager> timeManager;

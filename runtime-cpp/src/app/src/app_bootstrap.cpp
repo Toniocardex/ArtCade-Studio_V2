@@ -101,16 +101,6 @@ bool Application::initSubsystems() {
     mod_->entityGateway = &mod_->gameplaySession->entityGateway();
     mod_->world = &mod_->gameplaySession->world();
 
-    mod_->logicHost = std::make_unique<RuntimeLogicHostAdapter>(*mod_->entityGateway, *mod_->audio);
-    mod_->logicRuntime = std::make_unique<ArtCade::Logic::LogicRuntime>(*mod_->logicHost);
-
-    mod_->logicHost->setWorld(mod_->world);
-    mod_->logicHost->setVariableManager(mod_->variableManager.get());
-    mod_->logicHost->setInput(mod_->input.get());
-    mod_->logicHost->setPhysics(mod_->physics);
-    mod_->logicHost->setSpawnInstaller([this](EntityId id) {
-        return installLogicScopeForEntity(id);
-    });
     mod_->world->setSpriteAnimator(mod_->spriteAnimator.get());
     mod_->world->setEntityDestroyedHandler([this](EntityId id) {
         const auto it = mod_->logicScopes.find(id);
@@ -149,19 +139,31 @@ bool Application::initSubsystems() {
     mod_->dialogManager->setContext(&ctx_);
     ctx_.dialogManager = mod_->dialogManager.get();
 
-    mod_->gameAPI = std::make_unique<ArtCade::Modules::GameAPI>(ctx_);
-    if (!boot_step("game_api", mod_->gameAPI->init())) return false;
-    ctx_.gameAPI = mod_->gameAPI.get();
+    // RU-02e-2 (docs/RU02_GAMEPLAY_SESSION_REFACTOR.md, editor repo):
+    // RuntimeLogicHostAdapter/LogicRuntime/GameAPI/LuaHost are now built by
+    // the session itself, in the same relative order and with the same
+    // boot-step names this function used to construct them with directly.
+    // logicHost/logicRuntime used to be built earlier - right after
+    // mod_->world's alias was set, above - but nothing between that point and
+    // here ever calls into them: world's destroy handler above only reads
+    // mod_->logicRuntime/scriptRuntime lazily, at destroy time, long after
+    // boot completes, so building both pairs together here is behaviorally
+    // identical. ctx_ already carries renderer/physics/input/audio/
+    // sceneManager/entityGateway/assetLoader/world/dialogManager by this
+    // point, exactly what GameAPI(ctx_) used to read.
+    const bool gameplayModulesOk = mod_->gameplaySession->initializeGameplayModules(
+        ctx_, *mod_->audio, *mod_->input,
+        [this](EntityId id) { return installLogicScopeForEntity(id); },
+        boot_step);
+    if (!gameplayModulesOk) return false;
 
-    mod_->luaHost = std::make_unique<ArtCade::Modules::LuaHost>();
-    mod_->luaHost->registerBindings([&](sol::state& lua) {
-        mod_->gameAPI->registerAll(lua);
-    });
-    if (!boot_step("lua_host", mod_->luaHost->init())) return false;
-    ctx_.luaHost = mod_->luaHost.get();
+    mod_->logicHost = &mod_->gameplaySession->logicHost();
+    mod_->logicRuntime = &mod_->gameplaySession->logicRuntime();
+    mod_->gameAPI = &mod_->gameplaySession->gameAPI();
+    mod_->luaHost = &mod_->gameplaySession->luaHost();
 
     EditorAPI::wireEngine(mod_->entityGateway);
-    EditorAPI::wireLua(mod_->luaHost.get());
+    EditorAPI::wireLua(mod_->luaHost);
     EditorAPI::wireRenderer(mod_->renderer.get());
     EditorAPI::wireEditorViewport(mod_->editorViewport.get());
     EditorAPI::wireDialog(mod_->dialogManager.get());
@@ -222,13 +224,12 @@ bool Application::initSubsystems() {
         });
 #endif
 
-    // RU-02c/RU-02e-1: GameplaySession's simulation graph is already built
-    // (initialize() above); wireHostRefs() now supplies the remaining
-    // non-owned host ports/modules (constructed just above: GameAPI, LuaHost)
-    // plus the ones Application still owns outright. scriptRuntime is
-    // intentionally left null here - it is (re)constructed later, per scene,
-    // in installScriptScopesForActiveScene, which keeps GameplaySession's
-    // reference in sync via setScriptRuntime.
+    // RU-02c/RU-02e-1/2: GameplaySession's simulation graph and Logic/GameAPI/
+    // LuaHost are already built (initialize()/initializeGameplayModules()
+    // above); wireHostRefs() now supplies only what Application still owns
+    // outright. scriptRuntime is intentionally left null here - it is
+    // (re)constructed later, per scene, in installScriptScopesForActiveScene,
+    // which keeps GameplaySession's reference in sync via setScriptRuntime.
     mod_->audioAdapter = std::make_unique<AudioServiceAdapter>(*mod_->audio);
     mod_->dialogAdapter = std::make_unique<DialogGateAdapter>(*mod_->dialogManager);
     mod_->profilerAdapter = std::make_unique<ProfilerSinkAdapter>(profiler_);
@@ -239,9 +240,6 @@ bool Application::initSubsystems() {
         mod_->cameraManager.get(),
         mod_->gameStateManager.get(),
         mod_->eventBus.get(),
-        mod_->gameAPI.get(),
-        mod_->luaHost.get(),
-        mod_->logicRuntime.get(),
         mod_->scriptRuntime.get(),
         mod_->audioAdapter.get(),
         mod_->dialogAdapter.get(),
@@ -265,15 +263,23 @@ void Application::shutdownModules() {
     mod_->dialogAdapter.reset();
     mod_->profilerAdapter.reset();
 
-    if (mod_->logicRuntime) { mod_->logicRuntime->shutdown(); mod_->logicRuntime.reset(); }
+    // RU-02e-2: logicRuntime/logicHost are owned by gameplaySession now;
+    // shutdownLogicModules() tears them down in the exact relative order this
+    // function used to (logicRuntime -> logicHost), with Application-owned
+    // scriptRuntime/dialogManager shutdown still interleaved exactly where
+    // they were before - only luaHost/gameAPI moved together with logic
+    // ownership, not scriptRuntime/dialogManager.
+    if (mod_->gameplaySession) mod_->gameplaySession->shutdownLogicModules();
+    mod_->logicRuntime = nullptr;
+    mod_->logicHost = nullptr;
     mod_->logicScopes.clear();
     mod_->logicObjectTypes.clear();
-    mod_->logicHost.reset();
     if (mod_->scriptRuntime) { mod_->scriptRuntime->shutdown(); mod_->scriptRuntime.reset(); }
     mod_->scriptPrograms.clear();
     mod_->scriptAttachments.clear();
-    if (mod_->luaHost) { mod_->luaHost->shutdown(); mod_->luaHost.reset(); }
-    if (mod_->gameAPI) { mod_->gameAPI->shutdown(); mod_->gameAPI.reset(); }
+    if (mod_->gameplaySession) mod_->gameplaySession->shutdownScriptingModules();
+    mod_->luaHost = nullptr;
+    mod_->gameAPI = nullptr;
     if (mod_->dialogManager) { mod_->dialogManager->shutdown(); mod_->dialogManager.reset(); }
 
     // RU-02e-1: World/gateway/lifecycle/mutation/scene-manager are owned by
