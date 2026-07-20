@@ -299,6 +299,10 @@ artcade_test(world_tilemap_collision_test
         runtime-logic-host-parity-test.cpp
         "artcade-world;artcade-scene-system;artcade-runtime-entity-gateway;artcade-physics;artcade-variable-manager;artcade-sprite-animator")
 
+    artcade_test(gameplay_tick_order_characterization_test
+        gameplay-tick-order-characterization-test.cpp
+        "artcade-world;artcade-scene-system;artcade-runtime-entity-gateway;artcade-physics;artcade-variable-manager;artcade-sprite-animator;artcade-logic-core;artcade-logic-runtime;artcade-script-runtime;artcade-lua-runtime")
+
     artcade_test(game_api_state_test
         game-api-state-test.cpp
         "artcade-game-api;artcade-variable-manager;artcade-camera-manager")
