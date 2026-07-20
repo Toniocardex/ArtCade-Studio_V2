@@ -79,8 +79,6 @@ void Application::dispatchGameplayCollisionTransitions() {
 }
 
 void Application::tickFixedStep(float dt) {
-    mod_->renderer->clearDrawQueue();
-
     {
         const auto start = Clock::now();
         mod_->timeManager->tick(dt);
@@ -246,6 +244,14 @@ void Application::loopIteration() {
 
     float simulatedDt = 0.f;
     if (simulating) {
+        // Host-side frame prep (RU-02b): cleared once per loopIteration, not
+        // once per fixed step, so a frame with a catch-up backlog of several
+        // tickFixedStep calls still clears exactly once - identical to the
+        // old per-fixed-step clear, since nothing draws between fixed steps.
+        // Guarded by `simulating` to match the pre-RU-02b behavior exactly:
+        // while paused (WASM edit mode), tickFixedStep never ran and this
+        // never cleared either.
+        mod_->renderer->clearDrawQueue();
         if (mod_->logicRuntime || mod_->scriptRuntime) {
             Scripts::ScriptInputSnapshot scriptInput;
             if (mod_->logicRuntime) mod_->logicRuntime->beginFrame();
