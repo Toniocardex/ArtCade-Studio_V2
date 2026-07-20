@@ -26,6 +26,7 @@ void Application::applyRuntimeSettings(const ProjectRuntimeSettings& settings,
     const float safeFps = (std::isfinite(fps) && fps >= 1.f) ? fps : 60.f;
     targetDt_ = 1.f / safeFps;
     physicsMode_ = settings.physicsMode;
+    if (mod_ && mod_->gameplaySession) mod_->gameplaySession->setPhysicsMode(physicsMode_);
 
     if (mod_ && mod_->physics) {
         const float gravity = std::isfinite(settings.gravity) ? settings.gravity : 9.81f;
@@ -404,8 +405,9 @@ bool Application::installLogicScopeForEntity(EntityId entityId) {
 bool Application::installScriptScopesForActiveScene() {
     if (!mod_ || !mod_->entityGateway) return false;
     if (!mod_->logicHost) return false;
-    mod_->activeGameplayCollisionPairs.clear();
+    if (mod_->gameplaySession) mod_->gameplaySession->resetCollisionTracking();
     mod_->scriptRuntime = std::make_unique<Scripts::ScriptRuntime>(*mod_->logicHost);
+    if (mod_->gameplaySession) mod_->gameplaySession->setScriptRuntime(mod_->scriptRuntime.get());
     std::string error;
     for (EntityId id : mod_->entityGateway->activeSceneIds()) {
         const ObjectTypeId typeId = mod_->entityGateway->className(id);
@@ -419,6 +421,7 @@ bool Application::installScriptScopesForActiveScene() {
                     program->second, id, attachment.id, &error)) {
                 std::cerr << "[App] Could not install Script scope: " << error << "\n";
                 mod_->scriptRuntime.reset();
+                if (mod_->gameplaySession) mod_->gameplaySession->setScriptRuntime(nullptr);
                 return false;
             }
         }

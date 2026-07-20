@@ -106,7 +106,6 @@ private:
      */
     bool installLogicScopeForEntity(EntityId entityId);
     bool installScriptScopesForActiveScene();
-    void dispatchGameplayCollisionTransitions();
 
     void shutdownModules();
     void mainLoop();

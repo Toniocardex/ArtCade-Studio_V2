@@ -234,6 +234,35 @@ bool Application::initSubsystems() {
         });
 #endif
 
+    // RU-02c: GameplaySession borrows non-owning references to the modules
+    // constructed above (docs/RU02_GAMEPLAY_SESSION_REFACTOR.md, editor
+    // repo). scriptRuntime is intentionally left null here - it is
+    // (re)constructed later, per scene, in installScriptScopesForActiveScene,
+    // which keeps GameplaySession's reference in sync via setScriptRuntime.
+    mod_->audioAdapter = std::make_unique<AudioServiceAdapter>(*mod_->audio);
+    mod_->dialogAdapter = std::make_unique<DialogGateAdapter>(*mod_->dialogManager);
+    mod_->profilerAdapter = std::make_unique<ProfilerSinkAdapter>(profiler_);
+    mod_->gameplaySession = std::make_unique<GameplaySession>(
+        GameplayRuntimeRefs{
+            *mod_->world,
+            *mod_->physics,
+            *mod_->entityGateway,
+            *mod_->timeManager,
+            *mod_->tweenManager,
+            *mod_->spriteAnimator,
+            *mod_->cameraManager,
+            *mod_->gameStateManager,
+            *mod_->eventBus,
+            *mod_->gameAPI,
+            *mod_->luaHost,
+            mod_->logicRuntime.get(),
+            mod_->scriptRuntime.get(),
+            mod_->audioAdapter.get(),
+            mod_->dialogAdapter.get(),
+            mod_->profilerAdapter.get(),
+        },
+        physicsMode_);
+
     return true;
 }
 
@@ -244,6 +273,14 @@ void Application::shutdownModules() {
     EditorAPI::clearEngineWiring();
 #endif
 
+    // GameplaySession only borrows references to the modules below (RU-02c,
+    // ownership transfers in RU-02e/f) - drop it and its host-port adapters
+    // first so nothing holds a dangling reference once those modules reset.
+    mod_->gameplaySession.reset();
+    mod_->audioAdapter.reset();
+    mod_->dialogAdapter.reset();
+    mod_->profilerAdapter.reset();
+
     if (mod_->logicRuntime) { mod_->logicRuntime->shutdown(); mod_->logicRuntime.reset(); }
     mod_->logicScopes.clear();
     mod_->logicObjectTypes.clear();
@@ -251,7 +288,6 @@ void Application::shutdownModules() {
     if (mod_->scriptRuntime) { mod_->scriptRuntime->shutdown(); mod_->scriptRuntime.reset(); }
     mod_->scriptPrograms.clear();
     mod_->scriptAttachments.clear();
-    mod_->activeGameplayCollisionPairs.clear();
     if (mod_->luaHost) { mod_->luaHost->shutdown(); mod_->luaHost.reset(); }
     if (mod_->gameAPI) { mod_->gameAPI->shutdown(); mod_->gameAPI.reset(); }
     if (mod_->dialogManager) { mod_->dialogManager->shutdown(); mod_->dialogManager.reset(); }

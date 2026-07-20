@@ -3,6 +3,7 @@ add_executable(game
     src/app.cpp
     src/app_bootstrap.cpp
     src/app_loop.cpp
+    src/gameplay_session.cpp
     src/app_project_lifecycle.cpp
     src/app_scene_mutation.cpp
     src/app_scene_lifecycle.cpp

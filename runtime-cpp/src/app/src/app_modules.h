@@ -28,10 +28,11 @@
 #include "../../modules/variable-manager/include/variable-manager.h"
 #include "../../world/include/world.h"
 
+#include "gameplay_session.h"
+
 #include <cmath>
 #include <functional>
 #include <memory>
-#include <set>
 #include <string>
 #include <type_traits>
 #include <unordered_map>
@@ -39,6 +40,42 @@
 #include <vector>
 
 namespace ArtCade {
+
+// RU-02c host-port adapters (docs/RU02_GAMEPLAY_SESSION_REFACTOR.md 4.3):
+// thin, stateless-beyond-the-reference translations from GameplaySession's
+// narrow ports to the concrete modules Application still owns. No gameplay
+// logic lives here - each adapter only forwards.
+class AudioServiceAdapter final : public IGameplayAudioService {
+public:
+    explicit AudioServiceAdapter(Modules::Audio& audio) : audio_(audio) {}
+    void update() override { audio_.update(); }
+
+private:
+    Modules::Audio& audio_;
+};
+
+class DialogGateAdapter final : public IGameplayDialogGate {
+public:
+    explicit DialogGateAdapter(Modules::DialogManager& dialog) : dialog_(dialog) {}
+    bool blocksGameplay() const override { return dialog_.isBlocking(); }
+    void tick(float dt) override { dialog_.tick(dt); }
+
+private:
+    Modules::DialogManager& dialog_;
+};
+
+class ProfilerSinkAdapter final : public IRuntimeProfilerSink {
+public:
+    explicit ProfilerSinkAdapter(RuntimeProfiler& profiler) : profiler_(profiler) {}
+    void addGameplayMs(double ms) override { profiler_.addGameplayMs(ms); }
+    void addPhysicsMs(double ms) override { profiler_.addPhysicsMs(ms); }
+    void addLuaMs(double ms) override { profiler_.addLuaMs(ms); }
+    void addLuaEvents(std::uint32_t count) override { profiler_.addLuaEvents(count); }
+    void setLuaTickEnabled(bool enabled) override { profiler_.setLuaTickEnabled(enabled); }
+
+private:
+    RuntimeProfiler& profiler_;
+};
 
 class RuntimeLogicHostAdapter final : public Logic::ILogicRuntimeHost {
 public:
@@ -208,7 +245,6 @@ struct Application::Modules {
     std::unique_ptr<ArtCade::Scripts::ScriptRuntime> scriptRuntime;
     std::unordered_map<AssetId, ArtCade::Scripts::ScriptProgram> scriptPrograms;
     std::unordered_map<ObjectTypeId, std::vector<ScriptAttachmentDef>> scriptAttachments;
-    std::set<std::pair<EntityId, EntityId>> activeGameplayCollisionPairs;
     std::unique_ptr<ArtCade::Modules::SceneManager> sceneManager;
     std::unique_ptr<ArtCade::Modules::SceneMutationService> sceneMutation;
     std::unique_ptr<ArtCade::Modules::SceneLifecycleService> sceneLifecycle;
@@ -227,6 +263,15 @@ struct Application::Modules {
     std::unique_ptr<ArtCade::Modules::TweenManager> tweenManager;
     std::unique_ptr<ArtCade::Modules::SaveLoadManager> saveLoadManager;
     std::unique_ptr<ArtCade::Modules::DialogManager> dialogManager;
+
+    // RU-02c host-port adapters + the gameplay session they feed. Transitional
+    // (T-01/T-02 in the debt register): GameplaySession still only borrows
+    // references to modules Application owns above; ownership transfers in
+    // RU-02e/f.
+    std::unique_ptr<AudioServiceAdapter> audioAdapter;
+    std::unique_ptr<DialogGateAdapter> dialogAdapter;
+    std::unique_ptr<ProfilerSinkAdapter> profilerAdapter;
+    std::unique_ptr<GameplaySession> gameplaySession;
 };
 
 } // namespace ArtCade
