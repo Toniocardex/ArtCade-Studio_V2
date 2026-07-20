@@ -63,13 +63,26 @@ constexpr ScriptApiParam kKeyNameParams[] = {
     {"name", "string", ScriptApiUnit::None, false, nullptr},
 };
 
+ScriptApiInsertKind defaultInsertKind(ScriptApiKind kind) {
+    switch (kind) {
+    case ScriptApiKind::Callback: return ScriptApiInsertKind::LifecycleCallback;
+    case ScriptApiKind::GlobalFn: return ScriptApiInsertKind::ApiDeclaration;
+    case ScriptApiKind::Method: return ScriptApiInsertKind::FunctionCall;
+    case ScriptApiKind::CtxField: return ScriptApiInsertKind::Expression;
+    }
+    return ScriptApiInsertKind::None;
+}
+
 ScriptApiEntry entry(ScriptApiKind kind, const char* qualified, const char* parent,
                      const char* name, const char* signature, const char* insert,
                      const char* doc, const ScriptApiParam* params, std::size_t count,
-                     const char* ret = "nil") {
+                     const char* ret = "nil",
+                     ScriptApiInsertKind insertKind = ScriptApiInsertKind::None,
+                     bool explicitInsertKind = false) {
     ScriptApiEntry e;
     e.apiVersion = kScriptApiVersion;
     e.kind = kind;
+    e.insertKind = explicitInsertKind ? insertKind : defaultInsertKind(kind);
     e.qualifiedName = qualified;
     e.parentPath = parent;
     e.name = name;
@@ -122,7 +135,8 @@ const std::vector<ScriptApiEntry>& catalogStorage() {
               kOtherParams, 2),
 
         entry(ScriptApiKind::CtxField, "ctx", "", "ctx", "ctx", "ctx",
-              "Per-callback context table for the owning entity.", nullptr, 0, "table"),
+              "Per-callback context table for the owning entity.", nullptr, 0, "table",
+              ScriptApiInsertKind::None, true),
         entry(ScriptApiKind::CtxField, "ctx.entity_id", "ctx", "entity_id", "entity_id",
               "ctx.entity_id", "Owning entity id (integer).", nullptr, 0, "number"),
         entry(ScriptApiKind::CtxField, "ctx.self", "ctx", "self", "self", "ctx.self",

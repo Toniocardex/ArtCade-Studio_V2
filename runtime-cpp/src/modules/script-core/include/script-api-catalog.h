@@ -19,6 +19,15 @@ enum class ScriptApiKind {
     Method,
 };
 
+// How the Script API panel / catalog insert should mutate source.
+enum class ScriptApiInsertKind {
+    None,              // documentation only
+    Expression,        // ctx.self, ctx.entity_id
+    FunctionCall,      // ctx.self.set_rotation(
+    LifecycleCallback, // on_start / on_update … into return { }
+    ApiDeclaration,    // artcade.require_api_version once at file head
+};
+
 enum class ScriptApiUnit {
     None,
     World,
@@ -40,6 +49,7 @@ struct ScriptApiParam {
 struct ScriptApiEntry {
     uint32_t apiVersion = kScriptApiVersion;
     ScriptApiKind kind = ScriptApiKind::Method;
+    ScriptApiInsertKind insertKind = ScriptApiInsertKind::None;
     const char* qualifiedName = ""; // "ctx.self.set_rotation"
     const char* parentPath = "";    // "ctx.self"
     const char* name = "";          // "set_rotation"
