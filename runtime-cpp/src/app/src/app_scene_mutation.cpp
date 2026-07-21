@@ -29,8 +29,8 @@ void Application::queueSceneInvalidations(
     result.invalidations = flags;
     if (mod_->sceneManager)
         result.sceneId = mod_->sceneManager->activeSceneId();
-    if (mod_->sceneMutation)
-        result.sceneRevision = mod_->sceneMutation->bump_revision();
+    if (mod_->gameplaySession)
+        result.sceneRevision = mod_->gameplaySession->bumpSceneRevision();
     handleSceneMutation(result);
 }
 
@@ -39,7 +39,7 @@ void Application::beginAuthoringSyncBatch() {
     ++authoringSyncBatchDepth_;
     if (authoringSyncBatchDepth_ == 1) {
         pendingAuthoringInvalidations_ = ArtCade::Modules::SceneInvalidation::None;
-        if (mod_->sceneMutation) mod_->sceneMutation->begin_batch();
+        if (mod_->gameplaySession) mod_->gameplaySession->beginSceneMutationBatch();
     }
 }
 
@@ -49,8 +49,8 @@ void Application::endAuthoringSyncBatch() {
     if (authoringSyncBatchDepth_ > 0) return;
 
     ArtCade::Modules::SceneMutationResult result{};
-    if (mod_->sceneMutation)
-        result = mod_->sceneMutation->commit_batch();
+    if (mod_->gameplaySession)
+        result = mod_->gameplaySession->commitSceneMutationBatch();
 
     result.invalidations |= pendingAuthoringInvalidations_;
     pendingAuthoringInvalidations_ = ArtCade::Modules::SceneInvalidation::None;
@@ -60,8 +60,8 @@ void Application::endAuthoringSyncBatch() {
         result.changed = true;
         if (mod_->sceneManager)
             result.sceneId = mod_->sceneManager->activeSceneId();
-        if (mod_->sceneMutation)
-            result.sceneRevision = mod_->sceneMutation->bump_revision();
+        if (mod_->gameplaySession)
+            result.sceneRevision = mod_->gameplaySession->bumpSceneRevision();
     }
 
     if (result.changed) handleSceneMutation(result);

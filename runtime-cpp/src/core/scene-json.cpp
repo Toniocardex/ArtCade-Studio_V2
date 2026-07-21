@@ -87,6 +87,42 @@ bool read_scene_instance(const nlohmann::json& instanceJson, SceneInstanceDef& o
             else if (value.is_string()) out.localVariableOverrides[key] = value.get<std::string>();
         }
     }
+    if (instanceJson.contains("tilemap") && instanceJson["tilemap"].is_object()) {
+        const auto& tm = instanceJson["tilemap"];
+        TilemapComponent component;
+        component.tilesetAssetId = tm.value("tilesetAssetId", std::string{});
+        if (tm.contains("cellSize"))
+            component.cellSize = read_vec2(tm["cellSize"], component.cellSize);
+        component.chunkSize = tm.value("chunkSize", component.chunkSize);
+        if (tm.contains("chunks") && tm["chunks"].is_array()) {
+            for (const auto& chunkJson : tm["chunks"]) {
+                if (!chunkJson.is_object()) continue;
+                TilemapChunk chunk;
+                chunk.chunkX = chunkJson.value("chunkX", 0);
+                chunk.chunkY = chunkJson.value("chunkY", 0);
+                if (chunkJson.contains("cells") && chunkJson["cells"].is_array()) {
+                    chunk.cells.reserve(chunkJson["cells"].size());
+                    for (const auto& cellJson : chunkJson["cells"]) {
+                        if (cellJson.is_null()) {
+                            chunk.cells.emplace_back(std::nullopt);
+                            continue;
+                        }
+                        if (!cellJson.is_object() || !cellJson.contains("tileId")) {
+                            chunk.cells.emplace_back(std::nullopt);
+                            continue;
+                        }
+                        TilemapCellValue value;
+                        value.tileId = cellJson.value("tileId", std::string{});
+                        value.flags = static_cast<TileTransformFlags>(
+                            cellJson.value("flags", 0));
+                        chunk.cells.emplace_back(std::move(value));
+                    }
+                }
+                component.chunks.push_back(std::move(chunk));
+            }
+        }
+        if (!component.tilesetAssetId.empty()) out.tilemap = std::move(component);
+    }
 
     return out.id != 0 && !out.objectTypeId.empty();
 }

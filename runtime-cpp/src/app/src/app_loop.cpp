@@ -4,12 +4,16 @@
 
 #include "../../modules/editor-api/include/editor-api.h"
 #include "../../modules/game-state/include/splash-state.h"
+// D-20: needed directly now for Logic::supportedLogicKeys()/logicInputCode()
+// - this file used to get logic-core.h transitively via app_modules.h's
+// logic-runtime.h include, which D-20 removed (LogicRuntime is
+// GameplaySession-owned now, no longer aliased on Application::Modules).
+#include "../../modules/logic-core/include/logic-core.h"
 
 #ifdef ARTCADE_WASM
 #include <emscripten/emscripten.h>
 #endif
 
-#include <algorithm>
 #include <chrono>
 #include <iostream>
 
@@ -24,167 +28,6 @@ double elapsedMs(Clock::time_point start) {
 }
 
 } // namespace
-
-void Application::dispatchGameplayCollisionTransitions() {
-    if (!mod_ || !mod_->world) return;
-    std::set<std::pair<EntityId, EntityId>> current;
-    for (const CollisionWorld::ContactEvent& event : mod_->world->collisionEvents()) {
-        if (event.kind == CollisionWorld::ContactEvent::Kind::Exit
-            || event.self == INVALID_ENTITY || event.other == INVALID_ENTITY
-            || event.self == event.other
-            || !mod_->world->isActiveEntity(event.self)
-            || !mod_->world->isActiveEntity(event.other)) continue;
-        current.emplace(std::min(event.self, event.other),
-                        std::max(event.self, event.other));
-    }
-
-    std::set<std::pair<EntityId, EntityId>> entered;
-    std::set<std::pair<EntityId, EntityId>> exited;
-    for (const auto& pair : current)
-        if (mod_->activeGameplayCollisionPairs.count(pair) == 0) entered.insert(pair);
-    for (const auto& pair : mod_->activeGameplayCollisionPairs)
-        if (current.count(pair) == 0) exited.insert(pair);
-
-    const std::vector<EntityId> structuralOrder = mod_->entityGateway->activeSceneIds();
-    const auto dispatch = [&](const auto& edges, bool enter, auto invoke) {
-        for (EntityId owner : structuralOrder) {
-            for (const auto& pair : edges) {
-                EntityId other = INVALID_ENTITY;
-                if (pair.first == owner) other = pair.second;
-                else if (pair.second == owner) other = pair.first;
-                if (other != INVALID_ENTITY) invoke(owner, other, enter);
-            }
-        }
-    };
-
-    // One immutable entity-pair snapshot: every generated board runs before
-    // any manual attachment, both in scene structural order.
-    if (mod_->logicRuntime) {
-        dispatch(entered, true, [&](EntityId owner, EntityId other, bool) {
-            mod_->logicRuntime->dispatchCollisionEnter(owner, other);
-        });
-        dispatch(exited, false, [&](EntityId owner, EntityId other, bool) {
-            mod_->logicRuntime->dispatchCollisionExit(owner, other);
-        });
-    }
-    if (mod_->scriptRuntime) {
-        dispatch(entered, true, [&](EntityId owner, EntityId other, bool) {
-            mod_->scriptRuntime->dispatchCollisionEnter(owner, other);
-        });
-        dispatch(exited, false, [&](EntityId owner, EntityId other, bool) {
-            mod_->scriptRuntime->dispatchCollisionExit(owner, other);
-        });
-    }
-    mod_->activeGameplayCollisionPairs = std::move(current);
-}
-
-void Application::tickFixedStep(float dt) {
-    mod_->renderer->clearDrawQueue();
-
-    {
-        const auto start = Clock::now();
-        mod_->timeManager->tick(dt);
-        mod_->tweenManager->update(dt);
-        mod_->spriteAnimator->update(dt);
-        mod_->cameraManager->updateMotion(dt);
-        mod_->gameStateManager->update(dt);
-        mod_->eventBus->flushDeferred();
-        if (!mod_->dialogManager || !mod_->dialogManager->isBlocking()) {
-            mod_->world->tickGameplaySystems(dt);
-            mod_->entityGateway->tickSceneTransition(dt);
-        }
-        profiler_.addGameplayMs(elapsedMs(start));
-    }
-    // Drain animator events once; feed Logic Runtime then GameAPI Lua handlers.
-    {
-        const auto finished = mod_->spriteAnimator->pollFinished();
-        const auto events = mod_->spriteAnimator->pollEvents();
-        if (mod_->logicRuntime) {
-            for (const auto& ev : events) {
-                if (ev.kind == ArtCade::Modules::SpriteAnimator::AnimEventKind::Start)
-                    mod_->logicRuntime->dispatchAnimationStarted(ev.entityId);
-            }
-            for (const auto& ev : finished)
-                mod_->logicRuntime->dispatchAnimationFinished(ev.entityId);
-            mod_->logicRuntime->dispatchTick(dt);
-        }
-        const auto start = Clock::now();
-        const uint32_t luaEvents = mod_->gameAPI->dispatchAnimationEvents(finished, events);
-        profiler_.addLuaMs(elapsedMs(start));
-        profiler_.addLuaEvents(luaEvents);
-    }
-    {
-        const auto start = Clock::now();
-        mod_->luaHost->tick(dt);
-        profiler_.addLuaMs(elapsedMs(start));
-        profiler_.setLuaTickEnabled(mod_->luaHost->isScriptTickRequired());
-    }
-    // Manual on_update runs after generated input rules and before platformer
-    // integration, so its movement intent can deliberately override the board.
-    if (mod_->scriptRuntime) {
-        mod_->scriptRuntime->update(dt);
-        mod_->world->flushEntityQueues();
-    }
-    if (mod_->dialogManager) mod_->dialogManager->tick(dt);
-
-    if (!mod_->dialogManager || !mod_->dialogManager->isBlocking()) {
-        mod_->world->tickPlatformerControllers(dt);
-        mod_->world->tickSimpleMovementIntents(dt);
-    }
-    const bool runPhysics = physicsMode_ == PhysicsMode::On
-        || (physicsMode_ == PhysicsMode::Auto && mod_->physics->hasActiveBodies());
-    if (runPhysics) {
-        const auto start = Clock::now();
-        mod_->physics->step(dt);
-        profiler_.addPhysicsMs(elapsedMs(start));
-    }
-
-    mod_->world->flushEntityQueues();
-    if (runPhysics) mod_->world->syncPhysicsToEntities();
-    mod_->world->tickCameraTargets(dt);
-
-    mod_->world->refreshCollisionEvents();
-
-    {
-        const auto start = Clock::now();
-        const uint32_t events = mod_->gameAPI->dispatchLifecycleEvents();
-        profiler_.addLuaMs(elapsedMs(start));
-        profiler_.addLuaEvents(events);
-    }
-
-    mod_->world->tickAutoDestroy(dt);
-    {
-        const auto start = Clock::now();
-        mod_->world->flushEntityQueues();
-        profiler_.addGameplayMs(elapsedMs(start));
-    }
-    {
-        const auto start = Clock::now();
-        const uint32_t events = mod_->gameAPI->dispatchLifecycleEvents();
-        profiler_.addLuaMs(elapsedMs(start));
-        profiler_.addLuaEvents(events);
-    }
-    dispatchGameplayCollisionTransitions();
-
-    // Drain errors from input/update/collision callbacks once the fixed-step
-    // lifecycle has reached a stable post-dispatch boundary.
-    if (mod_->scriptRuntime) {
-        for (const auto& diagnostic : mod_->scriptRuntime->drainDiagnostics()) {
-            std::cerr << "[Script] " << diagnostic.sourcePath;
-            if (diagnostic.line > 0) std::cerr << ":" << diagnostic.line;
-            std::cerr << " [" << diagnostic.callback << "] entity "
-                      << diagnostic.owner << ": " << diagnostic.message << "\n";
-        }
-    }
-
-    mod_->eventBus->flushDeferred();
-    mod_->audio->update();
-
-    if (splash_) {
-        splash_->update(dt);
-        if (splash_->isDone()) splash_.reset();
-    }
-}
 
 void Application::tickFrameEnd() {
     profiler_.setCounts(
@@ -246,42 +89,55 @@ void Application::loopIteration() {
 
     float simulatedDt = 0.f;
     if (simulating) {
-        if (mod_->logicRuntime || mod_->scriptRuntime) {
-            Scripts::ScriptInputSnapshot scriptInput;
-            if (mod_->logicRuntime) mod_->logicRuntime->beginFrame();
-            for (LogicKey key : Logic::supportedLogicKeys()) {
-                const std::string code = Logic::logicInputCode(key);
-                const bool pressed = mod_->input->wasKeyPressed(code);
-                const bool released = mod_->input->wasKeyReleased(code);
-                const bool held = mod_->input->isKeyDown(code);
-                if (pressed) {
-                    if (mod_->logicRuntime) mod_->logicRuntime->dispatchKeyPressed(key);
-                    scriptInput.pressed.push_back(key);
-                }
-                if (released) {
-                    if (mod_->logicRuntime) mod_->logicRuntime->dispatchKeyReleased(key);
-                    scriptInput.released.push_back(key);
-                }
-                if (held) {
-                    if (mod_->logicRuntime) mod_->logicRuntime->dispatchKeyHeld(key);
-                    scriptInput.held.push_back(key);
-                }
-            }
-            if (mod_->scriptRuntime) mod_->scriptRuntime->dispatchInput(scriptInput);
-            // Both languages consumed the same immutable input frame; queued
-            // destroys may now commit before any fixed-step update.
-            mod_->world->flushEntityQueues();
+        // Host-side frame prep (RU-02b): cleared once per loopIteration, not
+        // once per fixed step, so a frame with a catch-up backlog of several
+        // tickFixedStep calls still clears exactly once - identical to the
+        // old per-fixed-step clear, since nothing draws between fixed steps.
+        // Guarded by `simulating` to match the pre-RU-02b behavior exactly:
+        // while paused (WASM edit mode), tickFixedStep never ran and this
+        // never cleared either.
+        mod_->renderer->clearDrawQueue();
+        // RU-02d: Application only polls Raylib/Input and resolves the
+        // supported key catalog into an immutable GameplayInputFrame; the
+        // dispatch to Logic/Script/GameAPI (beginFrame, per-kind dispatch,
+        // ScriptInputSnapshot, entity-queue flush, dialog-gated GameAPI
+        // input events) lives entirely in GameplaySession::dispatchInput
+        // now (docs/RU02_GAMEPLAY_SESSION_REFACTOR.md, editor repo).
+        GameplayInputFrame inputFrame;
+        for (LogicKey key : Logic::supportedLogicKeys()) {
+            const std::string code = Logic::logicInputCode(key);
+            if (mod_->input->wasKeyPressed(code)) inputFrame.pressed.push_back(key);
+            if (mod_->input->wasKeyReleased(code)) inputFrame.released.push_back(key);
+            if (mod_->input->isKeyDown(code)) inputFrame.held.push_back(key);
         }
-        if (!mod_->dialogManager || !mod_->dialogManager->isBlocking()) {
-            const auto start = Clock::now();
-            const uint32_t events = mod_->gameAPI->dispatchInputEvents();
-            profiler_.addLuaMs(elapsedMs(start));
-            profiler_.addLuaEvents(events);
-        }
+        mod_->gameplaySession->dispatchInput(inputFrame);
+        // RU-02h: Application::tickFixedStep (T-04 in the debt register) is
+        // gone - it was a one-line wrapper around this call, kept only until
+        // every call site could drive GameplaySession directly. This is now
+        // the only call site.
         while (accumulator_ >= targetDt_) {
-            tickFixedStep(targetDt_);
+            mod_->gameplaySession->tickFixedStep(targetDt_);
             accumulator_ -= targetDt_;
             simulatedDt += targetDt_;
+        }
+        // RU-03 (D-21): GameplaySession only buffers Script diagnostics now,
+        // it doesn't decide where they go - this host prints them exactly as
+        // tickFixedStep used to internally, just once per frame after the
+        // catch-up loop instead of once per fixed step (harmless: order is
+        // preserved, only the timing shifts within the same real frame).
+        for (const auto& diagnostic : mod_->gameplaySession->drainScriptDiagnostics()) {
+            std::cerr << "[Script] " << diagnostic.sourcePath;
+            if (diagnostic.line > 0) std::cerr << ":" << diagnostic.line;
+            std::cerr << " [" << diagnostic.callback << "] entity "
+                      << diagnostic.owner << ": " << diagnostic.message << "\n";
+        }
+        // Host-side product policy (RU-02b), not simulation: ticked with the
+        // total simulated dt for this frame, matching the sum of what N
+        // per-fixed-step calls would have added; skipped when no fixed step
+        // ran (simulatedDt == 0), exactly like the old per-fixed-step call.
+        if (splash_ && simulatedDt > 0.f) {
+            splash_->update(simulatedDt);
+            if (splash_->isDone()) splash_.reset();
         }
     } else {
         accumulator_ = 0.f;

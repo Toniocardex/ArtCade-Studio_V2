@@ -4,6 +4,7 @@
 #include "json-primitives.h"
 #include "physics-json.h"
 #include "sprite-json.h"
+#include "../modules/logic-core/include/logic-core.h"
 
 #include <unordered_set>
 
@@ -165,6 +166,19 @@ void read_optional_gameplay_components(const nlohmann::json& j, EntityDef& e) {
         gc.offsetY     = g.value("offsetY", -40.f);
         gc.screenSpace = g.value("screenSpace", false);
         e.gauge = gc;
+    }
+    if (j.contains("boxCollider2D") && j["boxCollider2D"].is_object()) {
+        const auto& c = j["boxCollider2D"];
+        BoxCollider2DComponent bc;
+        bc.offset = read_vec2(c.value("offset", nlohmann::json::object()), bc.offset);
+        bc.size = read_vec2(c.value("size", nlohmann::json::object()), bc.size);
+        bc.enabled = c.value("enabled", bc.enabled);
+        const std::string mode = c.value("mode", std::string{});
+        if (mode == "trigger") bc.mode = BoxColliderMode::Trigger;
+        else if (mode == "oneWayPlatform") bc.mode = BoxColliderMode::OneWayPlatform;
+        else if (mode == "solid") bc.mode = BoxColliderMode::Solid;
+        else if (c.value("isTrigger", false)) bc.mode = BoxColliderMode::Trigger;
+        e.boxCollider2D = bc;
     }
     if (j.contains("visible") && j["visible"].is_boolean())
         e.visible = j["visible"].get<bool>();
@@ -341,6 +355,48 @@ void read_object_types_map(const nlohmann::json& doc,
             if (!entity.className.empty()) out[entity.className] = std::move(entity);
         }
     }
+}
+
+bool read_object_type_logic_boards(const nlohmann::json& doc,
+                                   std::unordered_map<std::string, EntityDef>& objectTypes,
+                                   std::string* error) {
+    const nlohmann::json* rawTypes = nullptr;
+    if (doc.contains("objectTypes")
+        && (doc["objectTypes"].is_object() || doc["objectTypes"].is_array()))
+        rawTypes = &doc["objectTypes"];
+    if (rawTypes == nullptr) return true;
+
+    const auto readBoard = [&](const std::string& mapKey, const nlohmann::json& rawType) -> bool {
+        if (!rawType.is_object() || !rawType.contains("logicBoard")) return true;
+        const ObjectTypeId typeId = rawType.value("id", mapKey);
+        const auto typeIt = objectTypes.find(typeId);
+        if (typeIt == objectTypes.end()) {
+            if (error) *error = "logicBoard references unknown object type: " + typeId;
+            return false;
+        }
+        LogicBoardDef board;
+        const Logic::LogicJsonResult parsed = Logic::logicBoardFromJson(rawType["logicBoard"], board);
+        if (!parsed.ok) {
+            if (error) *error = "logicBoard for '" + typeId + "': " + parsed.error;
+            return false;
+        }
+        const auto diagnostics = Logic::validateBoard(typeId, board, &typeIt->second);
+        if (!diagnostics.empty()) {
+            if (error) *error = "logicBoard for '" + typeId + "': " + diagnostics.front().message;
+            return false;
+        }
+        typeIt->second.logicBoard = std::move(board);
+        return true;
+    };
+
+    if (rawTypes->is_array()) {
+        for (const auto& rawType : *rawTypes)
+            if (!readBoard({}, rawType)) return false;
+    } else {
+        for (auto& [key, rawType] : rawTypes->items())
+            if (!readBoard(key, rawType)) return false;
+    }
+    return true;
 }
 
 } // namespace ArtCade::ProjectJson

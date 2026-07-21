@@ -99,20 +99,18 @@ private:
     bool initSubsystems();
     // Layer 5: load project data, initialize the world, and load Lua bytecode.
     bool loadProject(const std::string& projectPath);
-    bool installLogicScopesForActiveScene();
-    /**
-     * Installs Logic Board scope for one entity without clearing others.
-     * Fires On Start only for that owner (does not re-dispatch scene-wide Start).
-     */
-    bool installLogicScopeForEntity(EntityId entityId);
-    bool installScriptScopesForActiveScene();
-    void dispatchGameplayCollisionTransitions();
+    // D-20 (docs/RU02_GAMEPLAY_SESSION_REFACTOR.md, editor repo, debt
+    // register): installLogicScopesForActiveScene/installLogicScopeForEntity/
+    // installScriptScopesForActiveScene moved into GameplaySession - they are
+    // simulation state/behavior (which entity owns which Logic/Script scope),
+    // not host bookkeeping, and moving them lets World's destroy handler and
+    // the Logic spawn installer capture GameplaySession instead of
+    // Application. Call sites now read
+    // mod_->gameplaySession->installLogicScopesForActiveScene() etc.
 
     void shutdownModules();
     void mainLoop();
     void loopIteration();      // One frame, shared by native and WASM loops.
-    /** One fixed-timestep simulation tick (gameplay, physics, lifecycle). */
-    void tickFixedStep(float dt);
     /** Per-render-frame tail: profiler counts, draw, console flush, input reset. */
     void tickFrameEnd();
     void renderActiveScene();

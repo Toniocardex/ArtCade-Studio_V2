@@ -15,8 +15,10 @@ void Application::handleSceneTransition(
             result.invalidations,
             ArtCade::Modules::SceneInvalidation::SceneActivation)) {
         resetCameraOnNextFrame_ = true;
-        installLogicScopesForActiveScene();
-        installScriptScopesForActiveScene();
+        if (mod_->gameplaySession) {
+            mod_->gameplaySession->installLogicScopesForActiveScene();
+            mod_->gameplaySession->installScriptScopesForActiveScene();
+        }
     }
 }
 

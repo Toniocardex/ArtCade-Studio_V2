@@ -26,36 +26,35 @@ bool Application::initModules(const std::string& projectPath) {
     return initUtilities() && initSubsystems() && loadProject(projectPath);
 }
 
+// RU-02f (docs/RU02_GAMEPLAY_SESSION_REFACTOR.md, editor repo): EventBus,
+// TimeManager, VariableManager, TweenManager, SpriteAnimator, CameraManager,
+// SaveLoadManager and GameStateManager are now GameplaySession's own utility
+// modules - this function constructs the session (needs nothing to exist
+// yet) and delegates to initializeUtilities(), which builds them with the
+// same boot-step names and internal wiring (GameStateManager::setEventBus)
+// this function used to perform directly.
 bool Application::initUtilities() {
-    mod_->eventBus = std::make_unique<ArtCade::Modules::EventBus>();
-    mod_->timeManager = std::make_unique<ArtCade::Modules::TimeManager>();
-    mod_->variableManager = std::make_unique<ArtCade::Modules::VariableManager>();
-    mod_->tweenManager = std::make_unique<ArtCade::Modules::TweenManager>();
-    mod_->spriteAnimator = std::make_unique<ArtCade::Modules::SpriteAnimator>();
-    mod_->cameraManager = std::make_unique<ArtCade::Modules::CameraManager>();
-    mod_->saveLoadManager = std::make_unique<ArtCade::Modules::SaveLoadManager>();
+    mod_->gameplaySession = std::make_unique<GameplaySession>();
+    if (!mod_->gameplaySession->initializeUtilities(boot_step)) return false;
 
-    if (!boot_step("event_bus", mod_->eventBus->init())) return false;
-    if (!boot_step("time_manager", mod_->timeManager->init())) return false;
-    if (!boot_step("variable_manager", mod_->variableManager->init())) return false;
-    if (!boot_step("tween_manager", mod_->tweenManager->init())) return false;
-    if (!boot_step("sprite_animator", mod_->spriteAnimator->init())) return false;
-    if (!boot_step("camera_manager", mod_->cameraManager->init())) return false;
-    if (!boot_step("save_load_manager", mod_->saveLoadManager->init())) return false;
+    mod_->eventBus = &mod_->gameplaySession->eventBus();
+    mod_->timeManager = &mod_->gameplaySession->timeManager();
+    mod_->variableManager = &mod_->gameplaySession->variableManager();
+    mod_->tweenManager = &mod_->gameplaySession->tweenManager();
+    mod_->spriteAnimator = &mod_->gameplaySession->spriteAnimator();
+    mod_->cameraManager = &mod_->gameplaySession->cameraManager();
+    mod_->saveLoadManager = &mod_->gameplaySession->saveLoadManager();
+    mod_->gameStateManager = &mod_->gameplaySession->gameStateManager();
 
-    ctx_.eventBus = mod_->eventBus.get();
-    ctx_.timeManager = mod_->timeManager.get();
-    ctx_.variableManager = mod_->variableManager.get();
-    ctx_.tweenManager = mod_->tweenManager.get();
-    ctx_.spriteAnimator = mod_->spriteAnimator.get();
-    ctx_.cameraManager = mod_->cameraManager.get();
-    ctx_.saveLoadManager = mod_->saveLoadManager.get();
+    ctx_.eventBus = mod_->eventBus;
+    ctx_.timeManager = mod_->timeManager;
+    ctx_.variableManager = mod_->variableManager;
+    ctx_.tweenManager = mod_->tweenManager;
+    ctx_.spriteAnimator = mod_->spriteAnimator;
+    ctx_.cameraManager = mod_->cameraManager;
+    ctx_.saveLoadManager = mod_->saveLoadManager;
     ctx_.profiler = &profiler_;
-
-    mod_->gameStateManager = std::make_unique<ArtCade::Modules::GameStateManager>();
-    mod_->gameStateManager->setEventBus(mod_->eventBus.get());
-    if (!boot_step("game_state_manager", mod_->gameStateManager->init())) return false;
-    ctx_.gameStateManager = mod_->gameStateManager.get();
+    ctx_.gameStateManager = mod_->gameStateManager;
 
     return true;
 }
@@ -64,7 +63,6 @@ bool Application::initSubsystems() {
     mod_->editorViewport =
         std::make_unique<ArtCade::Presentation::EditorViewportService>();
     mod_->renderer = std::make_unique<ArtCade::Modules::Renderer>();
-    mod_->physics = std::make_unique<ArtCade::Modules::Physics>();
     mod_->input = std::make_unique<ArtCade::Modules::Input>();
     mod_->audio = std::make_unique<ArtCade::Modules::Audio>();
     mod_->assetLoader = std::make_unique<ArtCade::Modules::AssetLoader>();
@@ -72,7 +70,6 @@ bool Application::initSubsystems() {
     mod_->renderer->setWindowSize(1280, 720, "ArtCade V2");
 
     if (!boot_step("renderer", mod_->renderer->init())) return false;
-    if (!boot_step("physics", mod_->physics->init())) return false;
     if (!boot_step("input", mod_->input->init())) return false;
     if (!boot_step("audio", mod_->audio->init())) return false;
     if (!boot_step("asset_loader", mod_->assetLoader->init())) return false;
@@ -81,67 +78,38 @@ bool Application::initSubsystems() {
     if (!boot_step("texture_manager", mod_->textureManager->init())) return false;
     ctx_.textureManager = mod_->textureManager.get();
 
-    mod_->sceneManager = std::make_unique<ArtCade::Modules::SceneManager>();
-    if (!boot_step("scene_manager", mod_->sceneManager->init())) return false;
-
-    mod_->sceneMutation = std::make_unique<ArtCade::Modules::SceneMutationService>(
-        *mod_->sceneManager);
-
-    mod_->entityGateway = std::make_unique<ArtCade::Modules::RuntimeEntityGateway>(
-        *mod_->sceneManager);
-    if (!boot_step("entity_gateway", mod_->entityGateway->init())) return false;
-    mod_->logicHost = std::make_unique<RuntimeLogicHostAdapter>(*mod_->entityGateway, *mod_->audio);
-    mod_->logicRuntime = std::make_unique<ArtCade::Logic::LogicRuntime>(*mod_->logicHost);
-
-    mod_->sceneLifecycle = std::make_unique<ArtCade::Modules::SceneLifecycleService>(
-        *mod_->sceneManager,
-        *mod_->sceneMutation,
-        [gw = mod_->entityGateway.get()]() {
-            if (gw) gw->syncSceneActivation();
-        });
-    mod_->sceneLifecycle->set_transition_handler(
+    // RU-02e-1/D-20 (docs/RU02_GAMEPLAY_SESSION_REFACTOR.md, editor repo):
+    // Physics, SceneManager, SceneMutationService, RuntimeEntityGateway,
+    // SceneLifecycleService and World are now GameplaySession's own
+    // composition root (the session itself was already constructed in
+    // initUtilities()). initialize() builds the graph with the same
+    // boot-step names and internal wiring this function used to perform
+    // directly, wires World's destroy handler/spriteAnimator/renderer
+    // internally now (D-20 - Application no longer holds a mutable World*
+    // to do this itself), and populates ctx_.physics/sceneManager/
+    // entityGateway/world directly (D-20 - no more physics()/world()
+    // accessors to copy from).
+    const bool graphOk = mod_->gameplaySession->initialize(
+        physicsMode_,
+        ctx_,
+        mod_->renderer.get(),
+        boot_step,
         [this](const ArtCade::Modules::SceneTransitionResult& result) {
             handleSceneTransition(result);
         });
-    mod_->entityGateway->set_scene_lifecycle_service(mod_->sceneLifecycle.get());
+    if (!graphOk) return false;
 
-    mod_->world = std::make_unique<World>(
-        *mod_->entityGateway, *mod_->physics, *mod_->variableManager);
-    mod_->entityGateway->setPhysics(mod_->physics.get());
-    mod_->logicHost->setWorld(mod_->world.get());
-    mod_->logicHost->setVariableManager(mod_->variableManager.get());
-    mod_->logicHost->setInput(mod_->input.get());
-    mod_->logicHost->setPhysics(mod_->physics.get());
-    mod_->logicHost->setSpawnInstaller([this](EntityId id) {
-        return installLogicScopeForEntity(id);
-    });
-    mod_->world->setSpriteAnimator(mod_->spriteAnimator.get());
-    mod_->world->setEntityDestroyedHandler([this](EntityId id) {
-        const auto it = mod_->logicScopes.find(id);
-        if (it != mod_->logicScopes.end()) {
-            if (mod_->logicRuntime) mod_->logicRuntime->cancelScope(it->second);
-            mod_->logicScopes.erase(it);
-        }
-        if (mod_->scriptRuntime) mod_->scriptRuntime->cancelOwner(id);
-    });
-    mod_->world->setRenderer(mod_->renderer.get());
-    mod_->sceneLifecycle->set_gameplay_reset_handler([this]() {
-        if (mod_->world) mod_->world->onSceneActivated();
-    });
-    mod_->sceneLifecycle->set_restore_handler(
-        [gw = mod_->entityGateway.get()](const SceneId& sceneId) {
-            return gw && gw->restoreSceneFromAuthoring(sceneId);
-        });
-    mod_->world->setSceneLifecycleService(mod_->sceneLifecycle.get());
+    // D-20: SceneManager/RuntimeEntityGateway keep Application-level aliases
+    // (RU-02g render-pass exception - see app_modules.h); Physics/World no
+    // longer do, since ctx_ above and the new GameplaySession methods cover
+    // every remaining Application need for them.
+    mod_->sceneManager = &mod_->gameplaySession->sceneManager();
+    mod_->entityGateway = &mod_->gameplaySession->entityGateway();
 
     ctx_.renderer = mod_->renderer.get();
-    ctx_.physics = mod_->physics.get();
     ctx_.input = mod_->input.get();
     ctx_.audio = mod_->audio.get();
-    ctx_.sceneManager = mod_->sceneManager.get();
-    ctx_.entityGateway = mod_->entityGateway.get();
     ctx_.assetLoader = mod_->assetLoader.get();
-    ctx_.world = mod_->world.get();
 
     mod_->renderer->setTextureKeyResolver(
         [loader = mod_->assetLoader.get()](const std::string& ref) {
@@ -161,33 +129,47 @@ bool Application::initSubsystems() {
     mod_->dialogManager->setContext(&ctx_);
     ctx_.dialogManager = mod_->dialogManager.get();
 
-    mod_->gameAPI = std::make_unique<ArtCade::Modules::GameAPI>(ctx_);
-    if (!boot_step("game_api", mod_->gameAPI->init())) return false;
-    ctx_.gameAPI = mod_->gameAPI.get();
+    // RU-02e-2/D-20 (docs/RU02_GAMEPLAY_SESSION_REFACTOR.md, editor repo):
+    // RuntimeLogicHostAdapter/LogicRuntime/GameAPI/LuaHost are now built by
+    // the session itself, in the same relative order and with the same
+    // boot-step names this function used to construct them with directly.
+    // logicHost/logicRuntime used to be built earlier - right after World was
+    // constructed inside gameplaySession->initialize(), above - but nothing
+    // between that point and here ever calls into them: World's destroy
+    // handler (now internal to GameplaySession::initialize()) only reads
+    // logicRuntime_/scriptRuntime_ lazily, at destroy time, long after boot
+    // completes, so building both pairs together here is behaviorally
+    // identical. ctx_ already carries
+    // renderer/physics/input/audio/sceneManager/entityGateway/assetLoader/
+    // world/dialogManager by this point, exactly what GameAPI(ctx_) used to
+    // read. D-20: no spawnInstaller param anymore - the Logic spawn installer
+    // wires to GameplaySession::installLogicScopeForEntity() internally now,
+    // since that method (and the scope bookkeeping it needs) moved into the
+    // session too.
+    const bool gameplayModulesOk = mod_->gameplaySession->initializeGameplayModules(
+        ctx_, *mod_->audio, *mod_->input, boot_step);
+    if (!gameplayModulesOk) return false;
 
-    mod_->luaHost = std::make_unique<ArtCade::Modules::LuaHost>();
-    mod_->luaHost->registerBindings([&](sol::state& lua) {
-        mod_->gameAPI->registerAll(lua);
-    });
-    if (!boot_step("lua_host", mod_->luaHost->init())) return false;
-    ctx_.luaHost = mod_->luaHost.get();
-
-    EditorAPI::wireEngine(mod_->entityGateway.get());
-    EditorAPI::wireLua(mod_->luaHost.get());
+    // D-20: logicHost/logicRuntime/gameAPI no longer have Application-level
+    // aliases at all (zero remaining call sites once install*/loadLogicPrograms
+    // moved into GameplaySession); luaHostHandle() stays only for the
+    // EditorAPI::wireLua() call below (D-18 debt, out of scope here).
+    EditorAPI::wireEngine(mod_->entityGateway);
+    EditorAPI::wireLua(mod_->gameplaySession->luaHostHandle());
     EditorAPI::wireRenderer(mod_->renderer.get());
     EditorAPI::wireEditorViewport(mod_->editorViewport.get());
     EditorAPI::wireDialog(mod_->dialogManager.get());
-    EditorAPI::wireSpriteAnimator(mod_->spriteAnimator.get());
-    mod_->entityGateway->setSpriteAnimator(mod_->spriteAnimator.get());
+    EditorAPI::wireSpriteAnimator(mod_->spriteAnimator);
+    mod_->entityGateway->setSpriteAnimator(mod_->spriteAnimator);
     EditorAPI::wireAudio(mod_->audio.get());
-    EditorAPI::wireVariables(mod_->variableManager.get());
+    EditorAPI::wireVariables(mod_->variableManager);
     EditorAPI::init("#artcade-canvas");
 
 #ifdef ARTCADE_WASM
     EditorAPI::setSceneMutationBridge(
         [this](const SceneId& sceneId,
                const ArtCade::Modules::ScenePatch& patch) {
-            return mod_->sceneMutation->apply(sceneId, patch);
+            return mod_->gameplaySession->applySceneMutation(sceneId, patch);
         },
         [this](const ArtCade::Modules::SceneMutationResult& result) {
             handleSceneMutation(result);
@@ -201,7 +183,7 @@ bool Application::initSubsystems() {
         [this]() { endAuthoringSyncBatch(); });
     EditorAPI::setSceneMutationBatchOpenPredicate(
         [this]() {
-            return mod_->sceneMutation && mod_->sceneMutation->batch_open();
+            return mod_->gameplaySession && mod_->gameplaySession->sceneMutationBatchOpen();
         });
     EditorAPI::setProjectLoadedHandler(
         [this](const std::vector<TilePaletteEntry>& palette,
@@ -234,6 +216,16 @@ bool Application::initSubsystems() {
         });
 #endif
 
+    // RU-02c/RU-02e-1/2/3/RU-02f: every gameplay module GameplaySession needs
+    // is session-owned now; wireHostPorts() wires only the three host-port
+    // adapters Application still owns outright (GameplayRuntimeRefs, T-01, is
+    // eliminated - no struct needed anymore).
+    mod_->audioAdapter = std::make_unique<AudioServiceAdapter>(*mod_->audio);
+    mod_->dialogAdapter = std::make_unique<DialogGateAdapter>(*mod_->dialogManager);
+    mod_->profilerAdapter = std::make_unique<ProfilerSinkAdapter>(profiler_);
+    mod_->gameplaySession->wireHostPorts(
+        mod_->audioAdapter.get(), mod_->dialogAdapter.get(), mod_->profilerAdapter.get());
+
     return true;
 }
 
@@ -244,46 +236,63 @@ void Application::shutdownModules() {
     EditorAPI::clearEngineWiring();
 #endif
 
-    if (mod_->logicRuntime) { mod_->logicRuntime->shutdown(); mod_->logicRuntime.reset(); }
-    mod_->logicScopes.clear();
-    mod_->logicObjectTypes.clear();
-    mod_->logicHost.reset();
-    if (mod_->scriptRuntime) { mod_->scriptRuntime->shutdown(); mod_->scriptRuntime.reset(); }
-    mod_->scriptPrograms.clear();
-    mod_->scriptAttachments.clear();
-    mod_->activeGameplayCollisionPairs.clear();
-    if (mod_->luaHost) { mod_->luaHost->shutdown(); mod_->luaHost.reset(); }
-    if (mod_->gameAPI) { mod_->gameAPI->shutdown(); mod_->gameAPI.reset(); }
+    // GameplaySession's host-port adapters are dropped first so nothing
+    // holds a dangling reference once the modules they forward to reset
+    // below (unchanged relative order from RU-02c).
+    mod_->audioAdapter.reset();
+    mod_->dialogAdapter.reset();
+    mod_->profilerAdapter.reset();
+
+    // RU-02e-2/3/D-20: logicRuntime/logicHost/scriptRuntime (and the scope
+    // bookkeeping that used to live in Application::Modules) are all owned by
+    // gameplaySession now; the three granular shutdown methods tear them down
+    // in the exact relative order this function used to (logicRuntime ->
+    // logicHost -> scriptRuntime -> luaHost -> gameAPI), clearing the scope
+    // bookkeeping internally at the same relative points, with Application-
+    // owned dialogManager shutdown still interleaved exactly where it was
+    // before.
+    if (mod_->gameplaySession) mod_->gameplaySession->shutdownLogicModules();
+    if (mod_->gameplaySession) mod_->gameplaySession->shutdownScriptRuntime();
+    if (mod_->gameplaySession) mod_->gameplaySession->shutdownScriptingModules();
     if (mod_->dialogManager) { mod_->dialogManager->shutdown(); mod_->dialogManager.reset(); }
-    if (mod_->world) { mod_->world->shutdown(); mod_->world.reset(); }
-    if (mod_->entityGateway) {
-        mod_->entityGateway->set_scene_lifecycle_service(nullptr);
-        mod_->entityGateway->shutdown();
-        mod_->entityGateway.reset();
-    }
-    if (mod_->sceneLifecycle) {
-        mod_->sceneLifecycle->cancel_transition();
-        mod_->sceneLifecycle.reset();
-    }
-    if (mod_->sceneMutation) mod_->sceneMutation.reset();
-    if (mod_->sceneManager) { mod_->sceneManager->shutdown(); mod_->sceneManager.reset(); }
+
+    // RU-02e-1: World/gateway/lifecycle/mutation/scene-manager are owned by
+    // gameplaySession now; shutdownGraph() tears them down in the exact
+    // relative order this function used to (world -> gateway -> lifecycle ->
+    // mutation -> scene manager). D-20: sceneManager/entityGateway are the
+    // only Modules aliases left for this graph (RU-02g render-pass
+    // exception); world/sceneMutation never had aliases to null anymore.
+    if (mod_->gameplaySession) mod_->gameplaySession->shutdownGraph();
+    mod_->entityGateway = nullptr;
+    mod_->sceneManager = nullptr;
+
     if (mod_->assetLoader) { mod_->assetLoader->shutdown(); mod_->assetLoader.reset(); }
     if (mod_->audio) { mod_->audio->shutdown(); mod_->audio.reset(); }
     if (mod_->input) { mod_->input->shutdown(); mod_->input.reset(); }
-    if (mod_->physics) { mod_->physics->shutdown(); mod_->physics.reset(); }
+    // Physics shuts down here, in the same relative position as before
+    // (after audio/input, before textureManager/renderer).
+    if (mod_->gameplaySession) mod_->gameplaySession->shutdownPhysics();
     if (mod_->textureManager) { mod_->textureManager->shutdown(); mod_->textureManager.reset(); }
     if (mod_->renderer) { mod_->renderer->shutdown(); mod_->renderer.reset(); }
-    if (mod_->gameStateManager) {
-        mod_->gameStateManager->shutdown();
-        mod_->gameStateManager.reset();
-    }
-    if (mod_->saveLoadManager) { mod_->saveLoadManager->shutdown(); mod_->saveLoadManager.reset(); }
-    if (mod_->cameraManager) { mod_->cameraManager->shutdown(); mod_->cameraManager.reset(); }
-    if (mod_->spriteAnimator) { mod_->spriteAnimator->shutdown(); mod_->spriteAnimator.reset(); }
-    if (mod_->tweenManager) { mod_->tweenManager->shutdown(); mod_->tweenManager.reset(); }
-    if (mod_->variableManager) { mod_->variableManager->shutdown(); mod_->variableManager.reset(); }
-    if (mod_->timeManager) { mod_->timeManager->shutdown(); mod_->timeManager.reset(); }
-    if (mod_->eventBus) { mod_->eventBus->shutdown(); mod_->eventBus.reset(); }
+
+    // RU-02f: gameStateManager/saveLoadManager/cameraManager/spriteAnimator/
+    // tweenManager/variableManager/timeManager/eventBus are owned by
+    // gameplaySession now; shutdownUtilities() tears them down in the exact
+    // same contiguous order this function used to (no host module was ever
+    // interleaved between them).
+    if (mod_->gameplaySession) mod_->gameplaySession->shutdownUtilities();
+    mod_->gameStateManager = nullptr;
+    mod_->saveLoadManager = nullptr;
+    mod_->cameraManager = nullptr;
+    mod_->spriteAnimator = nullptr;
+    mod_->tweenManager = nullptr;
+    mod_->variableManager = nullptr;
+    mod_->timeManager = nullptr;
+    mod_->eventBus = nullptr;
+
+    // Every module above is already torn down; this only releases the
+    // (now-empty) GameplaySession instance itself.
+    mod_->gameplaySession.reset();
 }
 
 } // namespace ArtCade

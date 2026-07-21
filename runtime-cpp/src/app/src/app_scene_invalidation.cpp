@@ -14,8 +14,8 @@ void Application::applyPendingSceneInvalidations() {
     if (flags == ArtCade::Modules::SceneInvalidation::None) return;
 
     if (ArtCade::Modules::scene_invalidation_needs_collision_rebuild(flags)
-        && mod_->world) {
-        mod_->world->rebuildCollisionWorld();
+        && mod_->gameplaySession) {
+        mod_->gameplaySession->rebuildWorldCollision();
     }
 }
 

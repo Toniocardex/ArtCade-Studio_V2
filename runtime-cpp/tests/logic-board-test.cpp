@@ -664,6 +664,91 @@ static LogicBoardDef makeOperatorBoard(std::vector<LogicConditionClause> conditi
     return board;
 }
 
+static void testDescriptorSemanticMetadataConsistency() {
+    const auto defaultMatchesKind = [](const LogicPropertyDescriptor& property) {
+        switch (property.valueKind) {
+        case LogicValueKind::Bool:
+            return std::holds_alternative<bool>(property.defaultValue);
+        case LogicValueKind::Integer:
+            return std::holds_alternative<int64_t>(property.defaultValue);
+        case LogicValueKind::Number:
+            return std::holds_alternative<double>(property.defaultValue);
+        case LogicValueKind::String:
+            return std::holds_alternative<LogicStringValue>(property.defaultValue);
+        case LogicValueKind::Vec2:
+            return std::holds_alternative<Vec2>(property.defaultValue);
+        case LogicValueKind::Asset:
+            return std::holds_alternative<LogicAssetReference>(property.defaultValue);
+        case LogicValueKind::Entity:
+            return std::holds_alternative<LogicEntityReference>(property.defaultValue);
+        case LogicValueKind::Variable:
+            return std::holds_alternative<LogicVariableReference>(property.defaultValue);
+        case LogicValueKind::Key:
+            return std::holds_alternative<LogicKey>(property.defaultValue);
+        }
+        return false;
+    };
+
+    std::unordered_set<LogicBlockTypeId> typeIds;
+    for (const LogicBlockDescriptor& block : registry()) {
+        CHECK(!block.typeId.empty());
+        CHECK(!block.categoryId.empty());
+        CHECK(!block.displayName.empty());
+        CHECK(!block.description.empty());
+        CHECK(typeIds.insert(block.typeId).second);
+
+        std::unordered_set<std::string> propertyKeys;
+        for (const LogicPropertyDescriptor& property : block.properties) {
+            CHECK(!property.key.empty());
+            CHECK(!propertyDisplayName(property).empty());
+            CHECK(propertyKeys.insert(property.key).second);
+            CHECK(defaultMatchesKind(property));
+
+            if (property.valueKind == LogicValueKind::Key)
+                CHECK(property.semantic == LogicPropertySemantic::LogicKey);
+            if (property.valueKind == LogicValueKind::Variable)
+                CHECK(property.semantic == LogicPropertySemantic::GlobalVariable);
+            if (property.valueKind == LogicValueKind::Entity)
+                CHECK(property.semantic == LogicPropertySemantic::HiddenSelfTarget);
+            if (property.semantic == LogicPropertySemantic::ExpectedBool) {
+                CHECK(property.key == "expected");
+                CHECK(property.valueKind == LogicValueKind::Bool);
+            }
+            if (property.semantic == LogicPropertySemantic::ObjectTypeReference)
+                CHECK(property.key == "objectTypeId");
+            if (property.semantic == LogicPropertySemantic::SpriteAnimationAsset)
+                CHECK(property.key == "animationAssetId");
+            if (property.semantic == LogicPropertySemantic::AnimationClip)
+                CHECK(property.key == "clipId");
+            if (property.semantic == LogicPropertySemantic::StaticAudioAsset)
+                CHECK(property.key == "audioAssetId");
+            if (property.semantic == LogicPropertySemantic::CompareOperator) {
+                CHECK(block.typeId == kStateCompare);
+                CHECK(property.key == "op");
+                CHECK(property.options
+                      == std::vector<std::string>({"==", "!=", "<", "<=", ">", ">="}));
+            } else {
+                CHECK(property.options.empty());
+            }
+            if (property.allowEmpty) {
+                CHECK(property.semantic == LogicPropertySemantic::ObjectTypeReference);
+                CHECK(block.typeId == kCollisionEnter || block.typeId == kCollisionExit);
+            }
+
+            if (property.valueKind == LogicValueKind::Number)
+                CHECK(property.numberConstraint != LogicNumberConstraint::None);
+            if (property.key == "seconds" || property.key == "speed")
+                CHECK(property.numberConstraint == LogicNumberConstraint::Positive);
+            if (property.key == "volume")
+                CHECK(property.numberConstraint == LogicNumberConstraint::UnitInterval);
+            if (property.key == "axis")
+                CHECK(property.numberConstraint == LogicNumberConstraint::NormalizedAxis);
+            if (property.key == "scale")
+                CHECK(property.numberConstraint == LogicNumberConstraint::PositiveVec2);
+        }
+    }
+}
+
 static void testConditionOperators() {
     const LogicBlockDef grounded = makeDefaultCondition();
     const LogicBlockDef compare = makeStateCompareCondition(5.0);
@@ -1586,6 +1671,7 @@ static void testOncePerActivationExecutionMode() {
 
 int main() {
     testCompilerAndJson();
+    testDescriptorSemanticMetadataConsistency();
     testRuntime();
     testStrictSandboxAndBudget();
     testLimitsSnapshotAndIsolation();

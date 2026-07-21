@@ -8,10 +8,12 @@
 
 #include "../../../modules/renderer/include/renderer.h"
 #include "../../../modules/scene-system/include/scene-manager.h"
-#include "../../../modules/time/include/time-manager.h"
 
 namespace ArtCade::AppRenderPasses {
 
+// RU-02g (docs/RU02_GAMEPLAY_SESSION_REFACTOR.md, editor repo):
+// frame.elapsedTime replaces the old live ctx.timeManager->now() query -
+// resolved once by GameplaySession::buildFrameSnapshot() instead.
 void execute_scene_background_pass(SceneFrameContext& ctx) {
     if (!ctx.frameSnapshot || !ctx.sceneManager || !ctx.renderer)
         return;
@@ -35,7 +37,7 @@ void execute_scene_background_pass(SceneFrameContext& ctx) {
         frame.layerSettings,
         ctx.renderer->getCameraPosition(),
         ctx.renderer->visibleWorldSize(),
-        ctx.timeManager ? ctx.timeManager->now() : 0.f);
+        frame.elapsedTime);
     if (ctx.tilesets && ctx.tileColors) {
         TilemapRenderer::draw(
             *ctx.renderer,

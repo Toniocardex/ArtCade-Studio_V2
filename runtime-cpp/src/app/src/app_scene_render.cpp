@@ -114,8 +114,8 @@ void Application::renderActiveScene() {
         ? mod_->entityGateway->sceneFadeAlpha()
         : 0.f;
 
-    const uint64_t sceneRevision = mod_->sceneMutation
-        ? mod_->sceneMutation->revision()
+    const uint64_t sceneRevision = mod_->gameplaySession
+        ? mod_->gameplaySession->sceneRevision()
         : 0u;
 
     if (resetCameraOnNextFrame_ && activeScene && mod_->renderer) {
@@ -123,15 +123,23 @@ void Application::renderActiveScene() {
         resetCameraOnNextFrame_ = false;
     }
 
-    const SceneFrameSnapshot frameSnapshot = frame_coordinator_build_frame({
-        ++frameNumber_,
-        sceneRevision,
-        activeScene,
-        mod_->renderer.get(),
-        mod_->editorViewport.get(),
-        overlay,
-        sceneFadeAlpha,
-    });
+    // RU-02g (docs/RU02_GAMEPLAY_SESSION_REFACTOR.md, editor repo):
+    // frame_coordinator_build_frame() still builds the scene/presentation
+    // truth (needs host-owned Renderer/EditorViewportService, T-02 in the
+    // debt register); buildFrameSnapshot() then adds the resolved gameplay
+    // entity render data (renderables/elapsedTime) using session-owned
+    // RuntimeEntityGateway/SpriteAnimator/VariableManager/TimeManager, so the
+    // render passes below never query those live during draw.
+    const SceneFrameSnapshot frameSnapshot =
+        mod_->gameplaySession->buildFrameSnapshot(frame_coordinator_build_frame({
+            ++frameNumber_,
+            sceneRevision,
+            activeScene,
+            mod_->renderer.get(),
+            mod_->editorViewport.get(),
+            overlay,
+            sceneFadeAlpha,
+        }));
 
     mod_->renderer->beginFrame(
         frameSnapshot.presentation,
@@ -149,11 +157,9 @@ void Application::renderActiveScene() {
     SceneFrameContext frameCtx{};
     frameCtx.frameSnapshot = &frameSnapshot;
     frameCtx.renderer = mod_->renderer.get();
-    frameCtx.spriteAnimator = mod_->spriteAnimator.get();
-    frameCtx.entityGateway = mod_->entityGateway.get();
-    frameCtx.variableManager = mod_->variableManager.get();
-    frameCtx.sceneManager = mod_->sceneManager.get();
-    frameCtx.timeManager = mod_->timeManager.get();
+    frameCtx.spriteAnimator = mod_->spriteAnimator;
+    frameCtx.entityGateway = mod_->entityGateway;
+    frameCtx.sceneManager = mod_->sceneManager;
     frameCtx.selectedEntityIds = &selectedEntityIds;
     frameCtx.tilesets = &tilesets_;
     frameCtx.tileColors = &tileColors_;
@@ -178,8 +184,9 @@ void Application::renderActiveScene() {
             AppRenderPasses::execute_gizmo_pass(frameCtx);
             break;
         case RenderPipeline::RenderPassId::Debug:
-            if (mod_->world)
-                AppRenderPasses::execute_debug_pass(*mod_->renderer, *mod_->world);
+            if (mod_->gameplaySession)
+                AppRenderPasses::execute_debug_pass(
+                    *mod_->renderer, mod_->gameplaySession->debugWorldView());
             break;
         case RenderPipeline::RenderPassId::Blit:
             if (mod_->dialogManager && mod_->dialogManager->isActive()) {

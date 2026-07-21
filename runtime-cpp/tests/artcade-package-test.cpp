@@ -229,7 +229,7 @@ static void test_minimal_zip_load() {
     const std::string projJson = R"({
   "projectName":   "TestProject",
   "version":       "2.0.0",
-  "formatVersion": 8,
+  "formatVersion": 9,
   "targetFPS":     60,
   "activeSceneId": "scene_main",
   "mainScriptPath": "scripts/main.lua",
@@ -357,7 +357,7 @@ static void test_reloading_same_artcade_path_clears_stale_extracted_files() {
 
     const std::string projectWithOldScript = R"({
   "projectName": "StaleA",
-  "formatVersion": 8,
+  "formatVersion": 9,
   "activeSceneId": "s1",
   "mainScriptPath": "scripts/old.lua",
   "globalVariables": [],
@@ -367,7 +367,7 @@ static void test_reloading_same_artcade_path_clears_stale_extracted_files() {
 })";
     const std::string projectWithoutOldScript = R"({
   "projectName": "StaleB",
-  "formatVersion": 8,
+  "formatVersion": 9,
   "activeSceneId": "s1",
   "mainScriptPath": "scripts/main.lua",
   "globalVariables": [],
@@ -417,7 +417,7 @@ static void test_directory_load_still_works() {
     const std::string proj = R"({
   "projectName": "DirProject",
   "version": "1.0.0",
-  "formatVersion": 8,
+  "formatVersion": 9,
   "activeSceneId": "s1",
   "globalVariables": [],
   "entities": {},
@@ -528,7 +528,7 @@ static void test_runtime_project_paths_are_sandboxed() {
     fs::create_directories(root / "scripts");
     const std::string sandboxProj = R"({
   "projectName": "SandboxProject",
-  "formatVersion": 8,
+  "formatVersion": 9,
   "activeSceneId": "s1",
   "globalVariables": [],
   "entities": {},
@@ -554,6 +554,164 @@ static void test_runtime_project_paths_are_sandboxed() {
     fs::remove(outside);
 }
 
+static void test_stale_format_version_rejected() {
+    std::cout << "Test 10: loadDirectory - stale formatVersion is rejected, never migrated\n";
+
+    const fs::path tmpDir = fs::temp_directory_path() / "artcade_test_stale_format";
+    fs::create_directories(tmpDir);
+
+    const std::string proj = R"({
+  "projectName": "StaleFormatProject",
+  "formatVersion": 8,
+  "activeSceneId": "s1",
+  "globalVariables": [],
+  "entities": {},
+  "scenes": {
+    "s1": { "id":"s1", "name":"S1", "entityIds": [],
+        "layers": [ { "id": "default", "name": "Default" } ], "defaultLayerId": "default" }
+  }
+})";
+    {
+        std::ofstream f((tmpDir / "project.json").string());
+        f << proj;
+    }
+
+    AssetLoader loader;
+    loader.init();
+    ArtCade::ProjectDoc doc;
+    CHECK(!loader.loadDirectory(tmpDir.string(), doc));
+
+    loader.shutdown();
+    fs::remove_all(tmpDir);
+}
+
+static void test_ru01a_component_readers_round_trip() {
+    std::cout << "Test 11: loadDirectory - boxCollider2D/chunked tilemap/tileset slicing/fontAssets round-trip\n";
+
+    const fs::path tmpDir = fs::temp_directory_path() / "artcade_test_ru01a_readers";
+    fs::create_directories(tmpDir);
+
+    const std::string proj = R"({
+  "projectName": "Ru01aReaders",
+  "formatVersion": 9,
+  "activeSceneId": "s1",
+  "globalVariables": [],
+  "entities": {
+    "1": {
+      "id": 1,
+      "name": "Wall",
+      "className": "Wall",
+      "boxCollider2D": {
+        "offset": { "x": 1, "y": 2 },
+        "size": { "x": 40, "y": 24 },
+        "enabled": true,
+        "mode": "oneWayPlatform"
+      }
+    }
+  },
+  "scenes": {
+    "s1": { "id": "s1", "name": "S1", "entityIds": [1],
+        "layers": [ { "id": "default", "name": "Default" } ], "defaultLayerId": "default",
+        "instances": [
+          { "id": 2, "objectTypeId": "Ground", "layerId": "default",
+            "tilemap": {
+              "tilesetAssetId": "tiles-1",
+              "cellSize": { "x": 16, "y": 16 },
+              "chunkSize": 8,
+              "chunks": [
+                { "chunkX": 0, "chunkY": 0,
+                  "cells": [ { "tileId": "t0", "flags": 1 }, null ] }
+              ]
+            }
+          }
+        ]
+    }
+  },
+  "tilesets": {
+    "tiles-1": {
+      "assetId": "tiles-1",
+      "name": "Tiles",
+      "imageAssetId": "tiles-image",
+      "slicing": { "tileWidth": 16, "tileHeight": 16, "marginX": 1, "marginY": 2,
+                   "spacingX": 3, "spacingY": 4 },
+      "tiles": [ { "id": "t0", "x": 0, "y": 0, "width": 16, "height": 16 } ]
+    }
+  },
+  "fontAssets": [
+    { "assetId": "font-1", "name": "Body", "sourcePath": "fonts/body.ttf",
+      "defaultPixelSize": 18, "glyphPreset": "european" }
+  ]
+})";
+    {
+        std::ofstream f((tmpDir / "project.json").string());
+        f << proj;
+    }
+
+    AssetLoader loader;
+    loader.init();
+    ArtCade::ProjectDoc doc;
+    CHECK(loader.loadDirectory(tmpDir.string(), doc));
+
+    const auto entityIt = doc.entities.find(1);
+    CHECK(entityIt != doc.entities.end());
+    if (entityIt != doc.entities.end()) {
+        CHECK(entityIt->second.boxCollider2D.has_value());
+        if (entityIt->second.boxCollider2D.has_value()) {
+            const auto& bc = *entityIt->second.boxCollider2D;
+            CHECK(bc.offset.x == 1.f && bc.offset.y == 2.f);
+            CHECK(bc.size.x == 40.f && bc.size.y == 24.f);
+            CHECK(bc.enabled);
+            CHECK(bc.mode == ArtCade::BoxColliderMode::OneWayPlatform);
+        }
+    }
+
+    const auto sceneIt = doc.scenes.find("s1");
+    CHECK(sceneIt != doc.scenes.end());
+    if (sceneIt != doc.scenes.end()) {
+        CHECK(sceneIt->second.instances.size() == 1);
+        if (!sceneIt->second.instances.empty()) {
+            const auto& instance = sceneIt->second.instances.front();
+            CHECK(instance.tilemap.has_value());
+            if (instance.tilemap.has_value()) {
+                CHECK(instance.tilemap->tilesetAssetId == "tiles-1");
+                CHECK(instance.tilemap->cellSize.x == 16.f && instance.tilemap->cellSize.y == 16.f);
+                CHECK(instance.tilemap->chunkSize == 8);
+                CHECK(instance.tilemap->chunks.size() == 1);
+                if (!instance.tilemap->chunks.empty()) {
+                    const auto& chunk = instance.tilemap->chunks.front();
+                    CHECK(chunk.chunkX == 0 && chunk.chunkY == 0);
+                    CHECK(chunk.cells.size() == 2);
+                    if (chunk.cells.size() == 2) {
+                        CHECK(chunk.cells[0].has_value());
+                        if (chunk.cells[0].has_value())
+                            CHECK(chunk.cells[0]->tileId == "t0");
+                        CHECK(!chunk.cells[1].has_value());
+                    }
+                }
+            }
+        }
+    }
+
+    CHECK(doc.tilesets.size() == 1);
+    if (!doc.tilesets.empty()) {
+        const auto& ts = doc.tilesets.front();
+        CHECK(ts.slicing.tileWidth == 16 && ts.slicing.tileHeight == 16);
+        CHECK(ts.slicing.marginX == 1 && ts.slicing.marginY == 2);
+        CHECK(ts.slicing.spacingX == 3 && ts.slicing.spacingY == 4);
+        CHECK(ts.tiles.size() == 1);
+        if (!ts.tiles.empty()) CHECK(ts.tiles.front().id == "t0");
+    }
+
+    CHECK(doc.fontAssets.size() == 1);
+    if (!doc.fontAssets.empty()) {
+        CHECK(doc.fontAssets.front().assetId == "font-1");
+        CHECK(doc.fontAssets.front().defaultPixelSize == 18);
+    }
+
+    loader.shutdown();
+    fs::remove_all(tmpDir);
+}
+
 // ---- main ------------------------------------------------------------------
 
 int main() {
@@ -568,6 +726,8 @@ int main() {
     test_store_size_mismatch_rejected();
     test_zip_integrity_checks();
     test_runtime_project_paths_are_sandboxed();
+    test_stale_format_version_rejected();
+    test_ru01a_component_readers_round_trip();
 
     std::cout << "\nResults: " << g_passed << " passed, "
               << g_failed  << " failed\n";
