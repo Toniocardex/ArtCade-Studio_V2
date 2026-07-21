@@ -97,6 +97,7 @@ using ScopeToken = std::uint64_t;
 
 namespace ArtCade::Scripts {
 class ScriptRuntime;
+struct ScriptRuntimeDiagnostic;
 } // namespace ArtCade::Scripts
 
 namespace ArtCade {
@@ -342,7 +343,11 @@ public:
     // fields from frame_coordinator_build_frame() (Renderer/
     // EditorViewportService stay host-owned per T-02 in the debt register) -
     // this only adds to it, it does not rebuild the scene-level truth.
-    SceneFrameSnapshot buildFrameSnapshot(SceneFrameSnapshot snapshot);
+    // const: reads sceneManager_/entityGateway_/spriteAnimator_/variableManager_/
+    // timeManager_ but mutates none of them - lets a const wrapper (editor
+    // Play facade, RU-03) call this from a const accessor without needing a
+    // mutable member.
+    SceneFrameSnapshot buildFrameSnapshot(SceneFrameSnapshot snapshot) const;
 
     // RU-02e-3: ScriptRuntime is reconstructed at project-load and
     // scene-lifecycle time (installScriptScopesForActiveScene, above),
@@ -366,6 +371,15 @@ public:
     // removed ScriptRuntime's Application::Modules alias (app_modules.h no
     // longer needs to include it either).
     void clearScriptRuntime();
+
+    // RU-03 (editor repo): tickFixedStep() only ever prints Script diagnostics
+    // to std::cerr (D-21 in the debt register, still open) - the editor's
+    // Play facade needs to surface them as console messages the same way
+    // Application::updateRuntime used to for the old PlaySession, so this
+    // exposes the drain PlaySession's replacement needs without waiting on
+    // D-21's full scope (a host-agnostic diagnostics channel for every
+    // subsystem). Thin forward only, same style as resetScriptRuntime().
+    std::vector<Scripts::ScriptRuntimeDiagnostic> drainScriptDiagnostics();
 
     // Application::physicsMode_ can change after construction too
     // (applyRuntimeSettings, project-load time) - kept in sync the same way.
@@ -442,6 +456,8 @@ private:
 
     PhysicsMode physicsMode_ = PhysicsMode::Auto;
     std::set<std::pair<EntityId, EntityId>> activeGameplayCollisionPairs_;
+    // RU-03: accumulated by tickFixedStep(), drained by drainScriptDiagnostics().
+    std::vector<Scripts::ScriptRuntimeDiagnostic> pendingScriptDiagnostics_;
 };
 
 static_assert(!std::is_abstract_v<RuntimeLogicHostAdapter>,

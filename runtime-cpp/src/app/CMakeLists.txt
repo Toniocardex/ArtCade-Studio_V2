@@ -3,7 +3,6 @@ add_executable(game
     src/app.cpp
     src/app_bootstrap.cpp
     src/app_loop.cpp
-    src/gameplay_session.cpp
     src/app_project_lifecycle.cpp
     src/app_scene_mutation.cpp
     src/app_scene_lifecycle.cpp
@@ -15,16 +14,19 @@ add_executable(game
     render/physics_debug_renderer.cpp
     render/tilemap-renderer.cpp
     render/parallax-renderer.cpp
-    render/text_value_formatter.cpp
     render/passes/grid_pass.cpp
     render/passes/gizmo_pass.cpp
     render/passes/debug_pass.cpp
     render/passes/scene_background_pass.cpp
     render/passes/scene_entities_pass.cpp
-    render/sprite_frame_resolve.cpp
 )
 target_include_directories(game PRIVATE include render render/passes)
 target_link_libraries(game PRIVATE
+    # RU-03: gameplay_session.cpp/sprite_frame_resolve.cpp/text_value_formatter.cpp
+    # moved into the artcade-gameplay-session library (runtime-cpp/CMakeLists.txt)
+    # so the editor's Play facade can link the same GameplaySession instead of
+    # re-deriving its dependency list a third time.
+    artcade-gameplay-session
     artcade-world
     artcade-game-api
     artcade-lua-runtime

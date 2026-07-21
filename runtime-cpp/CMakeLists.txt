@@ -200,6 +200,46 @@ if(ARTCADE_HAS_RAYLIB AND ARTCADE_HAS_LUA)
     add_subdirectory(src/modules/game-api)
     add_subdirectory(src/modules/dialog)
     add_subdirectory(src/world)
+
+    # RU-03 (docs/PLAY_RUNTIME_UNIFICATION_ROADMAP.md, editor repo): GameplaySession
+    # as a real, linkable library - previously only ever compiled as extra sources
+    # baked into `game`/gameplay_tick_order_characterization_test. The editor's
+    # Play facade links this directly instead of re-deriving the same dependency
+    # list a third time. Dependency list mirrors the one already proven to link
+    # by that test (tests/CMakeLists.txt).
+    add_library(artcade-gameplay-session STATIC
+        src/app/src/gameplay_session.cpp
+        src/app/render/sprite_frame_resolve.cpp
+        src/app/render/text_value_formatter.cpp
+    )
+    target_include_directories(artcade-gameplay-session PUBLIC
+        src/app/include
+        src/app/render
+    )
+    target_include_directories(artcade-gameplay-session PRIVATE
+        libs/lua-5.4/src)
+    target_link_libraries(artcade-gameplay-session PUBLIC
+        artcade-world
+        artcade-scene-system
+        artcade-runtime-entity-gateway
+        artcade-physics
+        artcade-variable-manager
+        artcade-sprite-animator
+        artcade-logic-core
+        artcade-logic-runtime
+        artcade-script-runtime
+        artcade-lua-runtime
+        artcade-game-api
+        artcade-camera-manager
+        artcade-event-bus
+        artcade-game-state
+        artcade-time
+        artcade-tween-manager
+        artcade-audio
+        artcade-input
+        lua54
+    )
+
     add_subdirectory(src/app)
 endif()
 

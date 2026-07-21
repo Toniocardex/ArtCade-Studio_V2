@@ -299,9 +299,12 @@ artcade_test(world_tilemap_collision_test
         runtime-logic-host-parity-test.cpp
         "artcade-world;artcade-scene-system;artcade-runtime-entity-gateway;artcade-physics;artcade-variable-manager;artcade-sprite-animator")
 
+    # RU-03: gameplay_session.cpp/sprite_frame_resolve.cpp/text_value_formatter.cpp
+    # now come from the artcade-gameplay-session library (runtime-cpp/CMakeLists.txt)
+    # instead of being re-listed here as loose extra sources.
     artcade_test(gameplay_tick_order_characterization_test
-        "gameplay-tick-order-characterization-test.cpp;${ARTCADE_RUNTIME_ROOT}/src/app/src/gameplay_session.cpp;${ARTCADE_RUNTIME_ROOT}/src/app/render/sprite_frame_resolve.cpp;${ARTCADE_RUNTIME_ROOT}/src/app/render/text_value_formatter.cpp"
-        "artcade-world;artcade-scene-system;artcade-runtime-entity-gateway;artcade-physics;artcade-variable-manager;artcade-sprite-animator;artcade-logic-core;artcade-logic-runtime;artcade-script-runtime;artcade-lua-runtime;artcade-game-api;artcade-camera-manager;artcade-event-bus;artcade-game-state;artcade-time;artcade-tween-manager;artcade-audio;artcade-input")
+        gameplay-tick-order-characterization-test.cpp
+        "artcade-gameplay-session;artcade-world;artcade-scene-system;artcade-runtime-entity-gateway;artcade-physics;artcade-variable-manager;artcade-sprite-animator;artcade-logic-core;artcade-logic-runtime;artcade-script-runtime;artcade-lua-runtime;artcade-game-api;artcade-camera-manager;artcade-event-bus;artcade-game-state;artcade-time;artcade-tween-manager;artcade-audio;artcade-input")
     target_include_directories(gameplay_tick_order_characterization_test PRIVATE
         ${ARTCADE_RUNTIME_ROOT}/libs/lua-5.4/src)
     target_link_libraries(gameplay_tick_order_characterization_test PRIVATE lua54)

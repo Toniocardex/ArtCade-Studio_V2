@@ -340,6 +340,12 @@ Scripts::ScriptRuntime& GameplaySession::resetScriptRuntime() {
 
 void GameplaySession::clearScriptRuntime() { scriptRuntime_.reset(); }
 
+std::vector<Scripts::ScriptRuntimeDiagnostic> GameplaySession::drainScriptDiagnostics() {
+    std::vector<Scripts::ScriptRuntimeDiagnostic> result = std::move(pendingScriptDiagnostics_);
+    pendingScriptDiagnostics_.clear();
+    return result;
+}
+
 // D-20: replaces the removed `Modules::Physics& physics()` accessor.
 void GameplaySession::setGravity(Vec2 gravity) { physics_->setGravity(gravity); }
 
@@ -734,14 +740,16 @@ void GameplaySession::tickFixedStep(float dt) {
     dispatchGameplayCollisionTransitions();
 
     // Drain errors from input/update/collision callbacks once the fixed-step
-    // lifecycle has reached a stable post-dispatch boundary.
+    // lifecycle has reached a stable post-dispatch boundary. RU-03: buffered
+    // here instead of printed directly - the host decides where diagnostics
+    // go (stderr for game.exe/app_loop.cpp, ConsoleMessage for the editor's
+    // Play facade), this class no longer picks a policy for it (D-21).
     if (scriptRuntime_) {
-        for (const auto& diagnostic : scriptRuntime_->drainDiagnostics()) {
-            std::cerr << "[Script] " << diagnostic.sourcePath;
-            if (diagnostic.line > 0) std::cerr << ":" << diagnostic.line;
-            std::cerr << " [" << diagnostic.callback << "] entity "
-                      << diagnostic.owner << ": " << diagnostic.message << "\n";
-        }
+        auto diagnostics = scriptRuntime_->drainDiagnostics();
+        pendingScriptDiagnostics_.insert(
+            pendingScriptDiagnostics_.end(),
+            std::make_move_iterator(diagnostics.begin()),
+            std::make_move_iterator(diagnostics.end()));
     }
 
     eventBus_->flushDeferred();
@@ -757,7 +765,7 @@ void GameplaySession::tickFixedStep(float dt) {
 // entityGateway_/spriteAnimator_/variableManager_. Only the entity id ->
 // (transform, sprite) source and the drawing itself moved out; the
 // resolution logic and its order are unchanged.
-SceneFrameSnapshot GameplaySession::buildFrameSnapshot(SceneFrameSnapshot snapshot) {
+SceneFrameSnapshot GameplaySession::buildFrameSnapshot(SceneFrameSnapshot snapshot) const {
     const bool inEditMode = snapshot.overlay.inEditMode;
 
     std::unordered_map<std::string, int> layerRankById;
