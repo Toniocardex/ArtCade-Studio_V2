@@ -114,8 +114,8 @@ void Application::renderActiveScene() {
         ? mod_->entityGateway->sceneFadeAlpha()
         : 0.f;
 
-    const uint64_t sceneRevision = mod_->sceneMutation
-        ? mod_->sceneMutation->revision()
+    const uint64_t sceneRevision = mod_->gameplaySession
+        ? mod_->gameplaySession->sceneRevision()
         : 0u;
 
     if (resetCameraOnNextFrame_ && activeScene && mod_->renderer) {
@@ -184,8 +184,9 @@ void Application::renderActiveScene() {
             AppRenderPasses::execute_gizmo_pass(frameCtx);
             break;
         case RenderPipeline::RenderPassId::Debug:
-            if (mod_->world)
-                AppRenderPasses::execute_debug_pass(*mod_->renderer, *mod_->world);
+            if (mod_->gameplaySession)
+                AppRenderPasses::execute_debug_pass(
+                    *mod_->renderer, mod_->gameplaySession->debugWorldView());
             break;
         case RenderPipeline::RenderPassId::Blit:
             if (mod_->dialogManager && mod_->dialogManager->isActive()) {

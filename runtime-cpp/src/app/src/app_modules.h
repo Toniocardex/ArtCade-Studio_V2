@@ -7,25 +7,18 @@
 #include "../../modules/camera-manager/include/camera-manager.h"
 #include "../../modules/dialog/include/dialog-manager.h"
 #include "../../modules/event-bus/include/event-bus.h"
-#include "../../modules/game-api/include/game-api.h"
 #include "../../modules/game-state/include/game-state-manager.h"
 #include "../../modules/input/include/input.h"
-#include "../../modules/lua-runtime/include/lua-host.h"
-#include "../../modules/logic-runtime/include/logic-runtime.h"
-#include "../../modules/script-runtime/include/script-runtime.h"
-#include "../../modules/physics/include/physics.h"
 #include "../../modules/presentation/include/editor_viewport_service.h"
 #include "../../modules/renderer/include/renderer.h"
 #include "../../modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
 #include "../../modules/save-load/include/save-load-manager.h"
 #include "../../modules/scene-system/include/scene-manager.h"
-#include "../../modules/scene-system/include/scene-mutation-service.h"
 #include "../../modules/sprite-animator/include/sprite-animator.h"
 #include "../../modules/texture-manager/include/texture-manager.h"
 #include "../../modules/time/include/time-manager.h"
 #include "../../modules/tween-manager/include/tween-manager.h"
 #include "../../modules/variable-manager/include/variable-manager.h"
-#include "../../world/include/world.h"
 
 #include "gameplay_session.h"
 
@@ -35,7 +28,6 @@
 #include <string>
 #include <type_traits>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 namespace ArtCade {
@@ -84,36 +76,29 @@ private:
 struct Application::Modules {
     std::unique_ptr<ArtCade::Presentation::EditorViewportService> editorViewport;
     std::unique_ptr<ArtCade::Modules::Renderer> renderer;
-    // RU-02e-1: Physics/SceneManager/SceneMutationService/RuntimeEntityGateway/
-    // World are now owned by gameplaySession (below); these are non-owning
-    // aliases set right after gameplaySession->initialize() succeeds, kept so
-    // every existing mod_->world->X()-style call site keeps compiling
-    // unchanged (docs/RU02_GAMEPLAY_SESSION_REFACTOR.md, editor repo, RU-02e).
-    // SceneLifecycleService has no external alias: nothing outside
-    // GameplaySession references it.
-    ArtCade::Modules::Physics* physics = nullptr;
     std::unique_ptr<ArtCade::Modules::Input> input;
     std::unique_ptr<ArtCade::Modules::Audio> audio;
-    // RU-02e-2: LuaHost/RuntimeLogicHostAdapter/LogicRuntime/GameAPI are now
-    // owned by gameplaySession too - same non-owning-alias pattern as
-    // RU-02e-1's physics/sceneManager/etc.
-    ArtCade::Modules::LuaHost* luaHost = nullptr;
-    RuntimeLogicHostAdapter* logicHost = nullptr;
-    ArtCade::Logic::LogicRuntime* logicRuntime = nullptr;
-    std::unordered_map<EntityId, ArtCade::Logic::ScopeToken> logicScopes;
-    std::unordered_set<ObjectTypeId> logicObjectTypes;
-    // RU-02e-3: scriptRuntime is owned by gameplaySession too now (reset per-
-    // scene via GameplaySession::resetScriptRuntime()); this is a non-owning
-    // alias, same pattern as the fields above.
-    ArtCade::Scripts::ScriptRuntime* scriptRuntime = nullptr;
-    std::unordered_map<AssetId, ArtCade::Scripts::ScriptProgram> scriptPrograms;
-    std::unordered_map<ObjectTypeId, std::vector<ScriptAttachmentDef>> scriptAttachments;
+    // D-20 (docs/RU02_GAMEPLAY_SESSION_REFACTOR.md, editor repo, debt
+    // register, "Accesso mutabile agli interni della sessione"): Physics/
+    // SceneMutationService/World/RuntimeLogicHostAdapter/LogicRuntime/
+    // GameAPI/LuaHost/ScriptRuntime - and the Logic/Script scope bookkeeping
+    // that used to live here (logicScopes/logicObjectTypes/scriptPrograms/
+    // scriptAttachments) - no longer have Application-level aliases at all.
+    // GameplaySession dropped the physics()/sceneMutation()/logicHost()/
+    // logicRuntime()/gameAPI()/luaHost()/world() accessors that used to hand
+    // out live mutable references to them; Application now calls narrow,
+    // intent-named GameplaySession methods instead (setGravity/
+    // loadLogicPrograms/loadLuaSource/installLogicScopesForActiveScene/etc.),
+    // and the scope bookkeeping moved into GameplaySession alongside them
+    // (simulation state living across ticks, not host bookkeeping - same
+    // rule that already moved activeGameplayCollisionPairs there in RU-02c).
+    // SceneManager/RuntimeEntityGateway/SpriteAnimator keep their aliases
+    // below - RU-02g already approved render passes reading them live
+    // (editor-overlay/authoring-adjacent data, not mutable simulation
+    // control), so removing those would just break approved architecture.
     ArtCade::Modules::SceneManager* sceneManager = nullptr;
-    ArtCade::Modules::SceneMutationService* sceneMutation = nullptr;
     ArtCade::Modules::RuntimeEntityGateway* entityGateway = nullptr;
     std::unique_ptr<ArtCade::Modules::AssetLoader> assetLoader;
-    ArtCade::Modules::GameAPI* gameAPI = nullptr;
-    World* world = nullptr;
 
     // RU-02f: the remaining utility modules are owned by gameplaySession too
     // now (Application::initUtilities() constructs the session and calls

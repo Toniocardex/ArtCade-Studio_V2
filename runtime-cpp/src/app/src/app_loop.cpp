@@ -4,6 +4,11 @@
 
 #include "../../modules/editor-api/include/editor-api.h"
 #include "../../modules/game-state/include/splash-state.h"
+// D-20: needed directly now for Logic::supportedLogicKeys()/logicInputCode()
+// - this file used to get logic-core.h transitively via app_modules.h's
+// logic-runtime.h include, which D-20 removed (LogicRuntime is
+// GameplaySession-owned now, no longer aliased on Application::Modules).
+#include "../../modules/logic-core/include/logic-core.h"
 
 #ifdef ARTCADE_WASM
 #include <emscripten/emscripten.h>

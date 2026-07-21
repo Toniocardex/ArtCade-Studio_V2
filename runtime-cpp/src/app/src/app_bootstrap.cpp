@@ -78,46 +78,38 @@ bool Application::initSubsystems() {
     if (!boot_step("texture_manager", mod_->textureManager->init())) return false;
     ctx_.textureManager = mod_->textureManager.get();
 
-    // RU-02e-1 (docs/RU02_GAMEPLAY_SESSION_REFACTOR.md, editor repo): Physics,
-    // SceneManager, SceneMutationService, RuntimeEntityGateway,
+    // RU-02e-1/D-20 (docs/RU02_GAMEPLAY_SESSION_REFACTOR.md, editor repo):
+    // Physics, SceneManager, SceneMutationService, RuntimeEntityGateway,
     // SceneLifecycleService and World are now GameplaySession's own
     // composition root (the session itself was already constructed in
     // initUtilities()). initialize() builds the graph with the same
     // boot-step names and internal wiring this function used to perform
-    // directly.
+    // directly, wires World's destroy handler/spriteAnimator/renderer
+    // internally now (D-20 - Application no longer holds a mutable World*
+    // to do this itself), and populates ctx_.physics/sceneManager/
+    // entityGateway/world directly (D-20 - no more physics()/world()
+    // accessors to copy from).
     const bool graphOk = mod_->gameplaySession->initialize(
         physicsMode_,
+        ctx_,
+        mod_->renderer.get(),
         boot_step,
         [this](const ArtCade::Modules::SceneTransitionResult& result) {
             handleSceneTransition(result);
         });
     if (!graphOk) return false;
 
-    mod_->physics = &mod_->gameplaySession->physics();
+    // D-20: SceneManager/RuntimeEntityGateway keep Application-level aliases
+    // (RU-02g render-pass exception - see app_modules.h); Physics/World no
+    // longer do, since ctx_ above and the new GameplaySession methods cover
+    // every remaining Application need for them.
     mod_->sceneManager = &mod_->gameplaySession->sceneManager();
-    mod_->sceneMutation = &mod_->gameplaySession->sceneMutation();
     mod_->entityGateway = &mod_->gameplaySession->entityGateway();
-    mod_->world = &mod_->gameplaySession->world();
-
-    mod_->world->setSpriteAnimator(mod_->spriteAnimator);
-    mod_->world->setEntityDestroyedHandler([this](EntityId id) {
-        const auto it = mod_->logicScopes.find(id);
-        if (it != mod_->logicScopes.end()) {
-            if (mod_->logicRuntime) mod_->logicRuntime->cancelScope(it->second);
-            mod_->logicScopes.erase(it);
-        }
-        if (mod_->scriptRuntime) mod_->scriptRuntime->cancelOwner(id);
-    });
-    mod_->world->setRenderer(mod_->renderer.get());
 
     ctx_.renderer = mod_->renderer.get();
-    ctx_.physics = mod_->physics;
     ctx_.input = mod_->input.get();
     ctx_.audio = mod_->audio.get();
-    ctx_.sceneManager = mod_->sceneManager;
-    ctx_.entityGateway = mod_->entityGateway;
     ctx_.assetLoader = mod_->assetLoader.get();
-    ctx_.world = mod_->world;
 
     mod_->renderer->setTextureKeyResolver(
         [loader = mod_->assetLoader.get()](const std::string& ref) {
@@ -137,31 +129,33 @@ bool Application::initSubsystems() {
     mod_->dialogManager->setContext(&ctx_);
     ctx_.dialogManager = mod_->dialogManager.get();
 
-    // RU-02e-2 (docs/RU02_GAMEPLAY_SESSION_REFACTOR.md, editor repo):
+    // RU-02e-2/D-20 (docs/RU02_GAMEPLAY_SESSION_REFACTOR.md, editor repo):
     // RuntimeLogicHostAdapter/LogicRuntime/GameAPI/LuaHost are now built by
     // the session itself, in the same relative order and with the same
     // boot-step names this function used to construct them with directly.
-    // logicHost/logicRuntime used to be built earlier - right after
-    // mod_->world's alias was set, above - but nothing between that point and
-    // here ever calls into them: world's destroy handler above only reads
-    // mod_->logicRuntime/scriptRuntime lazily, at destroy time, long after
-    // boot completes, so building both pairs together here is behaviorally
-    // identical. ctx_ already carries renderer/physics/input/audio/
-    // sceneManager/entityGateway/assetLoader/world/dialogManager by this
-    // point, exactly what GameAPI(ctx_) used to read.
+    // logicHost/logicRuntime used to be built earlier - right after World was
+    // constructed inside gameplaySession->initialize(), above - but nothing
+    // between that point and here ever calls into them: World's destroy
+    // handler (now internal to GameplaySession::initialize()) only reads
+    // logicRuntime_/scriptRuntime_ lazily, at destroy time, long after boot
+    // completes, so building both pairs together here is behaviorally
+    // identical. ctx_ already carries
+    // renderer/physics/input/audio/sceneManager/entityGateway/assetLoader/
+    // world/dialogManager by this point, exactly what GameAPI(ctx_) used to
+    // read. D-20: no spawnInstaller param anymore - the Logic spawn installer
+    // wires to GameplaySession::installLogicScopeForEntity() internally now,
+    // since that method (and the scope bookkeeping it needs) moved into the
+    // session too.
     const bool gameplayModulesOk = mod_->gameplaySession->initializeGameplayModules(
-        ctx_, *mod_->audio, *mod_->input,
-        [this](EntityId id) { return installLogicScopeForEntity(id); },
-        boot_step);
+        ctx_, *mod_->audio, *mod_->input, boot_step);
     if (!gameplayModulesOk) return false;
 
-    mod_->logicHost = &mod_->gameplaySession->logicHost();
-    mod_->logicRuntime = &mod_->gameplaySession->logicRuntime();
-    mod_->gameAPI = &mod_->gameplaySession->gameAPI();
-    mod_->luaHost = &mod_->gameplaySession->luaHost();
-
+    // D-20: logicHost/logicRuntime/gameAPI no longer have Application-level
+    // aliases at all (zero remaining call sites once install*/loadLogicPrograms
+    // moved into GameplaySession); luaHostHandle() stays only for the
+    // EditorAPI::wireLua() call below (D-18 debt, out of scope here).
     EditorAPI::wireEngine(mod_->entityGateway);
-    EditorAPI::wireLua(mod_->luaHost);
+    EditorAPI::wireLua(mod_->gameplaySession->luaHostHandle());
     EditorAPI::wireRenderer(mod_->renderer.get());
     EditorAPI::wireEditorViewport(mod_->editorViewport.get());
     EditorAPI::wireDialog(mod_->dialogManager.get());
@@ -175,7 +169,7 @@ bool Application::initSubsystems() {
     EditorAPI::setSceneMutationBridge(
         [this](const SceneId& sceneId,
                const ArtCade::Modules::ScenePatch& patch) {
-            return mod_->sceneMutation->apply(sceneId, patch);
+            return mod_->gameplaySession->applySceneMutation(sceneId, patch);
         },
         [this](const ArtCade::Modules::SceneMutationResult& result) {
             handleSceneMutation(result);
@@ -189,7 +183,7 @@ bool Application::initSubsystems() {
         [this]() { endAuthoringSyncBatch(); });
     EditorAPI::setSceneMutationBatchOpenPredicate(
         [this]() {
-            return mod_->sceneMutation && mod_->sceneMutation->batch_open();
+            return mod_->gameplaySession && mod_->gameplaySession->sceneMutationBatchOpen();
         });
     EditorAPI::setProjectLoadedHandler(
         [this](const std::vector<TilePaletteEntry>& palette,
@@ -249,35 +243,27 @@ void Application::shutdownModules() {
     mod_->dialogAdapter.reset();
     mod_->profilerAdapter.reset();
 
-    // RU-02e-2/3: logicRuntime/logicHost/scriptRuntime are all owned by
+    // RU-02e-2/3/D-20: logicRuntime/logicHost/scriptRuntime (and the scope
+    // bookkeeping that used to live in Application::Modules) are all owned by
     // gameplaySession now; the three granular shutdown methods tear them down
     // in the exact relative order this function used to (logicRuntime ->
-    // logicHost -> scriptRuntime -> luaHost -> gameAPI), with Application-
+    // logicHost -> scriptRuntime -> luaHost -> gameAPI), clearing the scope
+    // bookkeeping internally at the same relative points, with Application-
     // owned dialogManager shutdown still interleaved exactly where it was
     // before.
     if (mod_->gameplaySession) mod_->gameplaySession->shutdownLogicModules();
-    mod_->logicRuntime = nullptr;
-    mod_->logicHost = nullptr;
-    mod_->logicScopes.clear();
-    mod_->logicObjectTypes.clear();
     if (mod_->gameplaySession) mod_->gameplaySession->shutdownScriptRuntime();
-    mod_->scriptRuntime = nullptr;
-    mod_->scriptPrograms.clear();
-    mod_->scriptAttachments.clear();
     if (mod_->gameplaySession) mod_->gameplaySession->shutdownScriptingModules();
-    mod_->luaHost = nullptr;
-    mod_->gameAPI = nullptr;
     if (mod_->dialogManager) { mod_->dialogManager->shutdown(); mod_->dialogManager.reset(); }
 
     // RU-02e-1: World/gateway/lifecycle/mutation/scene-manager are owned by
     // gameplaySession now; shutdownGraph() tears them down in the exact
     // relative order this function used to (world -> gateway -> lifecycle ->
-    // mutation -> scene manager). The Modules aliases are non-owning, so they
-    // are nulled right after to avoid dangling pointers.
+    // mutation -> scene manager). D-20: sceneManager/entityGateway are the
+    // only Modules aliases left for this graph (RU-02g render-pass
+    // exception); world/sceneMutation never had aliases to null anymore.
     if (mod_->gameplaySession) mod_->gameplaySession->shutdownGraph();
-    mod_->world = nullptr;
     mod_->entityGateway = nullptr;
-    mod_->sceneMutation = nullptr;
     mod_->sceneManager = nullptr;
 
     if (mod_->assetLoader) { mod_->assetLoader->shutdown(); mod_->assetLoader.reset(); }
@@ -286,7 +272,6 @@ void Application::shutdownModules() {
     // Physics shuts down here, in the same relative position as before
     // (after audio/input, before textureManager/renderer).
     if (mod_->gameplaySession) mod_->gameplaySession->shutdownPhysics();
-    mod_->physics = nullptr;
     if (mod_->textureManager) { mod_->textureManager->shutdown(); mod_->textureManager.reset(); }
     if (mod_->renderer) { mod_->renderer->shutdown(); mod_->renderer.reset(); }
 

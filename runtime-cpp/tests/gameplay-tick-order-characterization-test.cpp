@@ -422,41 +422,49 @@ void testAnimationEventsDrainedOnce() {
     animator.shutdown();
 }
 
-// VERIFIED (RU-02c/RU-02d/RU-02e-1/RU-02e-2/RU-02e-3, upgraded from the
+// VERIFIED (RU-02c/RU-02d/RU-02e-1/RU-02e-2/RU-02e-3/D-20, upgraded from the
 // CONTRACT note above): drives the real GameplaySession::dispatchInput then
 // GameplaySession::tickFixedStep - not a hand-replayed mirror of the
 // algorithm. RU-02e-2/3 moved RuntimeLogicHostAdapter/LogicRuntime/GameAPI/
 // LuaHost/ScriptRuntime ownership into GameplaySession itself, so this test
-// can no longer substitute its own instrumented `Host` stub for Logic/Script -
-// it uses the session's real logicHost()/logicRuntime()/resetScriptRuntime()
-// instead. The Logic-before-Script ordering claim is now checked through a
-// real production side effect instead of a callLog: World::setMovementIntent
-// (driven by requestPlatformerMove) overwrites rather than accumulates
-// (world_movement.cpp), so the final velocity after tickFixedStep reflects
-// whichever on_update ran last - Script's -1.0 axis, proving it really did
-// run after Logic's 1.0. Audio is constructed but never init()'d (skips
-// InitAudioDevice(), never exercised by playSound in this test); Input::init()
-// is a trivial no-op (input.cpp:36) so it's safe to call for real.
+// can no longer substitute its own instrumented `Host` stub for Logic/Script.
+// D-20 then removed the world()/logicRuntime() accessors this test used to
+// reach the session's internals directly - it now drives the same
+// production entry points Application does (loadWorldProject/
+// loadLogicPrograms/installLogicScopeForEntity), which is a strictly better
+// characterization: it exercises the real install path instead of hand-
+// calling LogicRuntime::install(). The Logic-before-Script ordering claim is
+// checked through a real production side effect instead of a callLog:
+// World::setMovementIntent (driven by requestPlatformerMove) overwrites
+// rather than accumulates (world_movement.cpp), so the final velocity after
+// tickFixedStep reflects whichever on_update ran last - Script's -1.0 axis,
+// proving it really did run after Logic's 1.0. Audio is constructed but
+// never init()'d (skips InitAudioDevice(), never exercised by playSound in
+// this test); Input::init() is a trivial no-op (input.cpp:36) so it's safe
+// to call for real.
 void testRealGameplaySessionDispatchInputThenTick() {
     Modules::Audio audio; // never init()'d - playSound is not exercised here.
     Modules::Input input;
     CHECK(input.init());
 
-    // RU-02e-1/2/RU-02f: GameplaySession now owns the whole utility +
+    // RU-02e-1/2/RU-02f/D-20: GameplaySession now owns the whole utility +
     // simulation + Logic/GameAPI/LuaHost graph itself - build it via
     // initializeUtilities() then initialize() then initializeGameplayModules()
-    // instead of constructing everything standalone.
+    // instead of constructing everything standalone. ctx.input stays null -
+    // GameAPI never queries it here; no renderer in this headless test
+    // (World tolerates a null one, per RU-02a).
     GameplaySession session;
     CHECK(session.initializeUtilities([](const char*, bool ok) { return ok; }));
+    EngineContext ctx;
     CHECK(session.initialize(
         PhysicsMode::Auto,
+        ctx,
+        nullptr,
         [](const char*, bool ok) { return ok; },
         [](const Modules::SceneTransitionResult&) {}));
 
-    EngineContext ctx; // ctx.input stays null - GameAPI never queries it here.
     CHECK(session.initializeGameplayModules(
         ctx, audio, input,
-        [](EntityId) { return true; }, // spawnInstaller: no spawns in this test
         [](const char*, bool ok) { return ok; }));
 
     EntityDef hero;
@@ -471,11 +479,14 @@ void testRealGameplaySessionDispatchInputThenTick() {
     project.entities = {{hero.id, hero}};
     project.scenes = {{scene.id, scene}};
 
-    session.world().init(project);
+    session.loadWorldProject(project);
 
     std::string error;
-    CHECK(session.logicRuntime().loadPrograms({makeLogicMoveProgram("Hero", 1.f)}, &error));
-    CHECK(session.logicRuntime().install("Hero", hero.id, &error).has_value());
+    CHECK(session.loadLogicPrograms({makeLogicMoveProgram("Hero", 1.f)}, &error));
+    // Same production entry point installLogicScopesForActiveScene's spawn
+    // installer uses (installLogicScopeForEntity) - installs the scope and
+    // dispatches owner-scoped Start immediately, exactly like a real spawn.
+    CHECK(session.installLogicScopeForEntity(hero.id));
 
     // RU-02e-3: ScriptRuntime is session-owned now too - resetScriptRuntime()
     // builds it against the session's own logicHost(), same as production's
@@ -485,13 +496,11 @@ void testRealGameplaySessionDispatchInputThenTick() {
 
     session.wireHostPorts(nullptr, nullptr, nullptr); // audio/dialog/profiler: not exercised
 
-    // dispatchStart is a lifecycle event (install/spawn-time in production,
-    // e.g. installLogicScopeForEntity calls dispatchStartForOwner right after
-    // install(), outside any frame loop), not tied to a particular frame's
-    // event budget - no beginFrame() needed before it. dispatchInput below
-    // is the first and only beginFrame() call in this test, exactly where it
-    // belongs: at the start of the one frame being simulated.
-    session.logicRuntime().dispatchStart();
+    // dispatchInput below is the first and only beginFrame() call in this
+    // test, exactly where it belongs: at the start of the one frame being
+    // simulated. Logic's Start already fired above, at install time (matching
+    // production, where installLogicScopeForEntity's dispatchStartForOwner
+    // never waits for a frame boundary either).
     scriptRuntime.dispatchStart();
 
     // Synthetic frame: no LogicKey here has a registered on_key_* handler (the

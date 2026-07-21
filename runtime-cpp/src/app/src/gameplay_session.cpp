@@ -212,15 +212,25 @@ bool GameplaySession::initializeUtilities(const BootStepFn& bootStep) {
     return true;
 }
 
-// RU-02e-1: lines moved from Application::initSubsystems() (app_bootstrap.cpp)
-// in the same relative order, same boot-step names, same wiring - only the
-// two SceneLifecycleService handlers that used to capture Application state
-// (`gw = mod_->entityGateway.get()`) now capture `this` (GameplaySession),
-// per the plan's callback rule (RU02_GAMEPLAY_SESSION_REFACTOR.md RU-02e:
-// "Callback: non devono più catturare Application per modificare oggetti
-// posseduti dalla sessione"). `onSceneTransition` still reaches the host,
-// since it mutates Application::pendingSceneInvalidations_.
+// RU-02e-1/D-20: lines moved from Application::initSubsystems()
+// (app_bootstrap.cpp) in the same relative order, same boot-step names, same
+// wiring - the two SceneLifecycleService handlers that used to capture
+// Application state (`gw = mod_->entityGateway.get()`) capture `this`
+// (GameplaySession), per the plan's callback rule (RU02_GAMEPLAY_SESSION_
+// REFACTOR.md RU-02e: "Callback: non devono più catturare Application per
+// modificare oggetti posseduti dalla sessione"). D-20 moves World's
+// entity-destroyed handler and setSpriteAnimator/setRenderer wiring in here
+// too (previously done by Application right after fetching world() - now
+// removed), and populates ctx.physics/sceneManager/entityGateway/world
+// directly (previously Application copied these from the now-removed
+// physics()/sceneManager()/entityGateway()/world() accessors just to do
+// this). `onSceneTransition` still reaches the host, since it mutates
+// Application::pendingSceneInvalidations_; `presentationRenderer` is the one
+// remaining T-02 debt (concrete Renderer* handed to World::setRenderer) and
+// may be null (World tolerates it - e.g. headless tests).
 bool GameplaySession::initialize(PhysicsMode physicsMode,
+                                  EngineContext& ctx,
+                                  Modules::Renderer* presentationRenderer,
                                   const BootStepFn& bootStep,
                                   SceneTransitionHandlerFn onSceneTransition) {
     physicsMode_ = physicsMode;
@@ -254,21 +264,46 @@ bool GameplaySession::initialize(PhysicsMode physicsMode,
     });
     world_->setSceneLifecycleService(sceneLifecycle_.get());
 
+    // D-20/D-08: moved from Application::initSubsystems() - the destroy
+    // handler used to capture Application (`this`) to reach
+    // mod_->logicScopes/logicRuntime/scriptRuntime; now it reads the
+    // session's own logicScopes_/logicRuntime_/scriptRuntime_ directly.
+    // logicRuntime_/scriptRuntime_ don't exist yet at this point in boot -
+    // safe, since destroy only ever fires well after boot completes (same
+    // reasoning already established for RU-02e-2's spawn installer).
+    world_->setSpriteAnimator(spriteAnimator_.get());
+    world_->setEntityDestroyedHandler([this](EntityId id) {
+        const auto it = logicScopes_.find(id);
+        if (it != logicScopes_.end()) {
+            if (logicRuntime_) logicRuntime_->cancelScope(it->second);
+            logicScopes_.erase(it);
+        }
+        if (scriptRuntime_) scriptRuntime_->cancelOwner(id);
+    });
+    world_->setRenderer(presentationRenderer);
+
+    ctx.physics = physics_.get();
+    ctx.sceneManager = sceneManager_.get();
+    ctx.entityGateway = entityGateway_.get();
+    ctx.world = world_.get();
+
     return true;
 }
 
-// RU-02e-2: lines moved from Application::initSubsystems() (app_bootstrap.cpp)
-// in the same relative order, same boot-step names, same wiring. `ctx` is
-// Application's own EngineContext, already populated with everything the
-// simulation graph above wires (renderer/physics/input/audio/sceneManager/
-// entityGateway/assetLoader/world/dialogManager/...) by the time this runs -
-// this method only ever writes ctx.gameAPI/ctx.luaHost, exactly like
-// Application used to right after constructing each.
+// RU-02e-2/D-20: lines moved from Application::initSubsystems()
+// (app_bootstrap.cpp) in the same relative order, same boot-step names, same
+// wiring. `ctx` is Application's own EngineContext, already populated with
+// everything the simulation graph above wires (renderer/physics/input/audio/
+// sceneManager/entityGateway/assetLoader/world/dialogManager/...) by the
+// time this runs - this method only ever writes ctx.gameAPI/ctx.luaHost,
+// exactly like Application used to right after constructing each. D-20: the
+// spawn installer now wires to installLogicScopeForEntity() (this class,
+// below) directly - Application no longer needs to pass one in, since that
+// method moved in from Application too.
 bool GameplaySession::initializeGameplayModules(
     EngineContext& ctx,
     Modules::Audio& audio,
     Modules::Input& input,
-    RuntimeLogicHostAdapter::SpawnInstaller spawnInstaller,
     const BootStepFn& bootStep) {
     logicHost_ = std::make_unique<RuntimeLogicHostAdapter>(*entityGateway_, audio);
     logicRuntime_ = std::make_unique<Logic::LogicRuntime>(*logicHost_);
@@ -277,7 +312,7 @@ bool GameplaySession::initializeGameplayModules(
     logicHost_->setVariableManager(variableManager_.get());
     logicHost_->setInput(&input);
     logicHost_->setPhysics(physics_.get());
-    logicHost_->setSpawnInstaller(std::move(spawnInstaller));
+    logicHost_->setSpawnInstaller([this](EntityId id) { return installLogicScopeForEntity(id); });
 
     gameAPI_ = std::make_unique<Modules::GameAPI>(ctx);
     if (!bootStep("game_api", gameAPI_->init())) return false;
@@ -301,6 +336,140 @@ bool GameplaySession::initializeGameplayModules(
 Scripts::ScriptRuntime& GameplaySession::resetScriptRuntime() {
     scriptRuntime_ = std::make_unique<Scripts::ScriptRuntime>(*logicHost_);
     return *scriptRuntime_;
+}
+
+void GameplaySession::clearScriptRuntime() { scriptRuntime_.reset(); }
+
+// D-20: replaces the removed `Modules::Physics& physics()` accessor.
+void GameplaySession::setGravity(Vec2 gravity) { physics_->setGravity(gravity); }
+
+// D-20: replace the removed `Modules::SceneMutationService& sceneMutation()`
+// accessor - thin forwards, no new behavior.
+uint64_t GameplaySession::bumpSceneRevision() { return sceneMutation_->bump_revision(); }
+uint64_t GameplaySession::sceneRevision() const { return sceneMutation_->revision(); }
+void GameplaySession::beginSceneMutationBatch() { sceneMutation_->begin_batch(); }
+Modules::SceneMutationResult GameplaySession::commitSceneMutationBatch() {
+    return sceneMutation_->commit_batch();
+}
+Modules::SceneMutationResult GameplaySession::applySceneMutation(
+    const SceneId& sceneId, const Modules::ScenePatch& patch) {
+    return sceneMutation_->apply(sceneId, patch);
+}
+bool GameplaySession::sceneMutationBatchOpen() const { return sceneMutation_->batch_open(); }
+
+// D-20: replace the removed `World& world()` accessor's mutating call sites -
+// thin forwards, no new behavior.
+void GameplaySession::loadWorldProject(const ProjectDoc& doc) { world_->init(doc); }
+void GameplaySession::syncWorldAfterEditorProject(
+    const std::vector<TilePaletteEntry>& tilePalette) {
+    world_->syncAfterEditorProject(tilePalette);
+}
+void GameplaySession::restoreWorldDesignState(
+    const std::vector<TilePaletteEntry>& tilePalette) {
+    world_->restoreDesignState(tilePalette);
+}
+void GameplaySession::rebuildWorldCollision() { world_->rebuildCollisionWorld(); }
+
+// D-20: replaces the removed `Logic::LogicRuntime& logicRuntime()` accessor -
+// also rebuilds logicObjectTypes_ from the compiled programs, mirroring what
+// Application::loadProject used to do right after loadPrograms() succeeded.
+bool GameplaySession::loadLogicPrograms(
+    const std::vector<Logic::LogicProgram>& programs, std::string* error) {
+    if (!logicRuntime_ || !logicRuntime_->loadPrograms(programs, error)) return false;
+    logicObjectTypes_.clear();
+    for (const Logic::LogicProgram& program : programs) {
+        logicObjectTypes_.insert(program.objectTypeId);
+    }
+    return true;
+}
+
+// D-20: replace the removed `Modules::LuaHost& luaHost()` accessor.
+void GameplaySession::loadLuaSource(const std::string& source) {
+    if (luaHost_) luaHost_->loadLuaSource(source);
+}
+bool GameplaySession::loadLuaBytecode(const uint8_t* data, size_t size, std::string* error) {
+    if (!luaHost_ || !luaHost_->loadBytecodeBuffer(data, size)) {
+        if (error) *error = luaHost_ ? luaHost_->lastError() : std::string();
+        return false;
+    }
+    return true;
+}
+
+// D-20/D-08/D-09: moved verbatim from Application::installLogicScopesForActiveScene/
+// installLogicScopeForEntity/installScriptScopesForActiveScene (app_project_
+// lifecycle.cpp) - only mod_->X became X_ for every member this class now
+// owns (logicRuntime_/entityGateway_/scriptRuntime_/logicScopes_/
+// logicObjectTypes_/scriptPrograms_/scriptAttachments_), same as every other
+// method moved in during RU-02e/f.
+void GameplaySession::setScriptCatalog(
+    std::unordered_map<AssetId, Scripts::ScriptProgram> programs,
+    std::unordered_map<ObjectTypeId, std::vector<ScriptAttachmentDef>> attachments) {
+    scriptPrograms_ = std::move(programs);
+    scriptAttachments_ = std::move(attachments);
+}
+
+bool GameplaySession::installLogicScopesForActiveScene() {
+    if (!logicRuntime_ || !entityGateway_) return false;
+    for (const auto& [entityId, token] : logicScopes_) {
+        (void)entityId;
+        logicRuntime_->cancelScope(token);
+    }
+    logicScopes_.clear();
+    std::string error;
+    for (EntityId id : entityGateway_->activeSceneIds()) {
+        const ObjectTypeId typeId = entityGateway_->className(id);
+        if (logicObjectTypes_.find(typeId) == logicObjectTypes_.end()) continue;
+        const auto token = logicRuntime_->install(typeId, id, &error);
+        if (!token) {
+            std::cerr << "[App] Could not install Logic Board scope: " << error << "\n";
+            return false;
+        }
+        logicScopes_.emplace(id, *token);
+    }
+    logicRuntime_->beginFrame();
+    logicRuntime_->dispatchStart();
+    return true;
+}
+
+bool GameplaySession::installLogicScopeForEntity(EntityId entityId) {
+    if (!logicRuntime_ || !entityGateway_ || entityId == INVALID_ENTITY) return false;
+    if (logicScopes_.count(entityId) != 0) return true;
+    const ObjectTypeId typeId = entityGateway_->className(entityId);
+    if (logicObjectTypes_.find(typeId) == logicObjectTypes_.end()) return true;
+    std::string error;
+    const auto token = logicRuntime_->install(typeId, entityId, &error);
+    if (!token) {
+        std::cerr << "[App] Could not install Logic Board scope for spawn: " << error << "\n";
+        return false;
+    }
+    logicScopes_.emplace(entityId, *token);
+    // Owner-scoped Start only - never re-fire On Start for the whole scene.
+    logicRuntime_->dispatchStartForOwner(entityId);
+    return true;
+}
+
+bool GameplaySession::installScriptScopesForActiveScene() {
+    if (!entityGateway_ || !logicHost_) return false;
+    resetCollisionTracking();
+    resetScriptRuntime();
+    std::string error;
+    for (EntityId id : entityGateway_->activeSceneIds()) {
+        const ObjectTypeId typeId = entityGateway_->className(id);
+        const auto attachments = scriptAttachments_.find(typeId);
+        if (attachments == scriptAttachments_.end()) continue;
+        for (const ScriptAttachmentDef& attachment : attachments->second) {
+            if (!attachment.enabled) continue;
+            const auto program = scriptPrograms_.find(attachment.scriptAssetId);
+            if (program == scriptPrograms_.end()
+                || !scriptRuntime_->install(program->second, id, attachment.id, &error)) {
+                std::cerr << "[App] Could not install Script scope: " << error << "\n";
+                clearScriptRuntime();
+                return false;
+            }
+        }
+    }
+    scriptRuntime_->dispatchStart();
+    return true;
 }
 
 void GameplaySession::shutdownGraph() {
@@ -328,6 +497,11 @@ void GameplaySession::shutdownPhysics() {
 void GameplaySession::shutdownLogicModules() {
     if (logicRuntime_) { logicRuntime_->shutdown(); logicRuntime_.reset(); }
     logicHost_.reset();
+    // D-20: these used to be mod_->logicScopes.clear()/logicObjectTypes.clear()
+    // right after Application::shutdownModules()'s shutdownLogicModules() call
+    // - same relative position, now internal since the maps moved in too.
+    logicScopes_.clear();
+    logicObjectTypes_.clear();
 }
 
 // RU-02e-3: matches the original Application-side
@@ -335,6 +509,11 @@ void GameplaySession::shutdownLogicModules() {
 // which used to sit between logicHost.reset() and luaHost's shutdown.
 void GameplaySession::shutdownScriptRuntime() {
     if (scriptRuntime_) { scriptRuntime_->shutdown(); scriptRuntime_.reset(); }
+    // D-20: these used to be mod_->scriptPrograms.clear()/scriptAttachments.
+    // clear() right after Application::shutdownModules()'s shutdownScriptRuntime()
+    // call - same relative position, now internal since the maps moved in too.
+    scriptPrograms_.clear();
+    scriptAttachments_.clear();
 }
 
 // RU-02e-2: matches the original luaHost shutdown/reset immediately followed

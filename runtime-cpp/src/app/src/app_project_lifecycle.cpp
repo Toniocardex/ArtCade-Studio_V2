@@ -7,6 +7,12 @@
 #include "../../modules/game-state/include/splash-state.h"
 #include "../../modules/sprite-animator/include/animation-clips-registry.h"
 #include "../../modules/logic-core/include/logic-core.h"
+// D-20: needed directly now - this file constructs a standalone
+// Scripts::ScriptRuntime validator (scriptValidator) to preflight attached
+// scripts before any gameplay world accepts them; it used to get the type
+// transitively via app_modules.h's Application::Modules::scriptRuntime field,
+// which D-20 removed (ScriptRuntime is GameplaySession-owned now).
+#include "../../modules/script-runtime/include/script-runtime.h"
 
 #include <cmath>
 #include <algorithm>
@@ -28,9 +34,9 @@ void Application::applyRuntimeSettings(const ProjectRuntimeSettings& settings,
     physicsMode_ = settings.physicsMode;
     if (mod_ && mod_->gameplaySession) mod_->gameplaySession->setPhysicsMode(physicsMode_);
 
-    if (mod_ && mod_->physics) {
+    if (mod_ && mod_->gameplaySession) {
         const float gravity = std::isfinite(settings.gravity) ? settings.gravity : 9.81f;
-        mod_->physics->setGravity({0.f, gravity});
+        mod_->gameplaySession->setGravity({0.f, gravity});
     }
     if (mod_ && mod_->timeManager) {
         const float timeScale =
@@ -89,8 +95,8 @@ void Application::applyRuntimeSettings(const ProjectRuntimeSettings& settings,
 
 #ifdef ARTCADE_WASM
 void Application::onProjectReplaced() {
-    if (!mod_->sceneMutation) return;
-    mod_->sceneMutation->bump_revision();
+    if (!mod_->gameplaySession) return;
+    mod_->gameplaySession->bumpSceneRevision();
     pendingSceneInvalidations_ |=
         ArtCade::Modules::SceneInvalidation::SceneActivation
         | ArtCade::Modules::SceneInvalidation::Collision;
@@ -154,7 +160,7 @@ void Application::applyEditorProjectLoaded(
     }
     resetGameplayRuntimeModules();
     if (mod_->variableManager) mod_->variableManager->configureGlobals(variables);
-    if (mod_->world) mod_->world->syncAfterEditorProject(tilePalette);
+    if (mod_->gameplaySession) mod_->gameplaySession->syncWorldAfterEditorProject(tilePalette);
 }
 
 void Application::applyEditorPreviewRestore(
@@ -166,7 +172,7 @@ void Application::applyEditorPreviewRestore(
     applyRuntimeSettings(settings, ViewportPolicy::EditorPreview);
     resetGameplayRuntimeModules();
     if (mod_->variableManager) mod_->variableManager->configureGlobals(variables);
-    if (mod_->world) mod_->world->restoreDesignState(tilePalette);
+    if (mod_->gameplaySession) mod_->gameplaySession->restoreWorldDesignState(tilePalette);
 }
 
 void Application::applyEditorEnterPlay(
@@ -178,7 +184,7 @@ void Application::applyEditorEnterPlay(
     applyRuntimeSettings(settings, ViewportPolicy::NativePlay);
     resetGameplayRuntimeModules();
     if (mod_->variableManager) mod_->variableManager->configureGlobals(variables);
-    if (mod_->world) mod_->world->syncAfterEditorProject(tilePalette);
+    if (mod_->gameplaySession) mod_->gameplaySession->syncWorldAfterEditorProject(tilePalette);
     // The reset above wiped the animator instances that replaceProject created
     // for playClipOnSpawn entities — re-arm them now that modules are fresh.
     if (mod_->entityGateway) mod_->entityGateway->replayActiveSpawnClips();
@@ -192,10 +198,10 @@ void Application::applyEditorExitPlay(
     const std::string& luaSource) {
     applyEditorProjectCommon(tilePalette, tilesets, /*evictAssets=*/false);
     applyRuntimeSettings(settings, ViewportPolicy::EditorPreview);
-    if (mod_->luaHost && !luaSource.empty()) mod_->luaHost->loadLuaSource(luaSource);
+    if (mod_->gameplaySession && !luaSource.empty()) mod_->gameplaySession->loadLuaSource(luaSource);
     resetGameplayRuntimeModules();
     if (mod_->variableManager) mod_->variableManager->configureGlobals(variables);
-    if (mod_->world) mod_->world->restoreDesignState(tilePalette);
+    if (mod_->gameplaySession) mod_->gameplaySession->restoreWorldDesignState(tilePalette);
 }
 #endif
 
@@ -235,13 +241,10 @@ bool Application::loadProject(const std::string& projectPath) {
         return false;
     }
     std::string logicError;
-    if (!mod_->logicRuntime || !mod_->logicRuntime->loadPrograms(compiled.programs, &logicError)) {
+    if (!mod_->gameplaySession
+        || !mod_->gameplaySession->loadLogicPrograms(compiled.programs, &logicError)) {
         std::cerr << "[App] Could not load Logic Board programs: " << logicError << "\n";
         return false;
-    }
-    mod_->logicObjectTypes.clear();
-    for (const ArtCade::Logic::LogicProgram &program : compiled.programs) {
-        mod_->logicObjectTypes.insert(program.objectTypeId);
     }
 
     // Strict immutable manual-source snapshot. Resolve the authoring graph in
@@ -301,17 +304,17 @@ bool Application::loadProject(const std::string& projectPath) {
         }
         nextScriptPrograms.emplace(assetId, std::move(program));
     }
-    mod_->scriptPrograms = std::move(nextScriptPrograms);
-    mod_->scriptAttachments = std::move(nextScriptAttachments);
+    mod_->gameplaySession->setScriptCatalog(
+        std::move(nextScriptPrograms), std::move(nextScriptAttachments));
 
-    mod_->world->init(doc);
+    mod_->gameplaySession->loadWorldProject(doc);
     if (mod_->spriteAnimator) {
         registerAnimationClipsFromAssets(*mod_->spriteAnimator, doc.imageAssets);
         appendAnimationClipsFromAssets(*mod_->spriteAnimator, doc.spriteAnimationAssets);
     }
     if (mod_->audio) mod_->audio->setRuntimeAssetCatalog(doc.audioAssets);
-    if (!installLogicScopesForActiveScene()) return false;
-    if (!installScriptScopesForActiveScene()) return false;
+    if (!mod_->gameplaySession->installLogicScopesForActiveScene()) return false;
+    if (!mod_->gameplaySession->installScriptScopesForActiveScene()) return false;
     applyRuntimeSettings(runtimeSettingsFromProjectDoc(doc), ViewportPolicy::NativePlay);
 
     tileColors_.clear();
@@ -337,12 +340,13 @@ bool Application::loadProject(const std::string& projectPath) {
         const bool haveBytecode =
             mod_->assetLoader->loadLuaBytecode(doc.mainScriptPath, bytecode)
             && !bytecode.empty();
+        std::string bytecodeError;
         if (!haveBytecode
-            || !mod_->luaHost->loadBytecodeBuffer(bytecode.data(), bytecode.size())) {
+            || !mod_->gameplaySession->loadLuaBytecode(
+                bytecode.data(), bytecode.size(), &bytecodeError)) {
             std::cerr << "[App] Missing or invalid main script bytecode: "
                       << doc.mainScriptPath;
-            const std::string& error = mod_->luaHost->lastError();
-            if (!error.empty()) std::cerr << " (" << error << ")";
+            if (!bytecodeError.empty()) std::cerr << " (" << bytecodeError << ")";
             std::cerr << "\n";
             return false;
         }
@@ -358,78 +362,6 @@ bool Application::loadProject(const std::string& projectPath) {
 
     std::cout << "[App] Project loaded: " << doc.projectName
               << " (license=" << licenseTier_ << ")\n";
-    return true;
-}
-
-bool Application::installLogicScopesForActiveScene() {
-    if (!mod_ || !mod_->logicRuntime || !mod_->entityGateway) return false;
-    for (const auto& [entityId, token] : mod_->logicScopes) {
-        (void)entityId;
-        mod_->logicRuntime->cancelScope(token);
-    }
-    mod_->logicScopes.clear();
-    std::string error;
-    for (EntityId id : mod_->entityGateway->activeSceneIds()) {
-        const ObjectTypeId typeId = mod_->entityGateway->className(id);
-        if (mod_->logicObjectTypes.find(typeId) == mod_->logicObjectTypes.end()) continue;
-        const auto token = mod_->logicRuntime->install(typeId, id, &error);
-        if (!token) {
-            std::cerr << "[App] Could not install Logic Board scope: " << error << "\n";
-            return false;
-        }
-        mod_->logicScopes.emplace(id, *token);
-    }
-    mod_->logicRuntime->beginFrame();
-    mod_->logicRuntime->dispatchStart();
-    return true;
-}
-
-bool Application::installLogicScopeForEntity(EntityId entityId) {
-    if (!mod_ || !mod_->logicRuntime || !mod_->entityGateway || entityId == INVALID_ENTITY)
-        return false;
-    if (mod_->logicScopes.count(entityId) != 0) return true;
-    const ObjectTypeId typeId = mod_->entityGateway->className(entityId);
-    if (mod_->logicObjectTypes.find(typeId) == mod_->logicObjectTypes.end()) return true;
-    std::string error;
-    const auto token = mod_->logicRuntime->install(typeId, entityId, &error);
-    if (!token) {
-        std::cerr << "[App] Could not install Logic Board scope for spawn: " << error << "\n";
-        return false;
-    }
-    mod_->logicScopes.emplace(entityId, *token);
-    // Owner-scoped Start only — never re-fire On Start for the whole scene.
-    mod_->logicRuntime->dispatchStartForOwner(entityId);
-    return true;
-}
-
-bool Application::installScriptScopesForActiveScene() {
-    if (!mod_ || !mod_->entityGateway) return false;
-    if (!mod_->logicHost) return false;
-    if (!mod_->gameplaySession) return false;
-    mod_->gameplaySession->resetCollisionTracking();
-    // RU-02e-3: the session now owns ScriptRuntime directly (built against its
-    // own logicHost()) - mod_->scriptRuntime is a non-owning alias, same
-    // pattern as every other RU-02e-1/2 module.
-    mod_->scriptRuntime = &mod_->gameplaySession->resetScriptRuntime();
-    std::string error;
-    for (EntityId id : mod_->entityGateway->activeSceneIds()) {
-        const ObjectTypeId typeId = mod_->entityGateway->className(id);
-        const auto attachments = mod_->scriptAttachments.find(typeId);
-        if (attachments == mod_->scriptAttachments.end()) continue;
-        for (const ScriptAttachmentDef& attachment : attachments->second) {
-            if (!attachment.enabled) continue;
-            const auto program = mod_->scriptPrograms.find(attachment.scriptAssetId);
-            if (program == mod_->scriptPrograms.end()
-                || !mod_->scriptRuntime->install(
-                    program->second, id, attachment.id, &error)) {
-                std::cerr << "[App] Could not install Script scope: " << error << "\n";
-                mod_->gameplaySession->clearScriptRuntime();
-                mod_->scriptRuntime = nullptr;
-                return false;
-            }
-        }
-    }
-    mod_->scriptRuntime->dispatchStart();
     return true;
 }
 

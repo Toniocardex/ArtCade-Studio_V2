@@ -1,35 +1,64 @@
 #pragma once
 
-// RU-02c/RU-02e-1/RU-02e-2/RU-02e-3/RU-02f (docs/RU02_GAMEPLAY_SESSION_
-// REFACTOR.md, editor repo): the gameplay tick algorithm moved verbatim out
-// of Application::tickFixedStep / Application::dispatchGameplayCollisionTransitions
-// (RU-02c), then the simulation graph (Physics/SceneManager/
-// SceneMutationService/RuntimeEntityGateway/SceneLifecycleService/World)
-// moved into this class's own composition root, `initialize()` (RU-02e-1),
-// then RuntimeLogicHostAdapter/LogicRuntime/GameAPI/LuaHost moved in too via
-// `initializeGameplayModules()` (RU-02e-2), then ScriptRuntime - reconstructed
-// per-scene, unlike every other module here which is boot-time-stable - moved
-// in via `resetScriptRuntime()`/`clearScriptRuntime()` (RU-02e-3), then the
-// utility modules (EventBus/TimeManager/VariableManager/TweenManager/
-// SpriteAnimator/CameraManager/SaveLoadManager/GameStateManager) moved in via
+// RU-02c/RU-02e-1/RU-02e-2/RU-02e-3/RU-02f/RU-02h-D20 (docs/RU02_GAMEPLAY_
+// SESSION_REFACTOR.md, editor repo): the gameplay tick algorithm moved
+// verbatim out of Application::tickFixedStep / Application::
+// dispatchGameplayCollisionTransitions (RU-02c), then the simulation graph
+// (Physics/SceneManager/SceneMutationService/RuntimeEntityGateway/
+// SceneLifecycleService/World) moved into this class's own composition
+// root, `initialize()` (RU-02e-1), then RuntimeLogicHostAdapter/
+// LogicRuntime/GameAPI/LuaHost moved in too via `initializeGameplayModules()`
+// (RU-02e-2), then ScriptRuntime - reconstructed per-scene, unlike every
+// other module here which is boot-time-stable - moved in via
+// `resetScriptRuntime()`/`clearScriptRuntime()` (RU-02e-3), then the utility
+// modules (EventBus/TimeManager/VariableManager/TweenManager/SpriteAnimator/
+// CameraManager/SaveLoadManager/GameStateManager) moved in via
 // `initializeUtilities()` (RU-02f). Application now owns only host modules
 // (Renderer/Input/Audio/TextureManager/AssetLoader/DialogManager/
-// EditorViewportService); every gameplay module is session-owned, satisfying
-// the RU-02f gate ("Application non possiede moduli gameplay"). The
-// transitional `GameplayRuntimeRefs` struct (T-01 in the debt register) is
-// eliminated as scheduled: `wireHostPorts()` wires the three remaining
-// externally-owned host-port adapters directly, no struct needed.
+// EditorViewportService); every gameplay module is session-owned.
+//
+// D-20 ("Accesso mutabile agli interni della sessione", debt register P0,
+// eliminazione RU-02h): world()/physics()/sceneMutation()/logicHost()/
+// logicRuntime()/gameAPI()/luaHost() used to hand out live mutable
+// references to internal modules, letting Application call arbitrary
+// methods on them directly. Removed in favor of narrow, intent-named
+// methods (setGravity/loadLogicPrograms/loadLuaSource/etc.) and a
+// const-only debugWorldView() for the one legitimate read-only consumer
+// (physics_debug_renderer.cpp's debug-shape overlay). Logic/Script scope
+// bookkeeping (logicScopes_/logicObjectTypes_/scriptPrograms_/
+// scriptAttachments_) and installLogicScopesForActiveScene()/
+// installLogicScopeForEntity()/installScriptScopesForActiveScene() moved in
+// from Application too, since they are simulation state/behavior that lived
+// across ticks (D-09's general rule), not host bookkeeping - this also lets
+// World's entity-destroyed handler and the Logic spawn installer capture
+// `this` (GameplaySession) instead of Application, closing the last D-08
+// callback-capture gap.
+//
+// sceneManager()/entityGateway()/spriteAnimator() stay as live accessors:
+// RU-02g deliberately keeps gizmo_pass.cpp (editor selection overlay) and
+// scene_background_pass.cpp (sceneLayers()/tilesets()) reading these
+// directly, since they're authoring-adjacent/editor-overlay data stable for
+// the frame, not mutable simulation control - not the concern D-20 targets.
 
 #include "gameplay_host_ports.h"
 
 #include "../../core/gameplay-runtime-host.h"
 #include "../../core/types.h"
 #include "../../modules/scene-system/include/scene-lifecycle-result.h"
+// Needed as a complete type: scriptPrograms_ below stores Scripts::
+// ScriptProgram by value in an unordered_map, unlike LogicProgram (only ever
+// named via a std::vector<T>& parameter, where a forward declaration is
+// enough).
+#include "../../modules/script-core/include/script-core.h"
 
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <set>
+#include <string>
 #include <type_traits>
+#include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -50,11 +79,20 @@ class LuaHost;
 class VariableManager;
 class Input;
 class Audio;
+class Renderer;
 class SaveLoadManager;
+struct ScenePatch;
+struct SceneMutationResult;
 } // namespace ArtCade::Modules
 
 namespace ArtCade::Logic {
 class LogicRuntime;
+struct LogicProgram;
+// Matches the real declaration in logic-runtime.h exactly (redeclaring a
+// type alias with an identical underlying type is well-formed in C++) - the
+// full header isn't included here, but logicScopes_ below needs the
+// complete (trivial) type to declare its map value.
+using ScopeToken = std::uint64_t;
 } // namespace ArtCade::Logic
 
 namespace ArtCade::Scripts {
@@ -169,12 +207,19 @@ public:
     // preserves the existing boot-failure telemetry (same step names as
     // before: "physics", "scene_manager", "entity_gateway"). `onSceneTransition`
     // is the one callback that still needs to reach the host, since it
-    // mutates Application::pendingSceneInvalidations_.
+    // mutates Application::pendingSceneInvalidations_. `ctx` is Application's
+    // EngineContext, populated here with physics/sceneManager/entityGateway/
+    // world (D-20: Application no longer fetches these via accessors just to
+    // copy them into ctx). `presentationRenderer` is the one remaining T-02
+    // debt (concrete Renderer* passed straight through to World::setRenderer);
+    // may be null (World tolerates it, e.g. in headless tests).
     bool initialize(PhysicsMode physicsMode,
+                     EngineContext& ctx,
+                     Modules::Renderer* presentationRenderer,
                      const BootStepFn& bootStep,
                      SceneTransitionHandlerFn onSceneTransition);
 
-    // RU-02e-2: builds RuntimeLogicHostAdapter, LogicRuntime, GameAPI and
+    // RU-02e-2/D-20: builds RuntimeLogicHostAdapter, LogicRuntime, GameAPI and
     // LuaHost, in the same order and with the same internal wiring
     // Application::initSubsystems() used to perform directly. `ctx` is
     // Application's own EngineContext (still host-owned - GameAPI needs it
@@ -182,12 +227,12 @@ public:
     // this method only sets `ctx.gameAPI`/`ctx.luaHost`, mirroring what
     // Application used to do right after constructing each. `audio`/`input`
     // are the two Application-owned modules RuntimeLogicHostAdapter needs.
-    // `spawnInstaller` still needs to reach Application (installLogicScopeForEntity
-    // touches mod_->logicScopes/logicObjectTypes, RU-02e-3 territory).
+    // The Logic spawn installer now wires to installLogicScopeForEntity()
+    // internally (D-20/D-08) - no external spawnInstaller callback needed
+    // anymore, since that method lives here too.
     bool initializeGameplayModules(EngineContext& ctx,
                                     Modules::Audio& audio,
                                     Modules::Input& input,
-                                    RuntimeLogicHostAdapter::SpawnInstaller spawnInstaller,
                                     const BootStepFn& bootStep);
 
     // RU-02f: replaces the transitional GameplayRuntimeRefs struct (T-01,
@@ -203,15 +248,78 @@ public:
         profilerPort_ = profiler;
     }
 
-    World& world() { return *world_; }
-    Modules::Physics& physics() { return *physics_; }
+    // D-20: SceneManager/RuntimeEntityGateway stay exposed - RU-02g already
+    // approved gizmo_pass.cpp/scene_background_pass.cpp reading these live
+    // for editor-overlay/authoring-adjacent presentation data (not mutable
+    // simulation control, the thing D-20 actually targets).
     Modules::SceneManager& sceneManager() { return *sceneManager_; }
-    Modules::SceneMutationService& sceneMutation() { return *sceneMutation_; }
     Modules::RuntimeEntityGateway& entityGateway() { return *entityGateway_; }
-    RuntimeLogicHostAdapter& logicHost() { return *logicHost_; }
-    Logic::LogicRuntime& logicRuntime() { return *logicRuntime_; }
-    Modules::GameAPI& gameAPI() { return *gameAPI_; }
-    Modules::LuaHost& luaHost() { return *luaHost_; }
+
+    // D-20: read-only debug view for physics_debug_renderer.cpp's collision-
+    // shape overlay (RU-02g's other approved live-read exception) - a const
+    // reference cannot mutate simulation state, so this does not reopen the
+    // "mutable access to internals" gate the mutable world() accessor used
+    // to leave open.
+    const World& debugWorldView() const { return *world_; }
+
+    // D-20: replaces the removed `Modules::Physics& physics()` accessor -
+    // Application only ever used it for one thing (applyRuntimeSettings).
+    void setGravity(Vec2 gravity);
+
+    // D-20: replaces the removed `Modules::SceneMutationService&
+    // sceneMutation()` accessor with the exact operations Application (scene
+    // mutation bridge, invalidation queueing, render revision read) performs -
+    // thin forwards to SceneMutationService, no new behavior.
+    uint64_t bumpSceneRevision();
+    uint64_t sceneRevision() const;
+    void beginSceneMutationBatch();
+    Modules::SceneMutationResult commitSceneMutationBatch();
+    Modules::SceneMutationResult applySceneMutation(const SceneId& sceneId,
+                                                     const Modules::ScenePatch& patch);
+    bool sceneMutationBatchOpen() const;
+
+    // D-20: replaces the removed `World& world()` accessor's mutating call
+    // sites (project load/editor sync/restore/collision rebuild) - thin
+    // forwards to World, no new behavior.
+    void loadWorldProject(const ProjectDoc& doc);
+    void syncWorldAfterEditorProject(const std::vector<TilePaletteEntry>& tilePalette);
+    void restoreWorldDesignState(const std::vector<TilePaletteEntry>& tilePalette);
+    void rebuildWorldCollision();
+
+    // D-20: replaces the removed `Logic::LogicRuntime& logicRuntime()`
+    // accessor - the only direct call Application made beyond scope
+    // install/cancel (now internalized below) was loading compiled programs.
+    bool loadLogicPrograms(const std::vector<Logic::LogicProgram>& programs,
+                            std::string* error);
+
+    // D-20: replaces the removed `Modules::LuaHost& luaHost()` accessor's
+    // mutating call sites (project load).
+    void loadLuaSource(const std::string& source);
+    bool loadLuaBytecode(const uint8_t* data, size_t size, std::string* error);
+    // Kept, narrowly: Application's EditorAPI::wireLua() static wiring call
+    // (app_bootstrap.cpp) needs a raw LuaHost* handle - EditorAPI's own
+    // static-wiring debt (D-18) is explicitly "post RU-03" in the register,
+    // out of scope here. loadLuaSource()/loadLuaBytecode() above already
+    // cover every other Application call site that used to go through the
+    // removed accessor.
+    Modules::LuaHost* luaHostHandle() { return luaHost_.get(); }
+
+    // D-20/D-08/D-09: Logic/Script scope bookkeeping and install/cancel moved
+    // in from Application (installLogicScopesForActiveScene/
+    // installLogicScopeForEntity/installScriptScopesForActiveScene) - it is
+    // simulation state that lives across ticks (which entity owns which
+    // scope token, which object types have a compiled program), not host
+    // bookkeeping, and moving it lets World's destroy handler and the Logic
+    // spawn installer capture `this` (GameplaySession) instead of Application
+    // (closing the D-08 gap those two callbacks were still leaving open).
+    // `setScriptCatalog` receives the resolved/validated script programs and
+    // attachments Application builds from AssetLoader + ProjectDoc (legitimate
+    // host/asset-loading work) and stores them for installScriptScopesForActiveScene.
+    void setScriptCatalog(std::unordered_map<AssetId, Scripts::ScriptProgram> programs,
+                          std::unordered_map<ObjectTypeId, std::vector<ScriptAttachmentDef>> attachments);
+    bool installLogicScopesForActiveScene();
+    bool installLogicScopeForEntity(EntityId entityId);
+    bool installScriptScopesForActiveScene();
 
     // RU-02d: dispatches one host-built input frame to Logic and Script
     // through the same immutable snapshot, then flushes queued destroys and
@@ -237,17 +345,27 @@ public:
     SceneFrameSnapshot buildFrameSnapshot(SceneFrameSnapshot snapshot);
 
     // RU-02e-3: ScriptRuntime is reconstructed at project-load and
-    // scene-lifecycle time (app_project_lifecycle.cpp
-    // installScriptScopesForActiveScene), unlike every other module here,
-    // which is boot-time-stable - the session now owns it directly instead of
-    // borrowing an Application-built instance. Discards any previous
-    // instance, builds a fresh one bound to the session's own logicHost(),
-    // and returns it so the caller can install scopes against it.
+    // scene-lifecycle time (installScriptScopesForActiveScene, above),
+    // unlike every other module here, which is boot-time-stable - the
+    // session now owns it directly instead of borrowing an Application-built
+    // instance. Discards any previous instance, builds a fresh one bound to
+    // the session's own logicHost_, and returns it so the caller can install
+    // scopes against it. Kept public (unlike the removed logicHost()/
+    // logicRuntime()/gameAPI()/luaHost() accessors): it returns a plain
+    // reference the caller installs *onto*, not a handle for arbitrary
+    // control-plane calls, and installScriptScopesForActiveScene() (above)
+    // already uses it internally for the one production call site - this
+    // stays public only for the characterization test's finer-grained setup.
     Scripts::ScriptRuntime& resetScriptRuntime();
     // Install failure path: destroys the just-built instance without
     // replacing it (mirrors the old mod_->scriptRuntime.reset() +
-    // setScriptRuntime(nullptr) pair on that path).
-    void clearScriptRuntime() { scriptRuntime_.reset(); }
+    // setScriptRuntime(nullptr) pair on that path). Declared here but defined
+    // in gameplay_session.cpp (not inline): scriptRuntime_.reset() needs
+    // Scripts::ScriptRuntime complete, and script-runtime.h is no longer
+    // pulled in transitively by every includer of this header now that D-20
+    // removed ScriptRuntime's Application::Modules alias (app_modules.h no
+    // longer needs to include it either).
+    void clearScriptRuntime();
 
     // Application::physicsMode_ can change after construction too
     // (applyRuntimeSettings, project-load time) - kept in sync the same way.
@@ -308,6 +426,15 @@ private:
     std::unique_ptr<Modules::GameAPI> gameAPI_;
     std::unique_ptr<Modules::LuaHost> luaHost_;
     std::unique_ptr<Scripts::ScriptRuntime> scriptRuntime_;
+
+    // D-20/D-09: Logic/Script scope bookkeeping, moved in from
+    // Application::Modules - simulation state that lives across ticks, not
+    // host bookkeeping (same rule that already moved
+    // activeGameplayCollisionPairs_ here in RU-02c).
+    std::unordered_map<EntityId, Logic::ScopeToken> logicScopes_;
+    std::unordered_set<ObjectTypeId> logicObjectTypes_;
+    std::unordered_map<AssetId, Scripts::ScriptProgram> scriptPrograms_;
+    std::unordered_map<ObjectTypeId, std::vector<ScriptAttachmentDef>> scriptAttachments_;
 
     IGameplayAudioService* audioPort_ = nullptr;
     IGameplayDialogGate* dialogPort_ = nullptr;
