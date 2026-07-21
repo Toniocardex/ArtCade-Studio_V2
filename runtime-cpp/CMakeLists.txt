@@ -137,6 +137,12 @@ target_link_libraries(artcade-project-json PUBLIC artcade-core)
 # Deterministic Logic Board authoring model validation/compiler. This module is
 # core-only: no Lua, renderer, filesystem, or editor presentation dependency.
 add_subdirectory(src/modules/logic-core)
+# RU-01: entity-json.cpp's read_object_type_logic_boards() (shared by
+# AssetLoader::parseProjectJson and the editor's canonical project reader)
+# needs Logic::logicBoardFromJson/validateBoard - added here, after
+# artcade-logic-core exists, rather than reordering artcade-project-json's
+# own add_library() above.
+target_link_libraries(artcade-project-json PUBLIC artcade-logic-core)
 add_subdirectory(src/modules/script-core)
 add_subdirectory(src/modules/sprite-animation-core)
 add_subdirectory(src/modules/sfx)

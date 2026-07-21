@@ -4,6 +4,7 @@
 #include "json-primitives.h"
 #include "physics-json.h"
 #include "sprite-json.h"
+#include "../modules/logic-core/include/logic-core.h"
 
 #include <unordered_set>
 
@@ -354,6 +355,48 @@ void read_object_types_map(const nlohmann::json& doc,
             if (!entity.className.empty()) out[entity.className] = std::move(entity);
         }
     }
+}
+
+bool read_object_type_logic_boards(const nlohmann::json& doc,
+                                   std::unordered_map<std::string, EntityDef>& objectTypes,
+                                   std::string* error) {
+    const nlohmann::json* rawTypes = nullptr;
+    if (doc.contains("objectTypes")
+        && (doc["objectTypes"].is_object() || doc["objectTypes"].is_array()))
+        rawTypes = &doc["objectTypes"];
+    if (rawTypes == nullptr) return true;
+
+    const auto readBoard = [&](const std::string& mapKey, const nlohmann::json& rawType) -> bool {
+        if (!rawType.is_object() || !rawType.contains("logicBoard")) return true;
+        const ObjectTypeId typeId = rawType.value("id", mapKey);
+        const auto typeIt = objectTypes.find(typeId);
+        if (typeIt == objectTypes.end()) {
+            if (error) *error = "logicBoard references unknown object type: " + typeId;
+            return false;
+        }
+        LogicBoardDef board;
+        const Logic::LogicJsonResult parsed = Logic::logicBoardFromJson(rawType["logicBoard"], board);
+        if (!parsed.ok) {
+            if (error) *error = "logicBoard for '" + typeId + "': " + parsed.error;
+            return false;
+        }
+        const auto diagnostics = Logic::validateBoard(typeId, board, &typeIt->second);
+        if (!diagnostics.empty()) {
+            if (error) *error = "logicBoard for '" + typeId + "': " + diagnostics.front().message;
+            return false;
+        }
+        typeIt->second.logicBoard = std::move(board);
+        return true;
+    };
+
+    if (rawTypes->is_array()) {
+        for (const auto& rawType : *rawTypes)
+            if (!readBoard({}, rawType)) return false;
+    } else {
+        for (auto& [key, rawType] : rawTypes->items())
+            if (!readBoard(key, rawType)) return false;
+    }
+    return true;
 }
 
 } // namespace ArtCade::ProjectJson

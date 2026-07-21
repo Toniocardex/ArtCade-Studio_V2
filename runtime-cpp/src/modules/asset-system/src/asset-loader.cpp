@@ -4,7 +4,6 @@
 #include "asset-json.h"
 #include "collision-json.h"
 #include "entity-json.h"
-#include "logic-core.h"
 #include "scene-json.h"
 #include "project-meta-json.h"
 #include "project-current-format.h"
@@ -210,32 +209,9 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
         ProjectJson::read_world_settings(j["world"], out.world);
 
     ProjectJson::read_object_types_map(j, out.objectTypes);
-    const json* rawTypes = nullptr;
-    if (j.contains("objectTypes")
-        && (j["objectTypes"].is_object() || j["objectTypes"].is_array())) rawTypes = &j["objectTypes"];
-    if (rawTypes) {
-        const auto readBoard = [&](const std::string& mapKey, const json& rawType) -> bool {
-            if (!rawType.is_object() || !rawType.contains("logicBoard")) return true;
-            const ObjectTypeId typeId = rawType.value("id", mapKey);
-            auto typeIt = out.objectTypes.find(typeId);
-            if (typeIt == out.objectTypes.end()) return false;
-            LogicBoardDef board;
-            const Logic::LogicJsonResult parsed =
-                Logic::logicBoardFromJson(rawType["logicBoard"], board);
-            if (!parsed.ok) return false;
-            const auto diagnostics = Logic::validateBoard(typeId, board, &typeIt->second);
-            if (!diagnostics.empty()) return false;
-            typeIt->second.logicBoard = std::move(board);
-            return true;
-        };
-        if (rawTypes->is_array()) {
-            for (const auto& rawType : *rawTypes)
-                if (!readBoard({}, rawType)) return false;
-        } else {
-            for (const auto& [key, rawType] : rawTypes->items())
-                if (!readBoard(key, rawType)) return false;
-        }
-    }
+    // RU-01: shared with the editor's canonical project reader now - was
+    // inline here only, so the editor would have had to duplicate it.
+    if (!ProjectJson::read_object_type_logic_boards(j, out.objectTypes)) return false;
     ProjectJson::read_entities_map(j, out.entities, false);
     ProjectJson::read_scenes_map(j, out.scenes);
     ProjectJson::read_thumbnails(j, out.thumbnails);
