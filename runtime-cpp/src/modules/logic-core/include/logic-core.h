@@ -65,6 +65,28 @@ enum class BlockKind { Trigger, Condition, Action };
 // reinterpret diagnostic codes locally.
 enum class ValidationMode { Authoring, Executable };
 enum class LogicValueKind { Bool, Integer, Number, String, Vec2, Asset, Entity, Variable, Key };
+// Semantic authoring hints consumed by editor projections. They describe the
+// domain meaning of a value without depending on any UI toolkit.
+enum class LogicPropertySemantic {
+    Generic,
+    LogicKey,
+    ExpectedBool,
+    ObjectTypeReference,
+    SpriteAnimationAsset,
+    AnimationClip,
+    StaticAudioAsset,
+    GlobalVariable,
+    CompareOperator,
+    HiddenSelfTarget,
+};
+enum class LogicNumberConstraint {
+    None,
+    Finite,
+    Positive,
+    UnitInterval,
+    NormalizedAxis,
+    PositiveVec2,
+};
 enum class LogicRequiredComponent { PlatformerController, SpriteAnimator };
 enum class LogicContextCapability {
     Self,
@@ -86,6 +108,11 @@ struct LogicPropertyDescriptor {
     /** User-facing label; empty means fall back to @p key. */
     std::string    displayName;
     std::string    description;
+    LogicPropertySemantic semantic = LogicPropertySemantic::Generic;
+    LogicNumberConstraint numberConstraint = LogicNumberConstraint::None;
+    bool allowEmpty = false;
+    /** Stable string choices for small enum-like properties. */
+    std::vector<std::string> options;
 };
 
 struct LogicBlockDescriptor {

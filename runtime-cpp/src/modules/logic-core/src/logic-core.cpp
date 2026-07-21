@@ -482,7 +482,8 @@ bool hasRequiredComponent(const EntityDef& owner, LogicRequiredComponent compone
 }
 
 const std::vector<LogicBlockDescriptor>& registry() {
-    static const std::vector<LogicBlockDescriptor> value{
+    static const std::vector<LogicBlockDescriptor> value = [] {
+        std::vector<LogicBlockDescriptor> descriptors{
         {kOnStart, "system", "On Start", "Runs once when Play begins.",
             BlockKind::Trigger, {}, {}, {}, {LogicContextCapability::Self}, "event.start",
             false, 10, {"begin", "startup", "init"}},
@@ -667,7 +668,48 @@ const std::vector<LogicBlockDescriptor>& registry() {
             BlockKind::Action,
             {{"key", LogicValueKind::Variable, LogicVariableReference{}, "Variable"}},
             {}, {}, {}, "state.toggle_boolean", false, 50, {"variable", "bool", "toggle"}},
-    };
+        };
+        for (LogicBlockDescriptor& block : descriptors) {
+            for (LogicPropertyDescriptor& property : block.properties) {
+                if (property.valueKind == LogicValueKind::Key) {
+                    property.semantic = LogicPropertySemantic::LogicKey;
+                } else if (property.valueKind == LogicValueKind::Variable) {
+                    property.semantic = LogicPropertySemantic::GlobalVariable;
+                } else if (property.valueKind == LogicValueKind::Entity) {
+                    property.semantic = LogicPropertySemantic::HiddenSelfTarget;
+                } else if (property.key == "expected") {
+                    property.semantic = LogicPropertySemantic::ExpectedBool;
+                } else if (property.key == "objectTypeId") {
+                    property.semantic = LogicPropertySemantic::ObjectTypeReference;
+                    property.allowEmpty =
+                        block.typeId == kCollisionEnter || block.typeId == kCollisionExit;
+                } else if (property.key == "animationAssetId") {
+                    property.semantic = LogicPropertySemantic::SpriteAnimationAsset;
+                } else if (property.key == "clipId") {
+                    property.semantic = LogicPropertySemantic::AnimationClip;
+                } else if (property.key == "audioAssetId") {
+                    property.semantic = LogicPropertySemantic::StaticAudioAsset;
+                } else if (block.typeId == kStateCompare && property.key == "op") {
+                    property.semantic = LogicPropertySemantic::CompareOperator;
+                    property.options = {"==", "!=", "<", "<=", ">", ">="};
+                }
+
+                if (property.valueKind == LogicValueKind::Number) {
+                    property.numberConstraint = LogicNumberConstraint::Finite;
+                    if (property.key == "seconds" || property.key == "speed")
+                        property.numberConstraint = LogicNumberConstraint::Positive;
+                    if (property.key == "volume")
+                        property.numberConstraint = LogicNumberConstraint::UnitInterval;
+                    if (property.key == "axis")
+                        property.numberConstraint = LogicNumberConstraint::NormalizedAxis;
+                } else if (property.valueKind == LogicValueKind::Vec2
+                           && property.key == "scale") {
+                    property.numberConstraint = LogicNumberConstraint::PositiveVec2;
+                }
+            }
+        }
+        return descriptors;
+    }();
     return value;
 }
 
