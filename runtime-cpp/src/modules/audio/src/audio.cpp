@@ -22,6 +22,12 @@ struct Audio::Impl {
 
     bool  musicLoaded  = false;
     bool  deviceOpen   = false;
+    // Raylib's audio device is a process-global miniaudio singleton. When a
+    // host (the editor) already opened it, a second InitAudioDevice() would
+    // re-init the global ma_device under the live WASAPI worker thread and
+    // corrupt it; likewise CloseAudioDevice() here would tear down a device
+    // the host still uses. Only own the device if we actually opened it.
+    bool  ownsDevice   = false;
     Music currentMusic = {};
     std::string currentMusicPath;
 
@@ -43,9 +49,22 @@ Audio::Audio()  : impl_(std::make_unique<Impl>()) {}
 Audio::~Audio() = default;
 
 bool Audio::init() {
-    InitAudioDevice();
+    // Idempotent: a second init() must not re-evaluate ownership (it would
+    // observe the device we opened ourselves and silently drop ownership).
+    if (impl_->deviceOpen) return true;
+    const bool deviceWasReady = IsAudioDeviceReady();
+    if (!deviceWasReady) InitAudioDevice();
+    // InitAudioDevice() returns void: re-check instead of assuming success,
+    // so we never claim ownership of (or use) a device that failed to open.
+    if (!IsAudioDeviceReady()) {
+        impl_->ownsDevice = false;
+        return false;
+    }
+    impl_->ownsDevice = !deviceWasReady;
     impl_->deviceOpen = true;
-    SetMasterVolume(impl_->masterVolume);
+    // Master volume is host-owned: when borrowing the host's device (editor
+    // Play), don't override the process-global volume the host configured.
+    if (impl_->ownsDevice) SetMasterVolume(impl_->masterVolume);
     return true;
 }
 
@@ -61,7 +80,12 @@ void Audio::shutdown() {
     }
     impl_->memoryAudio.clear();
     impl_->runtimeAssets.clear();
-    CloseAudioDevice();
+    // IsAudioDeviceReady() guard: tolerate partial teardown (e.g. the host
+    // already closed the device during process exit) without a double close.
+    if (impl_->ownsDevice && IsAudioDeviceReady()) {
+        CloseAudioDevice();
+    }
+    impl_->ownsDevice = false;
     impl_->deviceOpen = false;
 }
 
