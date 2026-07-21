@@ -12,6 +12,7 @@
 #include "../../modules/lua-runtime/include/lua-host.h"
 #include "../../modules/physics/include/physics.h"
 #include "../../modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
+#include "../../modules/save-load/include/save-load-manager.h"
 #include "../../modules/scene-system/include/scene-lifecycle-service.h"
 #include "../../modules/scene-system/include/scene-manager.h"
 #include "../../modules/scene-system/include/scene-mutation-service.h"
@@ -21,11 +22,14 @@
 #include "../../modules/tween-manager/include/tween-manager.h"
 #include "../../modules/variable-manager/include/variable-manager.h"
 #include "../../world/include/world.h"
+#include "../render/scene_frame_snapshot.h"
+#include "../render/text_value_formatter.h"
 
 #include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <iostream>
+#include <unordered_map>
 
 namespace ArtCade {
 
@@ -174,12 +178,39 @@ EntityId RuntimeLogicHostAdapter::spawnObjectType(
     return spawned;
 }
 
-GameplaySession::GameplaySession(Modules::VariableManager& variables)
-    : variables_(variables) {}
+GameplaySession::GameplaySession() = default;
 
 // unique_ptr members need complete types at destruction; every module they
 // point to is fully defined above by the time this runs.
 GameplaySession::~GameplaySession() = default;
+
+// RU-02f: lines moved from Application::initUtilities() (app_bootstrap.cpp)
+// in the same order, same boot-step names, same internal wiring
+// (GameStateManager::setEventBus). Must run before initialize(), which needs
+// variableManager_ already built (World's constructor takes it).
+bool GameplaySession::initializeUtilities(const BootStepFn& bootStep) {
+    eventBus_ = std::make_unique<Modules::EventBus>();
+    timeManager_ = std::make_unique<Modules::TimeManager>();
+    variableManager_ = std::make_unique<Modules::VariableManager>();
+    tweenManager_ = std::make_unique<Modules::TweenManager>();
+    spriteAnimator_ = std::make_unique<Modules::SpriteAnimator>();
+    cameraManager_ = std::make_unique<Modules::CameraManager>();
+    saveLoadManager_ = std::make_unique<Modules::SaveLoadManager>();
+
+    if (!bootStep("event_bus", eventBus_->init())) return false;
+    if (!bootStep("time_manager", timeManager_->init())) return false;
+    if (!bootStep("variable_manager", variableManager_->init())) return false;
+    if (!bootStep("tween_manager", tweenManager_->init())) return false;
+    if (!bootStep("sprite_animator", spriteAnimator_->init())) return false;
+    if (!bootStep("camera_manager", cameraManager_->init())) return false;
+    if (!bootStep("save_load_manager", saveLoadManager_->init())) return false;
+
+    gameStateManager_ = std::make_unique<Modules::GameStateManager>();
+    gameStateManager_->setEventBus(eventBus_.get());
+    if (!bootStep("game_state_manager", gameStateManager_->init())) return false;
+
+    return true;
+}
 
 // RU-02e-1: lines moved from Application::initSubsystems() (app_bootstrap.cpp)
 // in the same relative order, same boot-step names, same wiring - only the
@@ -212,7 +243,7 @@ bool GameplaySession::initialize(PhysicsMode physicsMode,
     sceneLifecycle_->set_transition_handler(std::move(onSceneTransition));
     entityGateway_->set_scene_lifecycle_service(sceneLifecycle_.get());
 
-    world_ = std::make_unique<World>(*entityGateway_, *physics_, variables_);
+    world_ = std::make_unique<World>(*entityGateway_, *physics_, *variableManager_);
     entityGateway_->setPhysics(physics_.get());
 
     sceneLifecycle_->set_gameplay_reset_handler([this]() {
@@ -243,7 +274,7 @@ bool GameplaySession::initializeGameplayModules(
     logicRuntime_ = std::make_unique<Logic::LogicRuntime>(*logicHost_);
 
     logicHost_->setWorld(world_.get());
-    logicHost_->setVariableManager(&variables_);
+    logicHost_->setVariableManager(variableManager_.get());
     logicHost_->setInput(&input);
     logicHost_->setPhysics(physics_.get());
     logicHost_->setSpawnInstaller(std::move(spawnInstaller));
@@ -313,6 +344,21 @@ void GameplaySession::shutdownScriptingModules() {
     if (gameAPI_) { gameAPI_->shutdown(); gameAPI_.reset(); }
 }
 
+// RU-02f: matches the original contiguous tail of Application::
+// shutdownModules() - gameStateManager, saveLoadManager, cameraManager,
+// spriteAnimator, tweenManager, variableManager, timeManager, eventBus, in
+// that exact order, with no host module ever interleaved between them.
+void GameplaySession::shutdownUtilities() {
+    if (gameStateManager_) { gameStateManager_->shutdown(); gameStateManager_.reset(); }
+    if (saveLoadManager_) { saveLoadManager_->shutdown(); saveLoadManager_.reset(); }
+    if (cameraManager_) { cameraManager_->shutdown(); cameraManager_.reset(); }
+    if (spriteAnimator_) { spriteAnimator_->shutdown(); spriteAnimator_.reset(); }
+    if (tweenManager_) { tweenManager_->shutdown(); tweenManager_.reset(); }
+    if (variableManager_) { variableManager_->shutdown(); variableManager_.reset(); }
+    if (timeManager_) { timeManager_->shutdown(); timeManager_.reset(); }
+    if (eventBus_) { eventBus_->shutdown(); eventBus_.reset(); }
+}
+
 // Moved from Application::loopIteration's input block (app_loop.cpp,
 // pre-RU-02d). One structural change from the original, both sanctioned by
 // the frame itself being category-shaped rather than per-key (RU-02d's own
@@ -344,18 +390,18 @@ void GameplaySession::dispatchInput(const GameplayInputFrame& input) {
     // destroys may now commit before any fixed-step update.
     world_->flushEntityQueues();
 
-    if (!refs_.dialog || !refs_.dialog->blocksGameplay()) {
+    if (!dialogPort_ || !dialogPort_->blocksGameplay()) {
         const auto start = Clock::now();
         const std::uint32_t events = gameAPI_->dispatchInputEvents();
-        if (refs_.profiler) {
-            refs_.profiler->addLuaMs(elapsedMs(start));
-            refs_.profiler->addLuaEvents(events);
+        if (profilerPort_) {
+            profilerPort_->addLuaMs(elapsedMs(start));
+            profilerPort_->addLuaEvents(events);
         }
     }
 }
 
 // Moved verbatim from Application::dispatchGameplayCollisionTransitions
-// (app_loop.cpp) - only mod_->X became refs_.X/world_->X and the
+// (app_loop.cpp) - only mod_->X became world_->X/entityGateway_->X and the
 // collision-pair state moved from Application::Modules into this class.
 void GameplaySession::dispatchGameplayCollisionTransitions() {
     std::set<std::pair<EntityId, EntityId>> current;
@@ -411,28 +457,28 @@ void GameplaySession::dispatchGameplayCollisionTransitions() {
 
 // Moved verbatim from Application::tickFixedStep (app_loop.cpp), post RU-02b
 // (clearDrawQueue/splash already extracted to the host). mod_->X became
-// refs_.X (now dereferenced through pointers) or world_/physics_/
-// entityGateway_/logicRuntime_/gameAPI_/luaHost_ ->X for the members this
-// class now owns directly (RU-02e-1/2).
+// X_->X for every member this class now owns directly (RU-02e-1/2/RU-02f);
+// only the 3 remaining externally-owned host ports (audioPort_/dialogPort_/
+// profilerPort_, wired via wireHostPorts()) are still null-checked pointers.
 void GameplaySession::tickFixedStep(float dt) {
     {
         const auto start = Clock::now();
-        refs_.time->tick(dt);
-        refs_.tweens->update(dt);
-        refs_.animator->update(dt);
-        refs_.camera->updateMotion(dt);
-        refs_.gameState->update(dt);
-        refs_.events->flushDeferred();
-        if (!refs_.dialog || !refs_.dialog->blocksGameplay()) {
+        timeManager_->tick(dt);
+        tweenManager_->update(dt);
+        spriteAnimator_->update(dt);
+        cameraManager_->updateMotion(dt);
+        gameStateManager_->update(dt);
+        eventBus_->flushDeferred();
+        if (!dialogPort_ || !dialogPort_->blocksGameplay()) {
             world_->tickGameplaySystems(dt);
             entityGateway_->tickSceneTransition(dt);
         }
-        if (refs_.profiler) refs_.profiler->addGameplayMs(elapsedMs(start));
+        if (profilerPort_) profilerPort_->addGameplayMs(elapsedMs(start));
     }
     // Drain animator events once; feed Logic Runtime then GameAPI Lua handlers.
     {
-        const auto finished = refs_.animator->pollFinished();
-        const auto events = refs_.animator->pollEvents();
+        const auto finished = spriteAnimator_->pollFinished();
+        const auto events = spriteAnimator_->pollEvents();
         if (logicRuntime_) {
             for (const auto& ev : events) {
                 if (ev.kind == Modules::SpriteAnimator::AnimEventKind::Start)
@@ -444,17 +490,17 @@ void GameplaySession::tickFixedStep(float dt) {
         }
         const auto start = Clock::now();
         const std::uint32_t luaEvents = gameAPI_->dispatchAnimationEvents(finished, events);
-        if (refs_.profiler) {
-            refs_.profiler->addLuaMs(elapsedMs(start));
-            refs_.profiler->addLuaEvents(luaEvents);
+        if (profilerPort_) {
+            profilerPort_->addLuaMs(elapsedMs(start));
+            profilerPort_->addLuaEvents(luaEvents);
         }
     }
     {
         const auto start = Clock::now();
         luaHost_->tick(dt);
-        if (refs_.profiler) {
-            refs_.profiler->addLuaMs(elapsedMs(start));
-            refs_.profiler->setLuaTickEnabled(luaHost_->isScriptTickRequired());
+        if (profilerPort_) {
+            profilerPort_->addLuaMs(elapsedMs(start));
+            profilerPort_->setLuaTickEnabled(luaHost_->isScriptTickRequired());
         }
     }
     // Manual on_update runs after generated input rules and before platformer
@@ -463,9 +509,9 @@ void GameplaySession::tickFixedStep(float dt) {
         scriptRuntime_->update(dt);
         world_->flushEntityQueues();
     }
-    if (refs_.dialog) refs_.dialog->tick(dt);
+    if (dialogPort_) dialogPort_->tick(dt);
 
-    if (!refs_.dialog || !refs_.dialog->blocksGameplay()) {
+    if (!dialogPort_ || !dialogPort_->blocksGameplay()) {
         world_->tickPlatformerControllers(dt);
         world_->tickSimpleMovementIntents(dt);
     }
@@ -474,7 +520,7 @@ void GameplaySession::tickFixedStep(float dt) {
     if (runPhysics) {
         const auto start = Clock::now();
         physics_->step(dt);
-        if (refs_.profiler) refs_.profiler->addPhysicsMs(elapsedMs(start));
+        if (profilerPort_) profilerPort_->addPhysicsMs(elapsedMs(start));
     }
 
     world_->flushEntityQueues();
@@ -486,9 +532,9 @@ void GameplaySession::tickFixedStep(float dt) {
     {
         const auto start = Clock::now();
         const std::uint32_t events = gameAPI_->dispatchLifecycleEvents();
-        if (refs_.profiler) {
-            refs_.profiler->addLuaMs(elapsedMs(start));
-            refs_.profiler->addLuaEvents(events);
+        if (profilerPort_) {
+            profilerPort_->addLuaMs(elapsedMs(start));
+            profilerPort_->addLuaEvents(events);
         }
     }
 
@@ -496,14 +542,14 @@ void GameplaySession::tickFixedStep(float dt) {
     {
         const auto start = Clock::now();
         world_->flushEntityQueues();
-        if (refs_.profiler) refs_.profiler->addGameplayMs(elapsedMs(start));
+        if (profilerPort_) profilerPort_->addGameplayMs(elapsedMs(start));
     }
     {
         const auto start = Clock::now();
         const std::uint32_t events = gameAPI_->dispatchLifecycleEvents();
-        if (refs_.profiler) {
-            refs_.profiler->addLuaMs(elapsedMs(start));
-            refs_.profiler->addLuaEvents(events);
+        if (profilerPort_) {
+            profilerPort_->addLuaMs(elapsedMs(start));
+            profilerPort_->addLuaEvents(events);
         }
     }
     dispatchGameplayCollisionTransitions();
@@ -519,8 +565,114 @@ void GameplaySession::tickFixedStep(float dt) {
         }
     }
 
-    refs_.events->flushDeferred();
-    if (refs_.audio) refs_.audio->update();
+    eventBus_->flushDeferred();
+    if (audioPort_) audioPort_->update();
+}
+
+// RU-02g: moved verbatim from Application::renderActiveScene's per-entity draw
+// loop (app_scene_render.cpp / scene_entities_pass.cpp) - the layer-rank
+// lookup, the forEachActiveRenderable discovery + stable_sort by (layer
+// priority, sprite.renderOrder, insertion order), and the per-entity
+// visibility/animator-frame/text-binding/gauge-binding resolution are exactly
+// what the render pass used to compute inline, during draw, against live
+// entityGateway_/spriteAnimator_/variableManager_. Only the entity id ->
+// (transform, sprite) source and the drawing itself moved out; the
+// resolution logic and its order are unchanged.
+SceneFrameSnapshot GameplaySession::buildFrameSnapshot(SceneFrameSnapshot snapshot) {
+    const bool inEditMode = snapshot.overlay.inEditMode;
+
+    std::unordered_map<std::string, int> layerRankById;
+    const auto& layers = sceneManager_->sceneLayers();
+    for (size_t i = 0; i < layers.size(); ++i)
+        layerRankById.emplace(layers[i].id, static_cast<int>(i));
+
+    struct DiscoveredRenderable {
+        EntityId id = 0;
+        Transform transform{};
+        SpriteComponent sprite{};
+        int layerPriority = 0;
+        size_t insertionIndex = 0u;
+    };
+    std::vector<DiscoveredRenderable> discovered;
+    size_t renderableIndex = 0u;
+    entityGateway_->forEachActiveRenderable(
+        [&discovered, &layerRankById, &renderableIndex]
+        (EntityId id, const Transform& transform, const SpriteComponent& sprite) {
+            const auto rankIt = layerRankById.find(sprite.layerId);
+            discovered.push_back(DiscoveredRenderable{
+                id, transform, sprite,
+                rankIt != layerRankById.end() ? rankIt->second : 0,
+                renderableIndex++,
+            });
+        });
+    std::stable_sort(
+        discovered.begin(), discovered.end(),
+        [](const DiscoveredRenderable& a, const DiscoveredRenderable& b) {
+            if (a.layerPriority != b.layerPriority)
+                return a.layerPriority < b.layerPriority;
+            if (a.sprite.renderOrder != b.sprite.renderOrder)
+                return a.sprite.renderOrder < b.sprite.renderOrder;
+            return a.insertionIndex < b.insertionIndex;
+        });
+
+    snapshot.renderables.clear();
+    snapshot.renderables.reserve(discovered.size());
+    for (const auto& item : discovered) {
+        RenderableEntitySnapshot entry;
+        entry.id = item.id;
+        entry.transform = item.transform;
+        entry.sprite = item.sprite;
+        entry.visibleInGame = entityGateway_->visibleInGame(item.id);
+        entry.spriteFrame = AppRender::sprite_frame_resolve(
+            spriteAnimator_.get(), item.id, item.sprite, inEditMode);
+
+        TextComponent text{};
+        if (entityGateway_->getText(item.id, text)
+            && (!text.text.empty() || !text.bindKey.empty())) {
+            std::string display = text.text;
+            const bool hasBoundValue = !text.bindKey.empty()
+                && (text.bindScope == "local"
+                    ? variableManager_->entityExists(item.id, text.bindKey)
+                    : variableManager_->exists(text.bindKey));
+            if (hasBoundValue) {
+                const auto boundValue = text.bindScope == "local"
+                    ? variableManager_->getEntity(item.id, text.bindKey)
+                    : variableManager_->get(text.bindKey);
+                display = text.prefix
+                    + AppRender::formatTextValue(boundValue, text.format, text.digits)
+                    + text.suffix;
+            } else if (!text.bindKey.empty()) {
+                display = text.prefix + text.text + text.suffix;
+            }
+            text.text = display;
+            entry.text = std::move(text);
+        }
+
+        GaugeComponent gauge{};
+        if (entityGateway_->getGauge(item.id, gauge)
+            && gauge.width > 0.f && gauge.height > 0.f) {
+            float value = gauge.maxValue;
+            const bool hasBoundValue = !gauge.bindKey.empty()
+                && (gauge.bindScope == "local"
+                    ? variableManager_->entityExists(item.id, gauge.bindKey)
+                    : variableManager_->exists(gauge.bindKey));
+            if (hasBoundValue) {
+                const auto boundValue = gauge.bindScope == "local"
+                    ? variableManager_->getEntity(item.id, gauge.bindKey)
+                    : variableManager_->get(gauge.bindKey);
+                value = static_cast<float>(AppRender::variableToNumber(boundValue));
+            }
+            float ratio = gauge.maxValue > 0.f ? value / gauge.maxValue : 0.f;
+            entry.gaugeRatio = std::clamp(ratio, 0.f, 1.f);
+            entry.gauge = std::move(gauge);
+        }
+
+        snapshot.renderables.push_back(std::move(entry));
+    }
+
+    snapshot.elapsedTime = timeManager_->now();
+
+    return snapshot;
 }
 
 } // namespace ArtCade

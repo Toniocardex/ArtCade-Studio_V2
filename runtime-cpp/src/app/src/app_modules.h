@@ -115,21 +115,23 @@ struct Application::Modules {
     ArtCade::Modules::GameAPI* gameAPI = nullptr;
     World* world = nullptr;
 
-    std::unique_ptr<ArtCade::Modules::TimeManager> timeManager;
-    std::unique_ptr<ArtCade::Modules::EventBus> eventBus;
-    std::unique_ptr<ArtCade::Modules::VariableManager> variableManager;
-    std::unique_ptr<ArtCade::Modules::GameStateManager> gameStateManager;
+    // RU-02f: the remaining utility modules are owned by gameplaySession too
+    // now (Application::initUtilities() constructs the session and calls
+    // GameplaySession::initializeUtilities() instead of building these
+    // directly) - same non-owning-alias pattern as every module above.
+    ArtCade::Modules::TimeManager* timeManager = nullptr;
+    ArtCade::Modules::EventBus* eventBus = nullptr;
+    ArtCade::Modules::VariableManager* variableManager = nullptr;
+    ArtCade::Modules::GameStateManager* gameStateManager = nullptr;
     std::unique_ptr<ArtCade::Modules::TextureManager> textureManager;
-    std::unique_ptr<ArtCade::Modules::SpriteAnimator> spriteAnimator;
-    std::unique_ptr<ArtCade::Modules::CameraManager> cameraManager;
-    std::unique_ptr<ArtCade::Modules::TweenManager> tweenManager;
-    std::unique_ptr<ArtCade::Modules::SaveLoadManager> saveLoadManager;
+    ArtCade::Modules::SpriteAnimator* spriteAnimator = nullptr;
+    ArtCade::Modules::CameraManager* cameraManager = nullptr;
+    ArtCade::Modules::TweenManager* tweenManager = nullptr;
+    ArtCade::Modules::SaveLoadManager* saveLoadManager = nullptr;
     std::unique_ptr<ArtCade::Modules::DialogManager> dialogManager;
 
-    // RU-02c host-port adapters + the gameplay session they feed. Transitional
-    // (T-01/T-02 in the debt register): GameplaySession still only borrows
-    // references to modules Application owns above; ownership transfers in
-    // RU-02e/f.
+    // RU-02f: the three remaining host-port adapters GameplaySession consumes
+    // via wireHostPorts() (GameplayRuntimeRefs, T-01, is eliminated).
     std::unique_ptr<AudioServiceAdapter> audioAdapter;
     std::unique_ptr<DialogGateAdapter> dialogAdapter;
     std::unique_ptr<ProfilerSinkAdapter> profilerAdapter;

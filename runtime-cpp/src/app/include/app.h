@@ -110,8 +110,6 @@ private:
     void shutdownModules();
     void mainLoop();
     void loopIteration();      // One frame, shared by native and WASM loops.
-    /** One fixed-timestep simulation tick (gameplay, physics, lifecycle). */
-    void tickFixedStep(float dt);
     /** Per-render-frame tail: profiler counts, draw, console flush, input reset. */
     void tickFrameEnd();
     void renderActiveScene();

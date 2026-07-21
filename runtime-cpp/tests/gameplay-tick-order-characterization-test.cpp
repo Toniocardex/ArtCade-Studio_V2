@@ -25,28 +25,23 @@
 #include "modules/physics/include/physics.h"
 #include "modules/variable-manager/include/variable-manager.h"
 #include "modules/sprite-animator/include/sprite-animator.h"
-#include "modules/camera-manager/include/camera-manager.h"
-#include "modules/event-bus/include/event-bus.h"
-#include "modules/game-api/include/game-api.h"
-#include "modules/game-state/include/game-state-manager.h"
-#include "modules/lua-runtime/include/lua-host.h"
-#include "modules/time/include/time-manager.h"
-#include "modules/tween-manager/include/tween-manager.h"
 #include "modules/audio/include/audio.h"
 #include "modules/input/include/input.h"
 #include "world.h"
 
-// RU-02c/d/e-1/e-2 made GameplaySession real and gave it its own owned
-// simulation + Logic/GameAPI/LuaHost graph (Physics/SceneManager/
+// RU-02c/d/e-1/e-2/e-3/RU-02f made GameplaySession real and gave it its own
+// owned utility + simulation + Logic/GameAPI/LuaHost/ScriptRuntime graph
+// (EventBus/TimeManager/VariableManager/TweenManager/SpriteAnimator/
+// CameraManager/SaveLoadManager/GameStateManager/Physics/SceneManager/
 // SceneMutationService/RuntimeEntityGateway/SceneLifecycleService/World/
-// RuntimeLogicHostAdapter/LogicRuntime/GameAPI/LuaHost) - gameplay_session.h
-// now only forward-declares the modules it touches through pointers, so this
-// test includes each concrete header itself instead of relying on
+// RuntimeLogicHostAdapter/LogicRuntime/GameAPI/LuaHost/ScriptRuntime) -
+// gameplay_session.h now only forward-declares the modules it touches
+// through pointers, so this test includes each concrete header it still
+// needs directly (VariableManager/SpriteAnimator for the other test
+// functions below, which don't touch GameplaySession) instead of relying on
 // GameplaySession to pull them in transitively.
 #include "app/src/gameplay_session.h"
 #include "core/engine-context.h"
-
-#include <sol/sol.hpp>
 
 #include <iostream>
 #include <string>
@@ -443,31 +438,16 @@ void testAnimationEventsDrainedOnce() {
 // InitAudioDevice(), never exercised by playSound in this test); Input::init()
 // is a trivial no-op (input.cpp:36) so it's safe to call for real.
 void testRealGameplaySessionDispatchInputThenTick() {
-    VariableManager variables;
-    CHECK(variables.init());
-    Modules::TimeManager time;
-    Modules::TweenManager tweens;
-    SpriteAnimator animator;
-    Modules::CameraManager camera;
-    Modules::EventBus events;
-    Modules::GameStateManager gameState;
-    CHECK(time.init());
-    CHECK(tweens.init());
-    CHECK(animator.init());
-    CHECK(camera.init());
-    CHECK(events.init());
-    gameState.setEventBus(&events);
-    CHECK(gameState.init());
-
     Modules::Audio audio; // never init()'d - playSound is not exercised here.
     Modules::Input input;
     CHECK(input.init());
 
-    // RU-02e-1/2: GameplaySession now owns the whole simulation +
-    // Logic/GameAPI/LuaHost graph itself - build it via initialize() then
-    // initializeGameplayModules() instead of constructing everything
-    // standalone.
-    GameplaySession session(variables);
+    // RU-02e-1/2/RU-02f: GameplaySession now owns the whole utility +
+    // simulation + Logic/GameAPI/LuaHost graph itself - build it via
+    // initializeUtilities() then initialize() then initializeGameplayModules()
+    // instead of constructing everything standalone.
+    GameplaySession session;
+    CHECK(session.initializeUtilities([](const char*, bool ok) { return ok; }));
     CHECK(session.initialize(
         PhysicsMode::Auto,
         [](const char*, bool ok) { return ok; },
@@ -503,10 +483,7 @@ void testRealGameplaySessionDispatchInputThenTick() {
     Scripts::ScriptRuntime& scriptRuntime = session.resetScriptRuntime();
     CHECK(scriptRuntime.install(makeScriptMoveProgram(-1.f), hero.id, "move-script", &error));
 
-    session.wireHostRefs(GameplayRuntimeRefs{
-        &time, &tweens, &animator, &camera, &gameState, &events,
-        nullptr, nullptr, nullptr, // audio/dialog/profiler: not exercised by this test
-    });
+    session.wireHostPorts(nullptr, nullptr, nullptr); // audio/dialog/profiler: not exercised
 
     // dispatchStart is a lifecycle event (install/spawn-time in production,
     // e.g. installLogicScopeForEntity calls dispatchStartForOwner right after
@@ -541,7 +518,7 @@ void testRealGameplaySessionDispatchInputThenTick() {
     session.shutdownScriptingModules();
     session.shutdownGraph();
     session.shutdownPhysics();
-    variables.shutdown();
+    session.shutdownUtilities();
 }
 
 } // namespace

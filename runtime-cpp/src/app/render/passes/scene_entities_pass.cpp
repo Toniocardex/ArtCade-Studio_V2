@@ -2,26 +2,15 @@
 
 #include "../scene_frame_snapshot.h"
 
-#include "../sprite_frame_resolve.h"
-#include "../text_value_formatter.h"
 #include "../../../modules/renderer/include/renderer.h"
-#include "../../../modules/runtime-entity-gateway/include/runtime-entity-gateway.h"
 #include "../../../modules/scene-system/include/scene-manager.h"
-#include "../../../modules/sprite-animator/include/sprite-animator.h"
-#include "../../../modules/variable-manager/include/variable-manager.h"
 
-#include <algorithm>
-#include <cmath>
-#include <optional>
 #include <string>
 #include <unordered_map>
-#include <vector>
 
 namespace ArtCade::AppRenderPasses {
 
 namespace {
-
-using Modules::SpriteAnimator;
 
 void textAnchorAlign(const std::string& a, int& hOut, int& vOut) {
     if (a.find("left") != std::string::npos)        hOut = 2;
@@ -35,19 +24,18 @@ void textAnchorAlign(const std::string& a, int& hOut, int& vOut) {
     else                                            vOut = 0;
 }
 
-struct LayeredRenderable {
-    EntityId id = 0;
-    Transform transform{};
-    SpriteComponent sprite{};
-    int layerPriority = 0;
-    size_t insertionIndex = 0u;
-};
-
 } // namespace
 
+// RU-02g (docs/RU02_GAMEPLAY_SESSION_REFACTOR.md, editor repo): entity
+// discovery, layer-based sort, visibility, animator frame resolution and
+// text/gauge variable-binding resolution all moved into
+// GameplaySession::buildFrameSnapshot() (gameplay_session.cpp) - this pass
+// only reads `frame.renderables`, already sorted in final draw order, and
+// draws. No RuntimeEntityGateway/SpriteAnimator/VariableManager query is left
+// here. settingsById/parallaxById still come from ctx.sceneManager, the same
+// authoring-adjacent aliasing precedent as frame.tilemap/tilemapLayers below.
 void execute_scene_entities_pass(SceneFrameContext& ctx) {
-    if (!ctx.frameSnapshot || !ctx.entityGateway || !ctx.sceneManager
-        || !ctx.renderer)
+    if (!ctx.frameSnapshot || !ctx.sceneManager || !ctx.renderer)
         return;
 
     const SceneFrameSnapshot& frame = *ctx.frameSnapshot;
@@ -55,19 +43,15 @@ void execute_scene_entities_pass(SceneFrameContext& ctx) {
 
     const bool inEditMode = frame.overlay.inEditMode;
     std::unordered_map<std::string, SceneLayerSettings> settingsById;
-    std::unordered_map<std::string, int> layerRankById;
     std::unordered_map<std::string, Vec2> parallaxById;
 
     const auto& layers = ctx.sceneManager->sceneLayers();
-    for (size_t i = 0; i < layers.size(); ++i) {
-        const auto& layer = layers[i];
+    for (const auto& layer : layers) {
         SceneLayerSettings settings;
         const auto sit = frame.layerSettings.find(layer.id);
         if (sit != frame.layerSettings.end())
             settings = sit->second;
         settingsById.emplace(layer.id, settings);
-        // SceneDef.layers: index 0 = background (lowest priority), last = foreground.
-        layerRankById.emplace(layer.id, static_cast<int>(i));
         if (settings.parallax.x != 1.f || settings.parallax.y != 1.f)
             parallaxById.emplace(
                 layer.id, Vec2{ settings.parallax.x, settings.parallax.y });
@@ -86,43 +70,12 @@ void execute_scene_entities_pass(SceneFrameContext& ctx) {
             };
         };
 
-    std::vector<LayeredRenderable> renderables;
-    size_t renderableIndex = 0u;
-    ctx.entityGateway->forEachActiveRenderable(
-        [&renderables, &layerRankById, &renderableIndex]
-        (EntityId id, const Transform& transform, const SpriteComponent& sprite) {
-            const auto rankIt = layerRankById.find(sprite.layerId);
-            renderables.push_back(LayeredRenderable{
-                id,
-                transform,
-                sprite,
-                rankIt != layerRankById.end() ? rankIt->second : 0,
-                renderableIndex++,
-            });
-        });
-    std::stable_sort(
-        renderables.begin(),
-        renderables.end(),
-        [](const LayeredRenderable& a, const LayeredRenderable& b) {
-            if (a.layerPriority != b.layerPriority)
-                return a.layerPriority < b.layerPriority;
-            if (a.sprite.renderOrder != b.sprite.renderOrder)
-                return a.sprite.renderOrder < b.sprite.renderOrder;
-            return a.insertionIndex < b.insertionIndex;
-        });
-
-    for (const LayeredRenderable& item : renderables) {
-        const EntityId id = item.id;
+    for (const RenderableEntitySnapshot& item : frame.renderables) {
         const Transform& transform = item.transform;
         const SpriteComponent& sprite = item.sprite;
-        [renderer = ctx.renderer,
-         animator = ctx.spriteAnimator,
-         inEditMode,
-         gateway = ctx.entityGateway,
-         variables = ctx.variableManager,
-         &settingsById,
-         &layerDrawPos]
-        (EntityId id, const Transform& transform, const SpriteComponent& sprite) {
+        [renderer = ctx.renderer, inEditMode, &settingsById, &layerDrawPos]
+        (const RenderableEntitySnapshot& item, const Transform& transform,
+         const SpriteComponent& sprite) {
             if (!inEditMode && sprite.alpha <= 0.001f) return;
             const auto layerIt = settingsById.find(sprite.layerId);
             const SceneLayerSettings* layer =
@@ -134,21 +87,16 @@ void execute_scene_entities_pass(SceneFrameContext& ctx) {
             float alpha = sprite.alpha;
             if (layer) alpha *= layer->opacity;
             const bool hasSpriteSheet = !sprite.spriteAssetId.empty();
-            if (inEditMode && hasSpriteSheet && !gateway->visibleInGame(id)) {
+            if (inEditMode && hasSpriteSheet && !item.visibleInGame) {
                 alpha *= 0.45f;
             }
             if (inEditMode && !hasSpriteSheet) alpha = layer ? layer->opacity : 1.f;
 
-            TextComponent text{};
-            const bool hasText = gateway->getText(id, text)
-                && (!text.text.empty() || !text.bindKey.empty());
-
-            GaugeComponent gaugeProbe{};
-            const bool hasGauge = gateway->getGauge(id, gaugeProbe)
-                && gaugeProbe.width > 0.f && gaugeProbe.height > 0.f;
+            const bool hasText = item.text.has_value();
+            const bool hasGauge = item.gauge.has_value();
             const bool visualOnly = !hasSpriteSheet && (hasText || hasGauge);
 
-            const auto draw = AppRender::sprite_frame_resolve(animator, id, sprite, inEditMode);
+            const auto& draw = item.spriteFrame;
             if (AppRender::sprite_frame_has_pixels(draw.frame)) {
                 const std::string& sheet =
                     draw.assetId.empty() ? sprite.spriteAssetId : draw.assetId;
@@ -169,70 +117,38 @@ void execute_scene_entities_pass(SceneFrameContext& ctx) {
             }
 
             if (!hasText) return;
-            std::string display = text.text;
-            const bool hasBoundValue = !text.bindKey.empty() && variables
-                && (text.bindScope == "local"
-                    ? variables->entityExists(id, text.bindKey)
-                    : variables->exists(text.bindKey));
-            if (hasBoundValue) {
-                const auto boundValue = text.bindScope == "local"
-                    ? variables->getEntity(id, text.bindKey)
-                    : variables->get(text.bindKey);
-                display = text.prefix
-                    + AppRender::formatTextValue(
-                        boundValue, text.format, text.digits)
-                    + text.suffix;
-            } else if (!text.bindKey.empty()) {
-                display = text.prefix + text.text + text.suffix;
-            }
-
+            const TextComponent& text = *item.text;
+            // text.text already carries the fully resolved display string
+            // (prefix + formatted bound value + suffix, or the static
+            // authored text) - resolved once in buildFrameSnapshot().
             Vec4 color = text.color;
             if (layer) color.a *= layer->opacity;
-            if (inEditMode && !gateway->visibleInGame(id)) color.a *= 0.45f;
+            if (inEditMode && !item.visibleInGame) color.a *= 0.45f;
             int hAlign = 0, vAlign = 0;
             textAnchorAlign(text.align, hAlign, vAlign);
             renderer->drawText(
-                display,
+                text.text,
                 pos.x + text.offsetX,
                 pos.y + text.offsetY,
                 text.size, color, text.fontPath, hAlign, text.screenSpace,
                 vAlign);
-        }(id, transform, sprite);
+        }(item, transform, sprite);
     }
 
-    for (const LayeredRenderable& item : renderables) {
-        const EntityId id = item.id;
+    for (const RenderableEntitySnapshot& item : frame.renderables) {
         const Transform& transform = item.transform;
         const SpriteComponent& sprite = item.sprite;
-        [renderer = ctx.renderer,
-         inEditMode,
-         gateway = ctx.entityGateway,
-         variables = ctx.variableManager,
-         &settingsById,
-         &layerDrawPos]
-        (EntityId id, const Transform& transform, const SpriteComponent& sprite) {
+        [renderer = ctx.renderer, inEditMode, &settingsById, &layerDrawPos]
+        (const RenderableEntitySnapshot& item, const Transform& transform,
+         const SpriteComponent& sprite) {
+            if (!item.gauge.has_value()) return;
             const auto layerIt = settingsById.find(sprite.layerId);
             const SceneLayerSettings* layer =
                 layerIt != settingsById.end() ? &layerIt->second : nullptr;
             if (layer && (!layer->visible || layer->opacity <= 0.f)) return;
-            GaugeComponent gauge{};
-            if (!gateway->getGauge(id, gauge)) return;
-            if (gauge.width <= 0.f || gauge.height <= 0.f) return;
 
-            float value = gauge.maxValue;
-            const bool hasBoundValue = !gauge.bindKey.empty() && variables
-                && (gauge.bindScope == "local"
-                    ? variables->entityExists(id, gauge.bindKey)
-                    : variables->exists(gauge.bindKey));
-            if (hasBoundValue) {
-                const auto boundValue = gauge.bindScope == "local"
-                    ? variables->getEntity(id, gauge.bindKey)
-                    : variables->get(gauge.bindKey);
-                value = static_cast<float>(
-                    AppRender::variableToNumber(boundValue));
-            }
-            float ratio = gauge.maxValue > 0.f ? value / gauge.maxValue : 0.f;
-            ratio = std::clamp(ratio, 0.f, 1.f);
+            const GaugeComponent& gauge = *item.gauge;
+            const float ratio = item.gaugeRatio;
 
             Vec4 bg = gauge.bgColor;
             Vec4 fill = gauge.fillColor;
@@ -240,7 +156,7 @@ void execute_scene_entities_pass(SceneFrameContext& ctx) {
                 bg.a *= layer->opacity;
                 fill.a *= layer->opacity;
             }
-            if (inEditMode && !gateway->visibleInGame(id)) {
+            if (inEditMode && !item.visibleInGame) {
                 bg.a *= 0.45f;
                 fill.a *= 0.45f;
             }
@@ -256,7 +172,7 @@ void execute_scene_entities_pass(SceneFrameContext& ctx) {
                 renderer->drawRect(gx, gy, gauge.width * ratio, gauge.height,
                                    fill, gauge.screenSpace);
             }
-        }(id, transform, sprite);
+        }(item, transform, sprite);
     }
 
     if (frame.sceneFadeAlpha > 0.f)

@@ -123,15 +123,23 @@ void Application::renderActiveScene() {
         resetCameraOnNextFrame_ = false;
     }
 
-    const SceneFrameSnapshot frameSnapshot = frame_coordinator_build_frame({
-        ++frameNumber_,
-        sceneRevision,
-        activeScene,
-        mod_->renderer.get(),
-        mod_->editorViewport.get(),
-        overlay,
-        sceneFadeAlpha,
-    });
+    // RU-02g (docs/RU02_GAMEPLAY_SESSION_REFACTOR.md, editor repo):
+    // frame_coordinator_build_frame() still builds the scene/presentation
+    // truth (needs host-owned Renderer/EditorViewportService, T-02 in the
+    // debt register); buildFrameSnapshot() then adds the resolved gameplay
+    // entity render data (renderables/elapsedTime) using session-owned
+    // RuntimeEntityGateway/SpriteAnimator/VariableManager/TimeManager, so the
+    // render passes below never query those live during draw.
+    const SceneFrameSnapshot frameSnapshot =
+        mod_->gameplaySession->buildFrameSnapshot(frame_coordinator_build_frame({
+            ++frameNumber_,
+            sceneRevision,
+            activeScene,
+            mod_->renderer.get(),
+            mod_->editorViewport.get(),
+            overlay,
+            sceneFadeAlpha,
+        }));
 
     mod_->renderer->beginFrame(
         frameSnapshot.presentation,
@@ -149,11 +157,9 @@ void Application::renderActiveScene() {
     SceneFrameContext frameCtx{};
     frameCtx.frameSnapshot = &frameSnapshot;
     frameCtx.renderer = mod_->renderer.get();
-    frameCtx.spriteAnimator = mod_->spriteAnimator.get();
+    frameCtx.spriteAnimator = mod_->spriteAnimator;
     frameCtx.entityGateway = mod_->entityGateway;
-    frameCtx.variableManager = mod_->variableManager.get();
     frameCtx.sceneManager = mod_->sceneManager;
-    frameCtx.timeManager = mod_->timeManager.get();
     frameCtx.selectedEntityIds = &selectedEntityIds;
     frameCtx.tilesets = &tilesets_;
     frameCtx.tileColors = &tileColors_;

@@ -300,11 +300,17 @@ artcade_test(world_tilemap_collision_test
         "artcade-world;artcade-scene-system;artcade-runtime-entity-gateway;artcade-physics;artcade-variable-manager;artcade-sprite-animator")
 
     artcade_test(gameplay_tick_order_characterization_test
-        "gameplay-tick-order-characterization-test.cpp;${ARTCADE_RUNTIME_ROOT}/src/app/src/gameplay_session.cpp"
+        "gameplay-tick-order-characterization-test.cpp;${ARTCADE_RUNTIME_ROOT}/src/app/src/gameplay_session.cpp;${ARTCADE_RUNTIME_ROOT}/src/app/render/sprite_frame_resolve.cpp;${ARTCADE_RUNTIME_ROOT}/src/app/render/text_value_formatter.cpp"
         "artcade-world;artcade-scene-system;artcade-runtime-entity-gateway;artcade-physics;artcade-variable-manager;artcade-sprite-animator;artcade-logic-core;artcade-logic-runtime;artcade-script-runtime;artcade-lua-runtime;artcade-game-api;artcade-camera-manager;artcade-event-bus;artcade-game-state;artcade-time;artcade-tween-manager;artcade-audio;artcade-input")
     target_include_directories(gameplay_tick_order_characterization_test PRIVATE
         ${ARTCADE_RUNTIME_ROOT}/libs/lua-5.4/src)
     target_link_libraries(gameplay_tick_order_characterization_test PRIVATE lua54)
+
+    artcade_test(gameplay_session_dependency_guard_test
+        gameplay-session-dependency-guard-test.cpp
+        "")
+    target_compile_definitions(gameplay_session_dependency_guard_test PRIVATE
+        ARTCADE_RUNTIME_ROOT="${ARTCADE_RUNTIME_ROOT}")
 
     artcade_test(game_api_state_test
         game-api-state-test.cpp

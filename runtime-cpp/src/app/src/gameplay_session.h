@@ -1,17 +1,24 @@
 #pragma once
 
-// RU-02c/RU-02e-1/RU-02e-2/RU-02e-3 (docs/RU02_GAMEPLAY_SESSION_REFACTOR.md,
-// editor repo): the gameplay tick algorithm moved verbatim out of
-// Application::tickFixedStep / Application::dispatchGameplayCollisionTransitions
+// RU-02c/RU-02e-1/RU-02e-2/RU-02e-3/RU-02f (docs/RU02_GAMEPLAY_SESSION_
+// REFACTOR.md, editor repo): the gameplay tick algorithm moved verbatim out
+// of Application::tickFixedStep / Application::dispatchGameplayCollisionTransitions
 // (RU-02c), then the simulation graph (Physics/SceneManager/
 // SceneMutationService/RuntimeEntityGateway/SceneLifecycleService/World)
 // moved into this class's own composition root, `initialize()` (RU-02e-1),
 // then RuntimeLogicHostAdapter/LogicRuntime/GameAPI/LuaHost moved in too via
 // `initializeGameplayModules()` (RU-02e-2), then ScriptRuntime - reconstructed
 // per-scene, unlike every other module here which is boot-time-stable - moved
-// in via `resetScriptRuntime()`/`clearScriptRuntime()` (RU-02e-3). Every
-// module the RU-02e gate names ("World/gateway/Logic/Script costruiti
-// soltanto dalla sessione") is now session-owned.
+// in via `resetScriptRuntime()`/`clearScriptRuntime()` (RU-02e-3), then the
+// utility modules (EventBus/TimeManager/VariableManager/TweenManager/
+// SpriteAnimator/CameraManager/SaveLoadManager/GameStateManager) moved in via
+// `initializeUtilities()` (RU-02f). Application now owns only host modules
+// (Renderer/Input/Audio/TextureManager/AssetLoader/DialogManager/
+// EditorViewportService); every gameplay module is session-owned, satisfying
+// the RU-02f gate ("Application non possiede moduli gameplay"). The
+// transitional `GameplayRuntimeRefs` struct (T-01 in the debt register) is
+// eliminated as scheduled: `wireHostPorts()` wires the three remaining
+// externally-owned host-port adapters directly, no struct needed.
 
 #include "gameplay_host_ports.h"
 
@@ -43,6 +50,7 @@ class LuaHost;
 class VariableManager;
 class Input;
 class Audio;
+class SaveLoadManager;
 } // namespace ArtCade::Modules
 
 namespace ArtCade::Logic {
@@ -57,6 +65,7 @@ namespace ArtCade {
 
 class World;
 struct EngineContext;
+struct SceneFrameSnapshot;
 
 // RU-02d (docs/RU02_GAMEPLAY_SESSION_REFACTOR.md 5, editor repo): the host's
 // input polling result for one frame, immutable once built. Deliberately
@@ -127,32 +136,31 @@ private:
     SpawnInstaller spawnInstaller_;
 };
 
-// RU-02e-1/2: world/physics/gateway/logic/gameApi/luaHost are no longer
-// references or pointers here - they are owned by GameplaySession directly
-// (see private members below). The remaining fields stay pointer-based
-// (nullptr default) so this struct is default-constructible, which lets
-// GameplaySession be constructed early (before these modules exist) and
-// wired up later via wireHostRefs().
-struct GameplayRuntimeRefs {
-    Modules::TimeManager* time = nullptr;
-    Modules::TweenManager* tweens = nullptr;
-    Modules::SpriteAnimator* animator = nullptr;
-    Modules::CameraManager* camera = nullptr;
-    Modules::GameStateManager* gameState = nullptr;
-    Modules::EventBus* events = nullptr;
-    IGameplayAudioService* audio = nullptr;
-    IGameplayDialogGate* dialog = nullptr;
-    IRuntimeProfilerSink* profiler = nullptr;
-};
-
 class GameplaySession {
 public:
     using BootStepFn = std::function<bool(const char*, bool)>;
     using SceneTransitionHandlerFn =
         std::function<void(const Modules::SceneTransitionResult&)>;
 
-    explicit GameplaySession(Modules::VariableManager& variables);
+    GameplaySession();
     ~GameplaySession();
+
+    // RU-02f: builds EventBus, TimeManager, VariableManager, TweenManager,
+    // SpriteAnimator, CameraManager, SaveLoadManager and GameStateManager, in
+    // the same order and with the same boot-step names and internal wiring
+    // (GameStateManager::setEventBus) Application::initUtilities() used to
+    // perform directly. Must run before initialize(), which needs
+    // variableManager() already built (World's constructor takes it).
+    bool initializeUtilities(const BootStepFn& bootStep);
+
+    Modules::EventBus& eventBus() { return *eventBus_; }
+    Modules::TimeManager& timeManager() { return *timeManager_; }
+    Modules::VariableManager& variableManager() { return *variableManager_; }
+    Modules::TweenManager& tweenManager() { return *tweenManager_; }
+    Modules::SpriteAnimator& spriteAnimator() { return *spriteAnimator_; }
+    Modules::CameraManager& cameraManager() { return *cameraManager_; }
+    Modules::SaveLoadManager& saveLoadManager() { return *saveLoadManager_; }
+    Modules::GameStateManager& gameStateManager() { return *gameStateManager_; }
 
     // RU-02e-1: builds the simulation graph (Physics, SceneManager,
     // SceneMutationService, RuntimeEntityGateway, SceneLifecycleService,
@@ -182,10 +190,18 @@ public:
                                     RuntimeLogicHostAdapter::SpawnInstaller spawnInstaller,
                                     const BootStepFn& bootStep);
 
-    // Populates the remaining host-port pointers Application still owns
-    // outright (Application::initSubsystems(), after
-    // initializeGameplayModules()).
-    void wireHostRefs(GameplayRuntimeRefs refs) { refs_ = refs; }
+    // RU-02f: replaces the transitional GameplayRuntimeRefs struct (T-01,
+    // eliminated as scheduled) - wires the three host-port adapters
+    // Application still owns outright (Application::initSubsystems(), after
+    // initializeGameplayModules()) directly, no struct needed since nothing
+    // else here is externally-owned anymore.
+    void wireHostPorts(IGameplayAudioService* audio,
+                        IGameplayDialogGate* dialog,
+                        IRuntimeProfilerSink* profiler) {
+        audioPort_ = audio;
+        dialogPort_ = dialog;
+        profilerPort_ = profiler;
+    }
 
     World& world() { return *world_; }
     Modules::Physics& physics() { return *physics_; }
@@ -207,6 +223,18 @@ public:
     void dispatchInput(const GameplayInputFrame& input);
 
     void tickFixedStep(float dt);
+
+    // RU-02g (docs/RU02_GAMEPLAY_SESSION_REFACTOR.md, editor repo): resolves
+    // gameplay-visible entity render data (transform/sprite/visibility/
+    // animator frame/text/gauge) into `snapshot.renderables`, already sorted
+    // in final draw order, and stamps `snapshot.elapsedTime` - using
+    // session-owned entityGateway_/spriteAnimator_/variableManager_/
+    // sceneManager_/timeManager_ so the render pass stops querying those live
+    // during draw. `snapshot` must already carry the scene/presentation
+    // fields from frame_coordinator_build_frame() (Renderer/
+    // EditorViewportService stay host-owned per T-02 in the debt register) -
+    // this only adds to it, it does not rebuild the scene-level truth.
+    SceneFrameSnapshot buildFrameSnapshot(SceneFrameSnapshot snapshot);
 
     // RU-02e-3: ScriptRuntime is reconstructed at project-load and
     // scene-lifecycle time (app_project_lifecycle.cpp
@@ -249,10 +277,24 @@ public:
     void shutdownScriptRuntime();
     void shutdownScriptingModules();
 
+    // RU-02f: matches the original contiguous tail of Application::
+    // shutdownModules() (gameStateManager -> saveLoadManager -> cameraManager
+    // -> spriteAnimator -> tweenManager -> variableManager -> timeManager ->
+    // eventBus) - no host module was ever interleaved between these, unlike
+    // physics/scriptRuntime/dialogManager elsewhere, so one method suffices.
+    void shutdownUtilities();
+
 private:
     void dispatchGameplayCollisionTransitions();
 
-    Modules::VariableManager& variables_;
+    std::unique_ptr<Modules::EventBus> eventBus_;
+    std::unique_ptr<Modules::TimeManager> timeManager_;
+    std::unique_ptr<Modules::VariableManager> variableManager_;
+    std::unique_ptr<Modules::TweenManager> tweenManager_;
+    std::unique_ptr<Modules::SpriteAnimator> spriteAnimator_;
+    std::unique_ptr<Modules::CameraManager> cameraManager_;
+    std::unique_ptr<Modules::SaveLoadManager> saveLoadManager_;
+    std::unique_ptr<Modules::GameStateManager> gameStateManager_;
 
     std::unique_ptr<Modules::Physics> physics_;
     std::unique_ptr<Modules::SceneManager> sceneManager_;
@@ -267,7 +309,10 @@ private:
     std::unique_ptr<Modules::LuaHost> luaHost_;
     std::unique_ptr<Scripts::ScriptRuntime> scriptRuntime_;
 
-    GameplayRuntimeRefs refs_{};
+    IGameplayAudioService* audioPort_ = nullptr;
+    IGameplayDialogGate* dialogPort_ = nullptr;
+    IRuntimeProfilerSink* profilerPort_ = nullptr;
+
     PhysicsMode physicsMode_ = PhysicsMode::Auto;
     std::set<std::pair<EntityId, EntityId>> activeGameplayCollisionPairs_;
 };

@@ -23,15 +23,6 @@ double elapsedMs(Clock::time_point start) {
 
 } // namespace
 
-// RU-02c: the algorithm itself lives in GameplaySession::tickFixedStep now
-// (docs/RU02_GAMEPLAY_SESSION_REFACTOR.md, editor repo) - moved verbatim,
-// referencing the same modules Application still owns. This wrapper is
-// T-04 in the debt register, scheduled for removal once RU-02e/f make
-// GameplaySession itself the thing every call site drives directly.
-void Application::tickFixedStep(float dt) {
-    mod_->gameplaySession->tickFixedStep(dt);
-}
-
 void Application::tickFrameEnd() {
     profiler_.setCounts(
         static_cast<uint32_t>(mod_->entityGateway->activeSceneEntityCount()),
@@ -114,8 +105,12 @@ void Application::loopIteration() {
             if (mod_->input->isKeyDown(code)) inputFrame.held.push_back(key);
         }
         mod_->gameplaySession->dispatchInput(inputFrame);
+        // RU-02h: Application::tickFixedStep (T-04 in the debt register) is
+        // gone - it was a one-line wrapper around this call, kept only until
+        // every call site could drive GameplaySession directly. This is now
+        // the only call site.
         while (accumulator_ >= targetDt_) {
-            tickFixedStep(targetDt_);
+            mod_->gameplaySession->tickFixedStep(targetDt_);
             accumulator_ -= targetDt_;
             simulatedDt += targetDt_;
         }
