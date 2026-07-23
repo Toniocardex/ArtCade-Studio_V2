@@ -278,6 +278,22 @@ int manualPlatformerIsFalling(lua_State* state) {
     return 1;
 }
 
+int manualPlatformerState(lua_State* state) {
+    IGameplayRuntimeHost* host = manualGameplayHost(state);
+    luaL_checktype(state, 1, LUA_TTABLE);
+    if (!host) return luaL_error(state, "ctx.platformer:state failed");
+    const char* name = "Stopped";
+    switch (host->platformerState(manualOwner(state))) {
+    case PlatformerState::Moving:  name = "Moving"; break;
+    case PlatformerState::Jumping: name = "Jumping"; break;
+    case PlatformerState::Falling: name = "Falling"; break;
+    case PlatformerState::Stopped:
+    default: break;
+    }
+    lua_pushstring(state, name);
+    return 1;
+}
+
 int manualPlatformerIsMoving(lua_State* state) {
     IGameplayRuntimeHost* host = manualGameplayHost(state);
     luaL_checktype(state, 1, LUA_TTABLE);
@@ -393,6 +409,7 @@ constexpr ManualNamedFn kManualPlatformerMethods[] = {
     {"jump", manualPlatformerJump},
     {"is_grounded", manualPlatformerIsGrounded},
     {"is_falling", manualPlatformerIsFalling},
+    {"state", manualPlatformerState},
     {"is_moving", manualPlatformerIsMoving},
 };
 constexpr ManualNamedFn kManualAnimationMethods[] = {

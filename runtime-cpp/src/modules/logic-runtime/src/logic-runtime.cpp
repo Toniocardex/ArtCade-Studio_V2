@@ -185,6 +185,16 @@ struct LogicRuntime::Impl {
         bool isFalling() {
             return impl && impl->host.isFalling(owner);
         }
+        std::string platformerState() {
+            if (!impl) return "Stopped";
+            switch (impl->host.platformerState(owner)) {
+            case PlatformerState::Moving:  return "Moving";
+            case PlatformerState::Jumping: return "Jumping";
+            case PlatformerState::Falling: return "Falling";
+            case PlatformerState::Stopped:
+            default: return "Stopped";
+            }
+        }
         bool isPlatformerMoving() {
             return impl && impl->host.isPlatformerMoving(owner);
         }
@@ -588,6 +598,7 @@ bool LogicRuntime::initialize(std::string* error) {
             "spawn", &Impl::SelfProxy::spawn,
             "is_grounded", &Impl::SelfProxy::isGrounded,
             "is_falling", &Impl::SelfProxy::isFalling,
+            "platformer_state", &Impl::SelfProxy::platformerState,
             "is_platformer_moving", &Impl::SelfProxy::isPlatformerMoving,
             "platformer_move", &Impl::SelfProxy::platformerMove,
             "topdown_move", &Impl::SelfProxy::topDownMove,

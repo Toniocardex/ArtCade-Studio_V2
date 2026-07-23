@@ -120,6 +120,9 @@ struct Host final : IGameplayRuntimeHost {
     }
     bool isGrounded(EntityId owner) override { return world.isPlatformerGrounded(owner); }
     bool isFalling(EntityId owner) override { return world.isPlatformerFalling(owner); }
+    PlatformerState platformerState(EntityId owner) override {
+        return world.platformerState(owner);
+    }
     bool isPlatformerMoving(EntityId owner) override {
         return world.isPlatformerMovingHorizontally(owner);
     }

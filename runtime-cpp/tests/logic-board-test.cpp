@@ -32,6 +32,7 @@ struct Host final : ILogicRuntimeHost {
     std::unordered_set<EntityId> grounded;
     std::unordered_set<EntityId> falling;
     std::unordered_set<EntityId> movingHorizontally;
+    std::unordered_map<EntityId, PlatformerState> platformerStates;
     std::unordered_map<EntityId, bool> visible;
     std::unordered_map<std::string, double> state;
     std::unordered_map<std::string, bool> boolState;
@@ -91,10 +92,17 @@ struct Host final : ILogicRuntimeHost {
         return grounded.count(owner) != 0;
     }
     bool isFalling(EntityId owner) override {
-        return falling.count(owner) != 0;
+        return platformerState(owner) == PlatformerState::Falling;
+    }
+    PlatformerState platformerState(EntityId owner) override {
+        const auto it = platformerStates.find(owner);
+        if (it != platformerStates.end()) return it->second;
+        if (movingHorizontally.count(owner) != 0) return PlatformerState::Moving;
+        if (falling.count(owner) != 0) return PlatformerState::Falling;
+        return PlatformerState::Stopped;
     }
     bool isPlatformerMoving(EntityId owner) override {
-        return movingHorizontally.count(owner) != 0;
+        return platformerState(owner) == PlatformerState::Moving;
     }
     bool requestPlatformerMove(EntityId owner, float axis) override {
         calls.push_back("platformer_move:" + std::to_string(owner) + ":" + std::to_string(axis));
@@ -598,6 +606,41 @@ static void testIsFallingAsEvent() {
     }
 }
 
+static void testIsFallingMigratesToPlatformerState() {
+    LogicBoardDef board;
+    board.id = "logic:FallingMigrate";
+    LogicRuleDef rule = makeDefaultRule("rule-1");
+    rule.trigger = makeDefaultEventBlock(kIsFalling);
+    rule.actions = {makeDefaultBlock(kJump, BlockKind::Action)};
+    board.rules.push_back(rule);
+
+    const nlohmann::json json = logicBoardToJson(board);
+    LogicBoardDef loaded;
+    CHECK(logicBoardFromJson(json, loaded).ok);
+    CHECK(loaded.rules.size() == 1);
+    CHECK(loaded.rules[0].trigger.typeId == kPlatformerMotionState);
+    const LogicPropertyDef* state = findProperty(loaded.rules[0].trigger, "state");
+    CHECK(state != nullptr);
+    const auto* name = std::get_if<LogicStringValue>(&state->value);
+    CHECK(name != nullptr);
+    CHECK(name->value == "Falling");
+
+    // expected == false is ambiguous — leave as Is Falling for manual repair.
+    LogicBoardDef negated;
+    negated.id = "logic:FallingNegated";
+    LogicRuleDef negRule = makeDefaultRule("rule-1");
+    negRule.trigger = makeDefaultEventBlock(kIsFalling);
+    for (LogicPropertyDef& p : negRule.trigger.properties) {
+        if (p.key == "expected") p.value = false;
+    }
+    negRule.actions = {makeDefaultBlock(kJump, BlockKind::Action)};
+    negated.rules.push_back(negRule);
+    const nlohmann::json negJson = logicBoardToJson(negated);
+    LogicBoardDef negLoaded;
+    CHECK(logicBoardFromJson(negJson, negLoaded).ok);
+    CHECK(negLoaded.rules[0].trigger.typeId == kIsFalling);
+}
+
 static void testPlatformerMotionState() {
     CHECK(isEventEligible(*findDescriptor(kPlatformerMotionState)));
     CHECK(findDescriptor(kPlatformerMotionState)->activationKind
@@ -625,9 +668,9 @@ static void testPlatformerMotionState() {
         LogicCompileResult compiled = compileBoard("Hero", board, &owner);
         CHECK(compiled.ok());
         CHECK(compiled.programs[0].source.find("on_update") != std::string::npos);
-        CHECK(compiled.programs[0].source.find("is_platformer_moving() == true")
+        CHECK(compiled.programs[0].source.find("platformer_state() == \"Moving\"")
               != std::string::npos);
-        CHECK(compiled.programs[0].source.find("is_platformer_moving() == false")
+        CHECK(compiled.programs[0].source.find("platformer_state() == \"Stopped\"")
               == std::string::npos);
         const auto& features = compiled.programs[0].requiredFeatures;
         CHECK(std::find(features.begin(), features.end(), "platformer.motion_state")
@@ -642,7 +685,31 @@ static void testPlatformerMotionState() {
         board.rules.push_back(rule);
         LogicCompileResult compiled = compileBoard("Hero", board, &owner);
         CHECK(compiled.ok());
-        CHECK(compiled.programs[0].source.find("is_platformer_moving() == false")
+        CHECK(compiled.programs[0].source.find("platformer_state() == \"Stopped\"")
+              != std::string::npos);
+    }
+    {
+        LogicBoardDef board;
+        board.id = "logic:MotionJumping";
+        LogicRuleDef rule = makeDefaultRule("rule-1");
+        rule.trigger = makeMotionTrigger("Jumping");
+        rule.actions = {makeDefaultBlock(kJump, BlockKind::Action)};
+        board.rules.push_back(rule);
+        LogicCompileResult compiled = compileBoard("Hero", board, &owner);
+        CHECK(compiled.ok());
+        CHECK(compiled.programs[0].source.find("platformer_state() == \"Jumping\"")
+              != std::string::npos);
+    }
+    {
+        LogicBoardDef board;
+        board.id = "logic:MotionFalling";
+        LogicRuleDef rule = makeDefaultRule("rule-1");
+        rule.trigger = makeMotionTrigger("Falling");
+        rule.actions = {makeDefaultBlock(kJump, BlockKind::Action)};
+        board.rules.push_back(rule);
+        LogicCompileResult compiled = compileBoard("Hero", board, &owner);
+        CHECK(compiled.ok());
+        CHECK(compiled.programs[0].source.find("platformer_state() == \"Falling\"")
               != std::string::npos);
     }
     {
@@ -691,7 +758,7 @@ static void testPlatformerMotionState() {
                 [](const std::string& c) { return c.rfind("platformer_jump:", 0) == 0; });
         };
 
-        host.movingHorizontally.insert(1);
+        host.platformerStates[1] = PlatformerState::Moving;
         for (int i = 0; i < 100; ++i) {
             runtime.beginFrame();
             runtime.dispatchTick(1.f / 60.f);
@@ -699,16 +766,19 @@ static void testPlatformerMotionState() {
         CHECK(jumpCount() == 1);
 
         host.calls.clear();
-        host.movingHorizontally.clear();
+        host.platformerStates[1] = PlatformerState::Stopped;
         runtime.beginFrame();
         runtime.dispatchTick(1.f / 60.f);
         CHECK(jumpCount() == 0);
 
-        host.movingHorizontally.insert(1);
+        host.platformerStates[1] = PlatformerState::Moving;
         runtime.beginFrame();
         runtime.dispatchTick(1.f / 60.f);
         CHECK(jumpCount() == 1);
     }
+    CHECK(findDescriptor(kPlatformerMotionState)->displayName
+          == std::string("Platformer State"));
+    CHECK(findDescriptor(kIsFalling)->catalogHidden);
 }
 
 static void testIsVisibleAsEvent() {
@@ -974,7 +1044,9 @@ static void testDescriptorSemanticMetadataConsistency() {
             } else if (property.semantic == LogicPropertySemantic::PlatformerMotionState) {
                 CHECK(block.typeId == kPlatformerMotionState);
                 CHECK(property.key == "state");
-                CHECK(property.options == std::vector<std::string>({"Moving", "Stopped"}));
+                CHECK(property.options
+                      == std::vector<std::string>(
+                          {"Stopped", "Moving", "Jumping", "Falling"}));
             } else {
                 CHECK(property.options.empty());
             }
@@ -2023,6 +2095,7 @@ int main() {
     testIsGroundedCondition();
     testIsGroundedAsEvent();
     testIsFallingAsEvent();
+    testIsFallingMigratesToPlatformerState();
     testPlatformerMotionState();
     testIsVisibleAsEvent();
     testSpriteSetFacingAction();

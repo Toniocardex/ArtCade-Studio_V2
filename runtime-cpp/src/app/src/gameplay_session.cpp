@@ -104,10 +104,13 @@ bool RuntimeLogicHostAdapter::isGrounded(EntityId owner) {
     return world_ && world_->isPlatformerGrounded(owner);
 }
 bool RuntimeLogicHostAdapter::isFalling(EntityId owner) {
-    return world_ && world_->isPlatformerFalling(owner);
+    return platformerState(owner) == PlatformerState::Falling;
+}
+PlatformerState RuntimeLogicHostAdapter::platformerState(EntityId owner) {
+    return world_ ? world_->platformerState(owner) : PlatformerState::Stopped;
 }
 bool RuntimeLogicHostAdapter::isPlatformerMoving(EntityId owner) {
-    return world_ && world_->isPlatformerMovingHorizontally(owner);
+    return platformerState(owner) == PlatformerState::Moving;
 }
 bool RuntimeLogicHostAdapter::requestPlatformerMove(EntityId owner, float axis) {
     PlatformerControllerComponent platformer{};

@@ -146,6 +146,8 @@ struct LogicBlockDescriptor {
     std::vector<std::string>             searchSynonyms;
     /** Pulse (default) or Level — drives OncePerActivation rising-edge gating. */
     LogicTriggerActivationKind           activationKind = LogicTriggerActivationKind::Pulse;
+    /** When true, omit from Logic Board add-Event / add-Condition pickers. */
+    bool                                 catalogHidden = false;
 };
 
 /**

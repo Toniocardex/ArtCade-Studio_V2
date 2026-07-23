@@ -36,8 +36,12 @@ public:
      */
     virtual bool isFalling(EntityId owner) = 0;
     /**
-     * True while Self's platformer runtime |velocity.x| exceeds the motion
-     * epsilon (ADR-0015). Not an authoring flag — query only.
+     * Mutually exclusive platformer locomotion (ADR-0016).
+     * Prefer over composing isGrounded/isFalling/isPlatformerMoving.
+     */
+    virtual PlatformerState platformerState(EntityId owner) = 0;
+    /**
+     * True while platformerState is Moving (thin wrapper for Script parity).
      */
     virtual bool isPlatformerMoving(EntityId owner) = 0;
     virtual bool requestPlatformerMove(EntityId owner, float axis) = 0;

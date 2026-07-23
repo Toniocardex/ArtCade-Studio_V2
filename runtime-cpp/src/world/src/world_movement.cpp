@@ -8,7 +8,8 @@
 namespace ArtCade {
 
 namespace {
-constexpr float kPlatformerMotionEpsilon = 0.01f;
+constexpr float kHorizontalMotionEpsilon = 0.01f;
+constexpr float kVerticalMotionEpsilon   = 0.01f;
 }
 
 bool World::isPlatformerGrounded(EntityId id) const {
@@ -18,23 +19,33 @@ bool World::isPlatformerGrounded(EntityId id) const {
 }
 
 bool World::isPlatformerFalling(EntityId id) const {
-    PlatformerControllerComponent pc{};
-    if (!entityGateway_.getPlatformerController(id, pc)) return false;
-    if (collisionGrounded(id)) return false;
-    const auto it = platformerRt_.find(id);
-    if (it == platformerRt_.end()) return false;
-    if (it->second.climbing) return false;
-    // Match Editor PlaySession: +Y down, ignore near-zero apex noise.
-    constexpr float kFallingEpsilon = 0.001f;
-    return it->second.velocity.y > kFallingEpsilon;
+    return platformerState(id) == PlatformerState::Falling;
 }
 
 bool World::isPlatformerMovingHorizontally(EntityId id) const {
+    return platformerState(id) == PlatformerState::Moving;
+}
+
+PlatformerState World::platformerState(EntityId id) const {
     PlatformerControllerComponent pc{};
-    if (!entityGateway_.getPlatformerController(id, pc)) return false;
+    if (!entityGateway_.getPlatformerController(id, pc)) {
+        return PlatformerState::Stopped;
+    }
     const auto it = platformerRt_.find(id);
-    if (it == platformerRt_.end()) return false;
-    return std::abs(it->second.velocity.x) > kPlatformerMotionEpsilon;
+    if (it == platformerRt_.end()) return PlatformerState::Stopped;
+    const PlatformerRt& rt = it->second;
+
+    const bool grounded = collisionGrounded(id);
+    if (grounded || rt.climbing) {
+        return std::abs(rt.velocity.x) > kHorizontalMotionEpsilon
+            ? PlatformerState::Moving
+            : PlatformerState::Stopped;
+    }
+
+    if (rt.velocity.y < -kVerticalMotionEpsilon) return PlatformerState::Jumping;
+    if (rt.velocity.y > kVerticalMotionEpsilon) return PlatformerState::Falling;
+    // Apex: keep prior airborne phase (never a false Stopped for one frame).
+    return rt.lastAirState;
 }
 
 void World::tickPlatformerControllers(float dt) {

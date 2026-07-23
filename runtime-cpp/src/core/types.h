@@ -275,6 +275,17 @@ struct AnimationState {
 // produced by the editor maps 1:1 with no synonyms.
 // ============================================================================
 
+/**
+ * Mutually exclusive platformer locomotion projection (ADR-0016).
+ * Derived each query from PlatformerRt; not an authoring field.
+ */
+enum class PlatformerState {
+    Stopped,
+    Moving,
+    Jumping,
+    Falling,
+};
+
 struct PlatformerControllerComponent {
     float maxSpeed      = 300.f;
     float jumpForce     = 600.f;

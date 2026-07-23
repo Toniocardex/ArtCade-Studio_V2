@@ -135,9 +135,14 @@ public:
     bool isPlatformerFalling(EntityId id) const;
     /**
      * True when |PlatformerRt.velocity.x| exceeds the horizontal motion epsilon
-     * (ADR-0015 Platformer Motion). Stopped is the negation — no second query.
+     * while grounded/climbing (ADR-0015). Prefer platformerState() for new code.
      */
     bool isPlatformerMovingHorizontally(EntityId id) const;
+    /**
+     * Mutually exclusive locomotion state (ADR-0016): Stopped/Moving on ground
+     * (or climbing), Jumping/Falling airborne, with apex hysteresis via lastAirState.
+     */
+    PlatformerState platformerState(EntityId id) const;
 
     /** Canonical Logic Runtime operations over materialized world state. */
     bool isActiveEntity(EntityId id) const;
@@ -182,6 +187,11 @@ private:
         int airborneFrames    = 0;
         /** True while the body is attached to a ladder (gravity suspended). */
         bool climbing         = false;
+        /**
+         * Last definite airborne Jumping/Falling (ADR-0016). Used at apex when
+         * |vy| ≤ ε so Logic never sees a one-frame Stopped mid-jump.
+         */
+        PlatformerState lastAirState = PlatformerState::Jumping;
     };
     std::unordered_map<EntityId, PlatformerRt> platformerRt_;
 

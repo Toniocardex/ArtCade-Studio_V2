@@ -295,6 +295,23 @@ LogicJsonResult logicBoardFromJson(const nlohmann::json& json, LogicBoardDef& ou
             }
             parsed.rules.push_back(std::move(rule));
         }
+        // ADR-0016: rewrite Is Falling (expected true/default) → Platformer State Falling.
+        // expected == false stays as-is (ambiguous vs other states; repair manually).
+        auto migrateIsFallingBlock = [](LogicBlockDef& block) {
+            if (block.typeId != kIsFalling) return;
+            const LogicPropertyDef* expected = findProperty(block, "expected");
+            const bool wantFalling = !expected || std::get<bool>(expected->value);
+            if (!wantFalling) return;
+            block = makeDefaultEventBlock(kPlatformerMotionState);
+            for (LogicPropertyDef& property : block.properties) {
+                if (property.key == "state") property.value = LogicStringValue{"Falling"};
+            }
+        };
+        for (LogicRuleDef& rule : parsed.rules) {
+            migrateIsFallingBlock(rule.trigger);
+            for (LogicConditionClause& clause : rule.conditions)
+                migrateIsFallingBlock(clause.block);
+        }
         out = std::move(parsed);
         return {true, {}};
     } catch (const std::exception& e) {

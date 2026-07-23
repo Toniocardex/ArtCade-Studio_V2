@@ -148,6 +148,7 @@ public:
     bool setScale(EntityId owner, Vec2 scale) override;
     bool isGrounded(EntityId owner) override;
     bool isFalling(EntityId owner) override;
+    PlatformerState platformerState(EntityId owner) override;
     bool isPlatformerMoving(EntityId owner) override;
     bool requestPlatformerMove(EntityId owner, float axis) override;
     bool requestTopDownMove(EntityId owner, Vec2 direction) override;

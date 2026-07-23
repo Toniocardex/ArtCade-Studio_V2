@@ -135,6 +135,16 @@ void stepPlatformerController(World& world,
         world.physics_.setPosition(handle, transform.position);
         world.physics_.setLinearVelocity(handle, transform.velocity);
     }
+
+    // ADR-0016: latch definite airborne Jumping/Falling for apex hysteresis.
+    constexpr float kVerticalMotionEpsilon = 0.01f;
+    if (!world.collisionGrounded(id) && !rt.climbing) {
+        if (rt.velocity.y < -kVerticalMotionEpsilon) {
+            rt.lastAirState = PlatformerState::Jumping;
+        } else if (rt.velocity.y > kVerticalMotionEpsilon) {
+            rt.lastAirState = PlatformerState::Falling;
+        }
+    }
 }
 
 } // namespace ArtCade::WorldInternal

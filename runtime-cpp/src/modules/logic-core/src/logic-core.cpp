@@ -332,10 +332,11 @@ void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
         if (block.typeId == kPlatformerMotionState && property.key == "state") {
             const auto* state = std::get_if<LogicStringValue>(&property.value);
             const bool ok = state
-                && (state->value == "Moving" || state->value == "Stopped");
+                && (state->value == "Moving" || state->value == "Stopped"
+                    || state->value == "Jumping" || state->value == "Falling");
             if (!ok) {
                 pushSemantic(makeError(objectTypeId, board, "LB_PLATFORMER_MOTION_STATE",
-                                       "Platformer Motion state must be Moving or Stopped",
+                                       "Platformer State must be Stopped, Moving, Jumping, or Falling",
                                        &rule, &block, property.key));
             }
         }
@@ -690,23 +691,24 @@ const std::vector<LogicBlockDescriptor>& registry() {
             "platformer.grounded", false, 10, {"floor", "landing"},
             LogicTriggerActivationKind::Level},
         {kIsFalling, "platformer", "Is Falling",
-            "Checks whether Self is airborne and moving downward (+Y down). "
-            "False while grounded or rising after a jump.",
+            "Deprecated: use Platformer State → Falling (ADR-0016). "
+            "Checks whether Self is airborne and moving downward (+Y down).",
             BlockKind::Condition,
             {{"expected", LogicValueKind::Bool, true, "Expected"}},
             {LogicRequiredComponent::PlatformerController}, {LogicContextCapability::Self},
             {LogicContextCapability::Self},
             "platformer.falling", false, 15, {"airborne", "descent", "drop"},
-            LogicTriggerActivationKind::Level},
-        {kPlatformerMotionState, "platformer", "Platformer Motion",
-            "Checks whether Self is moving horizontally or stopped "
-            "(|velocity.x| vs motion epsilon). Pair with Is Grounded for Walk/Idle.",
+            LogicTriggerActivationKind::Level, true},
+        {kPlatformerMotionState, "platformer", "Platformer State",
+            "Mutually exclusive locomotion of Self: Stopped/Moving on ground "
+            "(or climbing), Jumping/Falling airborne (ADR-0016).",
             BlockKind::Condition,
             {{"state", LogicValueKind::String, LogicStringValue{"Moving"}, "State"}},
             {LogicRequiredComponent::PlatformerController}, {LogicContextCapability::Self},
             {LogicContextCapability::Self},
             "platformer.motion_state", false, 18,
-            {"moving", "stopped", "idle", "walking", "running", "velocity", "motion"},
+            {"moving", "stopped", "idle", "walking", "running", "jumping", "falling",
+             "velocity", "motion", "state"},
             LogicTriggerActivationKind::Level},
         {kMoveHorizontal, "platformer", "Move Horizontal",
             "Requests horizontal platformer movement for Self for this input frame "
@@ -836,7 +838,7 @@ const std::vector<LogicBlockDescriptor>& registry() {
                     property.options = {"Left", "Right"};
                 } else if (block.typeId == kPlatformerMotionState && property.key == "state") {
                     property.semantic = LogicPropertySemantic::PlatformerMotionState;
-                    property.options = {"Moving", "Stopped"};
+                    property.options = {"Stopped", "Moving", "Jumping", "Falling"};
                 }
 
                 if (property.valueKind == LogicValueKind::Number) {
