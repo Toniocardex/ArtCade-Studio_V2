@@ -579,7 +579,10 @@ void GameplaySession::shutdownUtilities() {
 // the relative order across *different* keys within the same frame, which
 // nothing in this codebase currently depends on.
 void GameplaySession::dispatchInput(const GameplayInputFrame& input) {
-    world_->clearTopDownMovementContributions();
+    // Frame-local movement: Logic/Script must re-assert Move Horizontal /
+    // Top Down Move each input frame (typically While Key Held). Sticky
+    // intents made platformer keep walking after key release.
+    world_->clearFrameMovementIntents();
     if (logicRuntime_) logicRuntime_->beginFrame();
     Scripts::ScriptInputSnapshot scriptInput;
     for (LogicKey key : input.pressed) {

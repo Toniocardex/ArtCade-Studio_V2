@@ -79,13 +79,17 @@ void World::clearMovementIntent(EntityId id) {
     it->second.movement = {};
 }
 
-void World::clearTopDownMovementContributions() {
+void World::clearFrameMovementIntents() {
     for (auto& [id, intent] : controlIntents_) {
-        TopDownControllerComponent topDown{};
-        if (!entityGateway_.getTopDownController(id, topDown)) continue;
+        (void)id;
+        // Jump stays edged until the platformer step consumes it this frame.
         intent.hasMovement = false;
         intent.movement = {};
     }
+}
+
+void World::clearTopDownMovementContributions() {
+    clearFrameMovementIntents();
 }
 
 void World::addTopDownMovementContribution(EntityId id, Vec2 direction) {

@@ -119,6 +119,87 @@ int main() {
                "project materialize: sprite id from catalog");
     }
 
+    // ADR-0014: BoxCollider2D → CollisionBody.
+    {
+        EntityDef type;
+        type.className = "Block";
+        type.boxCollider2D = BoxCollider2DComponent{
+            {4.f, -2.f}, {40.f, 20.f}, true, BoxColliderMode::Solid};
+        const EntityDef e = materializeInstance(type, makeInstance(), assets);
+        expect(e.collisionBody.has_value(), "solid: body present");
+        expect(e.collisionBody->enabled, "solid: body enabled");
+        expect(e.collisionBody->bodyType == BodyType::Static, "solid: Static without mover");
+        expect(e.collisionBody->shapes.size() == 1, "solid: one shape");
+        expect(e.collisionBody->shapes[0].type == CollisionShapeType::Rectangle,
+               "solid: rectangle");
+        expect(e.collisionBody->shapes[0].response == CollisionResponse::Solid, "solid: response");
+        expect(!e.collisionBody->shapes[0].oneWay, "solid: not one-way");
+        expect(e.collisionBody->shapes[0].offset.x == 4.f
+                   && e.collisionBody->shapes[0].offset.y == -2.f,
+               "solid: offset");
+        expect(e.collisionBody->shapes[0].size.x == 40.f
+                   && e.collisionBody->shapes[0].size.y == 20.f,
+               "solid: size");
+    }
+    {
+        EntityDef type;
+        type.boxCollider2D = BoxCollider2DComponent{
+            {}, {16.f, 16.f}, true, BoxColliderMode::Trigger};
+        const EntityDef e = materializeInstance(type, makeInstance(), assets);
+        expect(e.collisionBody.has_value(), "trigger: body present");
+        expect(e.collisionBody->shapes[0].response == CollisionResponse::Sensor,
+               "trigger: sensor");
+    }
+    {
+        EntityDef type;
+        type.boxCollider2D = BoxCollider2DComponent{
+            {}, {64.f, 8.f}, true, BoxColliderMode::OneWayPlatform};
+        const EntityDef e = materializeInstance(type, makeInstance(), assets);
+        expect(e.collisionBody.has_value(), "oneWay: body present");
+        expect(e.collisionBody->shapes[0].response == CollisionResponse::Solid, "oneWay: solid");
+        expect(e.collisionBody->shapes[0].oneWay, "oneWay: flag");
+    }
+    {
+        EntityDef type;
+        type.boxCollider2D = BoxCollider2DComponent{
+            {}, {32.f, 32.f}, false, BoxColliderMode::Solid};
+        const EntityDef e = materializeInstance(type, makeInstance(), assets);
+        expect(!e.collisionBody.has_value(), "disabled: no body");
+    }
+    {
+        EntityDef type;
+        type.platformerController = PlatformerControllerComponent{};
+        type.boxCollider2D = BoxCollider2DComponent{
+            {}, {32.f, 32.f}, true, BoxColliderMode::Solid};
+        expect(resolveCollisionBodyType(type) == BodyType::Kinematic,
+               "resolve: platformer → Kinematic");
+        const EntityDef e = materializeInstance(type, makeInstance(), assets);
+        expect(e.collisionBody->bodyType == BodyType::Kinematic,
+               "platformer: Kinematic body");
+    }
+    {
+        EntityDef type;
+        type.boxCollider2D = BoxCollider2DComponent{
+            {}, {32.f, 32.f}, true, BoxColliderMode::Solid};
+        type.collisionBody = CollisionBodyComponent{};
+        type.collisionBody->enabled = true;
+        type.collisionBody->shapes.push_back(CollisionShape{});
+        type.collisionBody->shapes[0].size = {999.f, 999.f};
+        const EntityDef e = materializeInstance(type, makeInstance(), assets);
+        expect(e.collisionBody->shapes[0].size.x == 32.f,
+               "scratch collisionBody overwritten from boxCollider2D");
+    }
+    {
+        EntityDef type;
+        type.collisionBody = CollisionBodyComponent{};
+        type.collisionBody->enabled = true;
+        type.collisionBody->shapes.push_back(CollisionShape{});
+        type.collisionBody->shapes[0].size = {999.f, 999.f};
+        const EntityDef e = materializeInstance(type, makeInstance(), assets);
+        expect(!e.collisionBody.has_value(),
+               "no boxCollider2D clears leftover collisionBody");
+    }
+
     std::puts("object_type_materialize_test: all passed");
     return 0;
 }

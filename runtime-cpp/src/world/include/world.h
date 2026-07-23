@@ -145,7 +145,10 @@ public:
 
     void setMovementIntent(EntityId id, float directionX, float directionY);
     void clearMovementIntent(EntityId id);
-    /** Starts a new physical-input frame for Top Down movement contributions. */
+    /** Starts a new physical-input frame: clears ephemeral movement intents
+     *  (Platformer, Top Down, simple movers). Jump requests are preserved. */
+    void clearFrameMovementIntents();
+    /** @deprecated Prefer clearFrameMovementIntents(); kept as a Top Down alias. */
     void clearTopDownMovementContributions();
     /** Adds a bounded Top Down direction contribution for the current input frame. */
     void addTopDownMovementContribution(EntityId id, Vec2 direction);

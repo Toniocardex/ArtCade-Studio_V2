@@ -505,6 +505,9 @@ struct EntityDef {
     std::optional<SpriteAnimatorComponent> spriteAnimator;
     std::optional<ScriptComponent> scripts;
     PhysicsComponent physics;
+    // Session scratch only (ADR-0014). Not current authoring — derived from
+    // boxCollider2D by materializeBoxCollider2D / applyEntityDefToRegistry.
+    // Legacy JSON "collisionBody" on entities/objectTypes is ignored.
     std::optional<CollisionBodyComponent> collisionBody;
     AnimationState   animation;
     // Optional gameplay components (Phase D1)

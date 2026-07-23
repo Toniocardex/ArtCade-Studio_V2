@@ -1,6 +1,5 @@
 #include "entity-json.h"
 
-#include "collision-json.h"
 #include "json-primitives.h"
 #include "physics-json.h"
 #include "sprite-json.h"
@@ -266,9 +265,10 @@ void read_entity_components(const nlohmann::json& entityJson, EntityDef& out) {
         out.scripts = std::move(scripts);
     }
     read_physics_component(entityJson, out.physics);
-    CollisionBodyComponent collisionBody{};
-    if (read_collision_body_component(entityJson, collisionBody))
-        out.collisionBody = std::move(collisionBody);
+    // ADR-0014: "collisionBody" on objectTypes/entities is no longer current
+    // authoring. Ignore the key (technical debt — no silent migration of
+    // multi-shape / circle / layer profiles into BoxCollider2D). Tile palette
+    // still reads collisionBody via project-meta-json.
     read_optional_gameplay_components(entityJson, out);
     if (entityJson.contains("localVariables"))
         read_variable_definitions(entityJson["localVariables"], out.localVariables);

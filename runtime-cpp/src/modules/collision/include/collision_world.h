@@ -147,22 +147,29 @@ inline PhysicsMath::ShapeInstance shapeInstance(
     const Transform& transform,
     const CollisionShape& shape)
 {
+    // Local shape offset/size are in unscaled object space; world extents
+    // follow Transform.scale magnitude (flip is separate from scale).
+    const float sx = std::fabs(transform.scale.x);
+    const float sy = std::fabs(transform.scale.y);
     PhysicsMath::ShapeInstance inst;
     inst.position = transform.position;
-    inst.offset = shape.offset;
-    inst.size = shape.size;
+    inst.offset = { shape.offset.x * sx, shape.offset.y * sy };
+    inst.size = { shape.size.x * sx, shape.size.y * sy };
     if (shape.type == CollisionShapeType::Circle) {
         inst.shape = ColliderShape::Circle;
-        inst.size = { std::max(0.5f, shape.radius), std::max(0.5f, shape.radius) };
+        const float r = std::max(0.5f, shape.radius * std::max(sx, sy));
+        inst.size = { r, r };
     } else if (shape.type == CollisionShapeType::Capsule) {
         inst.shape = ColliderShape::Capsule;
         inst.size = {
-            std::max(1.f, shape.size.x),
-            std::max(1.f, shape.size.y),
+            std::max(1.f, shape.size.x * sx),
+            std::max(1.f, shape.size.y * sy),
         };
     } else if (shape.type == CollisionShapeType::Polygon && shape.points.size() >= 3) {
         inst.shape = ColliderShape::Polygon;
-        inst.points = shape.points;
+        inst.points.reserve(shape.points.size());
+        for (const Vec2& p : shape.points)
+            inst.points.push_back({ p.x * sx, p.y * sy });
     } else {
         inst.shape = ColliderShape::Rectangle;
     }

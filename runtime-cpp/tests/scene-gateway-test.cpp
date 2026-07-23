@@ -74,18 +74,8 @@ int main() {
     coin.sprite.spriteAssetId = "sprites/coin.png";
     coin.sprite.alpha = 1.f;
     coin.tags = { "pickup" };
-    CollisionBodyComponent coinBody;
-    coinBody.bodyType = BodyType::Static;
-    coinBody.enabled = true;
-    CollisionShape coinShape;
-    coinShape.type = CollisionShapeType::Rectangle;
-    coinShape.response = CollisionResponse::Sensor;
-    coinShape.role = CollisionShapeRole::Interaction;
-    coinShape.layerId = "pickup";
-    coinShape.maskLayerIds = { "player" };
-    coinShape.size = { 24.f, 24.f };
-    coinBody.shapes = { coinShape };
-    coin.collisionBody = coinBody;
+    coin.boxCollider2D = BoxCollider2DComponent{
+        {0.f, 0.f}, {24.f, 24.f}, true, BoxColliderMode::Trigger};
     AutoDestroyComponent coinAutoDestroy;
     coinAutoDestroy.lifespan = 2.f;
     coin.autoDestroy = coinAutoDestroy;

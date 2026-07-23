@@ -1,6 +1,7 @@
 #include "object-type-materialize.h"
 
 #include <algorithm>
+#include <cmath>
 #include <iostream>
 #include <unordered_map>
 #include <unordered_set>
@@ -19,7 +20,60 @@ AssetId resolveAnimationSourceImage(
     return {};
 }
 
+bool finitePositiveSize(const Vec2& size) {
+    return std::isfinite(size.x) && std::isfinite(size.y) && size.x > 0.f && size.y > 0.f;
+}
+
 } // namespace
+
+BodyType resolveCollisionBodyType(const EntityDef& objectType) {
+    if (objectType.platformerController.has_value()
+        || objectType.topDownController.has_value()
+        || objectType.linearMover.has_value()) {
+        return BodyType::Kinematic;
+    }
+    return BodyType::Static;
+}
+
+std::optional<CollisionBodyComponent> materializeBoxCollider2D(const EntityDef& objectType) {
+    if (!objectType.boxCollider2D.has_value()) return std::nullopt;
+    const BoxCollider2DComponent& bc = *objectType.boxCollider2D;
+    if (!bc.enabled) return std::nullopt;
+    if (!std::isfinite(bc.offset.x) || !std::isfinite(bc.offset.y)
+        || !finitePositiveSize(bc.size)) {
+        return std::nullopt;
+    }
+
+    CollisionShape shape;
+    shape.type = CollisionShapeType::Rectangle;
+    shape.role = CollisionShapeRole::Body;
+    shape.offset = bc.offset;
+    shape.size = bc.size;
+    shape.enabled = true;
+    shape.layerId = "default";
+    shape.maskLayerIds = { "default" };
+
+    switch (bc.mode) {
+        case BoxColliderMode::Solid:
+            shape.response = CollisionResponse::Solid;
+            shape.oneWay = false;
+            break;
+        case BoxColliderMode::Trigger:
+            shape.response = CollisionResponse::Sensor;
+            shape.oneWay = false;
+            break;
+        case BoxColliderMode::OneWayPlatform:
+            shape.response = CollisionResponse::Solid;
+            shape.oneWay = true;
+            break;
+    }
+
+    CollisionBodyComponent body;
+    body.enabled = true;
+    body.bodyType = resolveCollisionBodyType(objectType);
+    body.shapes = { std::move(shape) };
+    return body;
+}
 
 EntityDef materializeInstance(
     const EntityDef& typeProto,
@@ -89,6 +143,9 @@ EntityDef materializeInstance(
         if (!e.spriteRenderer->imageAssetId.empty())
             e.sprite.spriteAssetId = e.spriteRenderer->imageAssetId;
     }
+    // ADR-0014: CollisionBody is session scratch derived from BoxCollider2D only.
+    // Absent / disabled / invalid box → clear any leftover authored body.
+    e.collisionBody = materializeBoxCollider2D(e);
     return e;
 }
 
@@ -152,13 +209,19 @@ void rebuildClassPrototypes(
     for (const auto& [typeId, def] : objectTypes) {
         EntityDef copy = def;
         copy.className = typeId;
+        // ADR-0014: spawn templates carry the derived body so spawnFromClass
+        // matches scene-load materialisation.
+        copy.collisionBody = materializeBoxCollider2D(copy);
         out[typeId] = std::move(copy);
     }
     for (const auto& [id, def] : entityDefs) {
         (void)id;
         if (def.className.empty()) continue;
-        if (out.find(def.className) == out.end())
-            out[def.className] = def;
+        if (out.find(def.className) == out.end()) {
+            EntityDef copy = def;
+            copy.collisionBody = materializeBoxCollider2D(copy);
+            out[def.className] = std::move(copy);
+        }
     }
 }
 

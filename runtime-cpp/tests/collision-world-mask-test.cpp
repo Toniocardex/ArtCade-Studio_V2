@@ -56,6 +56,27 @@ static std::vector<PhysicsLayerDef> defaultLayers() {
     };
 }
 
+static void test_shape_instance_scales_with_transform() {
+    World world;
+    world.setLayers(defaultLayers());
+
+    Transform tf{};
+    tf.position = { 0.f, 0.f };
+    tf.scale = { 2.f, 0.5f };
+    CollisionBodyComponent body;
+    body.enabled = true;
+    body.bodyType = BodyType::Static;
+    CollisionShape shape = makeRectShape("player", { "ground" }, 32.f);
+    shape.offset = { 4.f, 8.f };
+    body.shapes.push_back(shape);
+
+    world.addEntity(1, tf, body);
+    CHECK(world.shapes().size() == 1);
+    CHECK(world.shapes()[0].instance.size.x == 64.f);
+    CHECK(world.shapes()[0].instance.size.y == 16.f);
+    CHECK(world.shapes()[0].instance.offset.x == 8.f);
+    CHECK(world.shapes()[0].instance.offset.y == 4.f);
+}
 static void test_overlap_respects_layer_masks() {
     World world;
     world.setLayers(defaultLayers());
@@ -380,6 +401,7 @@ static void test_sweep_aabb_hits_thin_wall() {
 }
 
 int main() {
+    test_shape_instance_scales_with_transform();
     test_overlap_respects_layer_masks();
     test_resolve_profile_shapes_from_sprite_path();
     test_read_collision_profiles_json();

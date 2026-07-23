@@ -369,7 +369,9 @@ void RuntimeEntityGateway::applyEntityDefToRegistry(
     registry_->setSpriteRenderer(id, def.spriteRenderer);
     registry_->setSpriteAnimator(id, def.spriteAnimator);
     registry_->setPhysics(id, def.physics);
-    registry_->setCollisionBody(id, def.collisionBody);
+    // ADR-0014: session CollisionBody is derived only from BoxCollider2D.
+    // Authored EntityDef.collisionBody is ignored (technical debt / legacy JSON).
+    registry_->setCollisionBody(id, ArtCade::materializeBoxCollider2D(def));
     registry_->setPlatformer(id, def.platformerController);
     registry_->setTopDown(id, def.topDownController);
     if (def.linearMover) {

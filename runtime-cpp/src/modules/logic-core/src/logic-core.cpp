@@ -689,7 +689,8 @@ const std::vector<LogicBlockDescriptor>& registry() {
             "platformer.falling", false, 15, {"airborne", "descent", "drop"},
             LogicTriggerActivationKind::Level},
         {kMoveHorizontal, "platformer", "Move Horizontal",
-            "Requests horizontal platformer movement for Self (Left or Right).",
+            "Requests horizontal platformer movement for Self for this input frame "
+            "(Left or Right). Pair with While Key Held so movement stops on release.",
             BlockKind::Action,
             {{"direction", LogicValueKind::String, LogicStringValue{"Right"}, "Direction"}},
             {LogicRequiredComponent::PlatformerController}, {LogicContextCapability::Self}, {},
