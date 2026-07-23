@@ -102,9 +102,6 @@ bool blockFromJson(const nlohmann::json& json, LogicBlockDef& out, std::string& 
         error = "Logic block properties must be an array"; return false;
     }
     const LogicBlockDescriptor* descriptor = findDescriptor(out.typeId);
-    if (!descriptor) {
-        error = "Unknown Logic block type: " + out.typeId; return false;
-    }
     out.properties.clear();
     std::unordered_set<std::string> seen;
     for (const auto& item : json["properties"]) {
@@ -117,14 +114,24 @@ bool blockFromJson(const nlohmann::json& json, LogicBlockDef& out, std::string& 
             error = "Duplicate Logic property: " + property.key; return false;
         }
         if (!valueFromJson(item["value"], property.value, error)) return false;
-        const auto descriptor_property = std::find_if(
-            descriptor->properties.begin(), descriptor->properties.end(),
-            [&](const LogicPropertyDescriptor& candidate) { return candidate.key == property.key; });
-        if (descriptor_property == descriptor->properties.end()) {
-            error = "Unknown Logic property: " + property.key; return false;
-        }
-        if (valueKind(property.value) != descriptor_property->valueKind) {
-            error = "Logic property has the wrong value type: " + property.key; return false;
+        // ADR-0013: unknown catalog typeIds stay loadable for repair. Property
+        // shape is accepted as stored; AuthoringDiagnostics / Executable flag it.
+        if (descriptor) {
+            const auto descriptor_property = std::find_if(
+                descriptor->properties.begin(), descriptor->properties.end(),
+                [&](const LogicPropertyDescriptor& candidate) {
+                    return candidate.key == property.key;
+                });
+            if (descriptor_property == descriptor->properties.end()) {
+                // ADR-0012 legacy Move Horizontal may still store numeric axis.
+                if (!(out.typeId == kMoveHorizontal && property.key == "axis"
+                      && std::holds_alternative<double>(property.value))) {
+                    error = "Unknown Logic property: " + property.key; return false;
+                }
+            } else if (valueKind(property.value) != descriptor_property->valueKind) {
+                error = "Logic property has the wrong value type: " + property.key;
+                return false;
+            }
         }
         out.properties.push_back(std::move(property));
     }

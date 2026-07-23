@@ -121,13 +121,24 @@ void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
                    BlockKind expected, const EntityDef* owner,
                    const LogicBlockDescriptor* trigger,
                    const ProjectDoc* project,
-                   ValidationMode mode,
+                   LogicValidationPurpose purpose,
                    std::vector<LogicDiagnostic>& out) {
+    const bool structuralOnly = purpose == LogicValidationPurpose::StructuralCommit;
+    const bool draftSoft = purpose == LogicValidationPurpose::AuthoringDiagnostics;
+    const auto pushSemantic = [&](LogicDiagnostic diagnostic) {
+        if (purpose == LogicValidationPurpose::Executable && !rule.enabled)
+            diagnostic.severity = DiagnosticSeverity::Warning;
+        out.push_back(std::move(diagnostic));
+    };
+
     const LogicBlockDescriptor* descriptor = findDescriptor(block.typeId);
     if (!descriptor) {
-        out.push_back(makeError(objectTypeId, board, "LB_UNKNOWN_BLOCK",
-                                "Unknown Logic Board block type: " + block.typeId,
-                                &rule, &block));
+        // Unknown catalog entries stay loadable/editable (ADR-0013).
+        if (!structuralOnly) {
+            pushSemantic(makeError(objectTypeId, board, "LB_UNKNOWN_BLOCK",
+                                   "Unknown Logic Board block type: " + block.typeId,
+                                   &rule, &block));
+        }
         return;
     }
     const bool eventEligibleCondition = expected == BlockKind::Trigger
@@ -138,11 +149,11 @@ void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
                                 "Block is used in the wrong rule section", &rule, &block));
         return;
     }
-    if (owner) {
+    if (!structuralOnly && owner) {
         const LogicBlockAvailability availability = availabilityFor(*owner, *descriptor, trigger);
         if (!availability.compatible) {
-            out.push_back(makeError(objectTypeId, board, "LB_INCOMPATIBLE_BLOCK",
-                                    availability.reason, &rule, &block));
+            pushSemantic(makeError(objectTypeId, board, "LB_INCOMPATIBLE_BLOCK",
+                                   availability.reason, &rule, &block));
         }
     }
 
@@ -165,10 +176,10 @@ void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
                         out.push_back(makeError(objectTypeId, board, "LB_NON_FINITE",
                                                 "Number property must be finite", &rule, &block,
                                                 property.key));
-                    } else if (*value < -1.0 || *value > 1.0) {
-                        out.push_back(makeError(objectTypeId, board, "LB_AXIS_RANGE",
-                                                "Platformer movement axis must be between -1 and 1",
-                                                &rule, &block, property.key));
+                    } else if (!structuralOnly && (*value < -1.0 || *value > 1.0)) {
+                        pushSemantic(makeError(objectTypeId, board, "LB_AXIS_RANGE",
+                                               "Platformer movement axis must be between -1 and 1",
+                                               &rule, &block, property.key));
                     }
                 } else {
                     out.push_back(makeError(objectTypeId, board, "LB_PROPERTY_TYPE",
@@ -192,11 +203,11 @@ void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
                 out.push_back(makeError(objectTypeId, board, "LB_NON_FINITE",
                                         "Vec2 property must contain finite values",
                                         &rule, &block, property.key));
-            } else if (block.typeId == kSetScale && property.key == "scale"
+            } else if (!structuralOnly && block.typeId == kSetScale && property.key == "scale"
                        && (v->x <= 0.f || v->y <= 0.f)) {
-                out.push_back(makeError(objectTypeId, board, "LB_SCALE_POSITIVE",
-                                        "Scale axes must be greater than 0",
-                                        &rule, &block, property.key));
+                pushSemantic(makeError(objectTypeId, board, "LB_SCALE_POSITIVE",
+                                       "Scale axes must be greater than 0",
+                                       &rule, &block, property.key));
             }
         }
         if (const double* value = std::get_if<double>(&property.value)) {
@@ -204,23 +215,27 @@ void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
                 out.push_back(makeError(objectTypeId, board, "LB_NON_FINITE",
                                         "Number property must be finite", &rule, &block,
                                         property.key));
-            } else if (block.typeId == kAnimationSetPlaybackSpeed
-                       && property.key == "speed" && *value <= 0.0) {
-                out.push_back(makeError(objectTypeId, board, "LB_ANIMATION_SPEED",
-                                        "Animation playback speed must be positive",
-                                        &rule, &block, property.key));
-            } else if (block.typeId == kAudioPlaySound && property.key == "volume"
-                       && (*value < 0.0 || *value > 1.0)) {
-                out.push_back(makeError(objectTypeId, board, "LB_AUDIO_VOLUME_RANGE",
-                                        "Audio volume must be between 0 and 1",
-                                        &rule, &block, property.key));
-            } else if ((block.typeId == kEverySeconds || block.typeId == kWait)
-                       && property.key == "seconds" && *value <= 0.0) {
-                out.push_back(makeError(objectTypeId, board, "LB_TIMER_INTERVAL",
-                                        "Seconds must be greater than 0",
-                                        &rule, &block, property.key));
+            } else if (!structuralOnly) {
+                if (block.typeId == kAnimationSetPlaybackSpeed
+                    && property.key == "speed" && *value <= 0.0) {
+                    pushSemantic(makeError(objectTypeId, board, "LB_ANIMATION_SPEED",
+                                           "Animation playback speed must be positive",
+                                           &rule, &block, property.key));
+                } else if (block.typeId == kAudioPlaySound && property.key == "volume"
+                           && (*value < 0.0 || *value > 1.0)) {
+                    pushSemantic(makeError(objectTypeId, board, "LB_AUDIO_VOLUME_RANGE",
+                                           "Audio volume must be between 0 and 1",
+                                           &rule, &block, property.key));
+                } else if ((block.typeId == kEverySeconds || block.typeId == kWait)
+                           && property.key == "seconds" && *value <= 0.0) {
+                    pushSemantic(makeError(objectTypeId, board, "LB_TIMER_INTERVAL",
+                                           "Seconds must be greater than 0",
+                                           &rule, &block, property.key));
+                }
             }
         }
+        if (structuralOnly) continue;
+
         if ((block.typeId == kOtherIsObjectType || block.typeId == kSpawnObject
              || block.typeId == kCollisionEnter || block.typeId == kCollisionExit)
             && property.key == "objectTypeId") {
@@ -231,11 +246,11 @@ void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
                 || (!emptyAllowed && referencedType->value.empty())
                 || (!referencedType->value.empty()
                     && project && project->objectTypes.count(referencedType->value) == 0)) {
-                out.push_back(makeError(objectTypeId, board, "LB_OBJECT_TYPE_REFERENCE",
-                                        block.typeId == kSpawnObject
-                                            ? "Spawn must reference an existing Object Type"
-                                            : "Collision object type must reference an existing Object Type",
-                                        &rule, &block, property.key));
+                pushSemantic(makeError(objectTypeId, board, "LB_OBJECT_TYPE_REFERENCE",
+                                       block.typeId == kSpawnObject
+                                           ? "Spawn must reference an existing Object Type"
+                                           : "Collision object type must reference an existing Object Type",
+                                       &rule, &block, property.key));
             }
         }
         if ((block.typeId == kStateSet || block.typeId == kStateAdd
@@ -249,9 +264,8 @@ void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
                     objectTypeId, board, "LB_VARIABLE_REFERENCE_EMPTY",
                     "Select a project variable.",
                     &rule, &block, property.key);
-                if (mode == ValidationMode::Authoring)
-                    diagnostic.severity = DiagnosticSeverity::Warning;
-                out.push_back(std::move(diagnostic));
+                if (draftSoft) diagnostic.severity = DiagnosticSeverity::Warning;
+                pushSemantic(std::move(diagnostic));
             } else if (!project) {
                 // Project context missing — defer existence checks.
             } else if (const GameVariableDefinition* def =
@@ -259,7 +273,7 @@ void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
                 if (required && def->type != *required) {
                     const char* need = (*required == GameVariableDefinition::Type::Boolean)
                         ? "Boolean" : "Number";
-                    out.push_back(makeError(
+                    pushSemantic(makeError(
                         objectTypeId, board, "LB_VARIABLE_TYPE_MISMATCH",
                         std::string("This Logic block requires a ") + need + " variable.",
                         &rule, &block, property.key));
@@ -269,9 +283,8 @@ void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
                     objectTypeId, board, "LB_VARIABLE_REFERENCE_MISSING",
                     "The referenced project variable does not exist.",
                     &rule, &block, property.key);
-                if (mode == ValidationMode::Authoring)
-                    diagnostic.severity = DiagnosticSeverity::Warning;
-                out.push_back(std::move(diagnostic));
+                if (draftSoft) diagnostic.severity = DiagnosticSeverity::Warning;
+                pushSemantic(std::move(diagnostic));
             }
         }
         if (block.typeId == kStateCompare && property.key == "op") {
@@ -280,9 +293,9 @@ void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
                 && (op->value == "==" || op->value == "!=" || op->value == "<"
                     || op->value == "<=" || op->value == ">" || op->value == ">=");
             if (!ok) {
-                out.push_back(makeError(objectTypeId, board, "LB_COMPARE_OP",
-                                        "Compare operator must be == != < <= > >=",
-                                        &rule, &block, property.key));
+                pushSemantic(makeError(objectTypeId, board, "LB_COMPARE_OP",
+                                       "Compare operator must be == != < <= > >=",
+                                       &rule, &block, property.key));
             }
         }
         if (block.typeId == kTopDownMove && property.key == "direction") {
@@ -291,9 +304,9 @@ void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
                 || direction->value == "Right" || direction->value == "Up"
                 || direction->value == "Down");
             if (!ok) {
-                out.push_back(makeError(objectTypeId, board, "LB_TOPDOWN_DIRECTION",
-                                        "Top Down direction must be Left, Right, Up, or Down",
-                                        &rule, &block, property.key));
+                pushSemantic(makeError(objectTypeId, board, "LB_TOPDOWN_DIRECTION",
+                                       "Top Down direction must be Left, Right, Up, or Down",
+                                       &rule, &block, property.key));
             }
         }
         if (block.typeId == kSpriteSetFacing && property.key == "facing") {
@@ -301,9 +314,9 @@ void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
             const bool ok = facing
                 && (facing->value == "Left" || facing->value == "Right");
             if (!ok) {
-                out.push_back(makeError(objectTypeId, board, "LB_SPRITE_FACING",
-                                        "Sprite facing must be Left or Right",
-                                        &rule, &block, property.key));
+                pushSemantic(makeError(objectTypeId, board, "LB_SPRITE_FACING",
+                                       "Sprite facing must be Left or Right",
+                                       &rule, &block, property.key));
             }
         }
         if (block.typeId == kMoveHorizontal && property.key == "direction") {
@@ -311,12 +324,14 @@ void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
             const bool ok = direction
                 && (direction->value == "Left" || direction->value == "Right");
             if (!ok) {
-                out.push_back(makeError(objectTypeId, board, "LB_PLATFORMER_DIRECTION",
-                                        "Platformer move direction must be Left or Right",
-                                        &rule, &block, property.key));
+                pushSemantic(makeError(objectTypeId, board, "LB_PLATFORMER_DIRECTION",
+                                       "Platformer move direction must be Left or Right",
+                                       &rule, &block, property.key));
             }
         }
     }
+    if (structuralOnly) return;
+
     if (block.typeId == kAnimationPlayClip) {
         const LogicPropertyDef* assetProperty = findProperty(block, "animationAssetId");
         const LogicPropertyDef* clipProperty = findProperty(block, "clipId");
@@ -332,9 +347,9 @@ void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
                 objectTypeId, board, "LB_ANIMATION_ASSET_REFERENCE",
                 "Animation action must reference an existing animation asset",
                 &rule, &block, "animationAssetId");
-            if (mode == ValidationMode::Authoring && emptyAssetSelection)
+            if (draftSoft && emptyAssetSelection)
                 diagnostic.severity = DiagnosticSeverity::Warning;
-            out.push_back(std::move(diagnostic));
+            pushSemantic(std::move(diagnostic));
         }
         const bool emptyClipSelection = clipRef && clipRef->value.empty();
         if (!clipRef || emptyClipSelection
@@ -343,9 +358,9 @@ void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
                 objectTypeId, board, "LB_ANIMATION_CLIP_REFERENCE",
                 "Animation action clip must belong to its animation asset",
                 &rule, &block, "clipId");
-            if (mode == ValidationMode::Authoring && emptyClipSelection)
+            if (draftSoft && emptyClipSelection)
                 diagnostic.severity = DiagnosticSeverity::Warning;
-            out.push_back(std::move(diagnostic));
+            pushSemantic(std::move(diagnostic));
         }
     }
     if (block.typeId == kAudioPlaySound) {
@@ -360,13 +375,13 @@ void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
                 objectTypeId, board, "LB_AUDIO_ASSET_REFERENCE",
                 "Audio action must reference an existing audio asset",
                 &rule, &block, "audioAssetId");
-            if (mode == ValidationMode::Authoring && emptyAssetSelection)
+            if (draftSoft && emptyAssetSelection)
                 diagnostic.severity = DiagnosticSeverity::Warning;
-            out.push_back(std::move(diagnostic));
+            pushSemantic(std::move(diagnostic));
         } else if (project && asset && asset->loadMode != AudioLoadMode::StaticSound) {
-            out.push_back(makeError(objectTypeId, board, "LB_AUDIO_REQUIRES_STATIC",
-                                    "Play Sound requires a static audio asset",
-                                    &rule, &block, "audioAssetId"));
+            pushSemantic(makeError(objectTypeId, board, "LB_AUDIO_REQUIRES_STATIC",
+                                   "Play Sound requires a static audio asset",
+                                   &rule, &block, "audioAssetId"));
         }
     }
     for (const LogicPropertyDescriptor& property : descriptor->properties) {
@@ -376,9 +391,9 @@ void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
                 && findProperty(block, "axis")) {
                 continue;
             }
-            out.push_back(makeError(objectTypeId, board, "LB_MISSING_PROPERTY",
-                                    "Missing property: " + property.key,
-                                    &rule, &block, property.key));
+            pushSemantic(makeError(objectTypeId, board, "LB_MISSING_PROPERTY",
+                                   "Missing property: " + property.key,
+                                   &rule, &block, property.key));
         }
     }
 }
@@ -999,7 +1014,7 @@ std::vector<LogicDiagnostic> validateBoard(const ObjectTypeId& objectTypeId,
                                            const LogicBoardDef& board,
                                            const EntityDef* owner,
                                            const ProjectDoc* project,
-                                           ValidationMode mode) {
+                                           LogicValidationPurpose purpose) {
     std::vector<LogicDiagnostic> out;
     if (!validId(board.id)) out.push_back(makeError(objectTypeId, board, "LB_BOARD_ID", "Invalid board id"));
     if (board.schemaVersion != kLogicBoardSchemaVersion)
@@ -1009,21 +1024,30 @@ std::vector<LogicDiagnostic> validateBoard(const ObjectTypeId& objectTypeId,
     if (board.rules.size() > kMaxRulesPerBoard)
         out.push_back(makeError(objectTypeId, board, "LB_RULE_LIMIT", "Logic Board exceeds the rule limit"));
 
+    const bool structuralOnly = purpose == LogicValidationPurpose::StructuralCommit;
     std::unordered_set<std::string> ids;
     for (const LogicRuleDef& rule : board.rules) {
         if (!validId(rule.id) || !ids.insert(rule.id).second)
             out.push_back(makeError(objectTypeId, board, "LB_RULE_ID", "Invalid or duplicate rule id", &rule));
         if (rule.name.empty())
             out.push_back(makeError(objectTypeId, board, "LB_RULE_NAME", "Logic rule name is required", &rule));
-        if (rule.actions.empty())
-            out.push_back(makeError(objectTypeId, board, "LB_ACTION_REQUIRED", "A rule needs at least one action", &rule));
+        if (!structuralOnly && rule.actions.empty()) {
+            LogicDiagnostic diagnostic = makeError(
+                objectTypeId, board, "LB_ACTION_REQUIRED",
+                "A rule needs at least one action", &rule);
+            if (purpose == LogicValidationPurpose::Executable && !rule.enabled)
+                diagnostic.severity = DiagnosticSeverity::Warning;
+            else if (purpose == LogicValidationPurpose::AuthoringDiagnostics && !rule.enabled)
+                diagnostic.severity = DiagnosticSeverity::Warning;
+            out.push_back(std::move(diagnostic));
+        }
         if (rule.actions.size() > kMaxActionsPerRule)
             out.push_back(makeError(objectTypeId, board, "LB_ACTION_LIMIT", "Rule exceeds the action limit", &rule));
         if (rule.conditions.size() > kMaxConditionsPerRule)
             out.push_back(makeError(objectTypeId, board, "LB_CONDITION_LIMIT", "Rule exceeds the condition limit", &rule));
         const LogicBlockDescriptor* trigger = findDescriptor(rule.trigger.typeId);
         validateBlock(objectTypeId, board, rule, rule.trigger, BlockKind::Trigger, owner,
-                      nullptr, project, mode, out);
+                      nullptr, project, purpose, out);
         for (std::size_t index = 0; index < rule.conditions.size(); ++index) {
             const LogicConditionClause& clause = rule.conditions[index];
             if (index == 0 && clause.joinBefore != LogicConditionJoin::And) {
@@ -1042,12 +1066,13 @@ std::vector<LogicDiagnostic> validateBoard(const ObjectTypeId& objectTypeId,
                 break;
             }
             validateBlock(objectTypeId, board, rule, clause.block, BlockKind::Condition, owner,
-                          trigger, project, mode, out);
+                          trigger, project, purpose, out);
         }
         for (const LogicBlockDef& action : rule.actions)
             validateBlock(objectTypeId, board, rule, action, BlockKind::Action, owner,
-                          trigger, project, mode, out);
-        if (rule.executionMode == LogicExecutionMode::OncePerActivation && trigger
+                          trigger, project, purpose, out);
+        if (!structuralOnly && rule.executionMode == LogicExecutionMode::OncePerActivation
+            && trigger
             && trigger->activationKind == LogicTriggerActivationKind::Pulse) {
             LogicDiagnostic info = makeError(
                 objectTypeId, board, "LB_EXECUTION_MODE_PULSE_REDUNDANT",
@@ -1061,13 +1086,28 @@ std::vector<LogicDiagnostic> validateBoard(const ObjectTypeId& objectTypeId,
     return out;
 }
 
+bool hasLogicErrors(const std::vector<LogicDiagnostic>& diagnostics) {
+    return std::any_of(diagnostics.begin(), diagnostics.end(),
+        [](const LogicDiagnostic& diagnostic) {
+            return diagnostic.severity == DiagnosticSeverity::Error;
+        });
+}
+
+std::string firstLogicErrorMessage(const std::vector<LogicDiagnostic>& diagnostics) {
+    for (const LogicDiagnostic& diagnostic : diagnostics) {
+        if (diagnostic.severity != DiagnosticSeverity::Error) continue;
+        return diagnostic.code + ": " + diagnostic.message;
+    }
+    return {};
+}
+
 LogicCompileResult compileBoard(const ObjectTypeId& objectTypeId,
                                 const LogicBoardDef& board,
                                 const EntityDef* owner,
                                 const ProjectDoc* project) {
     LogicCompileResult result;
     result.diagnostics = validateBoard(
-        objectTypeId, board, owner, project, ValidationMode::Executable);
+        objectTypeId, board, owner, project, LogicValidationPurpose::Executable);
     if (!result.ok()) return result;
 
     std::set<std::string> features;

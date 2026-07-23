@@ -1022,14 +1022,14 @@ static void testPlaySoundAction() {
     {
         const LogicBoardDef draft = makeBoardWith("", 1.0);
         const auto authoring = validateBoard(
-            "Hero", draft, nullptr, &project, ValidationMode::Authoring);
+            "Hero", draft, nullptr, &project, LogicValidationPurpose::AuthoringDiagnostics);
         CHECK(hasDiagnostic(authoring, "LB_AUDIO_ASSET_REFERENCE"));
         CHECK(std::none_of(authoring.begin(), authoring.end(),
             [](const LogicDiagnostic& diagnostic) {
                 return diagnostic.severity == DiagnosticSeverity::Error;
             }));
         const auto executable = validateBoard(
-            "Hero", draft, nullptr, &project, ValidationMode::Executable);
+            "Hero", draft, nullptr, &project, LogicValidationPurpose::Executable);
         CHECK(std::any_of(executable.begin(), executable.end(),
             [](const LogicDiagnostic& diagnostic) {
                 return diagnostic.code == "LB_AUDIO_ASSET_REFERENCE"
@@ -1536,7 +1536,7 @@ static void testStateVariableAndToggle() {
         rule.actions = {toggle};
         board.rules.push_back(rule);
         const auto diags = validateBoard("Mismatch", board, nullptr, &project,
-                                         ValidationMode::Authoring);
+                                         LogicValidationPurpose::AuthoringDiagnostics);
         CHECK(std::any_of(diags.begin(), diags.end(), [](const LogicDiagnostic& d) {
             return d.code == "LB_VARIABLE_TYPE_MISMATCH"
                 && d.severity == DiagnosticSeverity::Error;
@@ -1796,6 +1796,103 @@ static void testOncePerActivationExecutionMode() {
     }
 }
 
+static void testValidationPurposesRecovery() {
+    EntityDef owner;
+    // No TopDownController — Top Down Move is incompatible.
+
+    LogicBoardDef board;
+    board.id = "logic:Recovery";
+    for (int i = 0; i < 8; ++i) {
+        LogicRuleDef rule = makeDefaultRule("rule-" + std::to_string(i + 1));
+        rule.actions = {makeDefaultBlock(kTopDownMove, BlockKind::Action)};
+        board.rules.push_back(std::move(rule));
+    }
+
+    const auto structural = validateBoard(
+        "Hero", board, &owner, nullptr, LogicValidationPurpose::StructuralCommit);
+    CHECK(!hasLogicErrors(structural));
+
+    const auto authoring = validateBoard(
+        "Hero", board, &owner, nullptr, LogicValidationPurpose::AuthoringDiagnostics);
+    const std::size_t incompatible = static_cast<std::size_t>(std::count_if(
+        authoring.begin(), authoring.end(), [](const LogicDiagnostic& d) {
+            return d.code == "LB_INCOMPATIBLE_BLOCK"
+                && d.severity == DiagnosticSeverity::Error;
+        }));
+    CHECK(incompatible == 8);
+    CHECK(hasLogicErrors(authoring));
+
+    CHECK(!compileBoard("Hero", board, &owner, nullptr).ok());
+
+    // Drop one incompatible rule — board remains structurally valid with 7 errors.
+    board.rules.erase(board.rules.begin());
+    const auto afterDelete = validateBoard(
+        "Hero", board, &owner, nullptr, LogicValidationPurpose::AuthoringDiagnostics);
+    CHECK(std::count_if(afterDelete.begin(), afterDelete.end(),
+                        [](const LogicDiagnostic& d) {
+                            return d.code == "LB_INCOMPATIBLE_BLOCK";
+                        })
+          == 7);
+    CHECK(!hasLogicErrors(validateBoard(
+        "Hero", board, &owner, nullptr, LogicValidationPurpose::StructuralCommit)));
+
+    // Replace one action with a compatible Set Visible — 6 incompatible remain.
+    board.rules[0].actions[0] = makeDefaultBlock(kSetVisible, BlockKind::Action);
+    const auto afterReplace = validateBoard(
+        "Hero", board, &owner, nullptr, LogicValidationPurpose::AuthoringDiagnostics);
+    CHECK(std::count_if(afterReplace.begin(), afterReplace.end(),
+                        [](const LogicDiagnostic& d) {
+                            return d.code == "LB_INCOMPATIBLE_BLOCK";
+                        })
+          == 6);
+
+    // Disabled incompatible rule does not block Executable with Errors.
+    LogicBoardDef disabledOnly;
+    disabledOnly.id = "logic:Disabled";
+    LogicRuleDef disabled = makeDefaultRule("rule-1");
+    disabled.enabled = false;
+    disabled.actions = {makeDefaultBlock(kTopDownMove, BlockKind::Action)};
+    disabledOnly.rules.push_back(std::move(disabled));
+    const auto disabledDiags = validateBoard(
+        "Hero", disabledOnly, &owner, nullptr, LogicValidationPurpose::Executable);
+    CHECK(!hasLogicErrors(disabledDiags));
+    CHECK(std::any_of(disabledDiags.begin(), disabledDiags.end(),
+                      [](const LogicDiagnostic& d) {
+                          return d.code == "LB_INCOMPATIBLE_BLOCK"
+                              && d.severity == DiagnosticSeverity::Warning;
+                      }));
+    CHECK(compileBoard("Hero", disabledOnly, &owner, nullptr).ok());
+
+    // Empty actions: structural ok; Executable error when enabled.
+    LogicBoardDef emptyActions;
+    emptyActions.id = "logic:Empty";
+    LogicRuleDef emptyRule = makeDefaultRule("rule-1");
+    emptyRule.actions.clear();
+    emptyActions.rules.push_back(emptyRule);
+    CHECK(!hasLogicErrors(validateBoard(
+        "Hero", emptyActions, &owner, nullptr,
+        LogicValidationPurpose::StructuralCommit)));
+    CHECK(hasLogicErrors(validateBoard(
+        "Hero", emptyActions, &owner, nullptr, LogicValidationPurpose::Executable)));
+
+    // Unknown block type is structural-ok and authoring-visible.
+    LogicBoardDef unknown;
+    unknown.id = "logic:Unknown";
+    LogicRuleDef unknownRule = makeDefaultRule("rule-1");
+    unknownRule.trigger = {"future.unknown_trigger", {}};
+    unknown.rules.push_back(unknownRule);
+    CHECK(!hasLogicErrors(validateBoard(
+        "Hero", unknown, &owner, nullptr, LogicValidationPurpose::StructuralCommit)));
+    CHECK(std::any_of(
+        validateBoard("Hero", unknown, &owner, nullptr,
+                      LogicValidationPurpose::AuthoringDiagnostics)
+            .begin(),
+        validateBoard("Hero", unknown, &owner, nullptr,
+                      LogicValidationPurpose::AuthoringDiagnostics)
+            .end(),
+        [](const LogicDiagnostic& d) { return d.code == "LB_UNKNOWN_BLOCK"; }));
+}
+
 int main() {
     testCompilerAndJson();
     testDescriptorSemanticMetadataConsistency();
@@ -1819,6 +1916,7 @@ int main() {
     testEntityTransformActions();
     testManualTransformActions();
     testOncePerActivationExecutionMode();
+    testValidationPurposesRecovery();
     std::cout << passed << " passed, " << failed << " failed\n";
     return failed == 0 ? 0 : 1;
 }

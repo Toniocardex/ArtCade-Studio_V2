@@ -61,11 +61,17 @@ using LogicBlockTypeId = std::string;
 using LogicCategoryId = std::string;
 
 enum class BlockKind { Trigger, Condition, Action };
-// Authoring accepts only explicitly empty asset selections as incomplete
-// drafts. Executable validation is strict and is always used by compilation,
-// Play and exported runtimes. The policy lives here so editor Commands never
-// reinterpret diagnostic codes locally.
-enum class ValidationMode { Authoring, Executable };
+/**
+ * Single Logic Board validator, purpose-selected (ADR-0013).
+ * StructuralCommit — Command / Save / Load gate (corrupt-data only).
+ * AuthoringDiagnostics — panel / Problems (visible, never a persist veto).
+ * Executable — compileBoard, Play, Build, Export, Generated Lua.
+ */
+enum class LogicValidationPurpose {
+    StructuralCommit,
+    AuthoringDiagnostics,
+    Executable,
+};
 enum class LogicValueKind { Bool, Integer, Number, String, Vec2, Asset, Entity, Variable, Key };
 // Semantic authoring hints consumed by editor projections. They describe the
 // domain meaning of a value without depending on any UI toolkit.
@@ -253,11 +259,17 @@ std::vector<LogicKey> supportedLogicKeys();
  */
 std::string logicInputCode(LogicKey key);
 
-std::vector<LogicDiagnostic> validateBoard(const ObjectTypeId& objectTypeId,
-                                           const LogicBoardDef& board,
-                                           const EntityDef* owner = nullptr,
-                                           const ProjectDoc* project = nullptr,
-                                           ValidationMode mode = ValidationMode::Executable);
+std::vector<LogicDiagnostic> validateBoard(
+    const ObjectTypeId& objectTypeId,
+    const LogicBoardDef& board,
+    const EntityDef* owner = nullptr,
+    const ProjectDoc* project = nullptr,
+    LogicValidationPurpose purpose = LogicValidationPurpose::Executable);
+/** True when any diagnostic has Error severity. */
+[[nodiscard]] bool hasLogicErrors(const std::vector<LogicDiagnostic>& diagnostics);
+/** First Error as "CODE: message", or empty when none. */
+[[nodiscard]] std::string firstLogicErrorMessage(
+    const std::vector<LogicDiagnostic>& diagnostics);
 LogicCompileResult compileBoard(const ObjectTypeId& objectTypeId,
                                 const LogicBoardDef& board,
                                 const EntityDef* owner = nullptr,
