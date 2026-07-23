@@ -62,10 +62,19 @@ bool validate_scene_document(const SceneDef &scene, std::string &error_message)
         error_message = "Scene \"" + scene.id + "\" has an invalid defaultLayerId.";
         return false;
     }
+    EntityId cameraTargetId = INVALID_ENTITY;
     for (const SceneInstanceDef &instance : scene.instances) {
         if (instance.layerId.empty() || !scene_has_layer(scene, instance.layerId)) {
             error_message = "Scene \"" + scene.id + "\" contains an instance with an invalid layerId.";
             return false;
+        }
+        if (instance.cameraTarget) {
+            if (cameraTargetId != INVALID_ENTITY) {
+                error_message = "Scene \"" + scene.id
+                    + "\" contains more than one CameraTarget.";
+                return false;
+            }
+            cameraTargetId = instance.id;
         }
     }
     for (const auto &[layer_id, settings] : scene.layerSettings) {
@@ -203,11 +212,25 @@ bool validate_current_project_json(const nlohmann::json &root, std::string &erro
                 error_message = "Scene \"" + scene_id + "\" instances must be an array.";
                 return false;
             }
+            bool has_camera_target = false;
             for (const auto &raw_instance : raw_scene["instances"]) {
                 if (!raw_instance.is_object() || !raw_instance.contains("layerId")
                     || !raw_instance["layerId"].is_string()) {
                     error_message = "Scene \"" + scene_id + "\" has an instance without layerId.";
                     return false;
+                }
+                if (raw_instance.contains("cameraTarget")) {
+                    if (!raw_instance["cameraTarget"].is_object()) {
+                        error_message = "Scene \"" + scene_id
+                            + "\" has an invalid CameraTarget.";
+                        return false;
+                    }
+                    if (has_camera_target) {
+                        error_message = "Scene \"" + scene_id
+                            + "\" contains more than one CameraTarget.";
+                        return false;
+                    }
+                    has_camera_target = true;
                 }
                 SceneInstanceDef instance;
                 instance.layerId = raw_instance["layerId"].get<std::string>();

@@ -80,6 +80,8 @@ public:
     void stopCameraFollow();
     /** Return to deterministic CameraTargetComponent selection. */
     void useAutomaticCameraTarget();
+    /** Runtime camera position, available even for headless/editor presentation. */
+    Vec2 cameraCenter() const { return cameraCenter_; }
     /** Count down AutoDestroy lifespans and queue destroys (call before flush). */
     void tickAutoDestroy(float dt);
     void flushEntityQueues();
@@ -143,6 +145,10 @@ public:
 
     void setMovementIntent(EntityId id, float directionX, float directionY);
     void clearMovementIntent(EntityId id);
+    /** Starts a new physical-input frame for Top Down movement contributions. */
+    void clearTopDownMovementContributions();
+    /** Adds a bounded Top Down direction contribution for the current input frame. */
+    void addTopDownMovementContribution(EntityId id, Vec2 direction);
     void requestJump(EntityId id);
     /** Apply movement intent on entities without Platformer/TopDown (Logic Board default). */
     void tickSimpleMovementIntents(float dt);
@@ -200,7 +206,6 @@ private:
     void tickLinearMovers(float dt);
     void tickMagneticItems(float dt);
     void tickHordeMembers(float dt);
-    void tickHealthCooldowns(float dt);
 
     enum class CameraFollowMode {
         Automatic,
@@ -209,6 +214,7 @@ private:
     };
     CameraFollowMode cameraFollowMode_ = CameraFollowMode::Automatic;
     EntityId cameraFollowTarget_ = INVALID_ENTITY;
+    Vec2 cameraCenter_{};
 
     Modules::Renderer* renderer_ = nullptr;
     Modules::SpriteAnimator* spriteAnimator_ = nullptr;

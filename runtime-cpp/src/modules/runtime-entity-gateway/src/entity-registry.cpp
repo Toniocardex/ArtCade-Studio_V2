@@ -549,24 +549,6 @@ void EntityRegistry::setAutoDestroy(
     else    impl_->reg.remove<AutoDestroyComponent>(e);
 }
 
-bool EntityRegistry::getHealth(EntityId id, HealthComponent& out) const {
-    const entt::entity e = impl_->toEntt(id);
-    if (e == entt::null) return false;
-    if (const auto* c = impl_->reg.try_get<HealthComponent>(e)) {
-        out = *c;
-        return true;
-    }
-    return false;
-}
-
-void EntityRegistry::setHealth(EntityId id,
-                               const std::optional<HealthComponent>& h) {
-    const entt::entity e = impl_->toEntt(id);
-    if (e == entt::null) return;
-    if (h) impl_->reg.emplace_or_replace<HealthComponent>(e, *h);
-    else   impl_->reg.remove<HealthComponent>(e);
-}
-
 bool EntityRegistry::getText(EntityId id, TextComponent& out) const {
     const entt::entity e = impl_->toEntt(id);
     if (e == entt::null) return false;
@@ -852,20 +834,6 @@ void EntityRegistry::forEachActiveAutoDestroy(
         auto* a = reg.try_get<AutoDestroyComponent>(e);
         if (!a) continue;
         fn(id, *a);
-    }
-}
-
-void EntityRegistry::forEachActiveHealth(const ActiveHealthFn& fn) {
-    auto& reg = impl_->reg;
-    const size_t n = impl_->insertionOrder.size();
-    for (size_t i = 0; i < n; ++i) {
-        const EntityId id = impl_->insertionOrder[i];
-        const entt::entity e = impl_->toEntt(id);
-        if (e == entt::null) continue;
-        if (!reg.all_of<SceneActiveTag>(e)) continue;
-        auto* h = reg.try_get<HealthComponent>(e);
-        if (!h) continue;
-        fn(id, *h);
     }
 }
 

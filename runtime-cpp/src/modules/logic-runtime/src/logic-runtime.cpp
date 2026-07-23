@@ -52,6 +52,7 @@ const std::unordered_set<std::string>& supportedFeatures() {
         "platformer.falling",
         "platformer.move",
         "platformer.jump",
+        "topdown.move",
         "collision.enter",
         "collision.exit",
         "collision.other_type",
@@ -181,6 +182,10 @@ struct LogicRuntime::Impl {
         void platformerMove(float axis) {
             if (!impl || !impl->host.requestPlatformerMove(owner, axis))
                 throw sol::error("platformer_move failed for owner");
+        }
+        void topDownMove(float x, float y) {
+            if (!impl || !impl->host.requestTopDownMove(owner, Vec2{x, y}))
+                throw sol::error("topdown_move failed for owner");
         }
         void platformerJump() {
             if (!impl || !impl->host.requestPlatformerJump(owner))
@@ -574,6 +579,7 @@ bool LogicRuntime::initialize(std::string* error) {
             "is_grounded", &Impl::SelfProxy::isGrounded,
             "is_falling", &Impl::SelfProxy::isFalling,
             "platformer_move", &Impl::SelfProxy::platformerMove,
+            "topdown_move", &Impl::SelfProxy::topDownMove,
             "platformer_jump", &Impl::SelfProxy::platformerJump,
             "destroy_self", &Impl::SelfProxy::destroySelf,
             "play_animation_clip", &Impl::SelfProxy::playAnimationClip,

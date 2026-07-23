@@ -38,6 +38,7 @@ inline constexpr const char* kIsGrounded = "platformer.is_grounded";
 inline constexpr const char* kIsFalling = "platformer.is_falling";
 inline constexpr const char* kMoveHorizontal = "platformer.move_horizontal";
 inline constexpr const char* kJump = "platformer.jump";
+inline constexpr const char* kTopDownMove = "topdown.move";
 inline constexpr const char* kCollisionEnter = "collision.enter";
 inline constexpr const char* kCollisionExit = "collision.exit";
 inline constexpr const char* kOtherIsObjectType = "collision.other_is_object_type";
@@ -77,6 +78,7 @@ enum class LogicPropertySemantic {
     StaticAudioAsset,
     GlobalVariable,
     CompareOperator,
+    TopDownDirection,
     HiddenSelfTarget,
 };
 enum class LogicNumberConstraint {
@@ -87,7 +89,7 @@ enum class LogicNumberConstraint {
     NormalizedAxis,
     PositiveVec2,
 };
-enum class LogicRequiredComponent { PlatformerController, SpriteAnimator };
+enum class LogicRequiredComponent { PlatformerController, TopDownController, SpriteAnimator };
 enum class LogicContextCapability {
     Self,
     EventOther,

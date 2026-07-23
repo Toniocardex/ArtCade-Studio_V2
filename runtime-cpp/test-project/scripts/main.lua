@@ -86,30 +86,19 @@ local function updateCollisionInteractions()
     })
     local touchingEnemy = enemyId and enemyId ~= 0
     if touchingEnemy and not wasTouchingEnemy and alive then
-        local cur, maxHp = entity.health(playerId)
-        if not cur then
-            alive = false
-            global.set("alive", 0)
-            log("PLAYER HIT by enemy " .. tostring(enemyId)
-                .. "  score=" .. tostring(score))
-            return
-        end
         local damage = 34
-        if not entity.damage(playerId, damage) then
-            return
-        end
-        local nextHp = select(1, entity.health(playerId)) or 0
+        local nextHp = math.max(0, (global.get("playerHp") or 0) - damage)
+        global.set("playerHp", nextHp)
         if nextHp <= 0 then
             alive = false
             global.set("alive", 0)
             log("PLAYER KO by enemy " .. tostring(enemyId)
                 .. "  score=" .. tostring(score))
         else
-            log(string.format("PLAYER HIT hp=%.0f/%.0f", nextHp, maxHp))
+            log(string.format("PLAYER HIT hp=%.0f/100", nextHp))
         end
     elseif not touchingEnemy and wasTouchingEnemy then
-        local cur = entity.health(playerId)
-        if cur and cur > 0 then
+        if (global.get("playerHp") or 0) > 0 then
             alive = true
             global.set("alive", 1)
         end
@@ -196,13 +185,11 @@ local function init()
     global.set("level", 1)
     global.set("playerName", "Hero")
     global.set("hardMode", false)
+    global.set("playerHp", 100)
     bindMovementInput()
 
     if playerId then
-        local cur, maxHp = entity.health(playerId)
-        if cur then
-            log(string.format("Player health: %.0f/%.0f", cur, maxHp))
-        end
+        log(string.format("Player hp: %.0f/100", global.get("playerHp") or 0))
     end
 
     -- Verify declared global values.

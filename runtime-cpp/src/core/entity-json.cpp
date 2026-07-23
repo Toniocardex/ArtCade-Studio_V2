@@ -109,14 +109,6 @@ void read_optional_gameplay_components(const nlohmann::json& j, EntityDef& e) {
         hm.chaseWeight      = h.value("chaseWeight", 1.f);
         e.hordeMember = hm;
     }
-    if (j.contains("health") && j["health"].is_object()) {
-        const auto& h = j["health"];
-        HealthComponent hc;
-        hc.maxHp     = h.value("maxHp", 100.f);
-        hc.currentHp = h.value("currentHp", hc.maxHp);
-        hc.iFrames   = h.value("iFrames", 0.2f);
-        e.health = hc;
-    }
     if (j.contains("autoDestroy") && j["autoDestroy"].is_object()) {
         AutoDestroyComponent ac;
         ac.lifespan = j["autoDestroy"].value("lifespan", 0.f);
@@ -212,6 +204,26 @@ void read_entity_components(const nlohmann::json& entityJson, EntityDef& out) {
     if (entityJson.contains("transform") && entityJson["transform"].is_object())
         out.transform = read_transform(entityJson["transform"]);
     read_sprite_component(entityJson, out.sprite);
+    if (entityJson.contains("spritePresentation")
+        && entityJson["spritePresentation"].is_object()) {
+        const auto& value = entityJson["spritePresentation"];
+        SpritePresentationComponent presentation;
+        presentation.visible = value.value("visible", true);
+        if (value.contains("source") && value["source"].is_object()) {
+            const auto& source = value["source"];
+            const std::string kind = source.value("kind", std::string{"none"});
+            if (kind == "image") {
+                presentation.source = SpritePresentationImage{
+                    source.value("assetId", source.value("imageAssetId", std::string{}))};
+            } else if (kind == "animation") {
+                presentation.source = SpritePresentationAnimation{
+                    source.value("assetId", source.value("animationAssetId", std::string{})),
+                    source.value("defaultClipId", source.value("initialClipId", std::string{})),
+                    source.value("autoPlay", true), source.value("playbackSpeed", 1.f)};
+            }
+        }
+        out.spritePresentation = std::move(presentation);
+    }
     if (entityJson.contains("spriteRenderer")
         && entityJson["spriteRenderer"].is_object()) {
         const auto& value = entityJson["spriteRenderer"];

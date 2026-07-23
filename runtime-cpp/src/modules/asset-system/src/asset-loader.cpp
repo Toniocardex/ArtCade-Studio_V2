@@ -220,6 +220,12 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
     ProjectJson::read_tile_palette(j, out.tilePalette);
     ProjectJson::read_tilesets(j, out.tilesets);
 
+    // ADR-0010: Animation-source sheet ids are resolved during materialise
+    // from spriteAnimationAssets. Load that catalog before materialising
+    // entities; otherwise Play/export leave imageAssetId empty and depend on
+    // maybePlaySpawnClip (which also needs a non-empty defaultClipId).
+    ProjectJson::read_sprite_animation_assets(j, out.spriteAnimationAssets);
+
     if (!ProjectJson::validate_current_project_document(out, validation_error)) return false;
 
     materializeProjectEntities(out);
@@ -250,8 +256,6 @@ bool AssetLoader::parseProjectJson(const std::string& path, ProjectDoc& out) {
             }
         }
     }
-
-    ProjectJson::read_sprite_animation_assets(j, out.spriteAnimationAssets);
 
     ProjectJson::read_audio_assets(j, out.audioAssets);
     for (const AudioAssetDef& asset : out.audioAssets) {

@@ -148,37 +148,6 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
             entities->setSprite(id, sprite);
         });
 
-    // entity.health(id) → currentHp, maxHp (nil if entity has no HealthComponent)
-    lua.set_function("entity_health", [entities](EntityId id, sol::this_state ts) -> sol::object {
-        sol::state_view lua(ts);
-        HealthComponent health{};
-        if (!entities->getHealth(id, health))
-            return sol::make_object(lua, sol::lua_nil);
-        sol::table out = lua.create_table();
-        out[1] = health.currentHp;
-        out[2] = health.maxHp;
-        return sol::make_object(lua, out);
-    });
-
-    // entity.setHealth(id, currentHp, maxHp?)
-    lua.set_function("entity_setHealth",
-        [entities](EntityId id, float currentHp, sol::optional<float> maxHp) {
-            HealthComponent health{};
-            const bool had = entities->getHealth(id, health);
-            if (!had)
-                health.maxHp = maxHp.value_or(currentHp);
-            else if (maxHp)
-                health.maxHp = *maxHp;
-            health.currentHp = currentHp;
-            entities->setHealth(id, health);
-        });
-
-    // entity.damage(id, amount) → true if damage applied (respects i-frames)
-    lua.set_function("entity_damage",
-        [entities](EntityId id, float amount) -> bool {
-            return entities && entities->applyDamage(id, amount);
-        });
-
     // scene.load(name) / scene.restart()  — flow control via the gateway
     lua.set_function("scene_load",
         [entities](const std::string& name, sol::optional<float> fadeSec) {
@@ -296,14 +265,6 @@ void GameAPI::bindEntityAPI(sol::state& lua) {
         entity.imagePoint  = function(id, pt)   return entity_imagePoint(id, pt)  end
         entity.setVisible  = function(id,v)     return entity_setVisible(id,v)   end
         entity.setTint     = function(id,r,g,b,a) return entity_setTint(id,r,g,b,a) end
-        entity.health      = function(id)
-            local h = entity_health(id)
-            if h == nil then return nil end
-            return h[1], h[2]
-        end
-        entity.setHealth   = function(id,c,m)   return entity_setHealth(id,c,m)  end
-        entity.damage      = function(id,amt)    return entity_damage(id,amt)     end
-
         scene = {}
         scene.load       = function(name, fade) return scene_load(name, fade) end
         scene.reactivate = function(fade)      return scene_reactivate(fade) end

@@ -1502,7 +1502,7 @@ static void testOncePerActivationExecutionMode() {
     {
         ProjectDoc project;
         project.globalVariables.push_back(
-            {"health", GameVariableDefinition::Type::Number, 0.0, {}});
+            {"points", GameVariableDefinition::Type::Number, 0.0, {}});
         LogicBoardDef board;
         board.id = "logic:WhenGate";
         LogicRuleDef rule = makeDefaultRule("rule-1");
@@ -1510,7 +1510,7 @@ static void testOncePerActivationExecutionMode() {
         rule.executionMode = LogicExecutionMode::OncePerActivation;
         LogicBlockDef compare = makeDefaultBlock(kStateCompare, BlockKind::Condition);
         for (LogicPropertyDef& p : compare.properties) {
-            if (p.key == "key") p.value = LogicVariableReference{"health"};
+            if (p.key == "key") p.value = LogicVariableReference{"points"};
             if (p.key == "op") p.value = LogicStringValue{">"};
             if (p.key == "value") p.value = 0.0;
         }
@@ -1521,7 +1521,7 @@ static void testOncePerActivationExecutionMode() {
         LogicCompileResult compiled = compileBoard("Hero", board, &owner, &project);
         CHECK(compiled.ok());
         Host host;
-        host.declareNumber("health", 0.0);
+        host.declareNumber("points", 0.0);
         host.falling.insert(1);
         LogicRuntime runtime(host);
         std::string error;
@@ -1537,7 +1537,7 @@ static void testOncePerActivationExecutionMode() {
         runtime.dispatchTick(1.f / 60.f);
         CHECK(jumpCount() == 0);
 
-        host.state["health"] = 100.0;
+        host.state["points"] = 100.0;
         runtime.beginFrame();
         runtime.dispatchTick(1.f / 60.f);
         CHECK(jumpCount() == 1);
@@ -1547,10 +1547,10 @@ static void testOncePerActivationExecutionMode() {
         runtime.dispatchTick(1.f / 60.f);
         CHECK(jumpCount() == 0);
 
-        host.state["health"] = 0.0;
+        host.state["points"] = 0.0;
         runtime.beginFrame();
         runtime.dispatchTick(1.f / 60.f);
-        host.state["health"] = 100.0;
+        host.state["points"] = 100.0;
         runtime.beginFrame();
         runtime.dispatchTick(1.f / 60.f);
         CHECK(jumpCount() == 1);

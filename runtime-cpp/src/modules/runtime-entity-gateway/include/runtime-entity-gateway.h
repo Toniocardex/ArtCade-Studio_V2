@@ -126,11 +126,6 @@ public:
     bool getDialog(EntityId id, DialogComponent& out) const;
     bool setDialog(EntityId id, const std::optional<DialogComponent>& dialog);
 
-    bool getHealth(EntityId id, HealthComponent& out) const;
-    bool setHealth(EntityId id, const std::optional<HealthComponent>& health);
-    /** Apply damage when not in i-frames; returns false if blocked or no health. */
-    bool applyDamage(EntityId id, float amount);
-
     /** Count entities with SceneActiveTag (profiler / diagnostics). */
     size_t activeSceneEntityCount() const;
     /** Count active-scene entities with a live physics handle. */
@@ -195,9 +190,6 @@ public:
     using ActiveAutoDestroyFn = std::function<void(
         EntityId, AutoDestroyComponent&)>;
     void forEachActiveAutoDestroy(const ActiveAutoDestroyFn& fn);
-
-    using ActiveHealthFn = std::function<void(EntityId, HealthComponent&)>;
-    void forEachActiveHealth(const ActiveHealthFn& fn);
 
     /** Design-time "visible in game" flag (editor may still draw the sprite). */
     bool visibleInGame(EntityId id) const;

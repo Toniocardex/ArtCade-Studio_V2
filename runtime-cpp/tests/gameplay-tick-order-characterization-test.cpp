@@ -120,6 +120,12 @@ struct Host final : IGameplayRuntimeHost {
         world.setMovementIntent(owner, axis, 0.f);
         return true;
     }
+    bool requestTopDownMove(EntityId owner, Vec2 direction) override {
+        TopDownControllerComponent tc{};
+        if (!gateway.getTopDownController(owner, tc)) return false;
+        world.addTopDownMovementContribution(owner, direction);
+        return true;
+    }
     bool requestPlatformerJump(EntityId owner) override {
         PlatformerControllerComponent pc{};
         if (!gateway.getPlatformerController(owner, pc)) return false;

@@ -107,6 +107,15 @@ bool RuntimeLogicHostAdapter::requestPlatformerMove(EntityId owner, float axis) 
     world_->setMovementIntent(owner, axis, 0.f);
     return true;
 }
+bool RuntimeLogicHostAdapter::requestTopDownMove(EntityId owner, Vec2 direction) {
+    TopDownControllerComponent topDown{};
+    if (!world_ || !std::isfinite(direction.x) || !std::isfinite(direction.y)
+        || direction.x < -1.f || direction.x > 1.f
+        || direction.y < -1.f || direction.y > 1.f
+        || !gateway_.getTopDownController(owner, topDown)) return false;
+    world_->addTopDownMovementContribution(owner, direction);
+    return true;
+}
 bool RuntimeLogicHostAdapter::requestPlatformerJump(EntityId owner) {
     PlatformerControllerComponent platformer{};
     if (!world_ || !gateway_.getPlatformerController(owner, platformer)) return false;
@@ -272,6 +281,10 @@ bool GameplaySession::initialize(PhysicsMode physicsMode,
     // safe, since destroy only ever fires well after boot completes (same
     // reasoning already established for RU-02e-2's spawn installer).
     world_->setSpriteAnimator(spriteAnimator_.get());
+    // Same wiring app_bootstrap applies for game.exe/WASM: spawn-clip Auto Play
+    // and sheet binding run on the gateway, which keeps its own animator
+    // pointer (World's copy is only for playAnimationClip / stop helpers).
+    entityGateway_->setSpriteAnimator(spriteAnimator_.get());
     world_->setEntityDestroyedHandler([this](EntityId id) {
         const auto it = logicScopes_.find(id);
         if (it != logicScopes_.end()) {
@@ -288,6 +301,10 @@ bool GameplaySession::initialize(PhysicsMode physicsMode,
     ctx.world = world_.get();
 
     return true;
+}
+
+Vec2 GameplaySession::cameraCenter() const {
+    return world_ ? world_->cameraCenter() : Vec2{};
 }
 
 // RU-02e-2/D-20: lines moved from Application::initSubsystems()
@@ -556,6 +573,7 @@ void GameplaySession::shutdownUtilities() {
 // the relative order across *different* keys within the same frame, which
 // nothing in this codebase currently depends on.
 void GameplaySession::dispatchInput(const GameplayInputFrame& input) {
+    world_->clearTopDownMovementContributions();
     if (logicRuntime_) logicRuntime_->beginFrame();
     Scripts::ScriptInputSnapshot scriptInput;
     for (LogicKey key : input.pressed) {

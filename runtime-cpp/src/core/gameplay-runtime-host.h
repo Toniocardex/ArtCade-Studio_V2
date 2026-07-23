@@ -31,6 +31,8 @@ public:
      */
     virtual bool isFalling(EntityId owner) = 0;
     virtual bool requestPlatformerMove(EntityId owner, float axis) = 0;
+    /** Adds this input frame's Top Down movement direction for Self. */
+    virtual bool requestTopDownMove(EntityId owner, Vec2 direction) = 0;
     virtual bool requestPlatformerJump(EntityId owner) = 0;
     virtual bool isObjectType(EntityId entity, const ObjectTypeId& objectTypeId) = 0;
     virtual bool requestDestroy(EntityId owner) = 0;

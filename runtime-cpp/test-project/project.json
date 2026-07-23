@@ -11,6 +11,7 @@
     { "key": "playerName", "type": "string", "initialValue": "Hero" },
     { "key": "hardMode", "type": "boolean", "initialValue": false },
     { "key": "alive", "type": "number", "initialValue": 1 },
+    { "key": "playerHp", "type": "number", "initialValue": 100 },
     { "key": "_smoke_done", "type": "boolean", "initialValue": false }
   ],
   "entities": {
@@ -67,11 +68,6 @@
           "size": [52, 52],
           "enabled": true
         }]
-      },
-      "health": {
-        "maxHp": 100,
-        "currentHp": 100,
-        "iFrames": 0.2
       }
     },
     "2": {

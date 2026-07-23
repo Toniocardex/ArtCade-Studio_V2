@@ -7,8 +7,24 @@
 
 namespace ArtCade {
 
-EntityDef materializeInstance(const EntityDef& typeProto,
-                              const SceneInstanceDef& instance) {
+namespace {
+
+AssetId resolveAnimationSourceImage(
+    const AnimationAssetId& animationAssetId,
+    const std::vector<SpriteAnimationAssetDef>& animationAssets) {
+    if (animationAssetId.empty()) return {};
+    for (const SpriteAnimationAssetDef& asset : animationAssets) {
+        if (asset.id == animationAssetId) return asset.sourceImageAssetId;
+    }
+    return {};
+}
+
+} // namespace
+
+EntityDef materializeInstance(
+    const EntityDef& typeProto,
+    const SceneInstanceDef& instance,
+    const std::vector<SpriteAnimationAssetDef>& animationAssets) {
     EntityDef e = typeProto;
     e.id        = instance.id;
     e.className = typeProto.className.empty() ? instance.objectTypeId : typeProto.className;
@@ -17,6 +33,35 @@ EntityDef materializeInstance(const EntityDef& typeProto,
     e.visible   = instance.visible;
     e.layerId   = instance.layerId;
     e.localVariableOverrides = instance.localVariableOverrides;
+    // Camera target is scene-instance authority (ADR-0003), so it replaces
+    // the compatibility-only type-level field during materialisation.
+    e.cameraTarget = instance.cameraTarget;
+    if (e.spritePresentation) {
+        SpritePresentationComponent presentation = *e.spritePresentation;
+        if (instance.spritePresentationOverride) {
+            const SpritePresentationOverride& delta = *instance.spritePresentationOverride;
+            if (delta.visible) presentation.visible = *delta.visible;
+            if (delta.source) presentation.source = *delta.source;
+        }
+        SpriteRendererComponent renderer;
+        renderer.visible = presentation.visible;
+        e.spriteAnimator.reset();
+        if (const auto* image = std::get_if<SpritePresentationImage>(&presentation.source)) {
+            renderer.imageAssetId = image->imageAssetId;
+        } else if (const auto* animation =
+                       std::get_if<SpritePresentationAnimation>(&presentation.source)) {
+            // ADR-0010: Animation already names its draw sheet on the asset.
+            // Populate the runtime renderer here so Play/export do not depend
+            // on defaultClipId or maybePlaySpawnClip for a drawable sheet.
+            renderer.imageAssetId =
+                resolveAnimationSourceImage(animation->animationAssetId, animationAssets);
+            e.spriteAnimator = SpriteAnimatorComponent{
+                animation->animationAssetId, animation->defaultClipId,
+                animation->autoPlay, animation->playbackSpeed};
+        }
+        e.spriteRenderer = std::move(renderer);
+        e.spritePresentation.reset();
+    }
     if (instance.spriteRendererOverride) {
         const SpriteRendererOverride& delta = *instance.spriteRendererOverride;
         if (delta.capabilityEnabled && !*delta.capabilityEnabled) {
@@ -89,7 +134,8 @@ void materializeProjectEntities(ProjectDoc& doc) {
                           << "\" for instance id " << inst.id << " — skipped.\n";
                 continue;
             }
-            EntityDef e = materializeInstance(typeIt->second, inst);
+            EntityDef e =
+                materializeInstance(typeIt->second, inst, doc.spriteAnimationAssets);
             doc.entities[e.id] = e;
             scene.entityIds.push_back(e.id);
         }

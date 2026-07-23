@@ -114,6 +114,21 @@ void RuntimeEntityGateway::maybePlaySpawnClip(EntityId id) {
         && registry_->getSpriteAnimator(id, animator)) {
         if (!std::isfinite(animator.playbackSpeed) || animator.playbackSpeed <= 0.f)
             return;
+        // An animation owns a clip, while SpriteComponent owns the sheet that
+        // the renderer can draw. Bind that sheet independently of Auto Play:
+        // a stopped animation must still expose its first frame instead of
+        // degrading to the generic entity placeholder.
+        if (!animator.animationAssetId.empty() && !animator.defaultClipId.empty()) {
+            const AssetId sheetAssetId = spriteAnimator_->clipAssetId(
+                animator.animationAssetId, animator.defaultClipId);
+            if (!sheetAssetId.empty()) {
+                SpriteComponent sprite;
+                if (registry_->getSprite(id, sprite)) {
+                    sprite.spriteAssetId = sheetAssetId;
+                    registry_->setSprite(id, sprite);
+                }
+            }
+        }
         spriteAnimator_->setPlaybackSpeed(id, animator.playbackSpeed);
         if (animator.autoPlay && !animator.animationAssetId.empty()
             && !animator.defaultClipId.empty()) {
@@ -385,15 +400,6 @@ void RuntimeEntityGateway::applyEntityDefToRegistry(
         registry_->setAutoDestroy(id, ad);
     } else {
         registry_->setAutoDestroy(id, std::nullopt);
-    }
-    if (def.health) {
-        HealthComponent hc = *def.health;
-        HealthComponent prev{};
-        if (registry_->getHealth(id, prev))
-            hc._iFramesRemaining = prev._iFramesRemaining;
-        registry_->setHealth(id, hc);
-    } else {
-        registry_->setHealth(id, std::nullopt);
     }
     registry_->setText(id, def.text);
     registry_->setGauge(id, def.gauge);
@@ -800,30 +806,6 @@ bool RuntimeEntityGateway::setDialog(
     return true;
 }
 
-bool RuntimeEntityGateway::getHealth(EntityId id, HealthComponent& out) const {
-    return registry_->getHealth(id, out);
-}
-
-bool RuntimeEntityGateway::setHealth(EntityId id,
-                                     const std::optional<HealthComponent>& health)
-{
-    if (!registry_->contains(id)) return false;
-    registry_->setHealth(id, health);
-    return true;
-}
-
-bool RuntimeEntityGateway::applyDamage(EntityId id, float amount) {
-    if (!registry_->contains(id) || amount <= 0.f) return false;
-    HealthComponent health{};
-    if (!registry_->getHealth(id, health)) return false;
-    if (health._iFramesRemaining > 0.f) return false;
-    health.currentHp = std::max(0.f, health.currentHp - amount);
-    health._iFramesRemaining = health.iFrames;
-    // Write directly — gateway setHealth() would re-merge the previous i-frame timer.
-    registry_->setHealth(id, std::optional<HealthComponent>{health});
-    return true;
-}
-
 size_t RuntimeEntityGateway::activeSceneEntityCount() const {
     size_t n = 0;
     for (EntityId id : registry_->allIds()) {
@@ -989,10 +971,6 @@ void RuntimeEntityGateway::forEachActiveAutoDestroy(
     const ActiveAutoDestroyFn& fn)
 {
     registry_->forEachActiveAutoDestroy(fn);
-}
-
-void RuntimeEntityGateway::forEachActiveHealth(const ActiveHealthFn& fn) {
-    registry_->forEachActiveHealth(fn);
 }
 
 std::vector<EntityId> RuntimeEntityGateway::activeSceneIds() const {

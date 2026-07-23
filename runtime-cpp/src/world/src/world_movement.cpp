@@ -79,6 +79,25 @@ void World::clearMovementIntent(EntityId id) {
     it->second.movement = {};
 }
 
+void World::clearTopDownMovementContributions() {
+    for (auto& [id, intent] : controlIntents_) {
+        TopDownControllerComponent topDown{};
+        if (!entityGateway_.getTopDownController(id, topDown)) continue;
+        intent.hasMovement = false;
+        intent.movement = {};
+    }
+}
+
+void World::addTopDownMovementContribution(EntityId id, Vec2 direction) {
+    if (id == INVALID_ENTITY || !std::isfinite(direction.x) || !std::isfinite(direction.y)) return;
+    TopDownControllerComponent topDown{};
+    if (!entityGateway_.getTopDownController(id, topDown)) return;
+    auto& intent = controlIntents_[id];
+    intent.movement.x = std::clamp(intent.movement.x + direction.x, -1.f, 1.f);
+    intent.movement.y = std::clamp(intent.movement.y + direction.y, -1.f, 1.f);
+    intent.hasMovement = intent.movement.x != 0.f || intent.movement.y != 0.f;
+}
+
 void World::requestJump(EntityId id) {
     if (id == INVALID_ENTITY) return;
     controlIntents_[id].jumpRequested = true;

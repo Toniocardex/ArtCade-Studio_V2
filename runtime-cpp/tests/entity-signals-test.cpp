@@ -335,47 +335,6 @@ static void test_insertion_order_stable() {
     gw.shutdown(); sm.shutdown();
 }
 
-// ---- Test 8: HealthComponent round-trip ---------------------------------
-static void test_health_component() {
-    SceneManager sm;
-    RuntimeEntityGateway gw(sm);
-    sm.init(); gw.init();
-
-    EntityDef e = makeDef(1, "Player", {"player"});
-    HealthComponent hc;
-    hc.maxHp = 100.f;
-    hc.currentHp = 75.f;
-    hc.iFrames = 0.3f;
-    e.health = hc;
-
-    SceneDef scene;
-    scene.id = "s";
-    scene.entityIds = { 1 };
-    std::unordered_map<SceneId, SceneDef> scenes{{ scene.id, scene }};
-    std::unordered_map<EntityId, EntityDef> defs{{ 1, e }};
-    CHECK(gw.replaceProject(scenes, defs, "s"));
-
-    HealthComponent out{};
-    CHECK(gw.getHealth(1, out));
-    CHECK(out.maxHp == 100.f);
-    CHECK(out.currentHp == 75.f);
-    CHECK(out.iFrames == 0.3f);
-
-    HealthComponent updated;
-    updated.maxHp = 200.f;
-    updated.currentHp = 150.f;
-    updated.iFrames = 0.5f;
-    CHECK(gw.setHealth(1, updated));
-    CHECK(gw.getHealth(1, out));
-    CHECK(out.currentHp == 150.f);
-    CHECK(out.maxHp == 200.f);
-
-    CHECK(gw.setHealth(1, std::nullopt));
-    CHECK(!gw.getHealth(1, out));
-
-    gw.shutdown(); sm.shutdown();
-}
-
 static void test_set_transform_syncs_physics_position() {
     SceneManager sm;
     RuntimeEntityGateway gw(sm);
@@ -445,7 +404,6 @@ int main() {
     test_physics_auto_teardown();
     test_replace_project_teardown();
     test_insertion_order_stable();
-    test_health_component();
     test_set_transform_syncs_physics_position();
 
     std::cout << "entity-signals-test: " << g_passed << " passed, "

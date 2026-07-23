@@ -23,8 +23,7 @@
           "shape": "Rectangle",
           "size": { "x": 32, "y": 32 }
         }
-      },
-      "health": { "maxHp": 100, "currentHp": 100 }
+      }
     }
   },
   "scenes": {

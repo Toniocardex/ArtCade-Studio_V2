@@ -23,7 +23,7 @@ static SL::Snapshot makeSnapshot(double score = 42.0) {
         {"score", score}, {"dead", false}, {"name", std::string("hero")},
     };
     snapshot.entities[7] = {
-        {"health", 75.0}, {"enabled", true},
+        {"durability", 75.0}, {"enabled", true},
     };
     return snapshot;
 }
@@ -37,7 +37,7 @@ static void test_roundtrip() {
     assert(loaded);
     assert(std::get<double>(loaded->globals.at("score")) == 42.0);
     assert(std::get<std::string>(loaded->globals.at("name")) == "hero");
-    assert(std::get<double>(loaded->entities.at(7).at("health")) == 75.0);
+    assert(std::get<double>(loaded->entities.at(7).at("durability")) == 75.0);
     cleanup();
 }
 

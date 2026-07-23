@@ -41,6 +41,10 @@ artcade_test(sprite_pivot_test
     sprite-pivot-test.cpp
     artcade-core)
 
+artcade_test(object_type_materialize_test
+    object-type-materialize-test.cpp
+    artcade-object-type-materialize)
+
 artcade_test(asset_manifest_index_test
     asset-manifest-index-test.cpp
     artcade-asset-system)

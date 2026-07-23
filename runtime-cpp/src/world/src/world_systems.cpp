@@ -8,7 +8,7 @@
 namespace ArtCade {
 
 void World::tickCameraTargets(float dt) {
-    if (!renderer_ || cameraFollowMode_ == CameraFollowMode::Disabled) return;
+    if (cameraFollowMode_ == CameraFollowMode::Disabled) return;
 
     EntityId selected = cameraFollowTarget_;
     CameraTargetComponent config{};
@@ -47,7 +47,7 @@ void World::tickCameraTargets(float dt) {
         transform.position.x + offsetX,
         transform.position.y + offsetY,
     };
-    const Vec2 currentCenter = renderer_->getCameraCenter();
+    const Vec2 currentCenter = renderer_ ? renderer_->getCameraCenter() : cameraCenter_;
     Vec2 nextCenter = desiredCenter;
     if (followSpeed > 0.f && dt > 0.f) {
         const float t = 1.f - std::exp(-followSpeed * dt);
@@ -56,7 +56,8 @@ void World::tickCameraTargets(float dt) {
             currentCenter.y + (desiredCenter.y - currentCenter.y) * t,
         };
     }
-    renderer_->setCameraCenter(nextCenter);
+    cameraCenter_ = nextCenter;
+    if (renderer_) renderer_->setCameraCenter(nextCenter);
 }
 
 void World::tickHordeMembers(float dt) {
@@ -170,14 +171,6 @@ void World::tickMagneticItems(float dt) {
                 WorldInternal::applySteeringVelocity(
                     physics_, entityGateway_, itemId, velocity, dt);
             }
-        });
-}
-
-void World::tickHealthCooldowns(float dt) {
-    entityGateway_.forEachActiveHealth(
-        [dt](EntityId, HealthComponent& h) {
-            if (h._iFramesRemaining <= 0.f) return;
-            h._iFramesRemaining = std::max(0.f, h._iFramesRemaining - dt);
         });
 }
 

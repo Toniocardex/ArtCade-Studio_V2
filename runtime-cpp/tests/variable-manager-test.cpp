@@ -167,18 +167,18 @@ static void test_snapshot_restore() {
 
 static void test_local_variables_and_persistent_snapshot() {
     VM vm; vm.init(); configure(vm);
-    vm.createEntity(7, {numberDef("health", 100), boolDef("enabled", true)}, {{"health", 75.0}});
-    vm.createEntity(8, {numberDef("health", 100)});
-    assert(vm.getEntity(7, "health") == VM::Value{75.0});
-    assert(vm.addEntity(7, "health", -5).value() == 70.0);
+    vm.createEntity(7, {numberDef("durability", 100), boolDef("enabled", true)}, {{"durability", 75.0}});
+    vm.createEntity(8, {numberDef("durability", 100)});
+    assert(vm.getEntity(7, "durability") == VM::Value{75.0});
+    assert(vm.addEntity(7, "durability", -5).value() == 70.0);
     assert(!vm.setEntity(7, "missing", 1.0));
 
     const auto snapshot = vm.takeGameSnapshot({7});
     assert(snapshot.entities.count(7) == 1);
     assert(snapshot.entities.count(8) == 0);
-    vm.setEntity(7, "health", 1.0);
+    vm.setEntity(7, "durability", 1.0);
     assert(vm.restoreGameSnapshot(snapshot, {7}));
-    assert(vm.getEntity(7, "health") == VM::Value{70.0});
+    assert(vm.getEntity(7, "durability") == VM::Value{70.0});
     std::puts("  [ok] local variables + persistent game snapshot");
 }
 

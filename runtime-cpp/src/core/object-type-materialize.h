@@ -4,12 +4,17 @@
 
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace ArtCade {
 
-/** Merge type prototype + instance placement → runtime EntityDef. */
-EntityDef materializeInstance(const EntityDef& typeProto,
-                              const SceneInstanceDef& instance);
+/** Merge type prototype + instance placement → runtime EntityDef.
+ *  `animationAssets` supplies Animation-source sheet ids
+ *  (`SpriteAnimationAssetDef::sourceImageAssetId`); see ADR-0010. */
+EntityDef materializeInstance(
+    const EntityDef& typeProto,
+    const SceneInstanceDef& instance,
+    const std::vector<SpriteAnimationAssetDef>& animationAssets);
 
 /** When objectTypes + scene.instances are present, rebuild entities + entityIds. */
 void materializeProjectEntities(ProjectDoc& doc);

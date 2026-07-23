@@ -148,6 +148,7 @@ public:
     bool isGrounded(EntityId owner) override;
     bool isFalling(EntityId owner) override;
     bool requestPlatformerMove(EntityId owner, float axis) override;
+    bool requestTopDownMove(EntityId owner, Vec2 direction) override;
     bool requestPlatformerJump(EntityId owner) override;
     bool isObjectType(EntityId entity, const ObjectTypeId& expected) override;
     bool requestDestroy(EntityId owner) override;
@@ -262,6 +263,8 @@ public:
     // "mutable access to internals" gate the mutable world() accessor used
     // to leave open.
     const World& debugWorldView() const { return *world_; }
+    /** Read-only runtime camera state for non-runtime presentation hosts. */
+    Vec2 cameraCenter() const;
 
     // D-20: replaces the removed `Modules::Physics& physics()` accessor -
     // Application only ever used it for one thing (applyRuntimeSettings).

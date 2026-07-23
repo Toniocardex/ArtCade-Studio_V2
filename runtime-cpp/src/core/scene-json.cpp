@@ -43,6 +43,30 @@ bool read_scene_instance(const nlohmann::json& instanceJson, SceneInstanceDef& o
     if (instanceJson.contains("visible") && instanceJson["visible"].is_boolean())
         out.visible = instanceJson["visible"].get<bool>();
     out.layerId = instanceJson.value("layerId", std::string{});
+    if (instanceJson.contains("spritePresentationOverride")
+        && instanceJson["spritePresentationOverride"].is_object()) {
+        const auto& value = instanceJson["spritePresentationOverride"];
+        SpritePresentationOverride delta;
+        if (value.contains("visible") && value["visible"].is_boolean()) {
+            delta.visible = value["visible"].get<bool>();
+        }
+        if (value.contains("source") && value["source"].is_object()) {
+            const auto& source = value["source"];
+            const std::string kind = source.value("kind", std::string{"none"});
+            if (kind == "image") {
+                delta.source = SpritePresentationImage{
+                    source.value("assetId", source.value("imageAssetId", std::string{}))};
+            } else if (kind == "animation") {
+                delta.source = SpritePresentationAnimation{
+                    source.value("assetId", source.value("animationAssetId", std::string{})),
+                    source.value("defaultClipId", source.value("initialClipId", std::string{})),
+                    source.value("autoPlay", true), source.value("playbackSpeed", 1.f)};
+            } else if (kind == "none") {
+                delta.source = SpritePresentationNone{};
+            }
+        }
+        out.spritePresentationOverride = std::move(delta);
+    }
     if (instanceJson.contains("spriteRendererOverride")
         && instanceJson["spriteRendererOverride"].is_object()) {
         const auto& value = instanceJson["spriteRendererOverride"];
@@ -122,6 +146,14 @@ bool read_scene_instance(const nlohmann::json& instanceJson, SceneInstanceDef& o
             }
         }
         if (!component.tilesetAssetId.empty()) out.tilemap = std::move(component);
+    }
+    if (instanceJson.contains("cameraTarget") && instanceJson["cameraTarget"].is_object()) {
+        const auto& value = instanceJson["cameraTarget"];
+        CameraTargetComponent component;
+        component.offsetX = value.value("offsetX", component.offsetX);
+        component.offsetY = value.value("offsetY", component.offsetY);
+        component.followSpeed = value.value("followSpeed", component.followSpeed);
+        out.cameraTarget = component;
     }
 
     return out.id != 0 && !out.objectTypeId.empty();

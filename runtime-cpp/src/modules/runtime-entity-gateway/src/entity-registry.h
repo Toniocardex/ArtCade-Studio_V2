@@ -129,9 +129,6 @@ public:
     void setAutoDestroy(EntityId id,
                         const std::optional<AutoDestroyComponent>& ad);
 
-    bool getHealth(EntityId id, HealthComponent& out) const;
-    void setHealth(EntityId id, const std::optional<HealthComponent>& h);
-
     bool getText(EntityId id, TextComponent& out) const;
     void setText(EntityId id, const std::optional<TextComponent>& t);
 
@@ -222,9 +219,6 @@ public:
     using ActiveAutoDestroyFn = std::function<void(
         EntityId, AutoDestroyComponent&)>;
     void forEachActiveAutoDestroy(const ActiveAutoDestroyFn& fn);
-
-    using ActiveHealthFn = std::function<void(EntityId, HealthComponent&)>;
-    void forEachActiveHealth(const ActiveHealthFn& fn);
 
 private:
     struct Impl;

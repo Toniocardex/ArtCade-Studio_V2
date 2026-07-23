@@ -24,6 +24,9 @@ const std::vector<LogicRequiredComponentDescriptor>& requiredComponentRegistry()
         {LogicRequiredComponent::PlatformerController,
          "platformerController",
          "Platformer Controller"},
+        {LogicRequiredComponent::TopDownController,
+         "topDownController",
+         "Top Down Controller"},
         {LogicRequiredComponent::SpriteAnimator,
          "spriteAnimator",
          "Sprite Animator"},
@@ -267,6 +270,17 @@ void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
                                         &rule, &block, property.key));
             }
         }
+        if (block.typeId == kTopDownMove && property.key == "direction") {
+            const auto* direction = std::get_if<LogicStringValue>(&property.value);
+            const bool ok = direction && (direction->value == "Left"
+                || direction->value == "Right" || direction->value == "Up"
+                || direction->value == "Down");
+            if (!ok) {
+                out.push_back(makeError(objectTypeId, board, "LB_TOPDOWN_DIRECTION",
+                                        "Top Down direction must be Left, Right, Up, or Down",
+                                        &rule, &block, property.key));
+            }
+        }
     }
     if (block.typeId == kAnimationPlayClip) {
         const LogicPropertyDef* assetProperty = findProperty(block, "animationAssetId");
@@ -373,6 +387,15 @@ void emitAction(std::ostringstream& lua, const LogicBlockDef& action,
     } else if (action.typeId == kMoveHorizontal) {
         const LogicPropertyDef* p = findProperty(action, "axis");
         lua << "      context.self:platformer_move(" << std::get<double>(p->value) << ")\n";
+    } else if (action.typeId == kTopDownMove) {
+        const LogicPropertyDef* p = findProperty(action, "direction");
+        const auto* direction = p ? std::get_if<LogicStringValue>(&p->value) : nullptr;
+        const std::string value = direction ? direction->value : "Right";
+        const Vec2 movement = value == "Left" ? Vec2{-1.f, 0.f}
+                            : value == "Up" ? Vec2{0.f, -1.f}
+                            : value == "Down" ? Vec2{0.f, 1.f}
+                            : Vec2{1.f, 0.f};
+        lua << "      context.self:topdown_move(" << movement.x << ", " << movement.y << ")\n";
     } else if (action.typeId == kJump) {
         lua << "      context.self:platformer_jump()\n";
     } else if (action.typeId == kDestroySelf) {
@@ -475,7 +498,13 @@ bool hasRequiredComponent(const EntityDef& owner, LogicRequiredComponent compone
     switch (component) {
     case LogicRequiredComponent::PlatformerController:
         return owner.platformerController.has_value();
+    case LogicRequiredComponent::TopDownController:
+        return owner.topDownController.has_value();
     case LogicRequiredComponent::SpriteAnimator:
+        if (owner.spritePresentation) {
+            return std::holds_alternative<SpritePresentationAnimation>(
+                owner.spritePresentation->source);
+        }
         return owner.spriteRenderer.has_value() && owner.spriteAnimator.has_value();
     }
     return false;
@@ -591,6 +620,12 @@ const std::vector<LogicBlockDescriptor>& registry() {
         {kJump, "platformer", "Jump", "Requests a platformer jump.",
             BlockKind::Action, {}, {LogicRequiredComponent::PlatformerController},
             {LogicContextCapability::Self}, {}, "platformer.jump", false, 30, {"leap", "hop"}},
+        {kTopDownMove, "topdown", "Top Down Move",
+            "Contributes a movement direction for Self during this input frame.",
+            BlockKind::Action,
+            {{"direction", LogicValueKind::String, LogicStringValue{"Right"}, "Direction"}},
+            {LogicRequiredComponent::TopDownController}, {LogicContextCapability::Self}, {},
+            "topdown.move", false, 10, {"move", "walk", "direction", "eight way"}},
         {kCollisionEnter, "collision", "On Collision Enter", "Runs once when Self begins overlapping another collider.",
             BlockKind::Trigger,
             {{"objectTypeId", LogicValueKind::String, LogicStringValue{}, "Other Type"}}, {}, {},
@@ -692,6 +727,9 @@ const std::vector<LogicBlockDescriptor>& registry() {
                 } else if (block.typeId == kStateCompare && property.key == "op") {
                     property.semantic = LogicPropertySemantic::CompareOperator;
                     property.options = {"==", "!=", "<", "<=", ">", ">="};
+                } else if (block.typeId == kTopDownMove && property.key == "direction") {
+                    property.semantic = LogicPropertySemantic::TopDownDirection;
+                    property.options = {"Left", "Right", "Up", "Down"};
                 }
 
                 if (property.valueKind == LogicValueKind::Number) {

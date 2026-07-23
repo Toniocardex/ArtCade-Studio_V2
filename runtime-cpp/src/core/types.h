@@ -330,14 +330,6 @@ struct EntityRuntimeFlags {
     bool sceneActive = true;
 };
 
-struct HealthComponent {
-    float maxHp     = 100.f;
-    float currentHp = 100.f;
-    float iFrames   = 0.2f;
-    /** Runtime invulnerability countdown (not serialised). */
-    float _iFramesRemaining = 0.f;
-};
-
 struct AutoDestroyComponent {
     float lifespan  = 0.f;   // seconds; 0 = manual (never auto-destroy)
     float _timeAlive = 0.f;  // runtime accumulator (not serialised)
@@ -364,7 +356,7 @@ struct TextComponent {
     bool        screenSpace = false; // draw fixed on screen (HUD) vs in the world
 };
 
-/** Filled bar driven by a variable (health, mana, progress). */
+/** Filled bar driven by a variable (mana, progress, score). */
 struct GaugeComponent {
     std::string bindKey;             // variable read as current value
     std::string bindScope = "global";
@@ -462,6 +454,38 @@ struct SpriteAnimatorOverride {
     std::optional<bool>             capabilityEnabled;
 };
 
+// Project-format v10 authoring model. A Sprite has one presentation source;
+// runtime materialisation may split it into transient renderer/animator data.
+struct SpritePresentationNone {};
+
+struct SpritePresentationImage {
+    AssetId imageAssetId;
+};
+
+struct SpritePresentationAnimation {
+    AnimationAssetId animationAssetId;
+    AnimationClipId  defaultClipId;
+    bool             autoPlay = true;
+    float            playbackSpeed = 1.f;
+};
+
+using SpritePresentationSource = std::variant<
+    SpritePresentationNone,
+    SpritePresentationImage,
+    SpritePresentationAnimation>;
+
+struct SpritePresentationComponent {
+    bool                     visible = true;
+    SpritePresentationSource source = SpritePresentationNone{};
+};
+
+// A source override replaces the complete source alternative. This prevents
+// partially inherited animation state from becoming a second authority.
+struct SpritePresentationOverride {
+    std::optional<bool>                     visible;
+    std::optional<SpritePresentationSource> source;
+};
+
 // ============================================================================
 // Entity / Scene definitions
 // ============================================================================
@@ -474,6 +498,9 @@ struct EntityDef {
     std::vector<std::string> tags;
     Transform        transform;
     SpriteComponent  sprite;
+    std::optional<SpritePresentationComponent> spritePresentation;
+    // Deprecated v9 authoring input. Migration clears these fields; runtime
+    // still uses the component types as transient materialisation data.
     std::optional<SpriteRendererComponent> spriteRenderer;
     std::optional<SpriteAnimatorComponent> spriteAnimator;
     std::optional<ScriptComponent> scripts;
@@ -487,7 +514,6 @@ struct EntityDef {
     std::optional<CameraTargetComponent>         cameraTarget;
     std::optional<MagneticItemComponent>         magneticItem;
     std::optional<HordeMemberComponent>          hordeMember;
-    std::optional<HealthComponent>               health;
     std::optional<AutoDestroyComponent>          autoDestroy;
     std::optional<DialogComponent>               dialog;
     std::optional<TextComponent>                 text;
@@ -658,6 +684,8 @@ struct SceneInstanceDef {
     Transform   transform;
     bool        visible      = true;
     std::string layerId;      // render layer id ("" = default layer)
+    std::optional<SpritePresentationOverride> spritePresentationOverride;
+    // Deprecated v9 authoring input. Migration clears these fields.
     std::optional<SpriteRendererOverride> spriteRendererOverride;
     std::optional<SpriteAnimatorOverride> spriteAnimatorOverride;
     // v3 decoder/migration input only. No authoring/runtime path may read
@@ -665,6 +693,8 @@ struct SceneInstanceDef {
     std::optional<SpriteRendererComponent> legacySpriteRendererV3;
     std::optional<SpriteAnimatorComponent> legacySpriteAnimatorV3;
     std::optional<TilemapComponent>        tilemap;
+    // Native-editor authority: one placed instance, never an Object Type.
+    std::optional<CameraTargetComponent>   cameraTarget;
     std::unordered_map<std::string, GameVariableValue> localVariableOverrides;
 };
 
