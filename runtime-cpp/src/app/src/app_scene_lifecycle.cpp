@@ -14,7 +14,7 @@ void Application::handleSceneTransition(
     if (ArtCade::Modules::scene_invalidation_has(
             result.invalidations,
             ArtCade::Modules::SceneInvalidation::SceneActivation)) {
-        resetCameraOnNextFrame_ = true;
+        // Camera reset is owned by World::onSceneActivated (ADR-0018).
         if (mod_->gameplaySession) {
             mod_->gameplaySession->installLogicScopesForActiveScene();
             mod_->gameplaySession->installScriptScopesForActiveScene();

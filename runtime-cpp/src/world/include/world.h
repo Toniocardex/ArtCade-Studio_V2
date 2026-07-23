@@ -2,8 +2,9 @@
 
 #include "../../core/types.h"
 #include "../../modules/collision/include/collision_world.h"
-#include <string>
 #include <functional>
+#include <optional>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
@@ -33,6 +34,16 @@ void stepTopDownController(World& world,
                            float dt);
 } // namespace WorldInternal
 
+/** Per-axis Game View clamp (ADR-0018). Non-finite / non-positive extents → 0. */
+float clampCameraAxis(float worldExtent, float viewportExtent, float requestedCenter);
+Vec2 clampCameraCenter(Vec2 worldSize, Vec2 viewportSize, Vec2 center);
+
+struct ResolvedCameraTarget {
+    EntityId id = INVALID_ENTITY;
+    Vec2 desiredCenter{};
+    float followSpeed = 0.f;
+};
+
 /**
  * World — game-state orchestrator (Layer 3).
  *
@@ -61,6 +72,18 @@ public:
 
     /** Clears per-scene gameplay caches after SceneLifecycleService commits a load. */
     void onSceneActivated();
+
+    /**
+     * Snap camera for the active scene (ADR-0018): Camera Target + offset, else
+     * cameraStart + viewport/2, then clamp. Call from init and onSceneActivated.
+     */
+    void resetCameraForActiveScene();
+
+    /**
+     * Lowest-id active CameraTarget (Automatic), or explicit follow target.
+     * Shared by reset (snap) and tick (smooth).
+     */
+    std::optional<ResolvedCameraTarget> resolveCameraTarget() const;
 
     bool    loadScene(const SceneId& id);
     SceneId activeSceneId() const;

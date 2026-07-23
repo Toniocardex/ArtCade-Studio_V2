@@ -1,5 +1,6 @@
 #include "world_internal.h"
 #include "../../modules/renderer/include/renderer.h"
+#include "world.h"
 
 #include <algorithm>
 #include <cmath>
@@ -7,57 +8,114 @@
 
 namespace ArtCade {
 
-void World::tickCameraTargets(float dt) {
-    if (cameraFollowMode_ == CameraFollowMode::Disabled) return;
+float clampCameraAxis(float worldExtent, float viewportExtent, float requestedCenter) {
+    if (!std::isfinite(worldExtent) || worldExtent <= 0.f) return 0.f;
+    if (!std::isfinite(viewportExtent) || viewportExtent <= 0.f) {
+        return std::isfinite(requestedCenter) ? requestedCenter : worldExtent * 0.5f;
+    }
+    if (!std::isfinite(requestedCenter)) requestedCenter = worldExtent * 0.5f;
+    if (viewportExtent >= worldExtent) return worldExtent * 0.5f;
+    const float half = viewportExtent * 0.5f;
+    return std::clamp(requestedCenter, half, worldExtent - half);
+}
 
-    EntityId selected = cameraFollowTarget_;
-    CameraTargetComponent config{};
-    bool hasConfig = false;
+Vec2 clampCameraCenter(Vec2 worldSize, Vec2 viewportSize, Vec2 center) {
+    return {
+        clampCameraAxis(worldSize.x, viewportSize.x, center.x),
+        clampCameraAxis(worldSize.y, viewportSize.y, center.y),
+    };
+}
+
+std::optional<ResolvedCameraTarget> World::resolveCameraTarget() const {
+    if (cameraFollowMode_ == CameraFollowMode::Disabled) return std::nullopt;
 
     if (cameraFollowMode_ == CameraFollowMode::Explicit) {
         Transform transform{};
-        if (!entityGateway_.getTransform(selected, transform)) {
+        if (!entityGateway_.getTransform(cameraFollowTarget_, transform)) return std::nullopt;
+        CameraTargetComponent config{};
+        const bool hasConfig = entityGateway_.getCameraTarget(cameraFollowTarget_, config);
+        ResolvedCameraTarget resolved;
+        resolved.id = cameraFollowTarget_;
+        resolved.desiredCenter = {
+            transform.position.x + (hasConfig ? config.offsetX : 0.f),
+            transform.position.y + (hasConfig ? config.offsetY : 0.f),
+        };
+        resolved.followSpeed = hasConfig ? config.followSpeed : 5.f;
+        return resolved;
+    }
+
+    EntityId selected = INVALID_ENTITY;
+    CameraTargetComponent config{};
+    bool hasConfig = false;
+    entityGateway_.forEachActiveCameraTarget(
+        [&](EntityId id, const CameraTargetComponent& candidate) {
+            if (selected == INVALID_ENTITY || id < selected) {
+                selected = id;
+                config = candidate;
+                hasConfig = true;
+            }
+        });
+    if (selected == INVALID_ENTITY || !hasConfig) return std::nullopt;
+    Transform transform{};
+    if (!entityGateway_.getTransform(selected, transform)) return std::nullopt;
+    ResolvedCameraTarget resolved;
+    resolved.id = selected;
+    resolved.desiredCenter = {
+        transform.position.x + config.offsetX,
+        transform.position.y + config.offsetY,
+    };
+    resolved.followSpeed = config.followSpeed;
+    return resolved;
+}
+
+void World::resetCameraForActiveScene() {
+    const SceneDef* scene = entityGateway_.activeScene();
+    // Automatic mode for scene entry so resolve picks the deterministic target.
+    useAutomaticCameraTarget();
+    Vec2 next{};
+    if (const auto target = resolveCameraTarget()) {
+        next = target->desiredCenter;
+    } else if (scene) {
+        next = {
+            scene->cameraStart.x + scene->viewportSize.x * 0.5f,
+            scene->cameraStart.y + scene->viewportSize.y * 0.5f,
+        };
+    }
+    if (scene) {
+        next = clampCameraCenter(scene->worldSize, scene->viewportSize, next);
+    }
+    cameraCenter_ = next;
+    if (renderer_) renderer_->setCameraCenter(cameraCenter_);
+}
+
+void World::tickCameraTargets(float dt) {
+    if (cameraFollowMode_ == CameraFollowMode::Disabled) return;
+
+    if (cameraFollowMode_ == CameraFollowMode::Explicit) {
+        Transform transform{};
+        if (!entityGateway_.getTransform(cameraFollowTarget_, transform)) {
             useAutomaticCameraTarget();
-            selected = INVALID_ENTITY;
-        } else {
-            hasConfig = entityGateway_.getCameraTarget(selected, config);
         }
     }
 
-    if (cameraFollowMode_ == CameraFollowMode::Automatic) {
-        selected = INVALID_ENTITY;
-        entityGateway_.forEachActiveCameraTarget(
-            [&](EntityId id, const CameraTargetComponent& candidate) {
-                if (selected == INVALID_ENTITY || id < selected) {
-                    selected = id;
-                    config = candidate;
-                    hasConfig = true;
-                }
-            });
-    }
+    const auto resolved = resolveCameraTarget();
+    if (!resolved) return;
 
-    if (selected == INVALID_ENTITY) return;
-    Transform transform{};
-    if (!entityGateway_.getTransform(selected, transform)) return;
-
-    const float offsetX = hasConfig ? config.offsetX : 0.f;
-    const float offsetY = hasConfig ? config.offsetY : 0.f;
-    const float followSpeed = hasConfig ? config.followSpeed : 5.f;
-    const Vec2 desiredCenter = {
-        transform.position.x + offsetX,
-        transform.position.y + offsetY,
-    };
-    const Vec2 currentCenter = renderer_ ? renderer_->getCameraCenter() : cameraCenter_;
-    Vec2 nextCenter = desiredCenter;
-    if (followSpeed > 0.f && dt > 0.f) {
-        const float t = 1.f - std::exp(-followSpeed * dt);
+    const Vec2 currentCenter = cameraCenter_;
+    Vec2 nextCenter = resolved->desiredCenter;
+    if (resolved->followSpeed > 0.f && dt > 0.f) {
+        const float t = 1.f - std::exp(-resolved->followSpeed * dt);
         nextCenter = {
-            currentCenter.x + (desiredCenter.x - currentCenter.x) * t,
-            currentCenter.y + (desiredCenter.y - currentCenter.y) * t,
+            currentCenter.x + (resolved->desiredCenter.x - currentCenter.x) * t,
+            currentCenter.y + (resolved->desiredCenter.y - currentCenter.y) * t,
         };
     }
+
+    if (const SceneDef* scene = entityGateway_.activeScene()) {
+        nextCenter = clampCameraCenter(scene->worldSize, scene->viewportSize, nextCenter);
+    }
     cameraCenter_ = nextCenter;
-    if (renderer_) renderer_->setCameraCenter(nextCenter);
+    if (renderer_) renderer_->setCameraCenter(cameraCenter_);
 }
 
 void World::tickHordeMembers(float dt) {

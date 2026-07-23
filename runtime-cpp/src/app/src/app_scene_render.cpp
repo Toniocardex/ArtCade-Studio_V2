@@ -118,10 +118,8 @@ void Application::renderActiveScene() {
         ? mod_->gameplaySession->sceneRevision()
         : 0u;
 
-    if (resetCameraOnNextFrame_ && activeScene && mod_->renderer) {
-        mod_->renderer->setCameraPosition(activeScene->cameraStart);
-        resetCameraOnNextFrame_ = false;
-    }
+    // Camera init is World::resetCameraForActiveScene (ADR-0018); do not
+    // override with SceneDef::cameraStart here.
 
     // RU-02g (docs/RU02_GAMEPLAY_SESSION_REFACTOR.md, editor repo):
     // frame_coordinator_build_frame() still builds the scene/presentation

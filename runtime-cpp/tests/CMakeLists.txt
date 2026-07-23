@@ -193,6 +193,10 @@ artcade_test(logic_board_test
     logic-board-test.cpp
     "artcade-logic-core;artcade-logic-runtime;artcade-lua-runtime")
 
+artcade_test(camera_clamp_test
+    camera-clamp-test.cpp
+    artcade-world)
+
 # Scene mutation / invalidation (stateless — no Raylib)
 artcade_test(scene_invalidation_test
     scene-invalidation-test.cpp

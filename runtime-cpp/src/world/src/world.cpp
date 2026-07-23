@@ -197,23 +197,9 @@ void World::init(const ProjectDoc& doc) {
     applyTilePalette(doc.tilePalette);
     activeTilemap_ = TilemapData{};
 
-    // A fresh runtime has no editor camera to inherit. Until an explicit
-    // CameraTarget drives it, its only valid presentation is the active
-    // scene's centre; leaving the default {0, 0} makes the world origin look
-    // centred and clips the actual scene to the bottom-right in native Play.
-    if (const SceneDef* activeScene = entityGateway_.activeScene()) {
-        const Vec2 sceneCenter{
-            activeScene->worldSize.x * 0.5f,
-            activeScene->worldSize.y * 0.5f,
-        };
-        cameraCenter_ = sceneCenter;
-        if (renderer_) {
-            renderer_->setCameraCenter(sceneCenter);
-            // Renderer bounds may clamp a small world; expose the actual
-            // runtime centre rather than the requested, unclamped one.
-            cameraCenter_ = renderer_->getCameraCenter();
-        }
-    }
+    // ADR-0018: snap to Camera Target or cameraStart+viewport/2 (clamped).
+    // Never start at world centre then ease toward the player.
+    resetCameraForActiveScene();
 
     rebuildCollisionWorld();
 }
@@ -287,6 +273,7 @@ bool World::setAnimationPlaybackSpeed(EntityId id, float speed) {
 
 void World::onSceneActivated() {
     clearGameplayRuntimeState();
+    resetCameraForActiveScene();
 }
 
 void World::setSceneLifecycleService(Modules::SceneLifecycleService* lifecycle) {

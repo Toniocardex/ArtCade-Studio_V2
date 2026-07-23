@@ -146,8 +146,6 @@ private:
 
     uint64_t frameNumber_ = 0;
 
-    bool resetCameraOnNextFrame_ = false;
-
 #ifndef NDEBUG
     /** Debug-only: tilemap pointers in SceneFrameSnapshot alias SceneDef while true. */
     bool sceneFrameRenderActive_ = false;

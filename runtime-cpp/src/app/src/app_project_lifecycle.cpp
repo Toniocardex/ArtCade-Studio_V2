@@ -88,9 +88,8 @@ void Application::applyRuntimeSettings(const ProjectRuntimeSettings& settings,
             "ArtCade V2");
 #endif
     }
-    // Snap the gameplay camera to the scene's authored initial view. Game logic
-    // or a follow target may move it afterwards; this is just the starting frame.
-    mod_->renderer->setCameraPosition(scene->cameraStart);
+    // Camera start is World::resetCameraForActiveScene (ADR-0018). Do not push
+    // SceneDef::cameraStart into the renderer independently of World.
 }
 
 #ifdef ARTCADE_WASM
