@@ -156,7 +156,27 @@ void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
         }
         const auto it = std::find_if(descriptor->properties.begin(), descriptor->properties.end(),
             [&](const LogicPropertyDescriptor& p) { return p.key == property.key; });
+        // ADR-0012: legacy Move Horizontal boards may still store numeric `axis`.
+        // It is not in the catalog, but remains valid for compile/Play.
         if (it == descriptor->properties.end()) {
+            if (block.typeId == kMoveHorizontal && property.key == "axis") {
+                if (const double* value = std::get_if<double>(&property.value)) {
+                    if (!std::isfinite(*value)) {
+                        out.push_back(makeError(objectTypeId, board, "LB_NON_FINITE",
+                                                "Number property must be finite", &rule, &block,
+                                                property.key));
+                    } else if (*value < -1.0 || *value > 1.0) {
+                        out.push_back(makeError(objectTypeId, board, "LB_AXIS_RANGE",
+                                                "Platformer movement axis must be between -1 and 1",
+                                                &rule, &block, property.key));
+                    }
+                } else {
+                    out.push_back(makeError(objectTypeId, board, "LB_PROPERTY_TYPE",
+                                            "Property has the wrong value type: " + property.key,
+                                            &rule, &block, property.key));
+                }
+                continue;
+            }
             out.push_back(makeError(objectTypeId, board, "LB_UNKNOWN_PROPERTY",
                                     "Unknown property: " + property.key,
                                     &rule, &block, property.key));
@@ -184,11 +204,6 @@ void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
                 out.push_back(makeError(objectTypeId, board, "LB_NON_FINITE",
                                         "Number property must be finite", &rule, &block,
                                         property.key));
-            } else if (block.typeId == kMoveHorizontal && property.key == "axis"
-                       && (*value < -1.0 || *value > 1.0)) {
-                out.push_back(makeError(objectTypeId, board, "LB_AXIS_RANGE",
-                                        "Platformer movement axis must be between -1 and 1",
-                                        &rule, &block, property.key));
             } else if (block.typeId == kAnimationSetPlaybackSpeed
                        && property.key == "speed" && *value <= 0.0) {
                 out.push_back(makeError(objectTypeId, board, "LB_ANIMATION_SPEED",
@@ -291,6 +306,16 @@ void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
                                         &rule, &block, property.key));
             }
         }
+        if (block.typeId == kMoveHorizontal && property.key == "direction") {
+            const auto* direction = std::get_if<LogicStringValue>(&property.value);
+            const bool ok = direction
+                && (direction->value == "Left" || direction->value == "Right");
+            if (!ok) {
+                out.push_back(makeError(objectTypeId, board, "LB_PLATFORMER_DIRECTION",
+                                        "Platformer move direction must be Left or Right",
+                                        &rule, &block, property.key));
+            }
+        }
     }
     if (block.typeId == kAnimationPlayClip) {
         const LogicPropertyDef* assetProperty = findProperty(block, "animationAssetId");
@@ -346,6 +371,11 @@ void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
     }
     for (const LogicPropertyDescriptor& property : descriptor->properties) {
         if (!findProperty(block, property.key)) {
+            // ADR-0012: legacy Move Horizontal boards store numeric `axis` only.
+            if (block.typeId == kMoveHorizontal && property.key == "direction"
+                && findProperty(block, "axis")) {
+                continue;
+            }
             out.push_back(makeError(objectTypeId, board, "LB_MISSING_PROPERTY",
                                     "Missing property: " + property.key,
                                     &rule, &block, property.key));
@@ -401,8 +431,16 @@ void emitAction(std::ostringstream& lua, const LogicBlockDef& action,
             << escapeLua(type ? type->value : std::string{}) << "\", "
             << position.x << ", " << position.y << ")\n";
     } else if (action.typeId == kMoveHorizontal) {
-        const LogicPropertyDef* p = findProperty(action, "axis");
-        lua << "      context.self:platformer_move(" << std::get<double>(p->value) << ")\n";
+        if (const LogicPropertyDef* directionProp = findProperty(action, "direction")) {
+            const auto* facing = std::get_if<LogicStringValue>(&directionProp->value);
+            const bool left = facing && facing->value == "Left";
+            lua << "      context.self:platformer_move(" << (left ? -1 : 1) << ")\n";
+        } else {
+            // Legacy boards authored numeric axis in [-1, 1].
+            const LogicPropertyDef* p = findProperty(action, "axis");
+            const double axis = p ? std::get<double>(p->value) : 0.0;
+            lua << "      context.self:platformer_move(" << axis << ")\n";
+        }
     } else if (action.typeId == kTopDownMove) {
         const LogicPropertyDef* p = findProperty(action, "direction");
         const auto* direction = p ? std::get_if<LogicStringValue>(&p->value) : nullptr;
@@ -635,11 +673,12 @@ const std::vector<LogicBlockDescriptor>& registry() {
             {LogicContextCapability::Self},
             "platformer.falling", false, 15, {"airborne", "descent", "drop"},
             LogicTriggerActivationKind::Level},
-        {kMoveHorizontal, "platformer", "Move Horizontal", "Requests horizontal platformer movement.",
+        {kMoveHorizontal, "platformer", "Move Horizontal",
+            "Requests horizontal platformer movement for Self (Left or Right).",
             BlockKind::Action,
-            {{"axis", LogicValueKind::Number, 0.0, "Axis"}},
+            {{"direction", LogicValueKind::String, LogicStringValue{"Right"}, "Direction"}},
             {LogicRequiredComponent::PlatformerController}, {LogicContextCapability::Self}, {},
-            "platformer.move", false, 20, {"walk", "run", "strafe"}},
+            "platformer.move", false, 20, {"walk", "run", "strafe", "left", "right"}},
         {kJump, "platformer", "Jump", "Requests a platformer jump.",
             BlockKind::Action, {}, {LogicRequiredComponent::PlatformerController},
             {LogicContextCapability::Self}, {}, "platformer.jump", false, 30, {"leap", "hop"}},
@@ -755,6 +794,9 @@ const std::vector<LogicBlockDescriptor>& registry() {
                     property.options = {"Left", "Right", "Up", "Down"};
                 } else if (block.typeId == kSpriteSetFacing && property.key == "facing") {
                     property.semantic = LogicPropertySemantic::SpriteFacing;
+                    property.options = {"Left", "Right"};
+                } else if (block.typeId == kMoveHorizontal && property.key == "direction") {
+                    property.semantic = LogicPropertySemantic::PlatformerDirection;
                     property.options = {"Left", "Right"};
                 }
 

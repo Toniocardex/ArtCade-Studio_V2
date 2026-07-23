@@ -687,6 +687,69 @@ static void testSpriteSetFacingAction() {
     CHECK(std::find(host.calls.begin(), host.calls.end(), "flip_x:1:1") != host.calls.end());
 }
 
+static void testPlatformerMoveHorizontalDirection() {
+    const LogicBlockDescriptor* descriptor = findDescriptor(kMoveHorizontal);
+    CHECK(descriptor != nullptr);
+    CHECK(descriptor->properties.size() == 1);
+    CHECK(descriptor->properties[0].key == "direction");
+    CHECK(descriptor->properties[0].semantic == LogicPropertySemantic::PlatformerDirection);
+    CHECK(descriptor->properties[0].options
+          == std::vector<std::string>({"Left", "Right"}));
+
+    LogicBoardDef board;
+    board.id = "logic:Move";
+    LogicRuleDef rule = makeDefaultRule("rule-1");
+    LogicBlockDef move = makeDefaultBlock(kMoveHorizontal, BlockKind::Action);
+    for (LogicPropertyDef& p : move.properties) {
+        if (p.key == "direction") p.value = LogicStringValue{"Left"};
+    }
+    rule.actions = {move};
+    // Owner needs PlatformerController for availability/validation of required component.
+    EntityDef owner;
+    owner.platformerController = PlatformerControllerComponent{};
+    board.rules.push_back(rule);
+
+    CHECK(validateBoard("Hero", board, &owner).empty());
+    LogicCompileResult compiled = compileBoard("Hero", board, &owner);
+    CHECK(compiled.ok());
+    CHECK(compiled.programs[0].source.find("platformer_move(-1)") != std::string::npos);
+
+    LogicBoardDef rightBoard = board;
+    for (LogicPropertyDef& p : rightBoard.rules[0].actions[0].properties) {
+        if (p.key == "direction") p.value = LogicStringValue{"Right"};
+    }
+    LogicCompileResult rightCompiled = compileBoard("Hero", rightBoard, &owner);
+    CHECK(rightCompiled.ok());
+    CHECK(rightCompiled.programs[0].source.find("platformer_move(1)") != std::string::npos);
+
+    LogicBoardDef badBoard = board;
+    for (LogicPropertyDef& p : badBoard.rules[0].actions[0].properties) {
+        if (p.key == "direction") p.value = LogicStringValue{"Up"};
+    }
+    CHECK(!compileBoard("Hero", badBoard, &owner).ok());
+
+    // Legacy numeric axis still compiles.
+    LogicBoardDef legacy;
+    legacy.id = "logic:LegacyMove";
+    LogicRuleDef legacyRule = makeDefaultRule("rule-1");
+    legacyRule.actions = {LogicBlockDef{kMoveHorizontal, {{"axis", -1.0}}}};
+    legacy.rules.push_back(legacyRule);
+    LogicCompileResult legacyCompiled = compileBoard("Hero", legacy, &owner);
+    CHECK(legacyCompiled.ok());
+    CHECK(legacyCompiled.programs[0].source.find("platformer_move(-1)") != std::string::npos);
+
+    Host host;
+    LogicRuntime runtime(host);
+    std::string error;
+    CHECK(runtime.loadPrograms(compiled.programs, &error));
+    CHECK(runtime.install("Hero", 1, &error).has_value());
+    runtime.beginFrame();
+    runtime.dispatchStart();
+    const std::string expectedMove =
+        "platformer_move:1:" + std::to_string(static_cast<float>(-1));
+    CHECK(std::find(host.calls.begin(), host.calls.end(), expectedMove) != host.calls.end());
+}
+
 static LogicBlockDef makeStateCompareCondition(double value) {
     LogicBlockDef condition = makeDefaultBlock(kStateCompare, BlockKind::Condition);
     for (LogicPropertyDef& property : condition.properties) {
@@ -786,6 +849,10 @@ static void testDescriptorSemanticMetadataConsistency() {
             } else if (property.semantic == LogicPropertySemantic::SpriteFacing) {
                 CHECK(block.typeId == kSpriteSetFacing);
                 CHECK(property.key == "facing");
+                CHECK(property.options == std::vector<std::string>({"Left", "Right"}));
+            } else if (property.semantic == LogicPropertySemantic::PlatformerDirection) {
+                CHECK(block.typeId == kMoveHorizontal);
+                CHECK(property.key == "direction");
                 CHECK(property.options == std::vector<std::string>({"Left", "Right"}));
             } else {
                 CHECK(property.options.empty());
@@ -1740,6 +1807,7 @@ int main() {
     testIsFallingAsEvent();
     testIsVisibleAsEvent();
     testSpriteSetFacingAction();
+    testPlatformerMoveHorizontalDirection();
     testConditionOperators();
     testPlaySoundAction();
     testCombinedGameplaySmoke();

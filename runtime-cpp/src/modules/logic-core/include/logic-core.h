@@ -81,6 +81,7 @@ enum class LogicPropertySemantic {
     CompareOperator,
     TopDownDirection,
     SpriteFacing,
+    PlatformerDirection,
     HiddenSelfTarget,
 };
 enum class LogicNumberConstraint {
