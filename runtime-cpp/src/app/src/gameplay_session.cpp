@@ -56,6 +56,12 @@ bool RuntimeLogicHostAdapter::setVisible(EntityId owner, bool value) {
 bool RuntimeLogicHostAdapter::isVisible(EntityId owner) {
     return gateway_.visibleInGame(owner);
 }
+bool RuntimeLogicHostAdapter::setSpriteFlipX(EntityId owner, bool flipX) {
+    SpriteComponent sprite{};
+    if (!gateway_.getSprite(owner, sprite)) return false;
+    sprite.flipX = flipX;
+    return gateway_.setSprite(owner, sprite);
+}
 bool RuntimeLogicHostAdapter::setPosition(EntityId owner, Vec2 value) {
     Transform transform{};
     if (!gateway_.getTransform(owner, transform)) return false;

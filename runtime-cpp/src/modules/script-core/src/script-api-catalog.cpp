@@ -160,6 +160,10 @@ const std::vector<ScriptApiEntry>& catalogStorage() {
         entry(ScriptApiKind::Method, "ctx.self.set_visible", "ctx.self", "set_visible",
               "set_visible(visible)", "set_visible(",
               "Show or hide the owning entity.", kBoolParams, 1),
+        entry(ScriptApiKind::Method, "ctx.self.set_flip_x", "ctx.self", "set_flip_x",
+              "set_flip_x(flip)", "set_flip_x(",
+              "Mirror the owning entity sprite horizontally. True faces Left "
+              "(art assumed to face Right when false).", kBoolParams, 1),
         entry(ScriptApiKind::Method, "ctx.self.set_position", "ctx.self", "set_position",
               "set_position(x, y)", "set_position(",
               "Set world position.", kXyParams, 2),

@@ -16,6 +16,11 @@ public:
     virtual bool setVisible(EntityId owner, bool value) = 0;
     /** Runtime visibility query for Self (Logic Is Visible event). */
     virtual bool isVisible(EntityId owner) = 0;
+    /**
+     * Horizontal mirror for Self's drawable sprite.
+     * Convention: art faces Right when flipX is false; Left when true.
+     */
+    virtual bool setSpriteFlipX(EntityId owner, bool flipX) = 0;
     virtual bool setPosition(EntityId owner, Vec2 value) = 0;
     virtual bool translate(EntityId owner, Vec2 delta) = 0;
     /** Absolute rotation in radians (Logic compiler converts authored degrees). */

@@ -174,6 +174,15 @@ int manualSetVisible(lua_State* state) {
     return 0;
 }
 
+int manualSetFlipX(lua_State* state) {
+    IGameplayRuntimeHost* host = manualGameplayHost(state);
+    luaL_checktype(state, 1, LUA_TTABLE);
+    luaL_checktype(state, 2, LUA_TBOOLEAN);
+    if (!host || !host->setSpriteFlipX(manualOwner(state), lua_toboolean(state, 2) != 0))
+        return luaL_error(state, "ctx.self:set_flip_x failed");
+    return 0;
+}
+
 int manualSetPosition(lua_State* state) {
     IGameplayRuntimeHost* host = manualGameplayHost(state);
     luaL_checktype(state, 1, LUA_TTABLE);
@@ -363,6 +372,7 @@ struct ManualNamedFn {
 // Scripts::manualScriptRuntimeBindingInventory (parity with script-api-catalog).
 constexpr ManualNamedFn kManualSelfMethods[] = {
     {"set_visible", manualSetVisible},
+    {"set_flip_x", manualSetFlipX},
     {"set_position", manualSetPosition},
     {"translate", manualTranslate},
     {"set_rotation", manualSetRotation},

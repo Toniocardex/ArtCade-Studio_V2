@@ -26,6 +26,7 @@ inline constexpr const char* kKeyReleased = "input.key_released";
 inline constexpr const char* kKeyHeld = "input.key_held";
 inline constexpr const char* kKeyDown = "input.key_down";
 inline constexpr const char* kSetVisible = "entity.set_visible";
+inline constexpr const char* kSpriteSetFacing = "sprite.set_facing";
 inline constexpr const char* kIsVisible = "entity.is_visible";
 inline constexpr const char* kSetPosition = "entity.set_position";
 inline constexpr const char* kTranslateBy = "entity.translate_by";
@@ -79,6 +80,7 @@ enum class LogicPropertySemantic {
     GlobalVariable,
     CompareOperator,
     TopDownDirection,
+    SpriteFacing,
     HiddenSelfTarget,
 };
 enum class LogicNumberConstraint {

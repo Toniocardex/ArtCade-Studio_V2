@@ -281,6 +281,16 @@ void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
                                         &rule, &block, property.key));
             }
         }
+        if (block.typeId == kSpriteSetFacing && property.key == "facing") {
+            const auto* facing = std::get_if<LogicStringValue>(&property.value);
+            const bool ok = facing
+                && (facing->value == "Left" || facing->value == "Right");
+            if (!ok) {
+                out.push_back(makeError(objectTypeId, board, "LB_SPRITE_FACING",
+                                        "Sprite facing must be Left or Right",
+                                        &rule, &block, property.key));
+            }
+        }
     }
     if (block.typeId == kAnimationPlayClip) {
         const LogicPropertyDef* assetProperty = findProperty(block, "animationAssetId");
@@ -349,6 +359,12 @@ void emitAction(std::ostringstream& lua, const LogicBlockDef& action,
         const LogicPropertyDef* p = findProperty(action, "visible");
         const bool value = std::get<bool>(p->value);
         lua << "      context.self:set_visible(" << (value ? "true" : "false") << ")\n";
+    } else if (action.typeId == kSpriteSetFacing) {
+        const LogicPropertyDef* p = findProperty(action, "facing");
+        const auto* facing = p ? std::get_if<LogicStringValue>(&p->value) : nullptr;
+        // Art faces Right by default; Left enables flipX.
+        const bool flipX = facing && facing->value == "Left";
+        lua << "      context.self:set_flip_x(" << (flipX ? "true" : "false") << ")\n";
     } else if (action.typeId == kSetPosition) {
         const LogicPropertyDef* p = findProperty(action, "position");
         const Vec2 value = std::get<Vec2>(p->value);
@@ -550,6 +566,13 @@ const std::vector<LogicBlockDescriptor>& registry() {
              {"visible", LogicValueKind::Bool, true, "Visible"}},
             {}, {LogicContextCapability::Self}, {}, "entity.visibility", false, 10,
             {"visibility", "show", "hide"}},
+        {kSpriteSetFacing, "entity", "Flip Horizontal",
+            "Mirrors Self's sprite horizontally for left/right facing. "
+            "Art is assumed to face Right when not flipped.",
+            BlockKind::Action,
+            {{"facing", LogicValueKind::String, LogicStringValue{"Right"}, "Facing"}},
+            {}, {LogicContextCapability::Self}, {}, "sprite.facing", false, 12,
+            {"flip", "mirror", "facing", "left", "right"}},
         {kIsVisible, "entity", "Is Visible", "Checks whether Self is currently visible.",
             BlockKind::Condition,
             {{"expected", LogicValueKind::Bool, true, "Expected"}},
@@ -730,6 +753,9 @@ const std::vector<LogicBlockDescriptor>& registry() {
                 } else if (block.typeId == kTopDownMove && property.key == "direction") {
                     property.semantic = LogicPropertySemantic::TopDownDirection;
                     property.options = {"Left", "Right", "Up", "Down"};
+                } else if (block.typeId == kSpriteSetFacing && property.key == "facing") {
+                    property.semantic = LogicPropertySemantic::SpriteFacing;
+                    property.options = {"Left", "Right"};
                 }
 
                 if (property.valueKind == LogicValueKind::Number) {

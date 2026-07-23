@@ -80,6 +80,13 @@ struct Host final : IGameplayRuntimeHost {
         return gateway.setRuntimeVisible(owner, value);
     }
     bool isVisible(EntityId owner) override { return gateway.visibleInGame(owner); }
+    bool setSpriteFlipX(EntityId owner, bool flipX) override {
+        SpriteComponent sprite{};
+        if (!gateway.getSprite(owner, sprite)) return false;
+        sprite.flipX = flipX;
+        callLog.push_back(actor + ":flip_x:" + (flipX ? "1" : "0"));
+        return gateway.setSprite(owner, sprite);
+    }
     bool setPosition(EntityId owner, Vec2 value) override {
         Transform t{};
         if (!gateway.getTransform(owner, t)) return false;

@@ -47,6 +47,7 @@ const std::unordered_set<std::string>& supportedFeatures() {
         "entity.visibility",
         "entity.transform",
         "entity.spawn",
+        "sprite.facing",
         "physics.set_velocity",
         "platformer.grounded",
         "platformer.falling",
@@ -144,6 +145,10 @@ struct LogicRuntime::Impl {
         }
         bool isVisible() {
             return impl && impl->host.isVisible(owner);
+        }
+        void setFlipX(bool flipX) {
+            if (!impl || !impl->host.setSpriteFlipX(owner, flipX))
+                throw sol::error("set_flip_x failed for owner");
         }
         void setPosition(float x, float y) {
             if (!impl || !impl->host.setPosition(owner, Vec2{x, y}))
@@ -569,6 +574,7 @@ bool LogicRuntime::initialize(std::string* error) {
             "LogicSelf", sol::no_constructor,
             "set_visible", &Impl::SelfProxy::setVisible,
             "is_visible", &Impl::SelfProxy::isVisible,
+            "set_flip_x", &Impl::SelfProxy::setFlipX,
             "set_position", &Impl::SelfProxy::setPosition,
             "translate", &Impl::SelfProxy::translate,
             "set_rotation", &Impl::SelfProxy::setRotation,

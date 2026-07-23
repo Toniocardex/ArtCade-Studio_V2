@@ -54,6 +54,10 @@ struct Host final : ILogicRuntimeHost {
         const auto it = visible.find(owner);
         return it == visible.end() ? true : it->second;
     }
+    bool setSpriteFlipX(EntityId owner, bool flipX) override {
+        calls.push_back("flip_x:" + std::to_string(owner) + ":" + (flipX ? "1" : "0"));
+        return true;
+    }
     bool setPosition(EntityId owner, Vec2 value) override {
         calls.push_back("position:" + std::to_string(owner) + ":"
                         + std::to_string(static_cast<int>(value.x)) + ","
@@ -90,6 +94,12 @@ struct Host final : ILogicRuntimeHost {
     }
     bool requestPlatformerMove(EntityId owner, float axis) override {
         calls.push_back("platformer_move:" + std::to_string(owner) + ":" + std::to_string(axis));
+        return true;
+    }
+    bool requestTopDownMove(EntityId owner, Vec2 direction) override {
+        calls.push_back("topdown_move:" + std::to_string(owner) + ":"
+                        + std::to_string(static_cast<int>(direction.x)) + ","
+                        + std::to_string(static_cast<int>(direction.y)));
         return true;
     }
     bool requestPlatformerJump(EntityId owner) override {
@@ -636,6 +646,47 @@ static void testIsVisibleAsEvent() {
         [](const std::string& c) { return c.rfind("translate:", 0) == 0; }));
 }
 
+static void testSpriteSetFacingAction() {
+    const LogicBlockDescriptor* descriptor = findDescriptor(kSpriteSetFacing);
+    CHECK(descriptor != nullptr);
+    CHECK(descriptor->kind == BlockKind::Action);
+    CHECK(descriptor->displayName == std::string("Flip Horizontal"));
+    CHECK(descriptor->properties.size() == 1);
+    CHECK(descriptor->properties[0].semantic == LogicPropertySemantic::SpriteFacing);
+    CHECK(descriptor->properties[0].options
+          == std::vector<std::string>({"Left", "Right"}));
+
+    LogicBoardDef board;
+    board.id = "logic:Facing";
+    LogicRuleDef rule = makeDefaultRule("rule-1");
+    LogicBlockDef facing = makeDefaultBlock(kSpriteSetFacing, BlockKind::Action);
+    for (LogicPropertyDef& p : facing.properties) {
+        if (p.key == "facing") p.value = LogicStringValue{"Left"};
+    }
+    rule.actions = {facing};
+    board.rules.push_back(rule);
+
+    CHECK(validateBoard("Hero", board).empty());
+    LogicCompileResult compiled = compileBoard("Hero", board);
+    CHECK(compiled.ok());
+    CHECK(compiled.programs[0].source.find("set_flip_x(true)") != std::string::npos);
+
+    LogicBoardDef badBoard = board;
+    for (LogicPropertyDef& p : badBoard.rules[0].actions[0].properties) {
+        if (p.key == "facing") p.value = LogicStringValue{"Up"};
+    }
+    CHECK(!compileBoard("Hero", badBoard).ok());
+
+    Host host;
+    LogicRuntime runtime(host);
+    std::string error;
+    CHECK(runtime.loadPrograms(compiled.programs, &error));
+    CHECK(runtime.install("Hero", 1, &error).has_value());
+    runtime.beginFrame();
+    runtime.dispatchStart();
+    CHECK(std::find(host.calls.begin(), host.calls.end(), "flip_x:1:1") != host.calls.end());
+}
+
 static LogicBlockDef makeStateCompareCondition(double value) {
     LogicBlockDef condition = makeDefaultBlock(kStateCompare, BlockKind::Condition);
     for (LogicPropertyDef& property : condition.properties) {
@@ -727,6 +778,15 @@ static void testDescriptorSemanticMetadataConsistency() {
                 CHECK(property.key == "op");
                 CHECK(property.options
                       == std::vector<std::string>({"==", "!=", "<", "<=", ">", ">="}));
+            } else if (property.semantic == LogicPropertySemantic::TopDownDirection) {
+                CHECK(block.typeId == kTopDownMove);
+                CHECK(property.key == "direction");
+                CHECK(property.options
+                      == std::vector<std::string>({"Left", "Right", "Up", "Down"}));
+            } else if (property.semantic == LogicPropertySemantic::SpriteFacing) {
+                CHECK(block.typeId == kSpriteSetFacing);
+                CHECK(property.key == "facing");
+                CHECK(property.options == std::vector<std::string>({"Left", "Right"}));
             } else {
                 CHECK(property.options.empty());
             }
@@ -1679,6 +1739,7 @@ int main() {
     testIsGroundedAsEvent();
     testIsFallingAsEvent();
     testIsVisibleAsEvent();
+    testSpriteSetFacingAction();
     testConditionOperators();
     testPlaySoundAction();
     testCombinedGameplaySmoke();

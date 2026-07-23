@@ -140,6 +140,7 @@ public:
 
     bool setVisible(EntityId owner, bool value) override;
     bool isVisible(EntityId owner) override;
+    bool setSpriteFlipX(EntityId owner, bool flipX) override;
     bool setPosition(EntityId owner, Vec2 value) override;
     bool translate(EntityId owner, Vec2 delta) override;
     bool setRotation(EntityId owner, float radians) override;
