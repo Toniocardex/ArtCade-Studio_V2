@@ -80,17 +80,27 @@ struct Physics::Impl {
     }
 
     static bool shouldResolvePair(const BodyEntry& a, const BodyEntry& b) {
-        return a.bodyType == BodyType::Dynamic || b.bodyType == BodyType::Dynamic;
+        // Platformer controllers are Kinematic; they must still collide with
+        // Static geometry. Skip only Static-Static and Kinematic-Kinematic.
+        if (a.bodyType == BodyType::Static && b.bodyType == BodyType::Static)
+            return false;
+        if (a.bodyType == BodyType::Kinematic && b.bodyType == BodyType::Kinematic)
+            return false;
+        return true;
+    }
+
+    static bool isMovable(BodyType type) {
+        return type == BodyType::Dynamic || type == BodyType::Kinematic;
     }
 
     static void resolvePair(BodyEntry& a, BodyEntry& b) {
         if (!aabbOverlap(shapeWorldAabb(mainShape(a)), shapeWorldAabb(mainShape(b))))
             return;
 
-        const bool aDyn = a.bodyType == BodyType::Dynamic;
-        const bool bDyn = b.bodyType == BodyType::Dynamic;
+        const bool aMov = isMovable(a.bodyType);
+        const bool bMov = isMovable(b.bodyType);
 
-        if (aDyn && bDyn) {
+        if (aMov && bMov) {
             Aabb boxA = shapeWorldAabb(mainShape(a));
             Aabb boxB = shapeWorldAabb(mainShape(b));
             Vec2 correction{};
@@ -106,8 +116,8 @@ struct Physics::Impl {
             return;
         }
 
-        BodyEntry* movable = aDyn ? &a : (bDyn ? &b : nullptr);
-        BodyEntry* fixed   = aDyn ? &b : &a;
+        BodyEntry* movable = aMov ? &a : (bMov ? &b : nullptr);
+        BodyEntry* fixed   = aMov ? &b : &a;
         if (!movable)
             return;
 
