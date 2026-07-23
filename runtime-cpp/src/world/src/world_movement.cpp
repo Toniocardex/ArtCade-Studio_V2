@@ -3,8 +3,13 @@
 #include "world_topdown_controller.h"
 
 #include <algorithm>
+#include <cmath>
 
 namespace ArtCade {
+
+namespace {
+constexpr float kPlatformerMotionEpsilon = 0.01f;
+}
 
 bool World::isPlatformerGrounded(EntityId id) const {
     PlatformerControllerComponent pc{};
@@ -22,6 +27,14 @@ bool World::isPlatformerFalling(EntityId id) const {
     // Match Editor PlaySession: +Y down, ignore near-zero apex noise.
     constexpr float kFallingEpsilon = 0.001f;
     return it->second.velocity.y > kFallingEpsilon;
+}
+
+bool World::isPlatformerMovingHorizontally(EntityId id) const {
+    PlatformerControllerComponent pc{};
+    if (!entityGateway_.getPlatformerController(id, pc)) return false;
+    const auto it = platformerRt_.find(id);
+    if (it == platformerRt_.end()) return false;
+    return std::abs(it->second.velocity.x) > kPlatformerMotionEpsilon;
 }
 
 void World::tickPlatformerControllers(float dt) {

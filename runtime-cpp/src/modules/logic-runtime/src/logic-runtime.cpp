@@ -51,6 +51,7 @@ const std::unordered_set<std::string>& supportedFeatures() {
         "physics.set_velocity",
         "platformer.grounded",
         "platformer.falling",
+        "platformer.motion_state",
         "platformer.move",
         "platformer.jump",
         "topdown.move",
@@ -183,6 +184,9 @@ struct LogicRuntime::Impl {
         }
         bool isFalling() {
             return impl && impl->host.isFalling(owner);
+        }
+        bool isPlatformerMoving() {
+            return impl && impl->host.isPlatformerMoving(owner);
         }
         void platformerMove(float axis) {
             if (!impl || !impl->host.requestPlatformerMove(owner, axis))
@@ -584,6 +588,7 @@ bool LogicRuntime::initialize(std::string* error) {
             "spawn", &Impl::SelfProxy::spawn,
             "is_grounded", &Impl::SelfProxy::isGrounded,
             "is_falling", &Impl::SelfProxy::isFalling,
+            "is_platformer_moving", &Impl::SelfProxy::isPlatformerMoving,
             "platformer_move", &Impl::SelfProxy::platformerMove,
             "topdown_move", &Impl::SelfProxy::topDownMove,
             "platformer_jump", &Impl::SelfProxy::platformerJump,

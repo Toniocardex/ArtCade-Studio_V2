@@ -329,6 +329,16 @@ void validateBlock(const ObjectTypeId& objectTypeId, const LogicBoardDef& board,
                                        &rule, &block, property.key));
             }
         }
+        if (block.typeId == kPlatformerMotionState && property.key == "state") {
+            const auto* state = std::get_if<LogicStringValue>(&property.value);
+            const bool ok = state
+                && (state->value == "Moving" || state->value == "Stopped");
+            if (!ok) {
+                pushSemantic(makeError(objectTypeId, board, "LB_PLATFORMER_MOTION_STATE",
+                                       "Platformer Motion state must be Moving or Stopped",
+                                       &rule, &block, property.key));
+            }
+        }
     }
     if (structuralOnly) return;
 
@@ -688,6 +698,16 @@ const std::vector<LogicBlockDescriptor>& registry() {
             {LogicContextCapability::Self},
             "platformer.falling", false, 15, {"airborne", "descent", "drop"},
             LogicTriggerActivationKind::Level},
+        {kPlatformerMotionState, "platformer", "Platformer Motion",
+            "Checks whether Self is moving horizontally or stopped "
+            "(|velocity.x| vs motion epsilon). Pair with Is Grounded for Walk/Idle.",
+            BlockKind::Condition,
+            {{"state", LogicValueKind::String, LogicStringValue{"Moving"}, "State"}},
+            {LogicRequiredComponent::PlatformerController}, {LogicContextCapability::Self},
+            {LogicContextCapability::Self},
+            "platformer.motion_state", false, 18,
+            {"moving", "stopped", "idle", "walking", "running", "velocity", "motion"},
+            LogicTriggerActivationKind::Level},
         {kMoveHorizontal, "platformer", "Move Horizontal",
             "Requests horizontal platformer movement for Self for this input frame "
             "(Left or Right). Pair with While Key Held so movement stops on release.",
@@ -814,6 +834,9 @@ const std::vector<LogicBlockDescriptor>& registry() {
                 } else if (block.typeId == kMoveHorizontal && property.key == "direction") {
                     property.semantic = LogicPropertySemantic::PlatformerDirection;
                     property.options = {"Left", "Right"};
+                } else if (block.typeId == kPlatformerMotionState && property.key == "state") {
+                    property.semantic = LogicPropertySemantic::PlatformerMotionState;
+                    property.options = {"Moving", "Stopped"};
                 }
 
                 if (property.valueKind == LogicValueKind::Number) {
@@ -1159,6 +1182,7 @@ LogicCompileResult compileBoard(const ObjectTypeId& objectTypeId,
             lua << "  context:" << registerMethod << "(\"" << escapeLua(rule.id) << "\", \""
                 << logicKeyName(std::get<LogicKey>(key->value)) << "\", function()\n";
         } else if (rule.trigger.typeId == kIsGrounded || rule.trigger.typeId == kIsFalling
+                   || rule.trigger.typeId == kPlatformerMotionState
                    || rule.trigger.typeId == kIsVisible
                    || rule.trigger.typeId == kKeyDown
                    || rule.trigger.typeId == kStateCompare) {
@@ -1196,6 +1220,7 @@ LogicCompileResult compileBoard(const ObjectTypeId& objectTypeId,
                     features.insert("collision.other_type");
                 }
             } else if (rule.trigger.typeId == kIsGrounded || rule.trigger.typeId == kIsFalling
+                       || rule.trigger.typeId == kPlatformerMotionState
                        || rule.trigger.typeId == kIsVisible
                        || rule.trigger.typeId == kKeyDown
                        || rule.trigger.typeId == kStateCompare) {
@@ -1229,6 +1254,7 @@ LogicCompileResult compileBoard(const ObjectTypeId& objectTypeId,
                 features.insert("collision.other_type");
             }
         } else if (rule.trigger.typeId == kIsGrounded || rule.trigger.typeId == kIsFalling
+                   || rule.trigger.typeId == kPlatformerMotionState
                    || rule.trigger.typeId == kIsVisible
                    || rule.trigger.typeId == kKeyDown
                    || rule.trigger.typeId == kStateCompare) {

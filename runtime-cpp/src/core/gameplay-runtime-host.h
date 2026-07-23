@@ -35,6 +35,11 @@ public:
      * Not the same as !isGrounded() — rising after a jump is false.
      */
     virtual bool isFalling(EntityId owner) = 0;
+    /**
+     * True while Self's platformer runtime |velocity.x| exceeds the motion
+     * epsilon (ADR-0015). Not an authoring flag — query only.
+     */
+    virtual bool isPlatformerMoving(EntityId owner) = 0;
     virtual bool requestPlatformerMove(EntityId owner, float axis) = 0;
     /** Adds this input frame's Top Down movement direction for Self. */
     virtual bool requestTopDownMove(EntityId owner, Vec2 direction) = 0;

@@ -15,6 +15,14 @@ std::string conditionExpression(const LogicBlockDef& condition,
         const LogicPropertyDef* property = findProperty(condition, "expected");
         const bool expected = property ? std::get<bool>(property->value) : true;
         expression << "context.self:is_falling() == " << (expected ? "true" : "false");
+    } else if (condition.typeId == kPlatformerMotionState) {
+        const LogicPropertyDef* property = findProperty(condition, "state");
+        const auto* state = property
+            ? std::get_if<LogicStringValue>(&property->value)
+            : nullptr;
+        const bool moving = !state || state->value != "Stopped";
+        expression << "context.self:is_platformer_moving() == "
+                   << (moving ? "true" : "false");
     } else if (condition.typeId == kIsVisible) {
         const LogicPropertyDef* property = findProperty(condition, "expected");
         const bool expected = property ? std::get<bool>(property->value) : true;

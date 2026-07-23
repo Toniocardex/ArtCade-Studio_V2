@@ -37,6 +37,7 @@ inline constexpr const char* kSetVelocity = "physics.set_velocity";
 inline constexpr const char* kSpawnObject = "entity.spawn";
 inline constexpr const char* kIsGrounded = "platformer.is_grounded";
 inline constexpr const char* kIsFalling = "platformer.is_falling";
+inline constexpr const char* kPlatformerMotionState = "platformer.motion_state";
 inline constexpr const char* kMoveHorizontal = "platformer.move_horizontal";
 inline constexpr const char* kJump = "platformer.jump";
 inline constexpr const char* kTopDownMove = "topdown.move";
@@ -88,6 +89,7 @@ enum class LogicPropertySemantic {
     TopDownDirection,
     SpriteFacing,
     PlatformerDirection,
+    PlatformerMotionState,
     HiddenSelfTarget,
 };
 enum class LogicNumberConstraint {

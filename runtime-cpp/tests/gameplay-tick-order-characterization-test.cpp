@@ -120,6 +120,9 @@ struct Host final : IGameplayRuntimeHost {
     }
     bool isGrounded(EntityId owner) override { return world.isPlatformerGrounded(owner); }
     bool isFalling(EntityId owner) override { return world.isPlatformerFalling(owner); }
+    bool isPlatformerMoving(EntityId owner) override {
+        return world.isPlatformerMovingHorizontally(owner);
+    }
     bool requestPlatformerMove(EntityId owner, float axis) override {
         PlatformerControllerComponent pc{};
         if (!gateway.getPlatformerController(owner, pc)) return false;

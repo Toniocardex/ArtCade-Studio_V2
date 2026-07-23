@@ -195,6 +195,10 @@ const std::vector<ScriptApiEntry>& catalogStorage() {
         entry(ScriptApiKind::Method, "ctx.platformer.is_falling", "ctx.platformer",
               "is_falling", "is_falling()", "is_falling()",
               "True when airborne and moving downward (+Y down).", nullptr, 0, "boolean"),
+        entry(ScriptApiKind::Method, "ctx.platformer.is_moving", "ctx.platformer",
+              "is_moving", "is_moving()", "is_moving()",
+              "True when |horizontal velocity| exceeds the platformer motion epsilon "
+              "(Logic Board Platformer Motion Moving).", nullptr, 0, "boolean"),
 
         entry(ScriptApiKind::Method, "ctx.animation.play", "ctx.animation", "play",
               "play(assetId, clipId)", "play(",

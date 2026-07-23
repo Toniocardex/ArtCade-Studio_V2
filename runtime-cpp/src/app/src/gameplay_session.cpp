@@ -106,6 +106,9 @@ bool RuntimeLogicHostAdapter::isGrounded(EntityId owner) {
 bool RuntimeLogicHostAdapter::isFalling(EntityId owner) {
     return world_ && world_->isPlatformerFalling(owner);
 }
+bool RuntimeLogicHostAdapter::isPlatformerMoving(EntityId owner) {
+    return world_ && world_->isPlatformerMovingHorizontally(owner);
+}
 bool RuntimeLogicHostAdapter::requestPlatformerMove(EntityId owner, float axis) {
     PlatformerControllerComponent platformer{};
     if (!world_ || !std::isfinite(axis)

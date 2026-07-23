@@ -133,6 +133,11 @@ public:
      * downward (+Y down). Rising after a jump is false.
      */
     bool isPlatformerFalling(EntityId id) const;
+    /**
+     * True when |PlatformerRt.velocity.x| exceeds the horizontal motion epsilon
+     * (ADR-0015 Platformer Motion). Stopped is the negation — no second query.
+     */
+    bool isPlatformerMovingHorizontally(EntityId id) const;
 
     /** Canonical Logic Runtime operations over materialized world state. */
     bool isActiveEntity(EntityId id) const;

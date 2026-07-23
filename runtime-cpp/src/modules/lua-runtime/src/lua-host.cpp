@@ -278,6 +278,14 @@ int manualPlatformerIsFalling(lua_State* state) {
     return 1;
 }
 
+int manualPlatformerIsMoving(lua_State* state) {
+    IGameplayRuntimeHost* host = manualGameplayHost(state);
+    luaL_checktype(state, 1, LUA_TTABLE);
+    if (!host) return luaL_error(state, "ctx.platformer:is_moving failed");
+    lua_pushboolean(state, host->isPlatformerMoving(manualOwner(state)) ? 1 : 0);
+    return 1;
+}
+
 int manualAnimationPlay(lua_State* state) {
     IGameplayRuntimeHost* host = manualGameplayHost(state);
     luaL_checktype(state, 1, LUA_TTABLE);
@@ -385,6 +393,7 @@ constexpr ManualNamedFn kManualPlatformerMethods[] = {
     {"jump", manualPlatformerJump},
     {"is_grounded", manualPlatformerIsGrounded},
     {"is_falling", manualPlatformerIsFalling},
+    {"is_moving", manualPlatformerIsMoving},
 };
 constexpr ManualNamedFn kManualAnimationMethods[] = {
     {"play", manualAnimationPlay},
